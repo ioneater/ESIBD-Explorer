@@ -1,0 +1,30 @@
+name: esibd
+channels:
+  - conda-forge
+  - bryanwweber
+  - defaults
+dependencies:
+  - numpy
+  - h5py
+  - pathlib
+  - biopython
+  - scipy
+  - rope
+  - asteval
+  - configparser
+  - pyopengl  
+  - keyboard
+  - pandas
+  - pyperclip
+  - pyautogui
+  - python-socketio
+  - pyserial
+  - pip
+  - pip:
+    - matplotlib
+    - pylint
+    - pyqt5
+    - PyQtWebEngine
+    - pyqtgraph
+    - qt-material
+prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

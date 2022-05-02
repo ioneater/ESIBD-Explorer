@@ -1,0 +1,19 @@
+- git tutorial -> link to repository
+
+stuttgart specific:
+- test and debug start sampling without initialization -> no device ready, cant start acquisition
+- fix ini filter to allow load files!! -> works in oxford -> test new filter
+
+low priority
+- remove empty tooltips everywhere! -> MWE (only from designer?) stackoverflow
+- navigationToolbar pdf as default format
+- merge svg -> webengineview -> scaling
+- make manual
+- play sound when signal drops below threshold
+- monitor deposition with remote client
+- add sample / solution manager -> save with metadata / associate with session
+- too small controls on high DPI
+
+
+
+

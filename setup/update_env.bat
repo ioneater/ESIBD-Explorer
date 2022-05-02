@@ -1,0 +1,1 @@
+call conda env update -f esibd.yml
