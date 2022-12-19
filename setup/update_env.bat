@@ -1,1 +1,1 @@
-call conda env update -f esibd.yml
+call conda env update -f esibd.yml --prune

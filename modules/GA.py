@@ -36,6 +36,9 @@ class GA():
         self._file_path              = ''    # file path used to store the results
         self._file_name              = 'GA'  # file name used to store the results
         self._restore                = False  # if true the last saved configuration will be restored
+
+        self.bestfile                = ''
+        self.restorefile             = ''
         # self.terminate # Simion specific parameter that is not implemented in python version
         self.init()
 
@@ -64,7 +67,7 @@ class GA():
 
     def mix(self,a,b): # continuous mixing of parameters from different parents
         beta=np.random.rand()
-        return beta*a+(1-beta)*b, (1-beta)*a+beta*b
+        return beta*a+(1-beta)*b,(1-beta)*a+beta*b
 
 
     def crossover(self):
@@ -91,23 +94,22 @@ class GA():
 
 
 
-    def round_to_n(self,x,n):#round_to_n = lambda x, n: np.round(x, -int(np.floor(np.log10(x))) + (n - 1)) has problems with 0 and inf
+    def round_to_n(self,x,n):#round_to_n = lambda x,n: np.round(x,-int(np.floor(np.log10(x))) + (n - 1)) has problems with 0 and inf
         if x == 0 or x == np.inf or x == -np.inf:
             return x
         else:
-            return np.round(x, -int(np.floor(np.log10(np.abs(x)))) + (n - 1))
+            return np.round(x,-int(np.floor(np.log10(np.abs(x)))) + (n - 1))
 
 
 
-    def save_session(self): # 
+    def save_session(self):
         """always save current state in files"""
-        bestfile = self._file_path + '/' + self._file_name + '_best.txt'
-        restorefile = self._file_path + '/' + self._file_name + '_restore.txt'
         try:
-            best_file=open(bestfile,'a', encoding = 'utf-8') # append
-            restore_file=open(restorefile,'w', encoding = 'utf-8') # overwrite
+            best_file=open(self.bestfile,'a',encoding = 'utf-8') # append
+            restore_file=open(self.restorefile,'w',encoding = 'utf-8') # overwrite
         except Exception as e:
             print(f'GA: could not save session: {e}')
+            return
         self.beststring = ''# save fitness and chromosome of best candidate of each generation
         restorestring = '%10s'%'best fit' # save num_elite best ones fore restoring simulation
         for label in [s.label for s in self.seeds]:
@@ -135,9 +137,8 @@ class GA():
 
 
     def restore_session(self): # restore only if activated by user
-        restorefile = self._file_path + '/' + self._file_name +'_restore.txt'
-        if os.path.exists(restorefile):
-            restore_file=open(restorefile,'r',encoding = 'utf-8')
+        if os.path.exists(self.restorefile):
+            restore_file=open(self.restorefile,'r',encoding = 'utf-8')
         else:
             restore_file=False
         if restore_file and self._restore: # adopt parents from file and create children #  always evaluate parents after restoring session since fitness function might have changed
@@ -169,9 +170,12 @@ class GA():
         return self.current_generation
 
 
-    def GAget(self,label,default=0,index=None): # provide default in case this parameter is not optimized and index to return custom being, typically 0 for best parent
+    def GAget(self,label,default = 0,index = None,initial = False): # provide default in case this parameter is not optimized and index to return custom being,typically 0 for best parent
         if label in self.seed_dict:
-            return self.round_to_n(self.population[self.current_being if index is None else index].values[self.seed_dict[label]],6) # return values rounded to 6 significant digits
+            if initial:
+                return self.seeds[self.seed_dict[label]].initial # return initial parameter
+            else:
+                return self.round_to_n(self.population[self.current_being if index is None else index].values[self.seed_dict[label]],6) # return values rounded to 6 significant digits
         else:
             return default # allows to quickly change between optimized parameters without changing the implementation around GAget
 
@@ -211,6 +215,7 @@ class GA():
     def file_path(self,file_path=None):
         if self.file_path is not None:
             self._file_path=file_path
+            self.updatePaths()
             if not os.path.isdir(file_path):
                 os.mkdir(self._file_path) # does throw error if already exists
         else:
@@ -220,8 +225,13 @@ class GA():
     def file_name(self,file_name=None):
         if file_name is not None:
             self._file_name=file_name
+            self.updatePaths()
         else:
             return self._file_name
+
+    def updatePaths(self):
+        self.bestfile = self._file_path + '/' + self._file_name + '_best.txt'
+        self.restorefile = self._file_path + '/' + self._file_name + '_restore.txt'
 
 
     def rescan_every(self,rescan_every=None):
@@ -267,9 +277,10 @@ class GA():
         self._best_fitness_array   = []
         self._avg_fitness_array    = []
         self._gen_seconds_array    = []
-        self._file_path            = 'C:/Users/srgroup/Desktop'
+        self._file_path            = '' # 'C:/Users/srgroup/Desktop'
         self._file_name            = 'GA'
         self._restore              = False
+
 
 
 
@@ -299,12 +310,13 @@ class GA():
 
 
     def check_restart(self,_terminate=False):
+        """Returns True if the next setting should be applied and tested. The second return parameter indicates if a new session has started"""
         if self.current_being < self.pop_size-1 and not _terminate:
             self.current_being=self.current_being+1
             #print('increased current_being to',current_being)
-            return True # i.e. fly again with chromosome of current_being
+            return True,False # i.e. fly again with chromosome of current_being
         else: # initialize new generation
-            self.population.sort(key=lambda being: being.fitness, reverse = self._maximize)
+            self.population.sort(key=lambda being: being.fitness,reverse = self._maximize)
             self._converged = self._converged + 1 if self.best_fitness() <= self.fit_best else 0 # count up if fitness not improved otherwise reset
             self.fit_best = self.fit_best if self._converged != 0 else self.best_fitness()
             self._best_fitness_array.append(self.best_fitness())
@@ -314,17 +326,17 @@ class GA():
             self.save_session()
             if _terminate:
                 self.current_being=0 # make sure GAget returns best parameters even without explicit index
-                return False
+                return False,True
             else: # initialize new generation
                 self.current_generation=self.current_generation+1
                 print('GA: Starting Generation %i:'%self.current_generation)
                 if self._rescan_every != 0:
                     self.rescan=1 if self.rescan==self._rescan_every else self.rescan+1
-                # reevaluate parents every _rescan_every generations since results may be irreproducible due to noise, otherwise evaluate childrens only
-                self.current_being = self.num_elite if self._rescan_every == 0 or self.rescan != 1 else 0 
+                # reevaluate parents every _rescan_every generations since results may be irreproducible due to noise,otherwise evaluate childrens only
+                self.current_being = self.num_elite if self._rescan_every == 0 or self.rescan != 1 else 0
                 self.crossover()
                 self.mutate()
-                return True
+                return True,True
 
 
 
@@ -337,17 +349,20 @@ class GA():
         self.rescan=1
 
     def GAprint(self,a):  # Prints to sdt out and also writes to the GA log file.
-        best=open(self.file_path + '/' + self.file_name + '_best.txt','a', encoding='utf-8') # append
+        best=open(self.file_path + '/' + self.file_name + '_best.txt','a',encoding='utf-8') # append
         print('GA: ' + a)
         best.write(a + '\n')
         best.close()
 
 
     def print_step(self): # Prints the index and fitness of the current being to std out
-        print('GA: Step %d\nGA: Fitness = %6.2f'%(self.current_being,self.population[self.current_being].fitness))
+        print(self.step_string())
+
+    def step_string(self): # Prints the index and fitness of the current being to std out
+        return 'GA: %d.%d\nGA: Fitness = %6.2f'%(self.generation(),self.current_being,self.population[self.current_being].fitness)
 
 
-    def at_generation_completed(self): 
+    def at_generation_completed(self):
         # This function will be executed at the end of each generation. Redefine it in your program e.g. to print additional results or define custom termination condition.
         pass
 
@@ -358,7 +373,7 @@ class GA():
 
 
 class Seed(): # contains optimization parameters for each parameter. number of seeds corresponds to number of parameters to optimize
-    def __init__(self, initial,_min,_max,_rate,_range, label):
+    def __init__(self,initial,_min,_max,_rate,_range,label):
         self.initial = initial
         self.min    = _min
         self.max    = _max
@@ -390,4 +405,3 @@ def noise(value,seed):
         return max(min(value+np.random.rand()*2*seed.range-seed.range,seed.max),seed.min)
     else:
         return value
-        

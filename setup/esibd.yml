@@ -5,26 +5,27 @@ channels:
   - defaults
 dependencies:
   - numpy
-  - h5py
   - pathlib
   - biopython
   - scipy
   - rope
   - asteval
   - configparser
-  - pyopengl  
   - keyboard
   - pandas
   - pyperclip
   - pyautogui
   - python-socketio
   - pyserial
+  - Send2Trash
   - pip
   - pip:
     - matplotlib
+    - h5py
+    - configobj
     - pylint
-    - pyqt5
-    - PyQtWebEngine
+    - PyQt6
+    - PyQt6-WebEngine
     - pyqtgraph
-    - qt-material
+    - PyOpenGL
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd
