@@ -21,13 +21,17 @@ release = '0.6'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx_rtd_theme','sphinx.ext.autodoc', 'sphinx.ext.coverage','sphinxcontrib.bibtex','sphinx_search.extension']
+extensions = ['sphinx_rtd_theme', 'sphinx.ext.coverage','sphinxcontrib.bibtex','sphinx_search.extension','autoapi.extension'] #,'sphinx.ext.autodoc'
 
 bibtex_reference_style = 'super'
 bibtex_bibfiles = ['ESIBD.bib']
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
+
+autoapi_dirs = ['../Esibd','../plugins']
+autoapi_add_toctree_entry = False
+autoapi_generate_api_docs = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

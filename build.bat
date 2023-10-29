@@ -16,6 +16,7 @@ REM Sphinx -> read the docs
 REM use sphinx-quickstart to generate initial configuration
 REM then edit docs/conf.py to customize
 call rmdir /q /s docs\_build REM delete docs/_build to generate clean documentation
+REM call rmdir /q /s docs\autoapi REM delete docs/_build to generate clean documentation
 REM call rm -r docs\_build REM delete docs/_build to generate clean documentation (works in powershell?)
 call sphinx-build docs docs\_build REM -M coverage
 call docs\make.bat html
