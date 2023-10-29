@@ -4,6 +4,9 @@ channels:
   - bryanwweber
   - defaults
 dependencies:
+  - python==3.11
+  - pyinstaller
+  - sphinx
   - numpy
   - pathlib
   - biopython
@@ -17,6 +20,7 @@ dependencies:
   - pyautogui
   - python-socketio
   - pyserial
+  - pywin32 
   - Send2Trash
   - pip
   - pip:
@@ -26,6 +30,8 @@ dependencies:
     - pylint
     - PyQt6
     - PyQt6-WebEngine
-    - pyqtgraph
+    - pyqtgraph==0.13.1
     - PyOpenGL
+    - sphinx_rtd_theme 
+    - sphinxcontrib-bibtex
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

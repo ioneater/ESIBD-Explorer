@@ -1,0 +1,1090 @@
+"""This module contains classes that contain and manage a list of (extended) UI elements.
+In addition it contains classes used to manage data acquisition.
+Finally it contains classes for data export, and data import."""
+
+import time
+from datetime import datetime, timedelta
+import sys
+import itertools
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import h5py
+from scipy import optimize, interpolate
+from scipy.stats import binned_statistic
+from asteval import Interpreter
+from PyQt6.QtWidgets import QSlider
+from PyQt6.QtCore import QObject, Qt
+import numpy as np
+from Esibd.EsibdCore import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport
+from Esibd.EsibdPlugins import Scan
+winsound = None
+if sys.platform == 'win32':
+    import winsound
+else:
+    print('Module winsound only available on Windows.')
+aeval = Interpreter()
+
+def providePlugins():
+    return [Beam, Energy, Omni, Depo, GA]
+
+class Beam(Scan):
+    """Scan that records the current on one electrode as a function of two voltage
+    channels, typically deflectors. The recorded data can be interpolated to
+    enhance the visualization. The resulting image is used to identify
+    elements like apertures, samples, and detectors. The beam can be moved
+    between those elements by clicking and dragging on the image while
+    holding down the Ctrl key. Limits can be coupled to have the same step
+    size in both directions. Scan limits can be adopted from the figure or
+    centered around the current value, e.g., to zoom in and center on a
+    specific feature."""
+
+    LEFTRIGHT       = 'Left-Right'
+    UPDOWN          = 'Up-Down'
+    name = 'Beam'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.SCAN
+
+    class Display(Scan.Display):
+        """Display for Beam Scan."""
+
+        def finalizeInit(self, aboutFunc=None):
+            self.mouseActive = True
+            super().finalizeInit(aboutFunc)
+            self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.getIcon(), toolTipTrue='Interpolation off.',
+                                                         iconTrue=self.scan.makeIcon('beam_no_int.png'), before=self.copyAction,
+                                                         func=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
+
+        def initFig(self):
+            super().initFig()
+            engine = self.fig.get_layout_engine()
+            engine.set(rect=(0.05,0.0,0.8,0.9)) # constrained_layout ignores labels on colorbar
+            self.axes.append(self.fig.add_subplot(111))
+            self.axes[0].set_aspect('equal', adjustable='box')
+            self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
+            self.canvas.mpl_connect('button_press_event', self.mouseEvent)
+            self.canvas.mpl_connect('button_release_event', self.mouseEvent)
+            self.cont = None
+            divider = make_axes_locatable(self.axes[0])
+            self.cax = divider.append_axes("right", size="5%", pad=0.15)
+            self.cbar = None
+            self.axes[-1].cursor = None
+
+        def runTestParallel(self):
+            if super().runTestParallel():
+                self.testControl(self.interpolateAction, not self.interpolate, 1)
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.useDisplayChannel = True
+        self.previewFileTypes.append('.S2D.dat')
+        self.previewFileTypes.append('.s2d.h5')
+
+    def getIcon(self):
+        return self.makeIcon('beam.png')
+
+    def initGUI(self):
+        super().initGUI()
+        self.addStateAction(toolTipFalse='Coupled step size.', iconFalse=self.makeIcon('lock-unlock.png'), toolTipTrue='Independent step size.',
+                                                     iconTrue=self.makeIcon('lock.png'), before=self.copyAction, attr='coupleStepSize')
+        self.addAction(self.useLimits, 'Adopts limits from display', icon='ruler.png')
+        self.centerAction = self.addAction(func=self.centerLimits, toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
+
+    def loadDataInternal(self):
+        """Loads data in internal standard format for plotting."""
+        if self.file.name.endswith('.S2D.dat'):  # legacy ES-IBD Control file
+            try:
+                data = np.flip(np.loadtxt(self.file).transpose())
+            except ValueError as e:
+                self.print(f'Error when loading from {self.file.name}: {e}', PRINT.WARNING)
+                return
+            if data.shape[0] == 0:
+                self.print(f'no data found in file {self.file.name}', PRINT.WARNING)
+                return
+            self.outputs.append(MetaChannel(name='' , data=data, unit='pA'))
+            self.inputs. append(MetaChannel(name='LR Voltage', data=np.arange(0, 1, 1/self.outputs[0].data.shape[1]),unit='V'))
+            self.inputs. append(MetaChannel(name='UD Voltage', data=np.arange(0, 1, 1/self.outputs[0].data.shape[0]),unit='V'))
+        elif self.file.name.endswith('.s2d.h5'):
+            with h5py.File(self.file, 'r') as f:
+                is03 = f[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if false
+                lr = f['S2DSETTINGS']['Left-Right']
+                _from, to, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
+                self.inputs.append(MetaChannel(name=lr['Channel'].attrs['VALUE'], data=np.linspace(_from, to, int(abs(_from-to)/abs(step))+1),
+                                               unit='V', channel=self.getChannelByName(lr['Channel'].attrs['VALUE'], inout = INOUT.IN)))
+                ud = f['S2DSETTINGS']['Up-Down']
+                _from, to, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
+                self.inputs.append(MetaChannel(name=ud['Channel'].attrs['VALUE'], data=np.linspace(_from, to, int(abs(_from-to)/abs(step))+1),
+                                               unit='V', channel=self.getChannelByName(ud['Channel'].attrs['VALUE'], inout = INOUT.IN)))
+                g = f['Current'] if is03 else f['OUTPUTS']
+                for name, item in g.items():
+                    self.outputs.append(MetaChannel(name=name, data=item[:].transpose(), unit='pA'))
+        else:
+            super().loadDataInternal()
+
+    @Scan.finished.setter
+    def finished(self, finished):
+        Scan.finished.fset(self, finished)
+        # disable inputs while scanning
+        for direction in [self.LEFTRIGHT, self.UPDOWN]:
+            for setting in [self.FROM, self.TO, self.STEP, self.CHANNEL]:
+                self.settingsMgr.settings[f'{direction}/{setting}'].setEnabled(finished)
+
+    def estimateScanTime(self):
+        steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_to, self.LR_step), self.getSteps(self.UD_from, self.UD_to, self.UD_step)))
+        seconds = 0 # estimate scan time
+        for i in range(len(steps)):
+            waitlong = False
+            for j in range(len(self.inputs)):
+                if not waitlong and abs(steps[i-1][j]-steps[i][j]) > self.largestep:
+                    waitlong = True
+                    break
+            seconds += (self.waitlong if waitlong else self.wait) + self.average
+        seconds = round((seconds)/1000)
+        self.scantime = f'{seconds//60:02d}:{seconds%60:02d}'
+
+    def centerLimits(self):
+        c = self.getChannelByName(self.LR_channel)
+        if c is not None:
+            delta = abs(self.LR_to-self.LR_from)/2
+            self.LR_from = c.value - delta
+            self.LR_to = c.value + delta
+        else:
+            self.print(f'Could not find channel {self.LR_channel}')
+        c = self.getChannelByName(self.UD_channel)
+        if c is not None:
+            delta = abs(self.UD_to-self.UD_from)/2
+            self.UD_from = c.value - delta
+            self.UD_to = c.value + delta
+        else:
+            self.print(f'Could not find channel {self.UD_channel}')
+
+    def updateStep(self, step):
+        if self.coupleStepSize:
+            self.LR_step = step
+            self.UD_step = step
+        self.estimateScanTime()
+
+    def initScan(self):
+        return (self.addInputChannel(self.LR_channel, self.LR_from, self.LR_to, self.LR_step) and
+        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_to, self.UD_step) and
+         super().initScan())
+
+    def getDefaultSettings(self):
+        ds = super().getDefaultSettings()
+        ds[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
+                                                                widgetType=Parameter.TYPE.COMBO, attr='LR_channel')
+        ds[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=self.estimateScanTime)
+        ds[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=self.estimateScanTime)
+        ds[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda : self.updateStep(self.LR_step))
+        ds[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
+                                                                widgetType=Parameter.TYPE.COMBO, attr='UD_channel')
+        ds[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=self.estimateScanTime)
+        ds[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=self.estimateScanTime)
+        ds[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda : self.updateStep(self.UD_step))
+        return ds
+
+    def useLimits(self):
+        if self.display.initializedDock:
+            self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
+            self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
+
+    def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
+        """Plots 2D scan data"""
+        # timing test with 50 datapoints: update True: 33 ms, update False: 120 ms
+        if self.loading or len(self.outputs) == 0:
+            return
+        x, y = self.getMeshgrid() # data coordinates
+        if update:
+            z = self.outputs[self.getOutputIndex()].data.ravel()
+            self.display.cont.set_array(z.ravel())
+            self.display.cbar.mappable.set_clim(vmin=np.min(z), vmax=np.max(z))
+        else:
+            self.display.axes[0].clear() # only update would be preferred but not yet possible with contourf
+            self.display.cax.clear()
+            if len(self.outputs) > 0:
+                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+                self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
+                if done and self.display.interpolate:
+                    rbf = interpolate.Rbf(x.ravel(), y.ravel(), self.outputs[self.getOutputIndex()].data.ravel())
+                    xi, yi = self.getMeshgrid(2) # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+                    zi = rbf(xi, yi)
+                    self.display.cont = self.display.axes[0].contourf(xi, yi, zi, levels=100, cmap='afmhot') # contour with interpolation
+                else:
+                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputs[self.getOutputIndex()].data, cmap='afmhot') # contour without interpolation
+                # ax=self.display.axes[0] instead of cax -> colorbar using all awailable height and does not scale to plot
+                self.display.cbar = self.display.fig.colorbar(self.display.cont, cax=self.display.cax) # match axis and color bar size # , format='%d'
+                self.display.cbar.ax.set_title(self.outputs[0].unit)
+                self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight) # has to be initialized last, otherwise axis limits may be affected
+
+        if len(self.outputs) > 0 and self.inputs[0].channel is not None and self.inputs[1].channel is not None:
+            self.display.axes[-1].cursor.setPosition(self.inputs[0].channel.value, self.inputs[1].channel.value)
+        self.updateToolBar(update=update)
+        if len(self.outputs) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        else:
+            self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+
+_interpolate = False # set to True to interpolate data
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy import interpolate
+
+fig = plt.figure(constrained_layout=True)
+ax = fig.add_subplot(111)
+ax.set_aspect('equal', adjustable='box')
+divider = make_axes_locatable(ax)
+cont = None
+cax = divider.append_axes("right", size="5%", pad=0.15)
+
+def getMeshgrid(scaling=1):
+    return np.meshgrid(*[np.linspace(i.data[0], i.data[-1], len(i.data) if scaling == 1 else min(len(i.data)*scaling, 50)) for i in inputs])
+
+x, y = getMeshgrid()
+z = outputs[output_index].data.ravel()
+ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
+
+if _interpolate:
+    rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].data.ravel())
+    xi, yi = getMeshgrid(2) # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+    zi = rbf(xi, yi)
+    cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot') # contour with interpolation
+else:
+    cont = ax.pcolormesh(x, y, outputs[output_index].data, cmap='afmhot') # contour without interpolation
+cbar = fig.colorbar(cont, cax=cax) # match axis and color bar size # , format='%d'
+cbar.ax.set_title(outputs[0].unit)
+
+plt.show()
+        """
+
+    def getMeshgrid(self, scaling=1):
+        # interpolation with more than 50 x 50 gridpoints gets slow and does not add much to the quality for typical scans
+        return np.meshgrid(*[np.linspace(i.data[0], i.data[-1], len(i.data) if scaling == 1 else min(len(i.data)*scaling, 50)) for i in self.inputs])
+
+class Energy(Scan):
+    """Scan that records the current on one electrode, typically a detector plate, as a
+    function of one potential, typically a retarding grid. The display
+    shows the measured transmission data, a discrete derivative,
+    and a Gaussian fit that reveals beam-energy center and width. The
+    potential on the selected channel can be changed by clicking and
+    dragging on the image while holding down the Ctrl key."""
+
+    name = 'Energy'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.SCAN
+
+    class Display(Scan.Display):
+        """Display for energy scan."""
+
+        def initGUI(self):
+            """Initialze GUI"""
+            super().initGUI()
+            self.mouseActive = True
+
+        def initFig(self):
+            super().initFig()
+            self.axes.append(self.fig.add_subplot(111))
+            self.axes.append(self.axes[0].twinx()) # creating twin axis
+            self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
+            self.canvas.mpl_connect('button_press_event', self.mouseEvent)
+            self.canvas.mpl_connect('button_release_event', self.mouseEvent)
+            self.axes[0].yaxis.label.set_color(self.scan.MYBLUE)
+            self.axes[0].tick_params(axis='y', colors=self.scan.MYBLUE)
+            self.axes[1].set_ylabel('-dI/dV (%)')
+            self.axes[1].set_ylim([0, 115]) # keep top 15 % for label
+            self.axes[1].yaxis.label.set_color(self.scan.MYRED)
+            self.axes[1].tick_params(axis='y', colors=self.scan.MYRED)
+            self.seRaw  = self.axes[0].plot([],[], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0] # dummy plot
+            self.seGrad = self.axes[1].plot([],[], marker='.', linestyle='None', color=self.scan.MYRED)[0] # dummy plot
+            self.seFit  = self.axes[1].plot([],[], color=self.scan.MYRED)[0] # dummy plot
+            self.axes[-1].cursor = None
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.useDisplayChannel = True
+        self.previewFileTypes.append('.swp.dat')
+        self.previewFileTypes.append('.swp.h5')
+
+    def getIcon(self):
+        return self.makeIcon('energy.png')
+
+    def loadDataInternal(self):
+        """Loads data in internal standard format for plotting."""
+        if self.file.name.endswith('.swp.dat'): # legacy ES-IBD Control file
+            headers = []
+            with open(self.file,'r', encoding=self.UTF8) as f:
+                f.readline()
+                headers = f.readline().split(',')[1:][::2] # read names from second line
+            try:
+                data = np.loadtxt(self.file, skiprows=4, delimiter=',', unpack=True)
+            except ValueError as e:
+                self.print(f'Error when loading from {self.file.name}: {e}', PRINT.WARNING)
+                return
+            if data.shape[0] == 0:
+                self.print(f'No data found in file {self.file.name}.', PRINT.WARNING)
+                return
+            self.inputs.append(MetaChannel(name='Voltage', data=data[0], unit='V'))
+            for name, dat in zip(headers, data[1:][::2]):
+                self.outputs.append(MetaChannel(name=name.strip(), data=dat, unit='pA'))
+        elif self.file.name.endswith('.swp.h5'):
+            with h5py.File(self.file, 'r') as f:
+                is03 = f[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if false
+                self.inputs.append(MetaChannel(name=f['SESETTINGS']['Channel'].attrs['VALUE'], data=f['Voltage'][:] if is03 else f['INPUT'][:],
+                                               unit='V', channel=self.getChannelByName(f['SESETTINGS']['Channel'].attrs['VALUE'], inout=INOUT.IN)))
+                g = f['Current'] if is03 else f['OUTPUTS']
+                for name, item in g.items():
+                    self.outputs.append(MetaChannel(name=name, data=item[:], unit='pA'))
+        else:
+            super().loadDataInternal()
+
+    def getDefaultSettings(self):
+        ds = super().getDefaultSettings()
+        ds[self.WAIT][Parameter.VALUE] = 2000
+        ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
+                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
+        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
+        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
+        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        return ds
+
+    def initScan(self):
+        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and
+        super().initScan())
+
+    def map_percent(self, x):
+        # can't map if largest deviation from minimum is 0, i.e. all zero
+        return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x) > 0) else 0
+
+    def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
+        """Plots energy scan data including metadata"""
+        # use first that matches display setting, use first availible if not found
+        # timing test with 20 datapoints: update True: 30 ms, update False: 48 ms
+        if len(self.outputs) > 0:
+            y = np.diff(self.outputs[self.getOutputIndex()].data)/np.diff(self.inputs[0].data)
+            x = self.inputs[0].data[:y.shape[0]]+np.diff(self.inputs[0].data)[0]/2 # use as many data points as needed
+            if update: # only update data
+                self.display.seRaw.set_data(self.inputs[0].data, self.outputs[self.getOutputIndex()].data)
+                self.display.seGrad.set_data(x, self.map_percent(-y))
+            else:
+                self.removeAnnotations(self.display.axes[1])
+                if len(self.outputs) > 0:
+                    self.display.axes[0].set_xlim(self.inputs[0].data[0], self.inputs[0].data[-1])
+                    self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} {self.outputs[self.getOutputIndex()].unit}')
+                    self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+                    self.display.seRaw.set_data(self.inputs[0].data, self.outputs[self.getOutputIndex()].data)
+                    self.display.seFit.set_data([],[]) # init
+                    self.display.seGrad.set_data(x, self.map_percent(-y))
+                    for ann in [child for child in self.display.axes[1].get_children() if isinstance(child, mpl.text.Annotation)]:
+                        ann.remove()
+                    if done:
+                        try:
+                            x_fit, y_fit, u, fwhm = self.gaus_fit(x, y, np.mean(x)) # use center as starting guess
+                            if self.inputs[0].data[0] <= u <= self.inputs[0].data[-1]:
+                                self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
+                                self.display.axes[1].annotate(text='', xy=(u-fwhm/2.3, 50), xycoords='data', xytext=(u+fwhm/2.3, 50), textcoords='data',
+                        	        arrowprops=dict(arrowstyle="<->", color=self.MYRED), va='center')
+                                self.display.axes[1].annotate(text=f'center: {u:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(u-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
+                                    textcoords='data', ha='right', va='center', color=self.MYRED)
+                                #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm]) # can screw up x range if fit fails
+                            else:
+                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
+                        except RuntimeError as e:
+                            self.print(f'Fit failed with error: {e}')
+                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False) # has to be initialized last, otherwise axis limits may be affected
+                else: # no data
+                    self.display.seRaw.set_data([],[])
+                    self.display.seFit.set_data([],[])
+                    self.display.seGrad.set_data([],[])
+            self.display.axes[0].relim() # adjust to data
+            self.setLabelMargin(self.display.axes[0], 0.15)
+        if len(self.outputs) > 0 and self.inputs[0].channel is not None:
+            self.display.axes[-1].cursor.setPosition(self.inputs[0].channel.value, 0)
+        self.updateToolBar(update=update)
+        if len(self.outputs) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        else:
+            self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+
+MYBLUE='#1f77b4'
+MYRED='#d62728'
+
+from scipy import optimize
+
+def map_percent(x):
+    return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x) > 0) else 0
+
+def gaussian(x, amp1, cen1, sigma1):
+    return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
+
+def gaus_fit(x, y, c):
+    amp1 = 100
+    sigma1 = 2
+    gauss, *_ = optimize.curve_fit(gaussian, x, y, p0=[amp1, c, sigma1])
+    fwhm = round(2.355 * gauss[2], 1) # Calculate FWHM
+    x_fine=np.arange(np.min(x), np.max(x), 0.05)
+    return x_fine,-gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
+
+fig = plt.figure(constrained_layout=True)
+ax0 = fig.add_subplot(111)
+ax1 = ax0.twinx()
+ax0.yaxis.label.set_color(MYBLUE)
+ax0.tick_params(axis='y', colors=MYBLUE)
+ax1.set_ylabel('-dI/dV (%)')
+ax1.yaxis.label.set_color(MYRED)
+ax1.tick_params(axis='y', colors=MYRED)
+
+y = np.diff(outputs[output_index].data)/np.diff(inputs[0].data)
+x = inputs[0].data[:y.shape[0]]+np.diff(inputs[0].data)[0]/2
+
+ax0.set_xlim(inputs[0].data[0], inputs[0].data[-1])
+ax0.set_ylabel(f'{{outputs[output_index].name}} ({{outputs[output_index].unit}})')
+ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+
+ax0.plot(inputs[0].data, outputs[output_index].data, marker='.', linestyle='None', color=MYBLUE, label='.')[0]
+ax1.plot(x, map_percent(-y), marker='.', linestyle='None', color=MYRED)[0]
+
+try:
+    x_fit, y_fit, u, fwhm = gaus_fit(x, y, np.mean(x))
+    if inputs[0].data[0] <= u <= inputs[0].data[-1]:
+        ax1.plot(x_fit, map_percent(y_fit), color=MYRED)[0]
+        ax1.annotate(text='', xy=(u-fwhm/2.3, 50), xycoords='data', xytext=(u+fwhm/2.3, 50), textcoords='data',
+	        arrowprops=dict(arrowstyle="<->", color=MYRED), va='center')
+        ax1.annotate(text=f'center: {{u:2.1f}} V\\nFWHM: {{fwhm:2.1f}} V', xy=(u-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
+            textcoords='data', ha='right', va='center', color=MYRED)
+    else:
+        print('Fitted mean outside data range. Ignore fit.')
+except RuntimeError as e:
+    print(f'Fit failed with error: {{e}}')
+
+plt.show()
+        """
+
+    def gaussian(self, x, amp1, cen1, sigma1):
+        return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
+
+    def gaus_fit(self, x, y, c):
+        # Define a gaussian to start with
+        amp1 = 100
+        sigma1 = 2
+        gauss, *_ = optimize.curve_fit(self.gaussian, x, y, p0=[amp1, c, sigma1])
+        fwhm = round(2.355 * gauss[2], 1) # Calculate FWHM
+        x_fine=np.arange(np.min(x), np.max(x), 0.05)
+        return x_fine,-self.gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
+
+class Omni(Scan):
+    """This is the most basic scan which simply records a number of arbitrary output
+    channels as a function of a single arbitrary input channel. When switched to the
+    interactive mode, a slider will appear that allows to set the value of
+    the input channel manually and independent of the scan settings. This
+    may be more intuitive and faster than automated scanning, e.g. when looking for a local maximum."""
+
+    name = 'Omni'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.SCAN
+
+    class Display(Scan.Display):
+        """Display for energy scan."""
+
+        def __init__(self, scan, **kwargs):
+            super().__init__(scan, **kwargs)
+            self.xSlider = None
+            self.lines = None
+
+        def initFig(self):
+            super().initFig()
+            self.lines = None
+            self.axes = []
+            self.axes.append(self.fig.add_subplot(111))
+            if self.xSlider is not None:
+                self.xSlider.deleteLater()
+            self.xSlider = QSlider(Qt.Orientation.Horizontal)
+            self.vertLayout.addWidget(self.xSlider)
+            self.xSlider.valueChanged.connect(self.updateX)
+            self.updateInteractive()
+
+        def updateX(self, value):
+            if self.scan.inputs[0].channel is not None:
+                self.scan.inputs[0].channel.value = self.scan._from + value/self.xSlider.maximum()*(self.scan.to - self.scan._from) # map slider range onto range
+
+        def updateInteractive(self):
+            if self.xSlider is not None:
+                self.xSlider.setVisible(self.scan.interactive)
+                if self.scan.interactive and len(self.scan.inputs) > 0:
+                    self.xSlider.setValue(int((self.scan.inputs[0].channel.value - self.scan.inputs[0].channel.min)*
+                                              self.xSlider.maximum()/(self.scan.inputs[0].channel.max - self.scan.inputs[0].channel.min)))
+
+    def getIcon(self):
+        return self.makeIcon('omni.png')
+
+    def getDefaultSettings(self):
+        ds = super().getDefaultSettings()
+        ds[self.WAIT][Parameter.VALUE] = 2000
+        ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
+                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
+        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
+        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
+        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        self.BINS = 'Bins'
+        ds[self.BINS]    = parameterDict(value=20, widgetType=Parameter.TYPE.INT, _min=10, _max=200, attr='bins')
+        self.INTERACTIVE = 'Interactive'
+        ds[self.INTERACTIVE]    = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
+        toolTip='Use the slider to define channel value in interactive mode.\nUse short wait and average when possible to get fast feedback.\nStop scan when done.',
+                                                attr='interactive', event=self.updateInteractive)
+        return ds
+
+    def updateInteractive(self):
+        if self.display is not None and self.display.initializedDock:
+            self.display.updateInteractive()
+        self.estimateScanTime()
+
+    @Scan.finished.setter
+    def finished(self, finished):
+        Scan.finished.fset(self, finished)
+        # disable inputs while scanning
+        self.settingsMgr.settings[self.INTERACTIVE].setEnabled(finished)
+
+    def estimateScanTime(self):
+        if self.interactive:
+            self.scantime = 'n/a'
+        else:
+            super().estimateScanTime()
+
+    def initScan(self):
+        if (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan()):
+            self.toggleDisplay(True)
+            self.display.lines = None
+            self.display.updateInteractive()
+            if self.interactive:
+                self.inputs[0].data = DynamicNp()
+                for o in self.outputs:
+                    o.data = DynamicNp()
+            return True
+        return False
+
+    def loadDataInternal(self):
+        super().loadDataInternal()
+        self.display.lines = None
+
+    def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
+        """Plots omni scan data."""
+        if len(self.outputs) > 0:
+            if self.display.lines is None:
+                self.display.axes[0].clear()
+                self.display.lines = [] # dummy plots
+                for i, o in enumerate(self.outputs):
+                    if o.channel is not None:
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{self.outputs[i].name} ({self.outputs[i].unit})', color=o.channel.color)[0])
+                    else:
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{self.outputs[i].name} ({self.outputs[i].unit})')[0])
+                # self.labelPlot(self.display.axes[0], self.file.name) # text ignored loc='best' https://github.com/matplotlib/matplotlib/issues/23323
+                leg = self.display.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
+                leg.set_in_layout(False)
+            if not update:
+                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+                if self.recording: # show all data if loaded from file
+                    self.display.axes[0].set_xlim(self._from,self.to)
+            if self.interactive:
+                for i, o in enumerate(self.outputs):
+                    x = y = None
+                    if isinstance(o.data,DynamicNp):
+                        x = self.inputs[0].data.get()
+                        y = o.data.get()
+                    else: # numpy.ndarray
+                        x = self.inputs[0].data
+                        y = o.data
+                    mean, bin_edges, _ = binned_statistic(x, y, bins=self.bins, range=(int(self._from), int(self.to)))
+                    self.display.lines[i].set_data((bin_edges[:-1] + bin_edges[1:]) / 2, mean)
+            else:
+                for i, o in enumerate(self.outputs):
+                    self.display.lines[i].set_data(self.inputs[0].data,o.data)
+            self.display.axes[0].relim() # adjust to data
+            self.setLabelMargin(self.display.axes[0], 0.15)
+        self.updateToolBar(update=update)
+        self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+from scipy.stats import binned_statistic
+
+_interactive = False # set to True to use histogram
+bins = 20 # choose number of bins
+_from   = min(inputs[0].data)
+to      = max(inputs[0].data)
+
+fig = plt.figure(constrained_layout=True)
+ax0 = fig.add_subplot(111)
+ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
+for o in outputs:
+    if _interactive:
+        mean, bin_edges, _ = binned_statistic(inputs[0].data, o.data, bins=bins, range=(int(_from), int(to)))
+        ax0.plot((bin_edges[:-1] + bin_edges[1:]) / 2, mean, label=f'{o.name} ({o.unit})')
+    else:
+        ax0.plot(inputs[0].data, data, label=f'{o.name} ({o.unit})')
+ax0.legend(loc='best', prop={'size': 7}, frameon=False)
+plt.show()
+        """ # similar to staticdisplay
+
+    def run(self, recording):
+        """Monitor deposition and log data."""
+        if self.interactive:
+            while recording():
+                # changing input is done in main thrad using slider. Scan is only recording result.
+                time.sleep((self.wait+self.average)/1000) # if step is larger than threashold use longer wait time
+                if self.inputs[0].channel.device.liveDisplay.recording: # get average
+                    self.inputs[0].data.add(np.mean(self.inputs[0].channel.getValues(length=self.measurementsPerStep)))
+                else: # use last value
+                    self.inputs[0].data.add(self.inputs[0].channel.value)
+                for j, o in enumerate(self.outputs):
+                    self.outputs[j].data.add(np.mean(o.channel.getValues(length=self.measurementsPerStep)))
+                if not recording(): # last step
+                    self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
+                    self.signalComm.updateRecordingSignal.emit(False)
+                else:
+                    self.signalComm.scanUpdateSignal.emit(False) # update graph
+        else:
+            steps = self.inputs[0].data
+            self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:02}. Estimated time: {self.scantime}')
+            for i, step in enumerate(steps): # scan over all steps
+                waitlong = False
+                if not waitlong and abs(self.inputs[0].channel.value-step) > self.largestep:
+                    waitlong=True
+                self.inputs[0].channel.signalComm.updateValueSignal.emit(step)
+                time.sleep(((self.waitlong if waitlong else self.wait)+self.average)/1000) # if step is larger than threashold use longer wait time
+                for j, o in enumerate(self.outputs):
+                    o.data[i] = np.mean(o.channel.getValues(length=self.measurementsPerStep))
+                if i == len(steps)-1 or not recording(): # last step
+                    self.inputs[0].channel.signalComm.updateValueSignal.emit(self.inputs[0].initial)
+                    time.sleep(.5) # allow time to reset to initial value before saving
+                    self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
+                    self.signalComm.updateRecordingSignal.emit(False)
+                    break # in case this is last step
+                else:
+                    self.signalComm.scanUpdateSignal.emit(False) # update graph
+
+class Depo(Scan):
+    """Scan that records the sample current and accumulated charge during deposition. A
+    target charge and current threshold can be defined and a message will be
+    played back when the target has been reached or the current drops below
+    the threshold. The time until completion is estimated based on recent data.
+    As data analysis is decoupled from data
+    acquisition, you can continue to use all other scan modes and
+    optimization while the deposition recording is running."""
+
+    name = 'Depo'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.SCAN
+    CHARGE = 'Charge'
+
+    class Display(Scan.Display):
+        """Display for depo scan."""
+
+        def initFig(self):
+            super().initFig()
+            self.axes.append(self.fig.add_subplot(211))
+            self.axes.append(self.fig.add_subplot(212, sharex = self.axes[0]))
+            self.currentLine        = self.fig.axes[0].plot([[datetime.now()]],[0], color=self.scan.MYBLUE)[0] # need to be initialized with datetime on x axis
+            self.currentWarnLine    = self.axes[0].axhline(y=float(self.scan.warnlevel), color=self.scan.MYRED)
+            self.chargeLine         = self.fig.axes[1].plot([[datetime.now()]],[0], color=self.scan.MYBLUE)[0]
+            self.chargePredictionLine = self.fig.axes[1].plot([[datetime.now()]],[0],'--', color=self.scan.MYBLUE)[0]
+            self.depoChargeTarget   = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
+            self.axes[0].tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+            self.addRightAxis(self.axes[0])
+            self.addRightAxis(self.axes[1])
+            self.axes[0].set_ylabel('Current (pA)')
+            self.axes[1].set_ylabel('Charge (pAh)')
+            self.axes[1].set_xlabel(self.TIME)
+            self.tilt_xlabels(self.axes[1])
+            self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top',
+                                                            bbox=dict(boxstyle='square, pad=.2', fc=plt.rcParams['axes.facecolor'], ec='none'))
+            # self.fig.xticks(rotation = 30)
+
+        def updateDepoTarget(self):
+            if self.depoChargeTarget is not None:
+                self.depoChargeTarget.set_ydata(self.scan.target)
+                if np.sign(self.scan.target) == 1:
+                    self.axes[0].set_ylim(0, 1)
+                    self.axes[1].set_ylim(0, 1)
+                else:
+                    self.axes[0].set_ylim(1, 0)
+                    self.axes[1].set_ylim(1, 0)
+                self.axes[0].autoscale(self.scan.autoscale, axis='y')
+                self.axes[0].autoscale(True, axis='x')
+                self.axes[0].relim()
+                self.axes[1].autoscale(True)
+                self.axes[1].relim()
+                self.canvas.draw_idle()
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.useDisplayChannel = True
+
+    def getIcon(self):
+        return self.makeIcon('depo.png')
+
+    def initGUI(self):
+        super().initGUI()
+        self.recordingAction.setToolTip('Toggle deposition.')
+
+    def getDefaultSettings(self):
+        """Defines settings and default values for DepoScan."""
+        ds = super().getDefaultSettings()
+        ds.pop(self.WAIT)
+        ds.pop(self.WAITLONG)
+        ds.pop(self.LARGESTEP)
+        ds.pop(self.SCANTIME)
+        ds[self.DISPLAY][Parameter.VALUE] = 'RT_Sample-Center'
+        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Channel of deposition sample.'
+        ds[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
+        ds[self.AVERAGE][Parameter.VALUE] = 4000
+        ds[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
+                                                                _min=1000, _max=60000, attr='interval')
+        ds['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
+                                                                widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=self.updateDepoTarget)
+        ds['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=self.updateWarnLevel,
+                                                            items='20,15,10, 0, -10, -15, -20', widgetType=Parameter.TYPE.INTCOMBO, attr='warnlevel')
+        ds['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnlevel. Disable to Mute.',
+                                                            widgetType=Parameter.TYPE.BOOL, attr='warn')
+        ds['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
+                                                            widgetType=Parameter.TYPE.BOOL, attr='autoscale')
+        return ds
+
+    def updateDepoTarget(self):
+        if self.display is not None and self.display.initializedDock:
+            self.display.updateDepoTarget()
+
+    def initScan(self):
+        # overwrite parent
+        """Initialized all data and metadata.
+        Returns True if initialization sucessful and scan is ready to start."""
+        for name in self.settingsMgr.settings[self.DISPLAY].items:
+            c = self.getChannelByName(name, inout=INOUT.OUT)
+            if c is None:
+                self.print(f'Could not find channel {name}.', PRINT.WARNING)
+            else:
+                c.resetCharge()
+                self.outputs.append(MetaChannel(name=f'{c.name}', data=DynamicNp(), unit=c.device.unit, channel=c))
+                self.outputs.append(MetaChannel(name=f'{c.name}_{self.CHARGE}', data=DynamicNp(), unit='pAh', channel=c))
+        if len(self.outputs) > 0:
+            self.inputs.append(MetaChannel(name=self.TIME, data=DynamicNp(dtype=np.float64)))
+            self.measurementsPerStep = max(int((self.average/self.interval))-1, 1)
+            # if self.display is not None and self.display.initializedGUI:
+            #     self.removeAnnotations(self.display.axes[1]) # clear labels from last scan
+            # else:
+            self.toggleDisplay(True)
+            self.display.progressAnnotation.set_text('')
+            self.updateFile()
+            self.populateDisplayChannel()
+            self.display.updateDepoTarget() # flip axes if needed
+            return True
+        else:
+            self.print('No initialized output channel found.', PRINT.WARNING)
+            return False
+
+    def loadDataInternal(self):
+        super().loadDataInternal()
+        self.display.updateDepoTarget() # flip axes if needed before plottin
+
+    def populateDisplayChannel(self):
+        # overwrite parent to hide charge channels
+        self.loading = True
+        self.display.displayComboBox.clear()
+        for o in self.outputs:
+            if not f'_{self.CHARGE}' in o.name:
+                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), o.name)
+        self.loading = False
+        self.updateDisplayDefault()
+
+    def updateWarnLevel(self):
+        if self.display is not None and self.display.currentWarnLine is not None:
+            self.display.currentWarnLine.set_ydata(self.warnlevel)
+            self.display.canvas.draw_idle()
+
+    def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
+        """Plots depo data"""
+        # timing test with 360 datapoints (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
+        if self.loading:
+            return
+        if len(self.outputs) > 0:
+            _timeInt = self.getData(0, INOUT.IN)
+            _time = [datetime.fromtimestamp(float(t)) for t in _timeInt] # convert timestamp to datetime
+            current = self.getData(self.getOutputIndex(), INOUT.OUT)
+            charge = self.getData(self.getOutputIndex()+1, INOUT.OUT)
+            self.display.currentLine.set_data(_time, current)
+            self.display.chargeLine .set_data(_time, charge)
+            time_done_str = 'unknown'
+            end_str = 'end'
+            if len(_time) > 10: # predict scan based on last 10 datapoints
+                if update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]): # only predict if below target and charge is increasing
+                    time_done = datetime.fromtimestamp(float(_timeInt[-1] + (_timeInt[-1]-_timeInt[-10])/(charge[-1]-charge[-10])*(float(self.target) - charge[-1]))) # t_t=t_i + dt/dQ * Q_missing
+                    self.display.chargePredictionLine.set_data([_time[-1], time_done],[charge[-1], self.target])
+                    time_done_str = self.roundDateTime(time_done).strftime('%H:%M')
+                    end_str = 'estimated end'
+                else:
+                    self.display.chargePredictionLine.set_data([[_time[0]]],[0]) # hide at beginning and end of scan or if loaded from file
+                if done:
+                    time_done_str = self.roundDateTime(datetime.fromtimestamp(float(_timeInt[-1]))).strftime('%H:%M')
+            if len(_time) > 0: # predict scan based on last 10 datapoints
+                self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(_time[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
+                                        + f"{charge[-1]-charge[0]:2.1f} pAh deposited within {int(np.ceil((_timeInt[-1]-_timeInt[0])//60))} min")
+        else: # no data
+            self.removeAnnotations(self.display.axes[1])
+            self.display.currentLine.set_data([],[])
+            self.display.chargeLine .set_data([],[])
+        self.display.axes[0].autoscale(True, axis='x')
+        self.display.axes[0].relim()
+        self.display.axes[1].autoscale(True)
+        self.display.axes[1].relim()
+        if self.autoscale:
+            self.setLabelMargin(self.display.axes[0], 0.3)
+        self.updateToolBar(update=update)
+        if len(self.outputs) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        else:
+            self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+
+from datetime import datetime
+
+MYBLUE='#1f77b4'
+
+def addRightAxis(ax):
+    axr = ax.twinx()
+    axr.tick_params(direction="out", right=True)
+    axr.sharey(ax)
+
+fig = plt.figure(constrained_layout=True)
+ax0 = fig.add_subplot(211)
+ax1 = fig.add_subplot(212, sharex = ax0)
+
+for label in ax1.get_xticklabels(which='major'):
+    label.set_ha('right')
+    label.set_rotation(30)
+
+_timeInt = inputs[0].data
+_time = [datetime.fromtimestamp(float(t)) for t in _timeInt] # convert timestamp to datetime
+current = outputs[output_index].data
+charge = outputs[output_index+1].data
+
+ax0.plot(_time, current, color=MYBLUE)[0]
+ax1.plot(_time, charge, color=MYBLUE)[0]
+
+ax0.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+addRightAxis(ax0)
+addRightAxis(ax1)
+ax0.set_ylabel('Current (pA)')
+ax1.set_ylabel('Charge (pAh)')
+ax1.set_xlabel('Time')
+
+plt.show()
+
+        """
+
+    def roundDateTime(self, tm):
+        """Rounds to nearest minute."""
+        discard = timedelta(minutes=tm.minute % 1,
+                             seconds=tm.second,
+                             microseconds=tm.microsecond)
+        tm -= discard
+        if discard >= timedelta(seconds=30):
+            tm += timedelta(minutes=1)
+        return tm
+
+    def run(self, recording):
+        """Monitor deposition and log data."""
+        while recording():
+            time.sleep(self.interval/1000)
+            self.inputs[0].data.add(time.time())
+            for i, o in enumerate(self.outputs):
+                if i%2 == 0:
+                    self.outputs[i].data.add(np.mean(o.channel.getValues(subtractBackground=True, length=self.measurementsPerStep)))
+                else:
+                    self.outputs[i].data.add(o.channel.charge)
+            if self.warn and winsound is not None: # Sound only supported for windows
+                if (np.sign(self.target) == 1 and self.getData(self.getOutputIndex()+1, INOUT.OUT)[-1] > float(self.target) or
+                              np.sign(self.target) == -1 and self.getData(self.getOutputIndex()+1, INOUT.OUT)[-1] < float(self.target)):
+                    winsound.PlaySound(str(self.dependencyPath / 'done.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
+                elif (np.sign(self.warnlevel) == 1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] < float(self.warnlevel) or
+                              np.sign(self.warnlevel) == -1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] > float(self.warnlevel)):
+                    winsound.PlaySound(str(self.dependencyPath / 'alarm.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
+            if recording(): # all but last step
+                self.signalComm.scanUpdateSignal.emit(False) # update graph
+        self.signalComm.scanUpdateSignal.emit(True) # update graph and save data # placed after while loop to ensure it will be executed
+
+class GA(Scan):
+    """Genetic algorithm that optimizes input channels based on feedback from a single output channel.
+    The output channel can be virtual and contain an equation that references many other channels."""
+
+    name = 'GA'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.SCAN
+
+    class GASignalCommunicate(QObject):
+        updateValuesSignal = pyqtSignal(int, bool)
+
+    class Display(Scan.Display):
+
+        def initFig(self):
+            super().initFig()
+            self.axes.append(self.fig.add_subplot(111))
+            self.bestLine = self.axes[0].plot([[datetime.now()]],[0], label='best fitness')[0] # need to be initialized with datetime on x axis
+            self.avgLine  = self.axes[0].plot([[datetime.now()]],[0], label='avg fitness')[0]
+            leg = self.axes[0].legend(loc='lower right', prop={'size': 10}, frameon=False)
+            leg.set_in_layout(False)
+            self.axes[0].set_xlabel(self.TIME)
+            self.axes[0].set_ylabel('Fitness Value')
+            # self.axes[0].margins(y=.1) # not yet supported for individual sides https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
+            self.tilt_xlabels(self.axes[0])
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.ga = dynamicImport('GA', self.dependencyPath / 'GA.py').GA()
+        self.gaSignalComm = self.GASignalCommunicate()
+        self.gaSignalComm.updateValuesSignal.connect(self.updateValues)
+        self.changeLog = []
+
+    def getIcon(self):
+        return self.makeIcon('GA_dark.png') if getDarkMode() else self.makeIcon('GA_light.png')
+
+    def initGUI(self):
+        super().initGUI()
+        self.recordingAction.setToolTip('Toggle optimization.')
+        self.addStateAction(func=self.toggleInitial, toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
+                                                 toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
+
+    def getDefaultSettings(self):
+        ds = super().getDefaultSettings()
+        ds.pop(self.WAITLONG)
+        ds.pop(self.LARGESTEP)
+        ds.pop(self.SCANTIME)
+        ds['GA Channel'] = ds.pop(self.DISPLAY) # keep display for using displaychannel functionality but modify properties as needed
+        ds['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
+        ds['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
+        ds['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', widgetType=Parameter.TYPE.BOOL, attr='log')
+        return ds
+
+    def toggleInitial(self):
+        if len(self.outputs) > 0:
+            self.gaSignalComm.updateValuesSignal.emit(0, self.applyInitialParameters)
+        else:
+            self.applyInitialParameters = False
+            self.print('GA not initialized.')
+
+    def initScan(self):
+        """ Start optimization."""
+        # overwrite parent
+        gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
+        self.ga.init() # don't mix up with init method from Scan
+        self.ga.maximize(True)
+        # self.restore(True)
+        if gaChannel is None:
+            self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
+            return False
+        elif not gaChannel.device.liveDisplay.recording:
+            self.print(f'Channel {self.displayDefault} not recording. Cannot start optimization.', PRINT.WARNING)
+            return False
+        else:
+            self.inputs.append(MetaChannel(name=self.TIME, data=DynamicNp(dtype=np.float64)))
+            self.outputs.append(MetaChannel(name=f'{gaChannel.name}'    , data=DynamicNp(), unit=gaChannel.device.unit, channel=gaChannel))
+            self.outputs.append(MetaChannel(name=f'{gaChannel.name}_Avg', data=DynamicNp(), unit=gaChannel.device.unit, channel=gaChannel))
+            self.toggleDisplay(True)
+            self.display.axes[0].set_ylabel(gaChannel.name)
+        for c in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
+            if c.optimize:
+                self.ga.optimize(c.value, c.min, c.max,.2, abs(c.max-c.min)/10, c.name)
+            else:
+                self.ga.optimize(c.value, c.min, c.max, 0, abs(c.max-c.min)/10, c.name) # add entry but set rate to 0 to prevent value change. Can be activated later.
+        self.ga.genesis()
+        self.measurementsPerStep = max(int((self.average/self.outputs[0].channel.device.interval))-1, 1)
+        self.updateFile()
+        self.ga.file_path(self.file.parent.as_posix())
+        self.ga.file_name(self.file.name)
+        self.applyInitialParameters = False
+        return True
+
+    def plot(self, update=False, **kwargs): # pylint:disable=unused-argument
+        """Plots fitness data"""
+        # timing test with 160 generations: update True: 25 ms, update False: 37 ms
+        if self.loading:
+            return
+        if len(self.outputs) > 0:
+            _time = [datetime.fromtimestamp(float(t)) for t in self.getData(0, INOUT.IN)] # convert timestamp to datetime
+            self.display.bestLine.set_data(_time, self.getData(0, INOUT.OUT))
+            self.display.avgLine.set_data(_time, self.getData(1, INOUT.OUT))
+        else: # no data
+            self.display.bestLine.set_data([],[])
+            self.display.avgLine.set_data([],[])
+        self.display.axes[0].autoscale(True, axis='x')
+        self.display.axes[0].relim()
+        self.display.axes[0].autoscale_view(True, True, False)
+        if len(self.getData(0, INOUT.OUT)) > 1:
+            self.setLabelMargin(self.display.axes[0], 0.15)
+        self.updateToolBar(update=update)
+        self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+from datetime import datetime
+
+fig = plt.figure(constrained_layout=True)
+ax0 = fig.add_subplot(111)
+ax0.set_xlabel('Time')
+ax0.set_ylabel('Fitness Value')
+for label in ax0.get_xticklabels(which='major'):
+    label.set_ha('right')
+    label.set_rotation(30)
+_time = [datetime.fromtimestamp(float(t)) for t in inputs[0].data]
+ax0.plot(_time, outputs[0].data, label='best fitness')[0]
+ax0.plot(_time, outputs[1].data, label='avg fitness')[0]
+ax0.legend(loc='lower right', prop={'size': 10}, frameon=False)
+plt.show()
+        """
+
+    def run(self, recording):
+        """Run GA optimization."""
+        #first datapoint before optimization
+        self.inputs[0].data.add(time.time())
+        fitnessStart = np.mean(self.outputs[0].channel.getValues(length=self.measurementsPerStep))
+        self.outputs[0].data.add(fitnessStart)
+        self.outputs[1].data.add(fitnessStart)
+        while recording():
+            self.gaSignalComm.updateValuesSignal.emit(-1, False)
+            time.sleep((self.wait+self.average)/1000)
+            self.ga.fitness(np.mean(self.outputs[0].channel.getValues(length=self.measurementsPerStep)))
+            if self.log:
+                # printing from thread can cause small delays which may lead to inconsistent printing order -> use normal print instead of self.print
+                print(self.ga.step_string())
+            _, session_saved = self.ga.check_restart()
+            if session_saved:
+                self.inputs[0].data.add(time.time())
+                self.outputs[0].data.add(self.ga.best_fitness())
+                self.outputs[1].data.add(self.ga.average_fitness())
+                self.signalComm.scanUpdateSignal.emit(False)
+        self.ga.check_restart(True) # sort population
+        self.gaSignalComm.updateValuesSignal.emit(0, False)
+        self.signalComm.scanUpdateSignal.emit(True)
+
+    def updateValues(self, index=None, initial=False):
+        # only call in main thread as updates GUI
+        self.pluginManager.loading = True # only update after setting all voltages
+        for c in [c for c in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if c.optimize]:
+            c.value = self.ga.GAget(c.name, c.value, index=index, initial=initial)
+        self.pluginManager.loading = False
+        self.pluginManager.DeviceManager.globalUpdate(inout=INOUT.IN)
+
+    def saveScanParallel(self, file):
+        self.changeLog = [f'Change log for optimizing channels by {self.name}:']
+        for c in [c for c in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if c.optimize]:
+            self.changeLog.append(f'Changed value of {c.name} from {self.ga.GAget(c.name, c.value, initial=True)} to {self.ga.GAget(c.name, c.value, index=0)}.')
+        if len(self.changeLog) == 1:
+            self.changeLog.append('No changes.')
+        self.pluginManager.Text.setTextParallel('\n'.join(self.changeLog))
+        self.print('Change log available in Text plugin.')
+        super().saveScanParallel(file)

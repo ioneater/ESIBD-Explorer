@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"  
+  "http://www.w3.org/TR/html4/loose.dtd">  
+<html > 
+<head><title></title> 
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"> 
+<meta name="generator" content="TeX4ht (https://tug.org/tex4ht/)"> 
+<meta name="originator" content="TeX4ht (https://tug.org/tex4ht/)"> 
+<!-- html --> 
+<meta name="src" content="changelog.tex"> 
+<link rel="stylesheet" type="text/css" href="changelog.css"> 
+</head><body 
+>
+<!--l. 46--><p class="noindent" ><span 
+class="ptmr8t-x-x-172">ES-IBD Explorer</span><br />
+<span 
+class="ptmr8t-x-x-144">A comprehensive data acquisition and analysis tool for</span><br />
+<span 
+class="ptmr8t-x-x-144">Electrospray Ion-Beam Deposition experiments.</span><br />
+October 2, 2023<br />
+  <h3 class="likesectionHead"><a 
+ id="x1-1000"></a>Contents</h3>
+  <div class="tableofcontents">
+  <span class="sectionToc" >1 <a 
+href="#x1-20001" id="QQ2-1-2">Change Log</a></span>
+<br />  &#x00A0;<span class="subsectionToc" >1.1 <a 
+href="#x1-30001.1" id="QQ2-1-3">2023-10-XX Version 0.6</a></span>
+<br />  &#x00A0;<span class="subsectionToc" >1.2 <a 
+href="#x1-40001.2" id="QQ2-1-4">Version 0.5</a></span>
+<br />  &#x00A0;<span class="subsectionToc" >1.3 <a 
+href="#x1-50001.3" id="QQ2-1-5">Version 0.4</a></span>
+<br />  &#x00A0;<span class="subsectionToc" >1.4 <a 
+href="#x1-90001.4" id="QQ2-1-9">2022-03-08 Version 0.1</a></span>
+  </div>
+<!--l. 55--><p class="noindent" >
+  <h3 class="sectionHead"><span class="titlemark">1  </span> <a 
+ id="x1-20001"></a>Change Log</h3>
+<!--l. 63--><p class="noindent" >
+  <h4 class="subsectionHead"><span class="titlemark">1.1  </span> <a 
+ id="x1-30001.1"></a>2023-10-XX Version 0.6</h4>
+     <ul class="itemize1">
+     <li class="itemize">
+     <!--l. 65--><p class="noindent" >standalone installer available for windows
+     </li>
+     <li class="itemize">
+     <!--l. 66--><p class="noindent" >internal plugins are kept in the program folder and may be affected by updates. Users can specify a
+     plugin path and add custom plugins, but are responsible to maintain them.
+     </li>
+     <li class="itemize">
+     <!--l. 67--><p class="noindent" >Complete overhaul of user interface and docking system.
+     </li>
+     <li class="itemize">
+                                                                                        
+                                                                                        
+     <!--l. 68--><p class="noindent" >This is the first public version. All changes relative to this version will be documented in future
+     releases.
+     </li>
+     <li class="itemize">
+     <!--l. 69--><p class="noindent" >Note,  the  file  formats  have  not  been  altered  or  altered  in  a  backwards  compatible  way  that
+     automatically adds default values for parameters that do not exist in old files.
+     </li>
+     <li class="itemize">
+     <!--l. 73--><p class="noindent" ></li></ul>
+<!--l. 76--><p class="noindent" >
+  <h4 class="subsectionHead"><span class="titlemark">1.2  </span> <a 
+ id="x1-40001.2"></a>Version 0.5</h4>
+<!--l. 77--><p class="noindent" >Update notes: For a save update, backup and remove all files from your config folder. These files will be
+automatically generated in the correct format. You may then adjust them as necessary based on your backed up
+files, while sticking to the new format. All device and display code is now organized as plugins. See <span 
+class="ptmb8t-x-x-109">??</span> for
+details.
+<!--l. 80--><p class="noindent" >
+  <h4 class="subsectionHead"><span class="titlemark">1.3  </span> <a 
+ id="x1-50001.3"></a>Version 0.4</h4>
+<!--l. 81--><p class="noindent" >Update notes: You need to delete settings.ini and config.h5 from your settings folder. Updated versions will be
+generated on the first start after the update. You can then manualy restore your settings. In the future, file format
+changes during updates will be automated. In this release, the definition of lens and name in the current tab were
+changed to name and deviceName to increase consistency. Please adjust your settings accordingly after the first
+start.
+<!--l. 84--><p class="indent" >  <a 
+ id="paragraph*.1"></a>
+<!--l. 84--><p class="noindent" ><span class="paragraphHead"><a 
+ id="x1-60001.3"></a><span 
+class="ptmb8t-x-x-109">New features</span></span>
+     <ul class="itemize1">
+     <li class="itemize">
+     <!--l. 86--><p class="noindent" >Added "Depo" tab to display and document deposition.
+     </li>
+     <li class="itemize">
+     <!--l. 87--><p class="noindent" >Result of mass analysis is shown in plot.
+     </li>
+     <li class="itemize">
+     <!--l. 88--><p class="noindent" >Added "Move to Recycle Bin" feature to explorer items.
+                                                                                        
+                                                                                        
+     </li>
+     <li class="itemize">
+     <!--l. 89--><p class="noindent" >The initial signal is used instead of 0 to initialize 2D scans, making to displayed color range more
+     usfull.
+     </li>
+     <li class="itemize">
+     <!--l. 90--><p class="noindent" >The device configuration can be exported directly to the current session.
+     </li>
+     <li class="itemize">
+     <!--l. 91--><p class="noindent" >The most common current plot functions are now directly attached to the current plot and always
+     accessible. In addition, the voltage button moved here to indicate the voltage status at all times and
+     allow quick access in case of an emergency.
+     </li>
+     <li class="itemize">
+     <!--l. 92--><p class="noindent" >The position on the 2D scan is indicated by a cursor.
+     </li>
+     <li class="itemize">
+     <!--l. 93--><p class="noindent" >The manual can be accessed from the Help menu.
+     </li>
+     <li class="itemize">
+     <!--l. 94--><p class="noindent" >Combo boxes can no longer change accidentally by mouse wheel scrolling.
+     </li>
+     <li class="itemize">
+     <!--l. 95--><p class="noindent" >The optimization progress is shown in a dedicated tab while running.
+     </li>
+     <li class="itemize">
+     <!--l. 96--><p class="noindent" >Background subtraction is active by default, though there is no effect until backgrounds are defined.
+     </li>
+     <li class="itemize">
+     <!--l. 97--><p class="noindent" >Color bar for 2D scans is labeled.
+     </li>
+     <li class="itemize">
+     <!--l. 98--><p class="noindent" >More content is dockable.
+     </li>
+     <li class="itemize">
+     <!--l. 99--><p class="noindent" >Added custom device tab example. See new section in documentation for details.
+                                                                                        
+                                                                                        
+     </li>
+     <li class="itemize">
+     <!--l. 100--><p class="noindent" >Devices will now generate default .ini files if no file is found. This can be useful to make sure the
+     files are valid before populating them with additional channels.
+     </li>
+     <li class="itemize">
+     <!--l. 101--><p class="noindent" >Settings are saved directly, not just when exiting program.
+     </li>
+     <li class="itemize">
+     <!--l. 102--><p class="noindent" >The  Testmode  can  now  be  activated  directly  from  the  settings  menu  and  stays  active  if  the
+     application is restarted
+     </li>
+     <li class="itemize">
+     <!--l. 103--><p class="noindent" >All device settings is saved together with the measurement data in a single .h5 file. Values can be
+     loaded by right clicking the file or importing from the corresponding device tab.
+     </li>
+     <li class="itemize">
+     <!--l. 104--><p class="noindent" >The  performance  and  error  messages  of  the  equation  evaluation  routine  have  been  improved.
+     Standard math functions can be used and there are no special requirements for spaces or brackets.
+     </li>
+     <li class="itemize">
+     <!--l. 106--><p class="noindent" ></li></ul>
+<!--l. 108--><p class="indent" >  <a 
+ id="paragraph*.2"></a>
+<!--l. 108--><p class="noindent" ><span class="paragraphHead"><a 
+ id="x1-70001.3"></a><span 
+class="ptmb8t-x-x-109">Bug fixes</span></span>
+     <ul class="itemize1">
+     <li class="itemize">
+     <!--l. 110--><p class="noindent" >Fixed live update of min max limits for voltage channels.
+     </li>
+     <li class="itemize">
+     <!--l. 111--><p class="noindent" >Scans cannot be started before the previous scan has been saved.
+     </li>
+     <li class="itemize">
+     <!--l. 112--><p class="noindent" >Made sure that potentials are reset to initial values before scans are saved.
+                                                                                        
+                                                                                        
+     </li>
+     <li class="itemize">
+     <!--l. 113--><p class="noindent" >Displays  and  channels  are  no  longer  overwritten  when  loading  scan  settings.  Instead,  only  non
+     existing items from the file are added to the present list.
+     </li>
+     <li class="itemize">
+     <!--l. 114--><p class="noindent" >Current channels are reset and removed from plot when disabled by the user.
+     </li>
+     <li class="itemize">
+     <!--l. 115--><p class="noindent" >The file labels on top of figures are scaled to the figure width to be always visible.
+     </li>
+     <li class="itemize">
+     <!--l. 116--><p class="noindent" >Changing the display channel during and after scanning is now more reliable.
+     </li>
+     <li class="itemize">
+     <!--l. 117--><p class="noindent" >Mass spec data display interpolates data before down sampling for more accurate display.
+     </li>
+     <li class="itemize">
+     <!--l. 119--><p class="noindent" ></li></ul>
+<!--l. 121--><p class="indent" >  <a 
+ id="paragraph*.3"></a>
+<!--l. 121--><p class="noindent" ><span class="paragraphHead"><a 
+ id="x1-80001.3"></a><span 
+class="ptmb8t-x-x-109">Performance improvements</span></span>
+     <ul class="itemize1">
+     <li class="itemize">
+     <!--l. 123--><p class="noindent" >Explorer will only index files as the tree is expanded.
+     </li>
+     <li class="itemize">
+     <!--l. 124--><p class="noindent" >If possible, scan plots only update data to improve performance.
+     </li>
+     <li class="itemize">
+     <!--l. 126--><p class="noindent" ></li></ul>
+<!--l. 130--><p class="noindent" >
+  <h4 class="subsectionHead"><span class="titlemark">1.4  </span> <a 
+ id="x1-90001.4"></a>2022-03-08 Version 0.1</h4>
+   
+</body></html> 
+
+                                                                                        
+
+

@@ -1,0 +1,133 @@
+\documentclass[a4paper,11pt,DIV=13]{scrartcl}
+\usepackage[scaled]{helvet}
+\usepackage[utf8]{inputenc} 
+\usepackage[T1]{fontenc}
+\usepackage{graphicx,textcomp,booktabs,pdflscape}
+\usepackage{amsmath,mathptmx,courier,mhchem,siunitx}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage[%  
+  bookmarks,                   %% PDF-Lesezeichen
+  bookmarksopen=true,          %% Lesezeichenbaum aufgeklappt...
+  bookmarksopenlevel=2,        %% ...um eine Ebene
+  bookmarksnumbered=true,      %% Lesezeichen numerieren
+  pdfusetitle,                 %% LaTeX-Titelei als Metainfo nehmen
+  pdfstartpage={1},            %% mit welcher Seite das PDF öffnen
+  pdfstartview={FitH},         %% Zoom auf Seitenbreite
+  pdfkeywords={},              %% Stichwörter fürs PDF, kommagetrennt
+  pdfsubject={},               %% Themenbeschreibung kurz
+  pdfcreator={LaTeX with KOMA-Script and hyperref package},
+  hyperfootnotes=true,         %% Links auf Fußnoten
+  hyperindex=true,             %% Indexeinträge verweisen auf Text
+   colorlinks = true,
+  linkcolor = MidnightBlue, %black
+  anchorcolor = black,
+	citecolor = ForestGreen,
+	filecolor = magenta,
+	menucolor = blue ,	
+	urlcolor = cyan, 
+  linkbordercolor={0 1 1},     %% Rahmenfarbe interne Links
+  menubordercolor={0 1 1},     %% Rahmenfarbe Literaturlinks
+  urlbordercolor={1 0 0}       %% Rahmenfarbe externe Links
+]{hyperref}                    %% Hyperlinks und Lesezeichen in PDF 
+\usepackage{nameref}
+% \usepackage{prettyref}
+% \newrefformat{sec}{\hyperref[#1]{Sec.~\ref*{#1}}}
+\usepackage[all]{hypcap}
+
+\newif\ifverboose
+% \ifdefined\verboose
+\verboosetrue % uncomment to compile user changelog
+% \else
+% \verboosefalse
+% \fi
+
+\begin{document}
+\begin{centering}
+{\LARGE ES-IBD Explorer}\\
+\vspace{.5cm}
+{\Large A comprehensive data acquisition and analysis tool for \\ Electrospray Ion-Beam Deposition experiments.} \\
+\vspace{.5cm}
+{\today}\\
+\end{centering}
+
+\tableofcontents
+
+\section{Change Log}
+    % Added for new features.
+    % Changed for changes in existing functionality.
+    % Deprecated for soon-to-be removed features.
+    % Removed for now removed features.
+    % Fixed for any bug fixes.
+    % Security in case of vulnerabilities.
+
+\subsection{2023-10-XX Version 0.6}
+\begin{itemize}
+\item standalone installer available for windows
+\item internal plugins are kept in the program folder and may be affected by updates. Users can specify a plugin path and add custom plugins, but are responsible to maintain them.
+\item Complete overhaul of user interface and docking system.
+\item This is the first public version. All changes relative to this version will be documented in future releases.
+\item Note, the file formats have not been altered or altered in a backwards compatible way that automatically adds default values for parameters that do not exist in old files.
+% \ifverboose \item this is only for coders \else \fi
+% \item \ifdefined\verboose it is defined \else it is not \fi
+\item 
+\end{itemize}
+
+
+\subsection{Version 0.5}
+Update notes: For a save update, backup and remove all files from your config folder. These files will be automatically generated in the correct format. You may then adjust them as necessary based on your backed up files, while sticking to the new format.
+All device and display code is now organized as plugins. See \ref{sec:plugins} for details.
+
+\subsection{Version 0.4}
+Update notes: You need to delete settings.ini and config.h5 from your settings folder. Updated versions will be generated on the first start after the update. You can then manualy restore your settings. In the future, file format changes during updates will be automated. 
+In this release, the definition of lens and name in the current tab were changed to name and deviceName to increase consistency. Please adjust your settings accordingly after the first start.
+
+\paragraph{New features}
+\begin{itemize}
+\item Added "Depo" tab to display and document deposition.
+\item Result of mass analysis is shown in plot.
+\item Added "Move to Recycle Bin" feature to explorer items.
+\item The initial signal is used instead of 0 to initialize 2D scans, making to displayed color range more usfull.
+\item The device configuration can be exported directly to the current session.
+\item The most common current plot functions are now directly attached to the current plot and always accessible. In addition, the voltage button moved here to indicate the voltage status at all times and allow quick access in case of an emergency.
+\item The position on the 2D scan is indicated by a cursor.
+\item The manual can be accessed from the Help menu.
+\item Combo boxes can no longer change accidentally by mouse wheel scrolling.
+\item The optimization progress is shown in a dedicated tab while running.
+\item Background subtraction is active by default, though there is no effect until backgrounds are defined.
+\item Color bar for 2D scans is labeled.
+\item More content is dockable.
+\item Added custom device tab example. See new section in documentation for details.
+\item Devices will now generate default .ini files if no file is found. This can be useful to make sure the files are valid before populating them with additional channels.
+\item Settings are saved directly, not just when exiting program.
+\item The Testmode can now be activated directly from the settings menu and stays active if the application is restarted
+\item All device settings is saved together with the measurement data in a single .h5 file. Values can be loaded by right clicking the file or importing from the corresponding device tab.
+\item The performance and error messages of the equation evaluation routine have been improved. Standard math functions can be used and there are no special requirements for spaces or brackets.
+\item 
+\end{itemize}
+
+\paragraph{Bug fixes}
+\begin{itemize}
+\item Fixed live update of min max limits for voltage channels.
+\item Scans cannot be started before the previous scan has been saved.
+\item Made sure that potentials are reset to initial values before scans are saved.
+\item Displays and channels are no longer overwritten when loading scan settings. Instead, only non existing items from the file are added to the present list.
+\item Current channels are reset and removed from plot when disabled by the user.
+\item The file labels on top of figures are scaled to the figure width to be always visible.
+\item Changing the display channel during and after scanning is now more reliable.
+\item Mass spec data display interpolates data before down sampling for more accurate display.
+\item 
+\end{itemize}
+
+\paragraph{Performance improvements}
+\begin{itemize}
+\item Explorer will only index files as the tree is expanded.
+\item If possible, scan plots only update data to improve performance.
+\item 
+\end{itemize}
+
+% \subsection{TODO Version 0.3}
+% \subsection{TODO Version 0.2}
+\subsection{2022-03-08 Version 0.1}
+
+\end{document}
+

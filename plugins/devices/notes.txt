@@ -1,0 +1,10 @@
+Creator: ioneater
+
+Purpose:
+
+Changelog:
+
+VoltageDevice version 1.1
+- all socket communication is done in parallel thread and not slowing down user interface anymore. race conditions are prevented using threading.Lock
+
+
