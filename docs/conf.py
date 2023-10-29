@@ -21,7 +21,7 @@ release = '0.6'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx_rtd_theme','sphinx.ext.autodoc', 'sphinx.ext.coverage','sphinxcontrib.bibtex']
+extensions = ['sphinx_rtd_theme','sphinx.ext.autodoc', 'sphinx.ext.coverage','sphinxcontrib.bibtex','sphinx_search.extension']
 
 bibtex_reference_style = 'super'
 bibtex_bibfiles = ['ESIBD.bib']
