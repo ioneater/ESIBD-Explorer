@@ -11,11 +11,9 @@ url = 'https://github.com/ioneater/ES-IBD_Explorer'
 author = 'ioneater'
 author_email = 'TODO'
 
-
-
 dependencies = [
-#    'requests',
-#    'importlib-metadata',
+    'requests',
+    'importlib-metadata',
 #	'pyinstaller',
 #	'sphinx',
 	'numpy',
