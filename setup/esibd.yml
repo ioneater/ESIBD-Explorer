@@ -35,5 +35,5 @@ dependencies:
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
     - readthedocs-sphinx-search
-    - sphinx-autoapi
+    # - sphinx-autoapi
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

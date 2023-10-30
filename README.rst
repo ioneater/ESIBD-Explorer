@@ -4,8 +4,8 @@ ESIBD Explorer
 A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
 
 
-.. image:: https://readthedocs.org/projects/cathy-docs/badge/?version=latest
-   :target: https://cathy-docs.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/esibd-explorer/badge/?version=latest
+   :target: https://esibd-explorer.readthedocs.io/en/latest/index.html
    :alt: Documentation Status
 
 .. image:: https://badge.fury.io/py/cathy.svg

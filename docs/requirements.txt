@@ -2,4 +2,4 @@ sphinx==7
 sphinx_rtd_theme
 sphinxcontrib-bibtex
 readthedocs-sphinx-search
-sphinx-autoapi
+#sphinx-autoapi
