@@ -3,3 +3,4 @@ sphinx_rtd_theme
 sphinxcontrib-bibtex
 readthedocs-sphinx-search
 #sphinx-autoapi
+ES-IBD_Explorer @ git+https://github.com/ioneater/ES-IBD_Explorer@main

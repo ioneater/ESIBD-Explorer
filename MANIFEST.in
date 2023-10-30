@@ -1,0 +1,4 @@
+include media/*
+include plugins/*
+include pyinstaller_hooks/*
+include docs/*

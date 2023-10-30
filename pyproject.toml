@@ -1,0 +1,73 @@
+[project]
+name = "esibd_explorer"
+requires-python = ">3.11"
+version = "0.6.0"
+description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
+license = {file = "LICENSE"}
+
+[metadata]
+long_description = "See https://esibd-explorer.readthedocs.io/en/latest/index.html"
+url = 'https://github.com/ioneater/ES-IBD_Explorer'
+author = 'ioneater'
+author_email = 'TODO'
+
+
+
+dependencies = [
+#    'requests',
+#    'importlib-metadata',
+#	'pyinstaller',
+#	'sphinx',
+	'numpy',
+	'pathlib',
+	'biopython',
+	'scipy',
+#	'rope',
+	'asteval',
+	'configparser',
+	'keyboard',
+#	'pandas',
+	'pyperclip',
+	'pyautogui',
+	'python-socketio',
+	'pyserial',
+	'pywin32',
+	'Send2Trash',
+	'matplotlib',
+	'h5py',
+	'configobj',
+#	'pylint',
+	'PyQt6',
+	'PyQt6-WebEngine',
+	'pyqtgraph==0.13.1',
+	'PyOpenGL',
+#	'sphinx_rtd_theme',
+#	'sphinxcontrib-bibtex',
+#	'readthedocs-sphinx-search',
+]
+
+# no need for command line scripts
+#[project.scripts]
+#my-client = "my_package.my_module:main_cli"
+
+# ...
+[tool.setuptools.packages]
+find = {}  # Scan the project directory with the default parameters
+
+## OR
+#[tool.setuptools.packages.find]
+## All the following settings are optional:
+#where = ["src"]  # ["."] by default
+#include = ["mypackage*"]  # ["*"] by default
+#exclude = ["mypackage.tests*"]  # empty by default
+#namespaces = false  # true by default
+
+# no need to run scripts upon installation
+#[project.scripts]
+#cli-name = "EsibdExplorer.mymodule:some_func" TODO
+
+[tool.setuptools]
+include-package-data = true
+# This is already the default behaviour if you are using
+# pyproject.toml to configure your build.
+# You can deactivate that with `include-package-data = false`

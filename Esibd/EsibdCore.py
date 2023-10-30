@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt # pylint: disable = unused-import # need to impo
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
                              QMainWindow, QSplashScreen, #QPushButton, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton, QCompleter, QPlainTextEdit,
@@ -216,6 +217,76 @@ class PRINT(Enum):
     """Tag message as error and highlight using color."""
     DEBUG = 3
     """Only show if debug flag is enabled."""
+
+class EsibdExplorer(QMainWindow):
+    r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
+    
+    Contains minimal code to start, initialize, and close the program.
+    All high level logic is provided by :mod:`~Esibd.EsibdCore`, 
+    :mod:`~Esibd.EsibdPlugins` and additional
+    :class:`plugins<Esibd.EsibdPlugins.Plugin>`.
+    """
+
+    loadPluginsSignal = pyqtSignal()
+
+    def __init__(self):
+        """Sets up basic user interface and triggers loading of plugins."""
+        super().__init__()
+        if useWebEngine:
+            dummy = QWebEngineView(parent=self) # switch to GL compatibility mode https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
+            dummy.setHtml('dummy')
+            dummy.deleteLater()
+        self.restoreUiState()
+        self.setWindowIcon(QIcon(ICON_EXPLORER))
+        self.setWindowTitle(PROGRAM_NAME)
+        self.actionFull_Screen = QAction()
+        self.actionFull_Screen.triggered.connect(self.toggleFullscreen)
+        self.actionFull_Screen.setShortcut('F11')
+        self.addAction(self.actionFull_Screen) # action only works when added to a widget
+        self.maximized  = False
+        self.loadPluginsSignal.connect(self.loadPlugins)
+        QTimer.singleShot(0, self.loadPluginsSignal.emit) # let event loop start before loading plugins
+
+    def loadPlugins(self):
+        """Loads :class:`plugins<Esibd.EsibdPlugins.Plugin>` in main thread."""
+        self.pluginManager = PluginManager()
+        self.pluginManager.loadPlugins()
+
+    def toggleFullscreen(self):
+        """Toggles full screen mode."""
+        if self.isFullScreen(): # return to previous view
+            self.showMaximized() if self.maximized else self.showNormal() # pylint: disable = expression-not-assigned
+        else: # goFullscreen
+            self.maximized = self.isMaximized() # workaround for bug https://github.com/qutebrowser/qutebrowser/issues/2778
+            self.showFullScreen()
+
+    def restoreUiState(self):
+        """Restores size and location of main window."""
+        try:
+            self.restoreGeometry(qSet.value(GEOMETRY, self.saveGeometry()))
+            # Note that the state on startup will not include dynamic displays which open only as needed. Thus the state cannot be restored.
+            # self.mainWindow.restoreState(qSet.value(self.WINDOWSTATE, self.mainWindow.saveState()))
+            # NOTE: need to restore before starting event loop to avoid Unable to set geometry warning
+        except TypeError as e:
+            print(f'Could not restore window state: {e}')
+            self.resize(800, 400)
+            self.saveUiState()
+
+    def saveUiState(self):
+        """Saves size and location of main window."""
+        qSet.setValue(GEOMETRY, self.saveGeometry())
+        # qSet.setValue(GEOMETRY, self.mainWindow.geometry())
+        # qSet.setValue(self.WINDOWSTATE, self.mainWindow.saveState())
+
+    def closeEvent(self, event):
+        """Triggers :class:`~Esibd.EsibdCore.PluginManager` to close all plugins and all related communication."""
+        if not self.pluginManager.loading and (not any([ld.recording for ld in self.pluginManager.DeviceManager.getActiveLiveDisplays()])
+                or CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec()):
+            self.pluginManager.closePlugins()
+            QApplication.instance().quit()
+            event.accept() # let the window close
+        else:
+            event.ignore() # keep running
 
 class PluginManager():
     """The :class:`~Esibd.EsibdCore.PluginManager` is responsible for loading all internal and external
@@ -465,7 +536,7 @@ class PluginManager():
 
     def managePlugins(self):
         """A dialog to select which plugins should be enabled"""
-        if self.DeviceManager.acquiring:
+        if self.DeviceManager.recording:
             if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changin plugins!').exec():
                 self.DeviceManager.stopAcquisition()
             else:

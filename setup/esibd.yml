@@ -11,11 +11,11 @@ dependencies:
   - pathlib
   - biopython
   - scipy
-  - rope
+#  - rope
   - asteval
   - configparser
   - keyboard
-  - pandas
+#  - pandas
   - pyperclip
   - pyautogui
   - python-socketio
@@ -35,5 +35,6 @@ dependencies:
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
     - readthedocs-sphinx-search
+    - twine
     # - sphinx-autoapi
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

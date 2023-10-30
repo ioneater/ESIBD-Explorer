@@ -1,12 +1,6 @@
 Library Reference
 ==================
 
-EsibdExplorer
--------------
-
-.. automodule:: EsibdExplorer
-   :members:
-    
 EsibdPlugins
 ------------
 
