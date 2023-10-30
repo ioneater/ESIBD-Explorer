@@ -28,8 +28,8 @@ from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
-                             QMainWindow, QSplashScreen, #QPushButton, # QStyle, QLayout,
-                             QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton, QCompleter, QPlainTextEdit,
+                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
+                             QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction

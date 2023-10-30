@@ -44,6 +44,10 @@ REM PyPI
 
 python -m build
 
+REM pip install . REM test installation locally
+REM python -m Esibd # invoke program by calling __main__.py
+
+REM twine check dist/*
 REM twine upload -r testpypi dist/*
 
 REM twine upload dist/*

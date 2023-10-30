@@ -1,5 +1,3 @@
-"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."""
-
 import sys
 import os
 import ctypes
@@ -7,7 +5,6 @@ import matplotlib as mpl
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import  QSharedMemory
-# from PyQt6.QtWebEngineWidgets import QWebEngineView
 import Esibd.EsibdCore as EsibdCore
 
 mpl.use('Qt5Agg')

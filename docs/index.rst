@@ -46,8 +46,6 @@ backing up their own data and configuration files.
    pages/acknowledgments
    pages/references
 
-
-
 Indices and tables
 ==================
 

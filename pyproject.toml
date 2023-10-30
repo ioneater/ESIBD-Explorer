@@ -1,6 +1,6 @@
 [project]
 name = "esibd_explorer"
-requires-python = ">3.11"
+requires-python = ">=3.11"
 version = "0.6.0"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
