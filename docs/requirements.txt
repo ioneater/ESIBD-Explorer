@@ -17,7 +17,6 @@ keyboard
 pyperclip
 python-socketio
 pyserial
-pywin32
 Send2Trash
 matplotlib
 h5py
