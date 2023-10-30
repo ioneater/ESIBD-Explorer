@@ -17,7 +17,7 @@ dependencies:
   - keyboard
 #  - pandas
   - pyperclip
-  - pyautogui
+#  - pyautogui
   - python-socketio
   - pyserial
   - pywin32 

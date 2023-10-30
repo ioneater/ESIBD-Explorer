@@ -12,8 +12,8 @@ author = 'ioneater'
 author_email = 'TODO'
 
 dependencies = [
-    'requests',
-    'importlib-metadata',
+#    'requests',
+#    'importlib-metadata',
 #	'pyinstaller',
 #	'sphinx',
 	'numpy',
@@ -26,7 +26,7 @@ dependencies = [
 	'keyboard',
 #	'pandas',
 	'pyperclip',
-	'pyautogui',
+#	'pyautogui',
 	'python-socketio',
 	'pyserial',
 	'pywin32',
