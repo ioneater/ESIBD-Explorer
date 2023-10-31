@@ -5,8 +5,8 @@ import time
 from random import choices
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-from Esibd.EsibdPlugins import Device#, StaticDisplay
-from Esibd.EsibdCore import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode
+from esibd.plugins import Device#, StaticDisplay
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode
 
 ########################## Voltage user interface #################################################
 

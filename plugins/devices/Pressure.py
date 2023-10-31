@@ -3,8 +3,8 @@ import time
 import re
 import serial
 import numpy as np
-from Esibd.EsibdPlugins import Device, LiveDisplay, StaticDisplay
-from Esibd.EsibdCore import Parameter, PluginManager, Channel, PRINT, parameterDict, DeviceController, getDarkMode
+from esibd.plugins import Device, LiveDisplay, StaticDisplay
+from esibd.core import Parameter, PluginManager, Channel, PRINT, parameterDict, DeviceController, getDarkMode
 
 def providePlugins():
     return [Pressure]

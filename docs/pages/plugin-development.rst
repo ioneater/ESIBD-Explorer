@@ -8,20 +8,20 @@ read on if you want to extend the functionality by adding plugins or
 adapt the software for a different type of experiment.
 
 The main code does not need to be modified to add support for additional
-devices and other features. Instead, you can add :class:`~Esibd.EsibdPlugins.Plugin` that will be
+devices and other features. Instead, you can add :class:`~esibd.plugins.Plugin` that will be
 automatically integrated into the user interface. In fact, everything
-the user sees in *ESIBD Explorer* is a :class:`~Esibd.EsibdPlugins.Plugin`. This section will discuss
+the user sees in *ESIBD Explorer* is a :class:`~esibd.plugins.Plugin`. This section will discuss
 the underlying framework that enables communication between different
 devices, scan modes, and other plugins.
 
 To add plugins, all you need to do is prepare a plugin file inside a
 sub folder of the user defined :ref:`plugin_path`. A plugin file is a python
-script that defines a :meth:`~Esibd.EsibdPlugins.providePlugins` function, which returns one or
-multiple :class:`plugins<Esibd.EsibdPlugins.Plugin>`. 
-:class:`Plugins<Esibd.EsibdPlugins.Plugin>` can be enabled in the plugin dialog
+script that defines a :meth:`~esibd.plugins.providePlugins` function, which returns one or
+multiple :class:`plugins<esibd.plugins.Plugin>`. 
+:class:`Plugins<esibd.plugins.Plugin>` can be enabled in the plugin dialog
 found in :ref:`sec:Settings` after restarting the software. It is
 recommended that your custom plugin classes inherit directly from 
-:class:`~Esibd.EsibdPlugins.Plugin`, :class:`~Esibd.EsibdPlugins.Device`, :class:`~Esibd.EsibdPlugins.Scan`, or from one of the other built-in plugins. All built-in :class:`plugins<Esibd.EsibdPlugins.Plugin>` can be imported from :mod:`~Esibd.EsibdPlugins` and the corresponding modules in the *plugins* folder. Many other helpful classes and methods can be imported from :mod:`~Esibd.EsibdCore`.
+:class:`~esibd.plugins.Plugin`, :class:`~esibd.plugins.Device`, :class:`~esibd.plugins.Scan`, or from one of the other built-in plugins. All built-in :class:`plugins<esibd.plugins.Plugin>` can be imported from :mod:`~esibd.plugins` and the corresponding modules in the *plugins* folder. Many other helpful classes and methods can be imported from :mod:`~esibd.core`.
 
 If you want to do something completely different to the already
 implemented functionality, get in touch and see if we can implement a
@@ -30,37 +30,37 @@ base class that can be reused for similar projects in the future and keeps your 
 Plugin
 ------
 
-.. automodule:: Esibd.EsibdPlugins.Plugin
+.. automodule:: esibd.plugins.Plugin
    :noindex:
 
 PluginManager
 -------------
 
-.. automodule:: Esibd.EsibdCore.PluginManager
+.. automodule:: esibd.core.PluginManager
    :noindex:
    
 Devices
 -------
 
-.. automodule:: Esibd.EsibdPlugins.Device
+.. automodule:: esibd.plugins.Device
    :noindex:
 
 Channels
 --------
 
-.. automodule:: Esibd.EsibdCore.Channel
+.. automodule:: esibd.core.Channel
    :noindex:
 
 Scan
 ----
 
-.. automodule:: Esibd.EsibdPlugins.Scan
+.. automodule:: esibd.plugins.Scan
    :noindex:
 
 DeviceController
 ----------------
 
-.. automodule:: Esibd.EsibdCore.DeviceController
+.. automodule:: esibd.core.DeviceController
    :noindex:
 
 

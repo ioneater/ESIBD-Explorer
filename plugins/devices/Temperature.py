@@ -4,8 +4,8 @@ from threading import Thread
 import serial
 import numpy as np
 from PyQt6.QtWidgets import QMessageBox
-from Esibd.EsibdPlugins import Device
-from Esibd.EsibdCore import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode
+from esibd.plugins import Device
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode
 
 def providePlugins():
     return [Temperature]

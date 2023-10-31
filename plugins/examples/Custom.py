@@ -1,8 +1,8 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel,QSizePolicy
-from Esibd.EsibdCore import PluginManager
-from Esibd.EsibdPlugins import Plugin
+from esibd.core import PluginManager
+from esibd.plugins import Plugin
 
 def providePlugins():
     return [CustomControl]

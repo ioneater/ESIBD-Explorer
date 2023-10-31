@@ -12,8 +12,8 @@ import sys
 print(f'Running using {sys.executable}') # validate that we are running in correct environment
 sys.path.insert(0, os.path.abspath('..')) # add path to package
 
-import Esibd
-from Esibd import EsibdCore
+# import Esibd
+# from Esibd import EsibdCore
 
 project = 'ESIBD Explorer'
 copyright = '2023, ioneater'
@@ -34,7 +34,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-autodoc_mock_imports = ["libasound"]
+# autodoc_mock_imports = ["libasound"]
 # autoapi_dirs = ['../Esibd','../plugins']
 # autoapi_add_toctree_entry = False
 # autoapi_generate_api_docs = False
@@ -43,7 +43,12 @@ autodoc_mock_imports = ["libasound"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+#html_static_path = ['_static']
+html_logo = 'ESIBD_Explorer.png'
+html_theme_options = {
+    'prev_next_buttons_location': 'both',
+    'collapse_navigation': False
+    }
 
 
 rst_prolog = """

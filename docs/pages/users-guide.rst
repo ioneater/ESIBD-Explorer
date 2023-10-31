@@ -420,7 +420,7 @@ of similar plugins for other purposes. See :ref:`sec:plugin_system` for more inf
 Browser
 ~~~~~~~
 
-.. automodule:: Esibd.EsibdPlugins.Browser
+.. automodule:: esibd.plugins.Browser
    :noindex:
 
 .. _`sec:notes`:
@@ -428,7 +428,7 @@ Browser
 Notes
 ~~~~~
 
-.. automodule:: Esibd.EsibdPlugins.Notes
+.. automodule:: esibd.plugins.Notes
    :noindex:
 
 .. _`sec:text`:
@@ -436,13 +436,13 @@ Notes
 Text
 ~~~~
 
-.. automodule:: Esibd.EsibdPlugins.Text
+.. automodule:: esibd.plugins.Text
    :noindex:
    
 Tree
 ~~~~
 
-.. automodule:: Esibd.EsibdPlugins.Tree
+.. automodule:: esibd.plugins.Tree
    :noindex:
 
 MS
@@ -520,7 +520,7 @@ signals as a function of any number of input signals.
 Console
 -------
 
-.. automodule:: Esibd.EsibdPlugins.Console
+.. automodule:: esibd.plugins.Console
    :noindex:
 
 ESIBD specific plugins

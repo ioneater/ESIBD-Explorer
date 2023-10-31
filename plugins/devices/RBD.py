@@ -4,8 +4,8 @@ import h5py
 import serial
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-from Esibd.EsibdPlugins import Device, StaticDisplay, Scan
-from Esibd.EsibdCore import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel
+from esibd.plugins import Device, StaticDisplay, Scan
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel
 
 def providePlugins():
     return [Current]

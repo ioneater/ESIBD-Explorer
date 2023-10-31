@@ -1,16 +1,16 @@
 Library Reference
 ==================
 
-EsibdPlugins
+The plugin module
 ------------
 
-.. automodule:: Esibd.EsibdPlugins
+.. automodule:: esibd.plugins
    :members: Device, DeviceManager, LiveDisplay, Plugin, Scan, SettingsManager, StaticDisplay, providePlugins
     
-EsibdCore
+The core module
 ---------
 
-.. automodule:: Esibd.EsibdCore
+.. automodule:: esibd.core
    :members:
     
 ..

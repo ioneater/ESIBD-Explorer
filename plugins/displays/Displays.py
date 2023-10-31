@@ -10,8 +10,8 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from Esibd.EsibdCore import MZCaculator, PluginManager, getDarkMode
-from Esibd.EsibdPlugins import Plugin
+from esibd.core import MZCaculator, PluginManager, getDarkMode
+from esibd.plugins import Plugin
 
 #################################### General UI Classes #########################################
 

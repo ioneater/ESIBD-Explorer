@@ -16,8 +16,8 @@ from asteval import Interpreter
 from PyQt6.QtWidgets import QSlider
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
-from Esibd.EsibdCore import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport
-from Esibd.EsibdPlugins import Scan
+from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport
+from esibd.plugins import Scan
 winsound = None
 if sys.platform == 'win32':
     import winsound

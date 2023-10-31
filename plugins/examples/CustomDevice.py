@@ -3,8 +3,8 @@
 from PyQt6.QtWidgets import QDialog,QLabel,QGridLayout
 # Users who add custom controls can use the build-in features at their own risk.
 # If you want your module to be more independent,implement your own replacement for the following imports.
-from Esibd.EsibdPlugins import Device
-from Esibd.EsibdCore import Parameter, parameterDict, PluginManager, Channel
+from esibd.plugins import Device
+from esibd.core import Parameter, parameterDict, PluginManager, Channel
 
 def providePlugins():
     return [CustomDevice]
