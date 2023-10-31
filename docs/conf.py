@@ -32,7 +32,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-# autodoc_mock_imports = ["libasound"]
+autodoc_mock_imports = ["libasound"]
 # autoapi_dirs = ['../Esibd','../plugins']
 # autoapi_add_toctree_entry = False
 # autoapi_generate_api_docs = False
