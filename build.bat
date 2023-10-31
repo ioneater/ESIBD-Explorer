@@ -18,7 +18,8 @@ REM then edit docs/conf.py to customize
 call rmdir /q /s docs\_build REM delete docs/_build to generate clean documentation
 REM call rmdir /q /s docs\autoapi REM delete docs/_build to generate clean documentation
 REM call rm -r docs\_build REM delete docs/_build to generate clean documentation (works in powershell?)
-call sphinx-build docs docs\_build REM -M coverage
+REM -M coverage
+call sphinx-build docs docs\_build
 call docs\make.bat html
 
 :::::::::::::::
@@ -26,7 +27,7 @@ REM pyinstaller
 :::::::::::::::
 
 REM Run the following line to create initial spec file
-call pyinstaller EsibdExplorer.py -n "ESIBD Explorer" --noconsole --clean --icon=media/ESIBD_Explorer.ico --add-data="media;media" --add-data="plugins;plugins" --add-data="docs/_build;docs" --noconfirm --additional-hooks-dir=./pyinstaller_hooks
+call pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=media/ESIBD_Explorer.ico --add-data="media;media" --add-data="plugins;plugins" --add-data="docs/_build;docs" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
@@ -45,7 +46,7 @@ REM PyPI
 python -m build
 
 REM pip install . REM test installation locally
-REM python -m Esibd # invoke program by calling __main__.py
+REM python -m esibd.explorer # start gui using module
 
 REM twine check dist/*
 REM twine upload -r testpypi dist/*

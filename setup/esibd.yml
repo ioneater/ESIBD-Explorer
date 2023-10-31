@@ -36,5 +36,6 @@ dependencies:
     - sphinxcontrib-bibtex
     - readthedocs-sphinx-search
     - twine
+    - build
     # - sphinx-autoapi
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

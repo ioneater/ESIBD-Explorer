@@ -1,5 +1,5 @@
 [project]
-name = "esibd-explorer" # package name can include hyphens, module names should not.
+name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
 version = "0.6.0"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."

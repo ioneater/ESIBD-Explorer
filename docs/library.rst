@@ -2,13 +2,13 @@ Library Reference
 ==================
 
 The plugin module
-------------
+-----------------
 
 .. automodule:: esibd.plugins
    :members: Device, DeviceManager, LiveDisplay, Plugin, Scan, SettingsManager, StaticDisplay, providePlugins
     
 The core module
----------
+---------------
 
 .. automodule:: esibd.core
    :members:

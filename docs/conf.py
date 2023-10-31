@@ -12,7 +12,7 @@ import sys
 print(f'Running using {sys.executable}') # validate that we are running in correct environment
 sys.path.insert(0, os.path.abspath('..')) # add path to package
 
-# import Esibd
+import esibd
 # from Esibd import EsibdCore
 
 project = 'ESIBD Explorer'
