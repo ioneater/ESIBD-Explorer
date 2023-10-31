@@ -49,8 +49,13 @@ dependencies = [
 #my-client = "my_package.my_module:main_cli"
 
 # ...
-[tool.setuptools.packages]
-find = {}  # Scan the project directory with the default parameters
+#[tool.setuptools.packages]
+#find = {}  # Scan the project directory with the default parameters
+[tool.setuptools]
+packages = ["esibd"]
+
+[options]
+package_dir =src
 
 ## OR
 #[tool.setuptools.packages.find]
