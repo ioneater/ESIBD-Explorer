@@ -54,9 +54,6 @@ dependencies = [
 [tool.setuptools]
 packages = ["esibd"]
 
-[options]
-package_dir =src
-
 ## OR
 #[tool.setuptools.packages.find]
 ## All the following settings are optional:
