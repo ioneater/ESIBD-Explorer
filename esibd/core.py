@@ -26,13 +26,16 @@ import matplotlib.pyplot as plt # pylint: disable = unused-import # need to impo
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
-                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
-                             QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
-                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
-from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
-from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
+try:
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
+                                 QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
+                                 QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
+                                 QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
+    from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
+    from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
+except:
+    pass
 # if TYPE_CHECKING:
 #     from esibd.plugins import Plugin, Device # only import for type checking. Do not import at runtime to avoid circular import
 
