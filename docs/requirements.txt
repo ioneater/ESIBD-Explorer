@@ -4,9 +4,7 @@ sphinxcontrib-bibtex
 readthedocs-sphinx-search
 #sphinx-autoapi
 git+https://github.com/ioneater/ES-IBD_Explorer@main
-pyperclip
 serial
-matplotlib
 numpy
 pathlib
 biopython
@@ -24,4 +22,4 @@ configobj
 PyQt6
 PyQt6-WebEngine
 pyqtgraph==0.13.1
-PyOpenGL
+#PyOpenGL
