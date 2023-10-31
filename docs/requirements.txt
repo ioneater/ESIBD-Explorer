@@ -3,7 +3,7 @@ sphinx_rtd_theme
 sphinxcontrib-bibtex
 readthedocs-sphinx-search
 #sphinx-autoapi
-git+https://github.com/ioneater/ES-IBD_Explorer@main
+#git+https://github.com/ioneater/ES-IBD_Explorer@main
 serial
 numpy
 pathlib

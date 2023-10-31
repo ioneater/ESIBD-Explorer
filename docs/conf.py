@@ -11,13 +11,11 @@ import os
 import sys
 print(f'Running using {sys.executable}') # validate that we are running in correct environment
 sys.path.insert(0, os.path.abspath('..')) # add path to package
-
-import esibd
-# from Esibd import EsibdCore
+sys.path.insert(0, os.path.abspath('../..')) # add path to package
 
 project = 'ESIBD Explorer'
-copyright = '2023, ioneater'
-author = 'ioneater'
+copyright = '2023, Tim Esser'
+author = 'Tim Esser'
 release = '0.6'
 
 # -- General configuration ---------------------------------------------------
