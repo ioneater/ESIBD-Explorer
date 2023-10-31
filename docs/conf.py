@@ -14,12 +14,12 @@ print(f'Running using {sys.executable}') # validate that we are running in corre
 # sys.path.insert(0, os.path.abspath('../..')) # add path to package
 
 docs_path = os.path.dirname(os.path.abspath(__file__))
-print('docs_path: ', docs_path)
+# print('docs_path: ', docs_path)
 package_path = os.path.join(docs_path, '..')
-print('package_path: ', package_path)
-print('walk package_path: ', [x for x in os.walk(package_path)])
+# print('package_path: ', package_path)
+# print('walk package_path: ', [x for x in os.walk(package_path)])
 sys.path.insert(0, package_path)
-print('sys.path: ',sys.path)
+# print('sys.path: ',sys.path)
 import esibd
 
 project = 'ESIBD Explorer'
