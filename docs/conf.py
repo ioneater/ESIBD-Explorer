@@ -13,8 +13,12 @@ print(f'Running using {sys.executable}') # validate that we are running in corre
 # sys.path.insert(0, os.path.abspath('..')) # add path to package
 # sys.path.insert(0, os.path.abspath('../..')) # add path to package
 
-path = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(path, '..'))
+docs_path = os.path.dirname(os.path.abspath(__file__))
+print('docs_path: ', docs_path)
+package_path = os.path.join(path, '..')
+print('package_path: ', package_path)
+print('walk package_path: ', [x[0] for x in os.walk(package_path)])
+sys.path.insert(0, package_path)
 sys.path.insert(0, os.path.join(path, '..', '..'))
 print('sys.path: ',sys.path)
 import esibd
