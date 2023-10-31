@@ -31,7 +31,7 @@ Send2Trash
 matplotlib
 h5py
 configobj
-PyQt6
-PyQt6-WebEngine
-pyqtgraph==0.13.1
+#PyQt6
+#PyQt6-WebEngine
+#pyqtgraph==0.13.1
 PyOpenGL
