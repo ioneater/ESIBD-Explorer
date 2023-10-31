@@ -10,8 +10,14 @@
 import os
 import sys
 print(f'Running using {sys.executable}') # validate that we are running in correct environment
-sys.path.insert(0, os.path.abspath('..')) # add path to package
-sys.path.insert(0, os.path.abspath('../..')) # add path to package
+# sys.path.insert(0, os.path.abspath('..')) # add path to package
+# sys.path.insert(0, os.path.abspath('../..')) # add path to package
+
+path = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(path, '..'))
+sys.path.insert(0, os.path.join(path, '..', '..'))
+print('sys.path: ',sys.path)
+import esibd
 
 project = 'ESIBD Explorer'
 copyright = '2023, Tim Esser'
