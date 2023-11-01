@@ -1,3 +1,4 @@
+"""Starts PyQt event loop."""
 import sys
 import os
 import ctypes

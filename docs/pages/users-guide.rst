@@ -10,7 +10,7 @@ any deposition experiment, including the real-time ion-currents, are always
 visible in a dedicated :ref:`sec:live_displays` on the top.
 The :ref:`sec:device_manager` is a central interface that allows to control all devices simultaneously.
 Finally, there is a hidden :ref:`sec:console` for status messages
-and advanced features that can be opened from the :ref:`sec:settings`. 
+and advanced features that can be opened from :ref:`sec:settings`. 
 Users are free to rearrange the user interface by dragging and tearing components.
 All devices will be disconnected and turned off to leave them in a save
 state when the software is closed. All numeric inputs can be

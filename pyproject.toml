@@ -1,16 +1,10 @@
 [project]
 name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.6.0"
+version = "0.6.2"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
-
-[metadata]
-long_description = "See https://esibd-explorer.readthedocs.io/en/latest/index.html"
-url = 'https://github.com/ioneater/ES-IBD_Explorer'
-author = 'ioneater'
-author_email = 'TODO'
-
+readme = "README.rst"
 dependencies = [
 #   'requests',
 #   'importlib-metadata',
@@ -44,6 +38,11 @@ dependencies = [
 #	'readthedocs-sphinx-search',
 ]
 
+[metadata]
+url = 'https://github.com/ioneater/ES-IBD_Explorer'
+author = 'ioneater'
+author_email = 'TODO'
+
 # no need for command line scripts
 #[project.scripts]
 #my-client = "my_package.my_module:main_cli"
@@ -66,7 +65,7 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["esibd"]
-# include-package-data = true
+include-package-data = true
 # This is already the default behaviour if you are using
 # pyproject.toml to configure your build.
 # You can deactivate that with `include-package-data = false`

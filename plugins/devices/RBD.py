@@ -190,7 +190,7 @@ class CurrentChannel(Channel):
 
     def enabledChanged(self): # overwrite parent method
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
-        if self.device.liveDisplayActive() and self.device.liveDisplay.acquiring:
+        if self.device.liveDisplayActive() and self.device.liveDisplay.recording:
             if self.enabled:
                 self.controller.init()
             elif self.controller.acquiring:
@@ -284,6 +284,7 @@ class CurrentController(DeviceController):
         if self.channel.device.getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
+            self.initializing = True
             try:
                 self.port=serial.Serial(
                     f'{self.channel.com}',
@@ -292,7 +293,7 @@ class CurrentController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
-                    timeout=1)
+                    timeout=3)
                 self.setRange()
                 self.setAverage()
                 self.setGrounding()
@@ -308,6 +309,8 @@ class CurrentController(DeviceController):
                 self.signalComm.updateValueSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
             except serial.serialutil.SerialException as e:
                 self.signalComm.updateValueSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
+            finally:
+                self.initializing = False
 
     def initComplete(self):
         super().initComplete()

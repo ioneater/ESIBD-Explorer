@@ -785,15 +785,14 @@ class Logger(QObject):
             return
         if flag == PRINT.DEBUG and not self.pluginManager.debug:
             return
+        flagstring = ''
+        styleSheet = 'color : white;' if getDarkMode() else 'color : black;'
         if flag == PRINT.WARNING:
             flagstring = ' warning'
             styleSheet = 'color : orange;' if getDarkMode() else 'color : orangered;'
         elif flag == PRINT.ERROR:
             flagstring = ' error'
             styleSheet = 'color : red;'
-        else:
-            flagstring = ''
-            styleSheet = 'color : white;' if getDarkMode() else 'color : black;'
         message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}{flagstring}: {message}"
         if self.active:
             print(message) # redirects to write if active
@@ -2746,18 +2745,21 @@ class DeviceController(QObject):
     """A parallel thread used to initialize communication."""
     acquisitionThread : Thread = None
     """A parallel thread that regularly reads values from the device."""
-    lock : Lock = Lock()
+    lock : Lock
     """Lock used to avoid race conditions when communicating with the hardware."""
     acquiring : bool = False
     """True, while *acquisitionThread* is running. *AcquisitionThread* terminates if set to False."""
     initialized : bool = False
     """Indicates if communications has been initialized successfully and not yet terminated."""
+    initializing : bool = False
+    """Indicates if communications is beeing initialized."""
 
     def __init__(self, parent):
         super().__init__()
         self.channel = None # overwrite with parent if applicable
         self.device = parent # overwrite with channel.device if applicable
         self.print = parent.print
+        self.lock = Lock() # init here so each instance gets its own lock
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
@@ -2765,6 +2767,8 @@ class DeviceController(QObject):
 
     def init(self):
         """Starts the :meth:`~esibd.core.DeviceController.initThread`."""
+        if self.initializing:
+            return
         self.close() # terminate old thread before starting new one
         # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
         self.initThread = Thread(target=self.runInitialization)
@@ -2815,6 +2819,7 @@ class DeviceController(QObject):
         :type encoding: str, optional
         """
         try:
+            self.clearBuffer(port) # make sure communication does not break if for any reason the port is not empty. E.g. old return value has not been read.
             port.write(bytes(message, encoding))
         except serial.SerialTimeoutException as e:
             self.print(f'Timeout while writing message, try to reinitialize communication: {e}', PRINT.ERROR)
@@ -2854,8 +2859,15 @@ class DeviceController(QObject):
             self.stopDelayed()
         return ''
 
+    def clearBuffer(self, port=None):
+        port = port if port is not None else self.port
+        x = port.inWaiting()
+        if x > 0:
+            port.read(x)
+
     def stopDelayed(self):
         # stopAcquisition has to run after the lock has been released as it acquires lock to close communication.
+        # pass
         Timer(0, self.signalComm.stopSignal.emit).start()
 
     def stop(self):

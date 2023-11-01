@@ -207,9 +207,10 @@ class VoltageController(DeviceController): # no channels needed
             self.initialized = True
             self.signalComm.initCompleteSignal.emit()
         else:
+            self.initializing = True
             try:
                 # self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.s = socket.create_connection(address=(self.IP, self.port), timeout=1)
+                self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
                 with self.lock:
                     self.s.sendall('*IDN?\r\n'.encode('utf-8'))
                     self.print(self.read())
@@ -218,6 +219,8 @@ class VoltageController(DeviceController): # no channels needed
                 # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish SCPI connection to {self.IP} on port {self.port}. Exception: {e}', PRINT.WARNING)
+            finally:
+                self.initializing = False
 
     def initComplete(self):
         super().startAcquisition()

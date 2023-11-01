@@ -1,4 +1,3 @@
-include media/*
-include plugins/*
-include pyinstaller_hooks/*
-include docs/*
+recursive-include media *
+recursive-include plugins *
+recursive-include docs/_build *

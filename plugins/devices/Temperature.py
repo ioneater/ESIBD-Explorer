@@ -143,7 +143,7 @@ class TemperatureChannel(Channel):
 
     def enabledChanged(self): # overwrite parent method
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.acquiring:
+        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.init()
 
     def setTemperature(self): # this actually sets the voltage on the powersupply!
@@ -200,6 +200,7 @@ class TemperatureController(DeviceController):
         if self.device.getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
+            self.initializing = True
             try:
                 self.port=serial.Serial(
                     self.device.CRYOTELCOM,
@@ -208,8 +209,7 @@ class TemperatureController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
-                    timeout=1)
-                self.CryoTelClearBuffer()
+                    timeout=3)
                 # self.CryoTelWrite('SET TBAND=5') # set temperature band
                 # self.CryoTelRead()
                 # self.CryoTelWrite('SET PID=2')# set temperature control mode
@@ -223,6 +223,8 @@ class TemperatureController(DeviceController):
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            finally:
+                self.initializing = False
 
     def initComplete(self):
         self.temperatures = [0]*len(self.device.channels)
@@ -299,7 +301,15 @@ class TemperatureController(DeviceController):
             self.CryoTelRead()
 
     # use following from internal console for testing
-    # Temperature.controller.lock.acquire();Temperature.controller.CryoTelWrite('TC'); print(Temperature.controller.CryoTelRead());Temperature.controller.lock.release()
+    # Temperature.controller.lock.CryoTelWriteRead('TC')
+
+    def CryoTelWriteRead(self, message):
+        """Allows to write and read from Console while using lock."""
+        readback = ''
+        with self.lock:
+            self.CryoTelWrite(message)
+            readback = self.CryoTelRead() # reads return value
+        return readback
 
     def CryoTelWrite(self, message):
         self.serialWrite(self.port, f'{message}\r')
@@ -307,8 +317,3 @@ class TemperatureController(DeviceController):
 
     def CryoTelRead(self):
         return self.serialRead(self.port)
-
-    def CryoTelClearBuffer(self):
-        x = self.port.inWaiting()
-        if x > 0:
-            self.port.read(x)

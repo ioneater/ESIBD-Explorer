@@ -1,7 +1,7 @@
 name: esibd
 channels:
   - conda-forge
-  - bryanwweber
+#  - bryanwweber
   - defaults
 dependencies:
   - python==3.11

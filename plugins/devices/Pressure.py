@@ -104,7 +104,7 @@ class PressureChannel(Channel):
 
     def enabledChanged(self): # overwrite parent method
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.acquiring:
+        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.init()
 
 class PressureController(DeviceController):
@@ -144,6 +144,7 @@ class PressureController(DeviceController):
         if self.device.getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
+            self.initializing = True
             try:
                 self.TICport=serial.Serial(
                     f'{self.device.TICCOM}',
@@ -152,7 +153,7 @@ class PressureController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=True,
-                    timeout=1)
+                    timeout=5)
                 self.TPGport=serial.Serial(
                     f'{self.device.TPGCOM}',
                     baudrate=9600,
@@ -160,7 +161,7 @@ class PressureController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
-                    timeout=1)
+                    timeout=5)
                 with self.lock:
                     self.TICWrite(902) # query status
                     self.print(f'TIC Status: {self.TICRead()}')
@@ -171,6 +172,8 @@ class PressureController(DeviceController):
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
                 #self.TICport.close()
                 #self.TPGport.close()
+            finally:
+                self.initializing = False
 
     def initComplete(self):
         self.pressures = [0]*len(self.device.channels)
@@ -210,23 +213,25 @@ class PressureController(DeviceController):
                 if c.controller == c.TIC:
                     with self.lock:
                         self.TICWrite(f'{self.TICgaugeID[c.id]}')
+                        msg = self.TICRead()
                         try:
-                            self.pressures[i] = float(re.split(' |;', self.TICRead())[1])/100 # parse and convert to mbar = 0.01 Pa
+                            self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         except Exception as e:
-                            self.print(f'Failed to parse pressure: {e}', PRINT.ERROR)
+                            self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                             self.pressures[i] = np.nan
                 elif c.controller == c.TPG:
                     with self.lock:
                         self.TPGWrite(f'PR{c.id}')
+                        msg = self.TPGRead()
                         try:
-                            a, p = self.TPGRead().split(',')
+                            a, p = msg.split(',')
                             if a == '0':
                                 self.pressures[i] = float(p) # set unit to mbar on device
                             else:
                                 self.print(f'Could not read pressure for {c.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
                                 self.pressures[i] = np.nan
                         except Exception as e:
-                            self.print(f'Failed to parse pressure: {e}', PRINT.ERROR)
+                            self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                             self.pressures[i] = np.nan
                 else:
                     self.pressures[i] = np.nan
