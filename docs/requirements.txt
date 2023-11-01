@@ -26,9 +26,9 @@ keyboard
 pyperclip
 python-socketio
 pyserial
-serial
+#serial
 Send2Trash
-matplotlib
+#matplotlib
 h5py
 configobj
 #PyQt6
