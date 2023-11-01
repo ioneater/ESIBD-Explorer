@@ -41,7 +41,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-autodoc_mock_imports = ["PyQt6","pyqtgraph","PyQt5","PySide2"]
+autodoc_mock_imports = ["PyQt6","pyqtgraph","PyQt5","PySide2","matplotlib"]
 # autoapi_dirs = ['../Esibd','../plugins']
 # autoapi_add_toctree_entry = False
 # autoapi_generate_api_docs = False
