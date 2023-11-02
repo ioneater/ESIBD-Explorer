@@ -26,7 +26,7 @@ Optionally, to build the documentation yourself from the ``docs/`` folder::
 Source code
 ===========
 
-https://github.com/ioneater/ES-IBD_Explorer
+https://github.com/ioneater/ESIBD-Explorer
 
 Contact
 =======

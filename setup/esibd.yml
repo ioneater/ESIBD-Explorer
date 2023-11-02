@@ -6,9 +6,7 @@ channels:
 dependencies:
   - python==3.11
   - pyinstaller
-  - sphinx
   - numpy
-  - pathlib
   - biopython
   - scipy
   - asteval
@@ -21,6 +19,7 @@ dependencies:
   - Send2Trash
   - pip
   - pip:
+    - sphinx
     - matplotlib
     - h5py
     - configobj
@@ -31,6 +30,7 @@ dependencies:
     - PyOpenGL
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
+    - docutils
     - readthedocs-sphinx-search
     - twine
     - build

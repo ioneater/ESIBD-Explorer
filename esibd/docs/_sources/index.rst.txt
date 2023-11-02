@@ -1,8 +1,8 @@
 Welcome to ESIBD Explorer's documentation!
 ==========================================
 
-The *ESIBD Explorer* controls all aspects of an ElectroSpray Ion-Beam
-Deposition (ESIBD) experiment (see :ref:`sec:ESIBD`), including optimization and
+The *ESIBD Explorer* controls all aspects of an :ref:`Electrospray Ion-Beam
+Deposition<sec:ESIBD>` (ESIBD) experiment, including optimization and
 characterization of the ion-beam energy, beam intensity, and beam size,
 as well as monitoring of the deposition. At each step, results and
 metadata are saved to document the experiment and allow for later
@@ -46,9 +46,8 @@ backing up their own data and configuration files.
    pages/acknowledgments
    pages/references
 
-Indices and tables
-==================
+Links
+=====
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* Source code: https://github.com/ioneater/ESIBD-Explorer

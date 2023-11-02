@@ -2552,13 +2552,13 @@ class Browser(Plugin):
         page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Stop)
         page.setIcon(self.ICON_STOP)
         self.titleBar.addAction(page)
-        self.addAction(self.openAbout,'Home', self.ICON_HOME)
+        self.addAction(self.openAbout, 'Home', self.ICON_HOME)
         self.locationEdit = QLineEdit()
         self.locationEdit.setSizePolicy(QSizePolicy.Policy.Expanding, self.locationEdit.sizePolicy().verticalPolicy())
         self.locationEdit.returnPressed.connect(self.loadUrl)
         self.locationEdit.setMaximumHeight(QPushButton().sizeHint().height())
         self.titleBar.addWidget(self.locationEdit)
-        self.manualAction = self.addAction(self.openManual,'Manual', self.ICON_MANUAL)
+        self.docAction = self.addAction(self.openDocumentation,'Documentation', self.ICON_MANUAL)
         self.addContentWidget(self.webEngineView)
 
     def finalizeInit(self, aboutFunc=None):
@@ -2570,7 +2570,7 @@ class Browser(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if super().runTestParallel():
-            self.testControl(self.manualAction, True, 1)
+            self.testControl(self.docAction, True, 1)
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -2602,7 +2602,8 @@ class Browser(Plugin):
             self.locationEdit.setText(self.title)
             self.title = None # reset for next update
 
-    def openManual(self):
+    def openDocumentation(self):
+        self.title = 'Documentation'
         self.loadData(file=(Path(__file__).parent / 'docs/index.html').resolve())
 
     def openAbout(self):

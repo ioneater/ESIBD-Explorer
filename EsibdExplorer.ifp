@@ -9,7 +9,7 @@ Windows Server 2003 = 0
 Windows Vista = 0
 Windows Server 2008 = 0
 Windows 7 = 0
-Windows 8 = 1
+Windows 8 = 0
 Windows 10 = 1
 Windows Server 2016 = 0
 Windows Server 2019 = 0
@@ -57,7 +57,7 @@ Time = 2
 PlaySound = 0
 Allow = 0
 [Build]
-File = E:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\build\ESIBD_Explorer-setup.exe
+File = C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\build\ESIBD_Explorer-setup.exe
 SetupIconPath = <InstallPath>\media\ESIBD_Explorer.ico
 UninstallIconPath = <InstallPath>\media\ESIBD_Explorer.ico
 CompressionMethod = 0
@@ -77,14 +77,14 @@ Execdlls = 0
 [Languages]
 2
 [Files/Dirs]
-E:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\dist\ESIBD Explorer\_internal
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
+14.3 MB
+exe
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal
 N/A
 [Folder]
-E:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\dist\ESIBD Explorer\ESIBD Explorer.exe
-20.7 MB
-exe
 [Licence_Begin]
-20605
+20783
 {\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Tahoma;}{\f1\fnil Tahoma;}{\f2\fnil Arial;}}
 {\colortbl ;\red0\green0\blue255;}
 {\*\generator Riched20 10.0.19041}\viewkind4\uc1 
@@ -93,8 +93,9 @@ exe
 The software is distributed under the terms of the GNU General Public License\par
 version 2 or later.\par
 \par
-\f0 See the manual and {{\field{\*\fldinst{HYPERLINK https://github.com/ioneater/ES-IBD_Explorer }}{\fldrslt{https://github.com/ioneater/ES-IBD_Explorer\ul0\cf0}}}}\f0\fs16  for \par
-Acknowledgements of code included here.\f1\par
+\f0 See the {{\field{\*\fldinst{HYPERLINK https://esibd-explorer.readthedocs.io/en/latest/index.html }}{\fldrslt{https://esibd-explorer.readthedocs.io/en/latest/index.html\ul0\cf0}}}}\f0\fs16  and \par
+{{\field{\*\fldinst{HYPERLINK https://github.com/ioneater/ESIBD-Explorer }}{\fldrslt{https://github.com/ioneater/ESIBD-Explorer\ul0\cf0}}}}\f0\fs16  for acknowledgements of \par
+code included here.\f1\par
 \par
 \par
                     GNU GENERAL PUBLIC LICENSE\par

@@ -15,6 +15,10 @@ It is highly recommended to use virtual environments, which isolate the installe
 
 ``pip install esibd-explorer``
 
+Run the program using:
+
+``python -m esibd.explorer``
+
 From source (Miniconda)
 -----------------------
 

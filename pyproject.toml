@@ -1,13 +1,12 @@
 [project]
 name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.6.9"
+version = "0.6.11"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
 readme = "README.rst"
 dependencies = [
 	'numpy',
-	'pathlib',
 	'biopython',
 	'scipy',
 	'asteval',
@@ -28,17 +27,16 @@ dependencies = [
 ]
 
 [metadata]
-url = 'https://github.com/ioneater/ES-IBD_Explorer'
+url = 'https://github.com/ioneater/ESIBD-Explorer'
 author = 'ioneater'
 author_email = 'TODO'
 
-
 [tool.setuptools]
-packages = ["esibd"]
-# include-package-data = true TODO delete
+packages = ["esibd","esibd.media","esibd.plugins_internal","esibd.docs"]
+# include-package-data = true
 # This is already the default behaviour if you are using
 # pyproject.toml to configure your build.
 # You can deactivate that with `include-package-data = false`
 
 [tool.setuptools.package-data]
-esibd = ["icons/test.png", "plugins/*.py", "plugins/*.png", "plugins/*.wav", "media/*.png", "media/*.ico", "docs/*.png", "docs/*.html"]
+esibd = ["plugins_internal/**", "media/**", "docs/**"]
