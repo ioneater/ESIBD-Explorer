@@ -16,18 +16,21 @@ REM Sphinx -> read the docs
 REM use sphinx-quickstart to generate initial configuration
 REM then edit docs/conf.py to customize
 call rmdir /q /s docs\_build REM delete docs/_build to generate clean documentation
-REM call rmdir /q /s docs\autoapi REM delete docs/_build to generate clean documentation
+call rmdir /q /s esibd\docs REM delete docs/_build to generate clean documentation
 REM call rm -r docs\_build REM delete docs/_build to generate clean documentation (works in powershell?)
 REM -M coverage
 call sphinx-build docs docs\_build
-call docs\make.bat html
+REM offline version for in app documentation (instrument computers often have no internet access)
+call xcopy /i /y docs\_build esibd\docs
+REM call docs\make.bat html
 
 :::::::::::::::
 REM pyinstaller
 :::::::::::::::
 
 REM Run the following line to create initial spec file
-call pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=media/ESIBD_Explorer.ico --add-data="media;media" --add-data="plugins;plugins" --add-data="docs/_build;docs" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist
+call pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="docs/_build;docs" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist
+REM --add-data="media;media" --add-data="plugins;plugins" REM now subfolder of esibd
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
@@ -57,7 +60,7 @@ REM twine upload -r testpypi dist/*
 REM conda create -n "estest" python=3.11
 REM conda activate estest
 REM pip install -i https://test.pypi.org/simple/ esibd-explorer
-REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer==0.6.1 # use pypi dependencies that are not present on testpypi 
+REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer==0.6.8 # use pypi dependencies that are not present on testpypi 
 
 REM twine upload dist/*
 

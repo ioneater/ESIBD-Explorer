@@ -7,20 +7,17 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 
-import os
 import sys
-print(f'Running using {sys.executable}') # validate that we are running in correct environment
-# sys.path.insert(0, os.path.abspath('..')) # add path to package
-# sys.path.insert(0, os.path.abspath('../..')) # add path to package
+from pathlib import Path
 
-docs_path = os.path.dirname(os.path.abspath(__file__))
-# print('docs_path: ', docs_path)
-package_path = os.path.join(docs_path, '..')
-# print('package_path: ', package_path)
-# print('walk package_path: ', [x for x in os.walk(package_path)])
+print(f'Running using {sys.executable}') # validate that we are running in correct environment
+
+docs_path = Path(__file__)
+package_path = docs_path.parents[1].as_posix()
+# print('package_path ', package_path)
 sys.path.insert(0, package_path)
-# print('sys.path: ',sys.path)
-import esibd
+# print(sys.path)
+
 
 project = 'ESIBD Explorer'
 copyright = '2023, Tim Esser'
@@ -41,10 +38,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-autodoc_mock_imports = ["PyQt6","pyqtgraph","PyQt5","PySide2","matplotlib","serial","mpl_toolkits"]
-# autoapi_dirs = ['../Esibd','../plugins']
-# autoapi_add_toctree_entry = False
-# autoapi_generate_api_docs = False
+autodoc_mock_imports = ["PyQt6","pyqtgraph","PyQt5","PySide2","matplotlib","serial","mpl_toolkits","pywin32"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

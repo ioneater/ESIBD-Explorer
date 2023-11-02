@@ -1,26 +1,19 @@
 [project]
 name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.6.2"
+version = "0.6.8"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
 readme = "README.rst"
 dependencies = [
-#   'requests',
-#   'importlib-metadata',
-#	'pyinstaller',
-#	'sphinx',
 	'numpy',
 	'pathlib',
 	'biopython',
 	'scipy',
-#	'rope',
 	'asteval',
 	'configparser',
 	'keyboard',
-#	'pandas',
 	'pyperclip',
-#	'pyautogui',
 	'python-socketio',
 	'pyserial',
 	'pywin32',
@@ -28,14 +21,10 @@ dependencies = [
 	'matplotlib',
 	'h5py',
 	'configobj',
-#	'pylint',
 	'PyQt6',
 	'PyQt6-WebEngine',
 	'pyqtgraph==0.13.1',
 	'PyOpenGL',
-#	'sphinx_rtd_theme',
-#	'sphinxcontrib-bibtex',
-#	'readthedocs-sphinx-search',
 ]
 
 [metadata]
@@ -43,29 +32,13 @@ url = 'https://github.com/ioneater/ES-IBD_Explorer'
 author = 'ioneater'
 author_email = 'TODO'
 
-# no need for command line scripts
-#[project.scripts]
-#my-client = "my_package.my_module:main_cli"
-
-
-## OR
-#[tool.setuptools.packages.find]
-## All the following settings are optional:
-#where = ["src"]  # ["."] by default
-#include = ["mypackage*"]  # ["*"] by default
-#exclude = ["mypackage.tests*"]  # empty by default
-#namespaces = false  # true by default
-
-# no need to run scripts upon installation
-#[project.scripts]
-#cli-name = "EsibdExplorer.mymodule:some_func" TODO
-
-#[tool.setuptools.packages]
-#find = {}  # Scan the project directory with the default parameters
 
 [tool.setuptools]
 packages = ["esibd"]
-include-package-data = true
+# include-package-data = true TODO delete
 # This is already the default behaviour if you are using
 # pyproject.toml to configure your build.
 # You can deactivate that with `include-package-data = false`
+
+[tool.setuptools.package-data]
+esibd = ["icons/test.png", "plugins/*.py", "plugins/*.png", "plugins/*.wav", "media/*.png", "media/*.ico", "docs/*.png", "docs/*.html"]

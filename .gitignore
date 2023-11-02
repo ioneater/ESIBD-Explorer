@@ -1,0 +1,34 @@
+# pylint configuration
+.pylintrc
+
+# VS code files
+ESIBD_Explorer.code-workspace
+.vscode/
+
+#build folder
+build/
+
+#dist folder
+dist/
+
+# Sphinx documentation
+docs/_build/
+docs/_static/
+
+# pyinstaller configuration
+*.spec
+pyinstaller_hooks\__pycache__\
+pyinstaller_dist
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# todo list
+todo.txt
+
+# PyPI
+*.egg-info/
+# .pypirc # keep in local user folder
+
+# other
+start.py

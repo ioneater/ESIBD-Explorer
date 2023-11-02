@@ -33,13 +33,6 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
-# if TYPE_CHECKING:
-#     from esibd.plugins import Plugin, Device # only import for type checking. Do not import at runtime to avoid circular import
-
-useWebEngine = True
-# if sys.platform == 'win32':
-#     if sys.getwindowsversion().major == 6 and sys.getwindowsversion().minor == 3: # win 8.1 not supported by PyQt 6
-#         useWebEngine = False
 
 # General field
 COMPANY_NAME    = 'ESIBD LAB'
@@ -48,8 +41,10 @@ PROGRAM         = 'Program'
 VERSION_MAYOR   = 0
 VERSION_MINOR   = 6
 VERSION         = 'Version'
-ICON_EXPLORER   = 'media/ESIBD_Explorer.png'
-SPLASHIMAGE     = 'media/ESIBD_Explorer_Splash'
+internalPluginPath = Path(__file__).parent / 'plugins_internal'
+internalMediaPath = Path(__file__).parent / 'media'
+ICON_EXPLORER   = internalMediaPath / 'ESIBD_Explorer.png'
+SPLASHIMAGE     = internalMediaPath / 'ESIBD_Explorer_Splash'
 NAME            = 'Name'
 PLUGIN          = 'Plugin'
 INFO            = 'Info'
@@ -71,14 +66,6 @@ ABOUTHTML       = f"""<p>{PROGRAM_NAME} controls all aspects of an ESIBD experim
                     Present implementation in Python/PyQt: ioneater <a href='mailto:tim.esser@gmx.de'>tim.esser@gmx.de</a><br>
                     Original implementation in LabView: rauschi2000 <a href='mailto:stephan.rauschenbach@chem.ox.ac.uk'>stephan.rauschenbach@chem.ox.ac.uk</a><br></p>"""
 
-qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
-
-def getDarkMode():
-    return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
-
-def infoDict(name):
-    return {PROGRAM : PROGRAM_NAME, VERSION : f'{VERSION_MAYOR}.{VERSION_MINOR}', PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}
-
 # file types
 FILE_INI = '.ini'
 FILE_H5  = '.h5'
@@ -87,136 +74,7 @@ FILE_PDF = '.pdf'
 # other
 UTF8    = 'utf-8'
 
-# class TestAllControls(QObject):
-#     """Triggers events of all standard controls to reveal unstable code."""
-
-#     testControlSignal = pyqtSignal(QObject)
-
-#     def __init__(self, mainWindow):
-#         super().__init__(mainWindow)
-#         self.mainWindow = mainWindow
-#         self.tested = 0
-#         self.testControlSignal.connect(self.testControl)
-
-#     def test(self):
-#         # if testing is called from console, testAll should still be executed independently to make sure stdout does not land in console only
-#         Timer(0, self.testAll).start()
-#         Timer(150, self.endTest).start()
-
-#     def testAll(self):
-#         print('Start testing all controls.')
-#         self.mainWindow.pluginManager.loading = True # no need to plot data during this test, this will be tested independently
-#         for t in [QAction, QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox, QCheckBox, pg.ColorButton]:
-#             for c in self.mainWindow.findChildren(t):
-#                 self.testControlSignal.emit(c)
-#                 if np.mod(self.tested, 100) == 0:
-#                     QApplication.processEvents()
-
-#     def testControl(self, c):
-#         if isinstance(c, QAction):
-#             c.triggered.emit(c.isChecked())
-#         elif isinstance(c, QComboBox):
-#             c.currentIndexChanged.emit(c.currentIndex())
-#         elif isinstance(c, (QLineEdit)):
-#             c.editingFinished.emit()
-#         elif isinstance(c, (QSpinBox)):
-#             c.valueChanged.emit(c.value())
-#             c.editingFinished.emit()
-#         elif isinstance(c, (QCheckBox)):
-#             c.stateChanged.emit(c.isChecked())
-#         elif isinstance(c, (QToolButton)):
-#             c.clicked.emit()
-#         elif isinstance(c, (pg.ColorButton)):
-#             c.sigColorChanged.emit(c)
-#         self.tested += 1
-#         print(f'Tested {self.tested} controls. Last tested {c.objectName()}.')
-
-#     def endTest(self):
-#         self.mainWindow.pluginManager.loading = False
-#         print('End testing all controls.')
-
-class Colors():
-    """Provides dark mode dependant defaul colors"""
-
-    def getDarkMode(self):
-        # qSet.sync()
-        return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
-
-    @property
-    def fg(self):
-        return '#e4e7eb' if getDarkMode() else '#000000'
-
-    @property
-    def bg(self):
-        return '#202124' if getDarkMode() else '#ffffff'
-
-    @property
-    def bgAlt1(self):
-        return QColor(self.bg).lighter(160).name() if getDarkMode() else QColor(self.bg).darker(105).name()
-
-    @property
-    def bgAlt2(self):
-        return QColor(self.bg).lighter(200).name() if getDarkMode() else QColor(self.bg).darker(110).name()
-
-    @property
-    def highlight(self):
-        return '#8ab4f7' if getDarkMode() else '#0063e6'
-
-colors = Colors()
-
-def makeSettingWrapper(name, settingsMgr, docstring=None):
-    """ Neutral setting wrapper for convenient access to the value of a setting.
-        If you need to handle events on value change, link these directly to the events of the corresponding control.
-    """
-    def getter(self): # pylint: disable=[unused-argument] # self will be passed on when used in class
-        return settingsMgr.settings[name].value
-    def setter(self, value): # pylint: disable=[unused-argument] # self will be passed on when used in class
-        settingsMgr.settings[name].value = value
-    return property(getter, setter, doc=docstring)
-
-def makeWrapper(name, docstring=None):
-    """ Neutral property wrapper for convenient access to the value of a parameter inside a channel.
-        If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
-    """
-    def getter(self):
-        return self.getParameterByName(name).value
-    def setter(self, value):
-        self.getParameterByName(name).value = value
-    return property(getter, setter, doc=docstring)
-
-def makeStateWrapper(stateAction, docstring=None):
-    """State wrapper for convenient access to the value of a StateAction."""
-    def getter(self): # pylint: disable = unused-argument
-        return stateAction.state
-    def setter(self, state): # pylint: disable = unused-argument
-        stateAction.state = state
-    return property(getter, setter, doc=docstring)
-
-def dynamicImport(module, path):
-    spec = importlib.util.spec_from_file_location(module, path)
-    Module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(Module)
-    return Module
-
-class INOUT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
-    IN = 0
-    """Input"""
-    OUT = 1
-    """Output"""
-    BOTH = 2
-    """Both input and output."""
-
-class PRINT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
-    MESSAGE = 0
-    """A standard message."""
-    WARNING = 1
-    """Tag message as warning and highlight using color."""
-    ERROR = 2
-    """Tag message as error and highlight using color."""
-    DEBUG = 3
-    """Only show if debug flag is enabled."""
+qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class EsibdExplorer(QMainWindow):
     r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
@@ -232,12 +90,11 @@ class EsibdExplorer(QMainWindow):
     def __init__(self):
         """Sets up basic user interface and triggers loading of plugins."""
         super().__init__()
-        if useWebEngine:
-            dummy = QWebEngineView(parent=self) # switch to GL compatibility mode https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
-            dummy.setHtml('dummy')
-            dummy.deleteLater()
+        dummy = QWebEngineView(parent=self) # switch to GL compatibility mode https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
+        dummy.setHtml('dummy')
+        dummy.deleteLater()
         self.restoreUiState()
-        self.setWindowIcon(QIcon(ICON_EXPLORER))
+        self.setWindowIcon(QIcon(ICON_EXPLORER.as_posix()))
         self.setWindowTitle(PROGRAM_NAME)
         self.actionFull_Screen = QAction()
         self.actionFull_Screen.triggered.connect(self.toggleFullscreen)
@@ -340,7 +197,6 @@ class PluginManager():
         self.debug = False # set to True to print debug messages
         self.userPluginPath     = None
         self.pluginFile         = None
-        self.internalPluginPath = Path('plugins')
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -398,9 +254,9 @@ class PluginManager():
 
         import esibd.plugins # pylint: disable = import-outside-toplevel # avoid circular import
         self.loadPluginsFromModule(Module=esibd.plugins, dependencyPath=Path('media'))
-        self.loadPluginsFromPath(self.internalPluginPath)
+        self.loadPluginsFromPath(internalPluginPath)
         self.userPluginPath.mkdir(parents=True, exist_ok=True)
-        if self.userPluginPath == self.internalPluginPath:
+        if self.userPluginPath == internalPluginPath:
             self.logger.print('Ignoring user plugin path as it equals internal plugin path.', flag=PRINT.WARNING)
         else:
             self.loadPluginsFromPath(self.userPluginPath)
@@ -544,7 +400,7 @@ class PluginManager():
         dlg = QDialog(self.mainWindow)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
-        dlg.setWindowIcon(BetterIcon('media/block--pencil.png'))
+        dlg.setWindowIcon(BetterIcon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
         tree.setHeaderLabels(['Name','Enabled','Version','Type','Preview File Types','Description'])
@@ -693,10 +549,12 @@ class PluginManager():
         QWidget::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
         QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
         QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
-        QToolBarExtension {{qproperty-icon: url({'media/chevron_double_dark.png' if getDarkMode() else 'media/chevron_double_light.png'});}}
+        QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix() 
+                                                 if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
         QToolTip{{background-color: {colors.bg}; color: {colors.fg}; border: black solid 1px}}
         QCheckBox::indicator         {{border:1px solid {colors.fg}; width: 12px;height: 12px;}}
-        QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({'media/check_dark.png' if getDarkMode() else 'media/check.png'})}}
+        QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({(internalMediaPath / 'check_dark.png').as_posix() 
+                                                                                                           if getDarkMode() else (internalMediaPath / 'check.png').as_posix()})}}
         QTabBar::tab         {{margin:0px 0px 2px 0px; padding:4px; border-width:0px; }}
         QTabBar::tab:selected{{margin:0px 0px 0px 0px; padding:4px; border-bottom-width:2px; color:{colors.highlight}; border-bottom-color:{colors.highlight}; border-style:solid;}}"""
         # QMainWindow::separator Warning: The style sheet has no effect when the QDockWidget is undocked as Qt uses native top level windows when undocked.
@@ -717,6 +575,55 @@ class PluginManager():
             self.mainWindow.setUpdatesEnabled(True)
             # dialog.close()
             splash.close()
+
+class Colors():
+    """Provides dark mode dependant defaul colors"""
+
+    def getDarkMode(self):
+        # qSet.sync()
+        return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
+
+    @property
+    def fg(self):
+        return '#e4e7eb' if getDarkMode() else '#000000'
+
+    @property
+    def bg(self):
+        return '#202124' if getDarkMode() else '#ffffff'
+
+    @property
+    def bgAlt1(self):
+        return QColor(self.bg).lighter(160).name() if getDarkMode() else QColor(self.bg).darker(105).name()
+
+    @property
+    def bgAlt2(self):
+        return QColor(self.bg).lighter(200).name() if getDarkMode() else QColor(self.bg).darker(110).name()
+
+    @property
+    def highlight(self):
+        return '#8ab4f7' if getDarkMode() else '#0063e6'
+
+colors = Colors()
+
+class INOUT(Enum):
+    """Used to specify if a function affects only input, only output, or all channels."""
+    IN = 0
+    """Input"""
+    OUT = 1
+    """Output"""
+    BOTH = 2
+    """Both input and output."""
+
+class PRINT(Enum):
+    """Used to specify if a function affects only input, only output, or all channels."""
+    MESSAGE = 0
+    """A standard message."""
+    WARNING = 1
+    """Tag message as warning and highlight using color."""
+    ERROR = 2
+    """Tag message as error and highlight using color."""
+    DEBUG = 3
+    """Only show if debug flag is enabled."""
 
 class Logger(QObject):
     """Redicrects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
@@ -830,16 +737,6 @@ class CloseDialog(QDialog):
         self.layout.addWidget(buttonBox)
         self.setLayout(self.layout)
         buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setFocus()
-
-class InfoDialog(QDialog):
-    """ Dialog to confirm closing the program."""
-    def __init__(self, parent=None, title='Information.', info='This is Information.'):
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        self.setModal(True)
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(QLabel(info))
-        self.setLayout(self.layout)
 
 class DynamicNp():
     """ A numpy.array that dynamically increases its size in increments to prevent frequent memory allocation while growing."""
@@ -2150,9 +2047,11 @@ class BetterDockWidget(QDockWidget):
 class BetterIcon(QIcon):
     """QIcon that allows to save the icon file name. Allows to reuse icon elsewhere, e.g., for html about dialog."""
 
-    def __init__(self, fileName):
-        super().__init__(fileName)
-        self.fileName = fileName # remember for later access
+    def __init__(self, file):
+        if isinstance(file, Path):
+            file = file.as_posix()
+        super().__init__(file)
+        self.fileName = file # remember for later access
 
 class LedIndicator(QAbstractButton):
     """Simple custom LED indicator"""
@@ -2912,9 +2811,49 @@ class SplashScreen(QSplashScreen):
 
     def animate(self):
         self.index = np.mod(self.index + 1, 4)
-        self.label.setPixmap(QPixmap(f'{SPLASHIMAGE}{self.index+1}.png'))
+        self.label.setPixmap(QPixmap(f'{SPLASHIMAGE.as_posix()}{self.index+1}.png'))
 
     def close(self):
         self.closed=True
         self.timer.stop()
         return super().close()
+
+def makeSettingWrapper(name, settingsMgr, docstring=None):
+    """ Neutral setting wrapper for convenient access to the value of a setting.
+        If you need to handle events on value change, link these directly to the events of the corresponding control.
+    """
+    def getter(self): # pylint: disable=[unused-argument] # self will be passed on when used in class
+        return settingsMgr.settings[name].value
+    def setter(self, value): # pylint: disable=[unused-argument] # self will be passed on when used in class
+        settingsMgr.settings[name].value = value
+    return property(getter, setter, doc=docstring)
+
+def makeWrapper(name, docstring=None):
+    """ Neutral property wrapper for convenient access to the value of a parameter inside a channel.
+        If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
+    """
+    def getter(self):
+        return self.getParameterByName(name).value
+    def setter(self, value):
+        self.getParameterByName(name).value = value
+    return property(getter, setter, doc=docstring)
+
+def makeStateWrapper(stateAction, docstring=None):
+    """State wrapper for convenient access to the value of a StateAction."""
+    def getter(self): # pylint: disable = unused-argument
+        return stateAction.state
+    def setter(self, state): # pylint: disable = unused-argument
+        stateAction.state = state
+    return property(getter, setter, doc=docstring)
+
+def dynamicImport(module, path):
+    spec = importlib.util.spec_from_file_location(module, path)
+    Module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(Module)
+    return Module
+
+def getDarkMode():
+    return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
+
+def infoDict(name):
+    return {PROGRAM : PROGRAM_NAME, VERSION : f'{VERSION_MAYOR}.{VERSION_MINOR}', PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}

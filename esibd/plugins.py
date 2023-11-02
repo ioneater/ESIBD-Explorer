@@ -135,8 +135,8 @@ class Plugin(QWidget):
         self.initializedDock = False # visible in GUI, some plugins will only appear when needed to dispay specific content
         if dependencyPath is not None:
             self.dependencyPath = dependencyPath
-        self.dataClipboardIcon = EsibdCore.BetterIcon('media/clipboard-paste-document-text.png')
-        self.imageClipboardIcon = EsibdCore.BetterIcon('media/clipboard-paste-image.png')
+        self.dataClipboardIcon = self.makeCoreIcon('clipboard-paste-document-text.png')
+        self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
 
     def print(self, message, flag=PRINT.MESSAGE):
         """The print function will send a message to stdout, the statusbar, the
@@ -443,8 +443,7 @@ class Plugin(QWidget):
 
     def about(self):
         """Displays the about dialog of the plugin using :ref:`sec:browser` or :ref:`sec:text`."""
-        if hasattr(self.pluginManager, 'Browser') and EsibdCore.useWebEngine:
-            self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
+        self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
             <p>{self.__doc__}<br></p>
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
             Supported version: {self.supportedVersion}<br></p>"""
@@ -454,17 +453,6 @@ class Plugin(QWidget):
             Dependency path: {self.dependencyPath.resolve()}<br></p>"""
             if self.getTestMode() else '')
             )
-        else:
-            self.pluginManager.Text.setText(
-f"""{self.__doc__}
-Supported files: {', '.join(self.getSupportedFiles())}
-Supported version: {self.supportedVersion}"""
-+ # add programmer info in testmode, otherwise only show user info
-(f"""Plugin type: {self.pluginType.value}
-Optional: {self.optional}
-Dependency path: {self.dependencyPath.resolve()}"""
-if self.getTestMode() else '')
-, True)
 
     def makeFigureCanvasWithToolbar(self, figure):
         """Creates :meth:`~esibd.plugins.Plugin.canvas`, which can be added to the user interface, and
@@ -526,7 +514,7 @@ if self.getTestMode() else '')
         :rtype: :class:`~esibd.core.BetterIcon`
         """
         # e.g. return self.darkIcon if getDarkMode() else self.lightIcon
-        return EsibdCore.BetterIcon('media/document.png')
+        return self.makeCoreIcon('document.png')
 
     def makeCoreIcon(self, file):
         """Returns an icon based on a filename. Looks for files in the internal media folder.
@@ -536,7 +524,7 @@ if self.getTestMode() else '')
         :return: Icon
         :rtype: :class:`~esibd.core.BetterIcon`
         """
-        return EsibdCore.BetterIcon(fileName=f'media/{file}')
+        return EsibdCore.BetterIcon(EsibdCore.internalMediaPath / file)
 
     def makeIcon(self, file):
         """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
@@ -546,7 +534,7 @@ if self.getTestMode() else '')
         :return: Icon
         :rtype: :class:`~esibd.core.BetterIcon`
         """
-        return EsibdCore.BetterIcon(fileName=str(self.dependencyPath / file))
+        return EsibdCore.BetterIcon(str(self.dependencyPath / file))
 
     def getTestMode(self):
         """Gets the test mode from :ref:`sec:settings`.
@@ -2520,20 +2508,19 @@ class Browser(Plugin):
     optional = False
     pluginType = PluginManager.TYPE.DISPLAY
 
-    previewFileTypes = ['.pdf','.html','.htm','.svg','.wav','.mp3','.ogg'] if EsibdCore.useWebEngine else [] # ,'.mp4','.avi' only work with codec
+    previewFileTypes = ['.pdf','.html','.htm','.svg','.wav','.mp3','.ogg'] # ,'.mp4','.avi' only work with codec
 
     previewFileTypes.extend(['.jpg','.jpeg','.png','.bmp','.gif'])
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if EsibdCore.useWebEngine:
-            web_engine_context_log = QLoggingCategory("qt.webenginecontext")
-            web_engine_context_log.setFilterRules("*.info=false")
-            self.ICON_BACK       = self.makeCoreIcon('arrow-180.png')
-            self.ICON_FORWARD    = self.makeCoreIcon('arrow.png')
-            self.ICON_RELOAD     = self.makeCoreIcon('arrow-circle-315.png')
-            self.ICON_STOP       = self.makeCoreIcon('cross.png')
-            self.ICON_HOME       = self.makeCoreIcon('home.png')
-            self.ICON_MANUAL     = self.makeCoreIcon('address-book-open.png')
+        web_engine_context_log = QLoggingCategory("qt.webenginecontext")
+        web_engine_context_log.setFilterRules("*.info=false")
+        self.ICON_BACK       = self.makeCoreIcon('arrow-180.png')
+        self.ICON_FORWARD    = self.makeCoreIcon('arrow.png')
+        self.ICON_RELOAD     = self.makeCoreIcon('arrow-circle-315.png')
+        self.ICON_STOP       = self.makeCoreIcon('cross.png')
+        self.ICON_HOME       = self.makeCoreIcon('home.png')
+        self.ICON_MANUAL     = self.makeCoreIcon('address-book-open.png')
         self.file = None
         self.title = None
         self.html = None
@@ -2546,43 +2533,39 @@ class Browser(Plugin):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        if EsibdCore.useWebEngine:
-            self.webEngineView = QWebEngineView(parent=QApplication.instance().mainWindow)
-            # self.webEngineView.page().settings().setUnknownUrlSchemePolicy(QWebEngineSettings.UnknownUrlSchemePolicy.AllowAllUnknownUrlSchemes)
-            # self.webEngineView.page().settings().setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
-            self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True) # required to open local pdfs
-            self.webEngineView.loadFinished.connect(self.adjustLocation)
+        self.webEngineView = QWebEngineView(parent=QApplication.instance().mainWindow)
+        # self.webEngineView.page().settings().setUnknownUrlSchemePolicy(QWebEngineSettings.UnknownUrlSchemePolicy.AllowAllUnknownUrlSchemes)
+        # self.webEngineView.page().settings().setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True) # required to open local pdfs
+        self.webEngineView.loadFinished.connect(self.adjustLocation)
 
-            self.titleBar.setIconSize(QSize(16, 16)) # match size of other titleBar elements
-            page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Back)
-            page.setIcon(self.ICON_BACK)
-            self.titleBar.addAction(page)
-            page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Forward)
-            page.setIcon(self.ICON_FORWARD)
-            self.titleBar.addAction(page)
-            page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Reload)
-            page.setIcon(self.ICON_RELOAD)
-            self.titleBar.addAction(page)
-            page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Stop)
-            page.setIcon(self.ICON_STOP)
-            self.titleBar.addAction(page)
-            self.addAction(self.openAbout,'Home', self.ICON_HOME)
-            self.locationEdit = QLineEdit()
-            self.locationEdit.setSizePolicy(QSizePolicy.Policy.Expanding, self.locationEdit.sizePolicy().verticalPolicy())
-            self.locationEdit.returnPressed.connect(self.loadUrl)
-            self.locationEdit.setMaximumHeight(QPushButton().sizeHint().height())
-            self.titleBar.addWidget(self.locationEdit)
-            self.manualAction = self.addAction(self.openManual,'Manual', self.ICON_MANUAL)
-            self.addContentWidget(self.webEngineView)
-        else:
-            self.addContentWidget(QLabel('Browser is not supported for your operating system.'))
+        self.titleBar.setIconSize(QSize(16, 16)) # match size of other titleBar elements
+        page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Back)
+        page.setIcon(self.ICON_BACK)
+        self.titleBar.addAction(page)
+        page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Forward)
+        page.setIcon(self.ICON_FORWARD)
+        self.titleBar.addAction(page)
+        page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Reload)
+        page.setIcon(self.ICON_RELOAD)
+        self.titleBar.addAction(page)
+        page = self.webEngineView.pageAction(QWebEnginePage.WebAction.Stop)
+        page.setIcon(self.ICON_STOP)
+        self.titleBar.addAction(page)
+        self.addAction(self.openAbout,'Home', self.ICON_HOME)
+        self.locationEdit = QLineEdit()
+        self.locationEdit.setSizePolicy(QSizePolicy.Policy.Expanding, self.locationEdit.sizePolicy().verticalPolicy())
+        self.locationEdit.returnPressed.connect(self.loadUrl)
+        self.locationEdit.setMaximumHeight(QPushButton().sizeHint().height())
+        self.titleBar.addWidget(self.locationEdit)
+        self.manualAction = self.addAction(self.openManual,'Manual', self.ICON_MANUAL)
+        self.addContentWidget(self.webEngineView)
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        if EsibdCore.useWebEngine:
-            self.stretch.deleteLater()
-            self.openAbout()
+        self.stretch.deleteLater()
+        self.openAbout()
 
     def runTestParallel(self):
         """:meta private:"""
@@ -2620,12 +2603,12 @@ class Browser(Plugin):
             self.title = None # reset for next update
 
     def openManual(self):
-        self.loadData(file=Path('docs/_build/index.html').resolve())
+        self.loadData(file=(Path(__file__).parent / 'docs/index.html').resolve())
 
     def openAbout(self):
         """Simple dialog displaying program purpose, version, and creators"""
         self.setHtml(title=f'About {EsibdCore.PROGRAM_NAME}', html=f"""
-        <h1><img src='{Path(EsibdCore.ICON_EXPLORER).resolve()}' width='22'> {EsibdCore.PROGRAM_NAME} {EsibdCore.VERSION_MAYOR}.{EsibdCore.VERSION_MINOR}</h1>{EsibdCore.ABOUTHTML}""")
+        <h1><img src='{EsibdCore.ICON_EXPLORER.resolve()}' width='22'> {EsibdCore.PROGRAM_NAME} {EsibdCore.VERSION_MAYOR}.{EsibdCore.VERSION_MINOR}</h1>{EsibdCore.ABOUTHTML}""")
 
     def setHtml(self, title, html):
         self.provideDock()

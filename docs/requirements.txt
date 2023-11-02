@@ -2,7 +2,6 @@ sphinx==7
 sphinx_rtd_theme
 sphinxcontrib-bibtex
 readthedocs-sphinx-search
-#sphinx-autoapi
 numpy
 pathlib
 biopython
@@ -13,12 +12,6 @@ keyboard
 pyperclip
 python-socketio
 pyserial
-#serial
 Send2Trash
-#matplotlib
 h5py
 configobj
-#PyQt6
-#PyQt6-WebEngine
-#pyqtgraph==0.13.1
-PyOpenGL
