@@ -1,7 +1,7 @@
 [project]
 name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.6.8"
+version = "0.6.9"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
 readme = "README.rst"
@@ -16,7 +16,7 @@ dependencies = [
 	'pyperclip',
 	'python-socketio',
 	'pyserial',
-	'pywin32',
+	'pywin32; sys_platform == "win32"',
 	'Send2Trash',
 	'matplotlib',
 	'h5py',
