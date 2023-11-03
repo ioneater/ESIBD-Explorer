@@ -1,6 +1,7 @@
-sphinx==7
+sphinx
 sphinx_rtd_theme
 sphinxcontrib-bibtex
+sphinx_copybutton
 readthedocs-sphinx-search
 numpy
 biopython
