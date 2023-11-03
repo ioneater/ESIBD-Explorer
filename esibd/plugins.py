@@ -40,6 +40,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6 import QtCore
 import esibd.core as EsibdCore
 from esibd.core import INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel
+from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
 if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
@@ -79,7 +80,7 @@ class Plugin(QWidget):
         require independent versioning and documentation."""
     optional : bool     = True # specify in child to prenvent user from disabling this plugin
     """Defines if the user can deactivate the plugin in the :class:`~esibd.core.PluginManager` user interface."""
-    supportedVersion : [str] = f'{EsibdCore.VERSION_MAYOR}.{EsibdCore.VERSION_MINOR}'
+    supportedVersion : [str] = f'{VERSION_MAYOR}.{VERSION_MINOR}'
     """By default the current program version is used. You can
        define a fixed version and future program versions will
        state that they are incompatible with this plugin. This can be used to
@@ -430,8 +431,8 @@ class Plugin(QWidget):
         return self.previewFileTypes
 
     def hdfUpdateVersion(self, f):
-        v = self.requireGroup(f, EsibdCore.INFO)
-        for key, value in EsibdCore.infoDict(self.name).items():
+        v = self.requireGroup(f, INFO)
+        for key, value in infoDict(self.name).items():
             v.attrs[key] = value
 
     def requireGroup(self, g, name):
@@ -466,7 +467,7 @@ class Plugin(QWidget):
             self.canvas.deleteLater()
             self.navToolBar.deleteLater()
         self.canvas = FigureCanvas(figure)
-        self.navToolBar = EsibdCore.ThemedNavigationToolbar(self.canvas, parentPlugin=self, dark=EsibdCore.getDarkMode()) # keep reference in order to reset navigation
+        self.navToolBar = EsibdCore.ThemedNavigationToolbar(self.canvas, parentPlugin=self, dark=getDarkMode()) # keep reference in order to reset navigation
         for action in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
             if hasattr(self,'stretchAction'):
                 self.titleBar.insertAction(self.stretchAction, action)
@@ -504,7 +505,7 @@ class Plugin(QWidget):
         :return: DPI
         :rtype: int
         """
-        return int(EsibdCore.qSet.value(f'{EsibdCore.GENERAL}/{EsibdCore.DPI}', 100))# need explicit conversion as stored as string
+        return int(qSet.value(f'{GENERAL}/{DPI}', 100))# need explicit conversion as stored as string
 
     def getIcon(self):
         """Gets the plugin icon. Overwrite to introduce custom icons.
@@ -524,7 +525,7 @@ class Plugin(QWidget):
         :return: Icon
         :rtype: :class:`~esibd.core.BetterIcon`
         """
-        return EsibdCore.BetterIcon(EsibdCore.internalMediaPath / file)
+        return EsibdCore.BetterIcon(internalMediaPath / file)
 
     def makeIcon(self, file):
         """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
@@ -542,7 +543,7 @@ class Plugin(QWidget):
         :return: Test mode
         :rtype: bool
         """
-        return EsibdCore.qSet.value(f'{EsibdCore.GENERAL}/{EsibdCore.TESTMODE}', 'false') == 'true'
+        return qSet.value(f'{GENERAL}/{TESTMODE}', 'false') == 'true'
 
     def updateTheme(self):
         """Changes between dark and light themes. Most
@@ -554,11 +555,11 @@ class Plugin(QWidget):
             self.initFig()
             self.plot()
         if hasattr(self,'navToolBar') and self.navToolBar is not None:
-            self.navToolBar.updateNavToolbarTheme(EsibdCore.getDarkMode())
+            self.navToolBar.updateNavToolbarTheme(getDarkMode())
         if hasattr(self,'closeAction'):
-            self.closeAction.setIcon(self.makeCoreIcon('close_dark.png') if EsibdCore.getDarkMode() else self.makeCoreIcon('close_light.png'))
+            self.closeAction.setIcon(self.makeCoreIcon('close_dark.png') if getDarkMode() else self.makeCoreIcon('close_light.png'))
         if hasattr(self,'aboutAction'):
-            self.aboutAction.setIcon(self.makeCoreIcon('help_large_dark.png') if EsibdCore.getDarkMode() else self.makeCoreIcon('help_large.png'))
+            self.aboutAction.setIcon(self.makeCoreIcon('help_large_dark.png') if getDarkMode() else self.makeCoreIcon('help_large.png'))
 
     def initFig(self):
         """Will be called when a :ref:`display<sec:displays>` is closed and reopened or the theme
@@ -573,7 +574,7 @@ class Plugin(QWidget):
         """Copy matplotlib figure to clipboard."""
         buf = io.BytesIO()
         limits = []
-        if EsibdCore.getDarkMode():
+        if getDarkMode():
             with mpl.style.context('default'): # clipboard image should always use light theme for labbooks and sharing
                 for ax in self.axes:
                     limits.append((ax.get_xlim(), ax.get_ylim()))
@@ -587,7 +588,7 @@ class Plugin(QWidget):
                 self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=self.getDPI())
         else:
             self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=self.getDPI())
-        if EsibdCore.getDarkMode(): # restore dark theme for use inside app
+        if getDarkMode(): # restore dark theme for use inside app
             self.initFig()
             self.plot()
             for i, ax in enumerate(self.axes):
@@ -740,12 +741,12 @@ class StaticDisplay(Plugin):
         if self.plotEfficient: # maptplotlib
             super().copyClipboard()
         else: # pyqt
-            if EsibdCore.getDarkMode():
-                EsibdCore.qSet.setValue(f'{EsibdCore.GENERAL}/{EsibdCore.DARKMODE}', 'false')
+            if getDarkMode():
+                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
                 self.updateTheme()
                 QApplication.processEvents()
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
-                EsibdCore.qSet.setValue(f'{EsibdCore.GENERAL}/{EsibdCore.DARKMODE}', 'true')
+                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
                 self.updateTheme()
             else:
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
@@ -800,7 +801,7 @@ class StaticDisplay(Plugin):
             self.tilt_xlabels(self.axes[0])
         else:
             self.staticPlotWidget.clear()
-            self.legend = self.staticPlotWidget.addLegend(labelTextColor=EsibdCore.colors.fg) # before adding plots
+            self.legend = self.staticPlotWidget.addLegend(labelTextColor=colors.fg) # before adding plots
 
         for o in self.outputs:
             length = min(self.inputs[0].data.shape[0], o.data.shape[0])
@@ -851,7 +852,7 @@ class StaticDisplay(Plugin):
         return True # return True if loading was successful # make sure to follow this pattern when extending!
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=EsibdCore.UTF8) as f:
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as f:
             f.write(f"""import h5py
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -897,8 +898,8 @@ plt.show()
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
-        self.staticPlotWidget.setBackground(EsibdCore.colors.bg)
-        fg = EsibdCore.colors.fg
+        self.staticPlotWidget.setBackground(colors.bg)
+        fg = colors.fg
         self.staticPlotWidget.getAxis('left').setTextPen(fg)
         self.staticPlotWidget.getAxis('top').setTextPen(fg)
         self.staticPlotWidget.getAxis('right').setTextPen(fg)
@@ -1016,12 +1017,12 @@ class LiveDisplay(Plugin):
     def copyClipboard(self):
         """Extends matplotlib based version to add support for pyqtgraph."""
         buf = io.BytesIO()
-        if EsibdCore.getDarkMode():
-            EsibdCore.qSet.setValue(f'{EsibdCore.GENERAL}/{EsibdCore.DARKMODE}', 'false')
+        if getDarkMode():
+            qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
             self.updateTheme()
             QApplication.processEvents()
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
-            EsibdCore.qSet.setValue(f'{EsibdCore.GENERAL}/{EsibdCore.DARKMODE}', 'true')
+            qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
             self.updateTheme()
         else:
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
@@ -1148,8 +1149,8 @@ class LiveDisplay(Plugin):
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
-        self.livePlotWidget.setBackground(EsibdCore.colors.bg)
-        fg = EsibdCore.colors.fg
+        self.livePlotWidget.setBackground(colors.bg)
+        fg = colors.fg
         self.livePlotWidget.getAxis('left').setTextPen(fg)
         self.livePlotWidget.getAxis('top').setTextPen(fg)
         self.livePlotWidget.getAxis('right').setTextPen(fg)
@@ -1198,7 +1199,7 @@ class Device(Plugin):
     """Internal plugin to display data from file."""
     liveDisplay : LiveDisplay
     """Internal plugin to display data in real time."""
-    inout : EsibdCore.INOUT
+    inout : INOUT
     """Flag specifying if this is an input or output device."""
     channels : [Channel]
     """List of :class:`channels<esibd.core.Channel>`."""
@@ -1529,9 +1530,9 @@ class Device(Plugin):
             lw.axes[0].clear()
             y = [c.value for c in self.channels if c.real]
             labels = [c.name for c in self.channels if c.real]
-            colors = [c.color for c in self.channels if c.real]
+            _colors = [c.color for c in self.channels if c.real]
             x = np.arange(len(y))
-            lw.axes[0].scatter(x, y, marker='.', color=colors)
+            lw.axes[0].scatter(x, y, marker='.', color=_colors)
             lw.axes[0].set_ylabel(self.unit)
             lw.axes[0].set_xticks(x, labels, rotation=30, ha='right', rotation_mode='anchor')
             lw.canvas.draw_idle()
@@ -1637,9 +1638,9 @@ class Device(Plugin):
         if file is None: # get file via dialog
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
-            if file.suffix == EsibdCore.FILE_INI:
+            if file.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
-                confParser[EsibdCore.INFO] = EsibdCore.infoDict(self.name)
+                confParser[INFO] = infoDict(self.name)
                 for i, channel in enumerate(self.channels):
                     confParser[f'{self.CHANNEL}_{i:03d}'] = channel.asDict()
                 with open(file,'w', encoding=self.UTF8) as configfile:
@@ -1855,7 +1856,7 @@ class Device(Plugin):
     def resetPlot(self):
         if self.liveDisplayActive():
             self.liveDisplay.livePlotWidget.clear()
-            self.liveDisplay.legend = self.liveDisplay.livePlotWidget.addLegend(labelTextColor=EsibdCore.colors.fg) # before adding plots
+            self.liveDisplay.legend = self.liveDisplay.livePlotWidget.addLegend(labelTextColor=colors.fg) # before adding plots
         for c in self.channels: # getInitializedChannels() don't know yet which will be initialized -> create all
             c.plotCurve = None
 
@@ -2300,7 +2301,7 @@ class Scan(Plugin):
 
     def generatePythonPlotCode(self):
         """Saves minimal code to create a plot which can be customized by the user."""
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=EsibdCore.UTF8) as f:
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as f:
             f.write(self.pythonLoadCode() + self.pythonPlotCode())
 
     def pythonLoadCode(self):
@@ -2608,8 +2609,8 @@ class Browser(Plugin):
 
     def openAbout(self):
         """Simple dialog displaying program purpose, version, and creators"""
-        self.setHtml(title=f'About {EsibdCore.PROGRAM_NAME}', html=f"""
-        <h1><img src='{EsibdCore.ICON_EXPLORER.resolve()}' width='22'> {EsibdCore.PROGRAM_NAME} {EsibdCore.VERSION_MAYOR}.{EsibdCore.VERSION_MINOR}</h1>{EsibdCore.ABOUTHTML}""")
+        self.setHtml(title=f'About {PROGRAM_NAME}', html=f"""
+        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title, html):
         self.provideDock()
@@ -2631,8 +2632,8 @@ class Browser(Plugin):
         return f"""
         <style>
         body {{
-          background-color: {EsibdCore.colors.bg};
-          color: {EsibdCore.colors.fg};
+          background-color: {colors.bg};
+          color: {colors.fg};
         }}
         a:link    {{color: #8ab4f8; background-color: transparent; text-decoration: none; }}
         a:visited {{color: #c58af9; background-color: transparent; text-decoration: none; }}
@@ -2915,7 +2916,7 @@ class Console(Plugin):
             "print(param.widgetType, param.value, param.getWidget()) # print parameter properties",
             "chan.getParameterByName(chan.VALUE).getWidget().setStyleSheet('background-color:red;') # test widget styling",
             "[p.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for p in chan.parameters]",
-            "# EsibdCore.qSet.clear() # reset settings saved in registry. Use to test fresh deployment",
+            "# qSet.clear() # reset settings saved in registry. Use to test fresh deployment",
             "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
             "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
         ])
@@ -2968,7 +2969,7 @@ class Console(Plugin):
         self.dock.setVisible(self.pluginManager.Settings.showConsole)
 
     def toggleLogging(self):
-        EsibdCore.qSet.setValue(EsibdCore.LOGGING, self.logging)
+        qSet.setValue(LOGGING, self.logging)
         if self.logging:
             self.pluginManager.logger.open()
         else:
@@ -3002,7 +3003,7 @@ class SettingsManager(Plugin):
         # generate property for direct access of setting value from parent
         for name, default in plugin.getDefaultSettings().items():
             if default[Parameter.ATTR] is not None:
-                setattr(plugin.__class__, default[Parameter.ATTR], EsibdCore.makeSettingWrapper(name, self))
+                setattr(plugin.__class__, default[Parameter.ATTR], makeSettingWrapper(name, self))
 
     def initSettingsContextMenu(self, pos):
         try:
@@ -3074,6 +3075,12 @@ class SettingsManager(Plugin):
 
     def loadSettings(self, file=None, default=False): # public method
         """Loads settings from hdf or ini file."""
+        if self.pluginManager.DeviceManager.recording:
+            if EsibdCore.CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
+                self.pluginManager.DeviceManager.stop()
+                # settings necessary for acquistions will temporarily be unavailable during loading
+            else:
+                return
         self.loading = True
         if default:
             file = self.defaultFile
@@ -3084,7 +3091,7 @@ class SettingsManager(Plugin):
             return
         useFile = False
         items = []
-        if file.suffix == EsibdCore.FILE_INI:
+        if file.suffix == FILE_INI:
             # Load settings from INI file
             if file != Path('.') and file.exists():
                 confParser = configparser.ConfigParser()
@@ -3136,7 +3143,9 @@ class SettingsManager(Plugin):
         if not useFile: # create default if not exist
             self.print(f'Adding default settings in {file.name} for {self.parentPlugin.name}.')
             self.saveSettings(file=file)
-        self.expandTree(self.tree)
+        # self.expandTree(self.tree)
+        self.tree.collapseAll() # only session should be expanded by default
+        self.tree.expandItem(self.tree.topLevelItem(1))
         self.loading = False
 
     def updateSettings(self, items, file):
@@ -3148,7 +3157,7 @@ class SettingsManager(Plugin):
                 if item[Parameter.NAME] in self.settings:
                     if not item[Parameter.INTERNAL]:
                         s = self.settings[item[Parameter.NAME]]
-                        if s.value != item[Parameter.VALUE]:
+                        if not s.equals(item[Parameter.VALUE]):
                             self.changeLog.append(f'Updating setting {s.fullName} from {s.value} to {item[Parameter.VALUE]}')
                 else:
                     self.changeLog.append(f'Adding setting {item[Parameter.NAME]}')
@@ -3202,14 +3211,14 @@ class SettingsManager(Plugin):
                                                     directory=self.pluginManager.Settings.configPath.as_posix(), filter=self.FILTER_INI_H5)[0])
         if file == Path('.'):
             return
-        if file.suffix == EsibdCore.FILE_INI:
+        if file.suffix == FILE_INI:
             # load and update content. Keep settings of currently used plugins untouched as they may be needed in when these plugins are enabled in the future
             config = configparser.ConfigParser()
             if file.exists():
                 config.read(file)
-            config[EsibdCore.INFO] = EsibdCore.infoDict(self.name)
+            config[INFO] = infoDict(self.name)
             for name, default in self.defaultSettings.items():
-                if not name in [Parameter.DEFAULT.upper(), EsibdCore.VERSION] and not self.settings[name].internal:
+                if not name in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
                     if not name in config:
                         config[name] = {}
                     config[name][Parameter.VALUE]     = str(self.settings[name].value)
@@ -3228,7 +3237,7 @@ class SettingsManager(Plugin):
                     p = self.requireGroup(f, self.parentPlugin.name)
                     g = self.requireGroup(p, self.SETTINGS)
                 for name, default in self.defaultSettings.items():
-                    if not name in [Parameter.DEFAULT.upper(), EsibdCore.VERSION] and not self.settings[name].internal:
+                    if not name in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
                         self.hdfSaveSettig(g, name, default)
 
     def hdfSaveSettig(self, g, name, default):
@@ -3247,17 +3256,17 @@ class Settings(SettingsManager):
     name        = 'Settings'
     optional = False
     # NOTE: default paths should not be in softwarefolder as this might not have write access after installation
-    defaultConfigPath = Path.home() / EsibdCore.PROGRAM_NAME / 'conf/' # use user home dir by default
-    defaultPluginPath = Path.home() / EsibdCore.PROGRAM_NAME / 'plugins/'
+    defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/' # use user home dir by default
+    defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
         self.tree.setHeaderLabels(['Parameter','Value'])
         self.tree.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.confINI = f'{self.name}.ini'
-        self.loadGeneralSettings = f'Load {EsibdCore.PROGRAM_NAME} settings.'
+        self.loadGeneralSettings = f'Load {PROGRAM_NAME} settings.'
         super().__init__(parentPlugin=self, tree=self.tree,
-                         defaultFile=Path(EsibdCore.qSet.value(f'{EsibdCore.GENERAL}/{EsibdCore.CONFIGPATH}', self.defaultConfigPath)) / self.confINI, pluginManager=pluginManager, **kwargs)
+                         defaultFile=Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
 
     def getIcon(self):
@@ -3279,15 +3288,13 @@ class Settings(SettingsManager):
         """Call externaly to init all internal settings and those of all other plugins."""
         self.addDefaultSettings(plugin=self) # make settings available via self.attr
         super().init() # call first time to only load internal settings to enable validation of datapath
-        self.settings[f'{EsibdCore.GENERAL}/{EsibdCore.DATAPATH}']._changedEvent() # validate path before first use
+        self.settings[f'{GENERAL}/{DATAPATH}']._changedEvent() # validate path before first use
 
         for p in self.pluginManager.plugins:
             if hasattr(p,'getDefaultSettings') and not isinstance(p, Scan):
                 # only if plugin has specified settings that are not handled by separate settingsMgr within the plugin
                 self.addDefaultSettings(plugin=p)
         super().init() # call again to load all settings from all other plugins
-        self.tree.collapseAll() # only session should be expanded by default
-        self.tree.expandItem(self.tree.topLevelItem(1))
         self.settings[f'{self.SESSION}/{self.MEASUREMENTNUMBER}']._valueChanged = False # make sure sessionpath is not updated after restoring session number
 
     def finalizeInit(self, aboutFunc=None):
@@ -3307,27 +3314,27 @@ class Settings(SettingsManager):
     def getDefaultSettings(self):
         """Defines general default settings"""
         ds = {}
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.DATAPATH}']=parameterDict(value=Path.home() / EsibdCore.PROGRAM_NAME / 'data/',
+        ds[f'{GENERAL}/{DATAPATH}']=parameterDict(value=Path.home() / PROGRAM_NAME / 'data/',
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updateDataPath, attr='dataPath')
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.CONFIGPATH}']=parameterDict(value=self.defaultConfigPath,
+        ds[f'{GENERAL}/{CONFIGPATH}']=parameterDict(value=self.defaultConfigPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updateConfigPath, attr='configPath')
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.PLUGINPATH}']=parameterDict(value=self.defaultPluginPath,
+        ds[f'{GENERAL}/{PLUGINPATH}']=parameterDict(value=self.defaultPluginPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updatePluginPath, attr='pluginPath')
         # validate config path before loading settings from file
-        path = Path(EsibdCore.qSet.value(f'{EsibdCore.GENERAL}/{EsibdCore.CONFIGPATH}', self.defaultConfigPath)) # validate path and use default if not exists
+        path = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) # validate path and use default if not exists
         if not path.exists():
             Path(self.defaultConfigPath).mkdir(parents=True, exist_ok=True)
-            EsibdCore.qSet.setValue(f'{EsibdCore.GENERAL}/{EsibdCore.CONFIGPATH}', self.defaultConfigPath)
-            self.defaultFile = Path(EsibdCore.qSet.value(f'{EsibdCore.GENERAL}/{EsibdCore.CONFIGPATH}', self.defaultConfigPath)) / self.confINI
+            qSet.setValue(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)
+            self.defaultFile = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) / self.confINI
             self.print(f'Could not find path {path.as_posix()}. Defaulting to {self.defaultFile.parent.as_posix()}.', PRINT.WARNING)
         # access using getDPI()
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.DPI}']                    = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
+        ds[f'{GENERAL}/{DPI}']                    = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
                                                                 items='100, 150, 200, 300', widgetType=Parameter.TYPE.INTCOMBO)
         # access using getTestMode()
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.TESTMODE}']               = parameterDict(value=False, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
+        ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=False, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda : self.pluginManager.DeviceManager.initDevices() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True)
-        ds[f'{EsibdCore.GENERAL}/{EsibdCore.DARKMODE}']             = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
+        ds[f'{GENERAL}/{DARKMODE}']             = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
                                                                 widgetType=Parameter.TYPE.BOOL, attr='darkMode')
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
@@ -3353,7 +3360,7 @@ class Settings(SettingsManager):
             splash.close()
 
     def updatePluginPath(self):
-        if EsibdCore.CloseDialog(None,'Restart Now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
+        if EsibdCore.CloseDialog(title='Restart Now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
             self.pluginManager.closePlugins(reload=True)
 
     def updateSessionPath(self, mesNum=0):
@@ -3492,7 +3499,9 @@ class DeviceManager(Plugin):
 
     @property
     def recording(self):
-        return self._recording
+        recoding = [ld.recording for ld in self.pluginManager.DeviceManager.getActiveLiveDisplays()]
+        recoding.append(self._recording)
+        return any(recoding)
     @recording.setter
     def recording(self, recording):
         self._recording = recording
@@ -3699,7 +3708,7 @@ class Notes(Plugin):
             if self.editor.toPlainText() != '':
                 with open(self.file,'w', encoding = self.UTF8) as f:
                     f.write(self.editor.toPlainText())
-        elif file.name.endswith(EsibdCore.FILE_H5):
+        elif file.name.endswith(FILE_H5):
             with h5py.File(file, 'a', track_order=True) as f:
                 h5py.get_config().track_order = True
                 g = self.requireGroup(f, self.name)
@@ -3867,7 +3876,7 @@ class Explorer(Plugin):
             copyFileNameAction = explorerContextMenu.addAction('Copy file name to clipboard.')
             deleteFileAction = explorerContextMenu.addAction('Move to recyle bin.')
 
-            if self.activeFileFullPath.suffix == EsibdCore.FILE_H5:
+            if self.activeFileFullPath.suffix == FILE_H5:
                 try:
                     with h5py.File(name=self.activeFileFullPath, mode='r') as f:
                         for device in self.pluginManager.DeviceManager.getDevices():
@@ -3885,11 +3894,11 @@ class Explorer(Plugin):
                 for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                     if scan.supportsFile(self.activeFileFullPath):
                         copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {scan.name} plot file.')
-            elif self.activeFileFullPath.suffix == EsibdCore.FILE_INI:
+            elif self.activeFileFullPath.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
                 try:
                     confParser.read(self.activeFileFullPath)
-                    fileType = confParser[EsibdCore.INFO][Parameter.NAME]
+                    fileType = confParser[INFO][Parameter.NAME]
                 except KeyError:
                     self.print(f'Could not identify file type of {self.activeFileFullPath.name}', PRINT.ERROR)
                 else: # no exeption

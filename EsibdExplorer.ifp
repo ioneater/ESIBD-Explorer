@@ -17,7 +17,7 @@ Windows Server 2022 = 0
 Windows 11 = 1
 DoNotCheckOS = 0
 Company name = ESIBD Lab
-Website = https://github.com/ioneater/ES-IBD_Explorer
+Website = https://github.com/ioneater/ESIBD-Explorer
 SFA = 1
 DFA = 1
 Comp = 1
@@ -31,11 +31,11 @@ Installation path = <ProgramFiles>\<Company>\<AppName>\
 Autcip = 1
 [Uninstall]
 Vwau = 1
-Website = https://github.com/ioneater/ES-IBD_Explorer
+Website = https://esibd-explorer.readthedocs.io/en/latest/index.html
 Include uninstaller = 1
 Uninstaller filename = Uninstall
 UseCustomDisplayIcon = 1
-CustomDisplayIcon = <InstallPath>\media\ESIBD_Explorer.ico
+CustomDisplayIcon = <InstallPath>\esibd\media\ESIBD_Explorer.ico
 [Licence]
 Licence dialog = 1
 [Finish]
@@ -58,8 +58,8 @@ PlaySound = 0
 Allow = 0
 [Build]
 File = C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\build\ESIBD_Explorer-setup.exe
-SetupIconPath = <InstallPath>\media\ESIBD_Explorer.ico
-UninstallIconPath = <InstallPath>\media\ESIBD_Explorer.ico
+SetupIconPath = <InstallPath>\esibd\media\ESIBD_Explorer.ico
+UninstallIconPath = <InstallPath>\esibd\media\ESIBD_Explorer.ico
 CompressionMethod = 0
 CompressionLevel = 2
 [Updater]
@@ -448,13 +448,13 @@ Startmenu
 ESIBD Explorer
 <InstallPath>\ESIBD Explorer.exe
 
-<InstallPath>\media\ESIBD_Explorer.ico
+<InstallPath>\esibd\media\ESIBD_Explorer.ico
 0
 Desktop
 ESIBD Explorer
 <InstallPath>\ESIBD Explorer.exe
 
-<InstallPath>\media\ESIBD_Explorer.ico
+<InstallPath>\esibd\media\ESIBD_Explorer.ico
 0
 [IFP_End]
 [Serials]

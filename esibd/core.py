@@ -14,7 +14,6 @@ from pathlib import Path
 from datetime import datetime
 from enum import Enum
 import configparser
-import importlib
 import serial
 from packaging import version
 import numpy as np
@@ -31,50 +30,10 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
-from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
+from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
 
-# General field
-COMPANY_NAME    = 'ESIBD LAB'
-PROGRAM_NAME    = 'ESIBD Explorer'
-PROGRAM         = 'Program'
-VERSION_MAYOR   = 0
-VERSION_MINOR   = 6
-VERSION         = 'Version'
-internalPluginPath = Path(__file__).parent / 'plugins_internal'
-internalMediaPath = Path(__file__).parent / 'media'
-ICON_EXPLORER   = internalMediaPath / 'ESIBD_Explorer.png'
-SPLASHIMAGE     = internalMediaPath / 'ESIBD_Explorer_Splash'
-NAME            = 'Name'
-PLUGIN          = 'Plugin'
-INFO            = 'Info'
-TIMESTAMP       = 'Time'
-GENERAL         = 'General'
-LOGGING         = 'Logging'
-DATAPATH        = 'Data path'
-CONFIGPATH      = 'Config path'
-PLUGINPATH      = 'Plugin path'
-DARKMODE        = 'Dark mode'
-DPI             = 'DPI'
-TESTMODE        = 'Test mode'
-GEOMETRY        = 'GEOMETRY'
-ABOUTHTML       = f"""<p>{PROGRAM_NAME} controls all aspects of an ESIBD experiment, including ion beam guiding and steering, beam energy analysis, deposition monitoring, and data analysis.<br>
-                    Using the build-in plugin system, it can be extended to support additional hardware as well as custom controls for data acquisition, analysis, and visualization.<br>
-                    Read the docs: <a href='TODO read the docs'>here</a> for more details.<br><br>
-                    Github: <a href='https://github.com/ioneater/ESIBD-Explorer'>https://github.com/ioneater/ESIBD-Explorer</a><br>
-                    Rauschenbach Lab: <a href='https://rauschenbach.chem.ox.ac.uk/'>https://rauschenbach.chem.ox.ac.uk/</a><br>
-                    Present implementation in Python/PyQt: ioneater <a href='mailto:tim.esser@gmx.de'>tim.esser@gmx.de</a><br>
-                    Original implementation in LabView: rauschi2000 <a href='mailto:stephan.rauschenbach@chem.ox.ac.uk'>stephan.rauschenbach@chem.ox.ac.uk</a><br></p>"""
-
-# file types
-FILE_INI = '.ini'
-FILE_H5  = '.h5'
-FILE_PDF = '.pdf'
-
-# other
-UTF8    = 'utf-8'
-
-qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class EsibdExplorer(QMainWindow):
     r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
@@ -94,7 +53,7 @@ class EsibdExplorer(QMainWindow):
         dummy.setHtml('dummy')
         dummy.deleteLater()
         self.restoreUiState()
-        self.setWindowIcon(QIcon(ICON_EXPLORER.as_posix()))
+        self.setWindowIcon(QIcon(PROGRAM_ICON.as_posix()))
         self.setWindowTitle(PROGRAM_NAME)
         self.actionFull_Screen = QAction()
         self.actionFull_Screen.triggered.connect(self.toggleFullscreen)
@@ -137,8 +96,13 @@ class EsibdExplorer(QMainWindow):
 
     def closeEvent(self, event):
         """Triggers :class:`~esibd.core.PluginManager` to close all plugins and all related communication."""
-        if not self.pluginManager.loading and (not any([ld.recording for ld in self.pluginManager.DeviceManager.getActiveLiveDisplays()])
-                or CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec()):
+        if not self.pluginManager.loading:
+            if self.pluginManager.DeviceManager.recording:
+                if CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
+                    self.pluginManager.DeviceManager.stop()
+                else:
+                    event.ignore() # keep running
+                    return
             self.pluginManager.closePlugins()
             QApplication.instance().quit()
             event.accept() # let the window close
@@ -394,7 +358,7 @@ class PluginManager():
         """A dialog to select which plugins should be enabled"""
         if self.DeviceManager.recording:
             if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changin plugins!').exec():
-                self.DeviceManager.stopAcquisition()
+                self.DeviceManager.stop()
             else:
                 return
         dlg = QDialog(self.mainWindow)
@@ -575,55 +539,6 @@ class PluginManager():
             self.mainWindow.setUpdatesEnabled(True)
             # dialog.close()
             splash.close()
-
-class Colors():
-    """Provides dark mode dependant defaul colors"""
-
-    def getDarkMode(self):
-        # qSet.sync()
-        return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
-
-    @property
-    def fg(self):
-        return '#e4e7eb' if getDarkMode() else '#000000'
-
-    @property
-    def bg(self):
-        return '#202124' if getDarkMode() else '#ffffff'
-
-    @property
-    def bgAlt1(self):
-        return QColor(self.bg).lighter(160).name() if getDarkMode() else QColor(self.bg).darker(105).name()
-
-    @property
-    def bgAlt2(self):
-        return QColor(self.bg).lighter(200).name() if getDarkMode() else QColor(self.bg).darker(110).name()
-
-    @property
-    def highlight(self):
-        return '#8ab4f7' if getDarkMode() else '#0063e6'
-
-colors = Colors()
-
-class INOUT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
-    IN = 0
-    """Input"""
-    OUT = 1
-    """Output"""
-    BOTH = 2
-    """Both input and output."""
-
-class PRINT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
-    MESSAGE = 0
-    """A standard message."""
-    WARNING = 1
-    """Tag message as warning and highlight using color."""
-    ERROR = 2
-    """Tag message as error and highlight using color."""
-    DEBUG = 3
-    """Only show if debug flag is enabled."""
 
 class Logger(QObject):
     """Redicrects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
@@ -2810,50 +2725,10 @@ class SplashScreen(QSplashScreen):
         self.closed = False
 
     def animate(self):
-        self.index = np.mod(self.index + 1, 4)
-        self.label.setPixmap(QPixmap(f'{SPLASHIMAGE.as_posix()}{self.index+1}.png'))
+        self.index = np.mod(self.index + 1, len(SPLASHIMAGE))
+        self.label.setPixmap(QPixmap(SPLASHIMAGE[self.index].as_posix()))
 
     def close(self):
         self.closed=True
         self.timer.stop()
         return super().close()
-
-def makeSettingWrapper(name, settingsMgr, docstring=None):
-    """ Neutral setting wrapper for convenient access to the value of a setting.
-        If you need to handle events on value change, link these directly to the events of the corresponding control.
-    """
-    def getter(self): # pylint: disable=[unused-argument] # self will be passed on when used in class
-        return settingsMgr.settings[name].value
-    def setter(self, value): # pylint: disable=[unused-argument] # self will be passed on when used in class
-        settingsMgr.settings[name].value = value
-    return property(getter, setter, doc=docstring)
-
-def makeWrapper(name, docstring=None):
-    """ Neutral property wrapper for convenient access to the value of a parameter inside a channel.
-        If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
-    """
-    def getter(self):
-        return self.getParameterByName(name).value
-    def setter(self, value):
-        self.getParameterByName(name).value = value
-    return property(getter, setter, doc=docstring)
-
-def makeStateWrapper(stateAction, docstring=None):
-    """State wrapper for convenient access to the value of a StateAction."""
-    def getter(self): # pylint: disable = unused-argument
-        return stateAction.state
-    def setter(self, state): # pylint: disable = unused-argument
-        stateAction.state = state
-    return property(getter, setter, doc=docstring)
-
-def dynamicImport(module, path):
-    spec = importlib.util.spec_from_file_location(module, path)
-    Module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(Module)
-    return Module
-
-def getDarkMode():
-    return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
-
-def infoDict(name):
-    return {PROGRAM : PROGRAM_NAME, VERSION : f'{VERSION_MAYOR}.{VERSION_MINOR}', PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}

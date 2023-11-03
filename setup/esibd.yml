@@ -30,6 +30,7 @@ dependencies:
     - PyOpenGL
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
+    - sphinx-copybutton
     - docutils
     - readthedocs-sphinx-search
     - twine

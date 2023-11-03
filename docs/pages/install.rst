@@ -11,13 +11,13 @@ not allow to add additional python libraries for custom plugins.
 From PyPi
 -----------------------
 Install directly from the python package index using pip. TODO link to explorer on pypi.
-It is highly recommended to use virtual environments, which isolate the installed packages from the system packages.
+It is highly recommended to use virtual environments, which isolate the installed packages from the system packages::
 
-``pip install esibd-explorer``
+   pip install esibd-explorer
 
-Run the program using:
+Run the program using::
 
-``python -m esibd.explorer``
+   python -m esibd.explorer
 
 From source (Miniconda)
 -----------------------

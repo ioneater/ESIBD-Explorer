@@ -4,7 +4,7 @@ import re
 import serial
 import numpy as np
 from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, PluginManager, Channel, PRINT, parameterDict, DeviceController, getDarkMode
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT
 
 def providePlugins():
     return [Pressure]

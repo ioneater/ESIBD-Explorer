@@ -25,11 +25,13 @@ dependencies = [
 	'pyqtgraph==0.13.1',
 	'PyOpenGL',
 ]
+authors = [
+  { name = "ioneater", email = "me@email.comTODO" },
+]
 
-[metadata]
-url = 'https://github.com/ioneater/ESIBD-Explorer'
-author = 'ioneater'
-author_email = 'TODO'
+[project.urls]
+Homepage = "https://esibd-explorer.readthedocs.io/en/latest/index.html"
+Source = "https://github.com/ioneater/ESIBD-Explorer"
 
 [tool.setuptools]
 packages = ["esibd","esibd.media","esibd.plugins_internal","esibd.docs"]

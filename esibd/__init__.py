@@ -1,1 +1,1 @@
-# Empty __init__.py to tell this is a module
+"""__init__.py marks this as a module. Defines constants used througout the package."""
