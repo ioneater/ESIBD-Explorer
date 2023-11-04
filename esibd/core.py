@@ -1,8 +1,6 @@
-"""This module contains internally used constants, functions and classes
+"""This module contains internally used functions and classes.
 Generally all objects that are used accross multiple modules should be defined here to avoid circular imports and keep things consistent.
-Whenever it is possible to make definitions only locally where they are needed, this is preferred. Keep this file as compact as possible.
-This helps to keep things consistent and avoid errors to typos in strings etc.
-In principle, different versions of this file could be used for localization
+Whenever it is possible to make definitions only locally where they are needed, this is preferred.
 For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique."""
 
 import re
@@ -37,9 +35,9 @@ from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-i
 
 class EsibdExplorer(QMainWindow):
     r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
-    
+
     Contains minimal code to start, initialize, and close the program.
-    All high level logic is provided by :mod:`~esibd.core`, 
+    All high level logic is provided by :mod:`~esibd.core`,
     :mod:`~esibd.plugins` and additional
     :class:`plugins<esibd.plugins.Plugin>`.
     """
@@ -216,8 +214,8 @@ class PluginManager():
         if self.pluginFile.exists():
             self.confParser.read(self.pluginFile)
 
-        import esibd.plugins # pylint: disable = import-outside-toplevel # avoid circular import
-        self.loadPluginsFromModule(Module=esibd.plugins, dependencyPath=Path('media'))
+        import esibd.providePlugins # pylint: disable = import-outside-toplevel # avoid circular import
+        self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=Path('media'))
         self.loadPluginsFromPath(internalPluginPath)
         self.userPluginPath.mkdir(parents=True, exist_ok=True)
         if self.userPluginPath == internalPluginPath:
@@ -310,7 +308,7 @@ class PluginManager():
         return None
 
     def provideDocks(self):
-        """creates docks and positions them as defined by plugintype"""
+        """Creates docks and positions them as defined by :attr:`~esibd.core.PluginManager.pluginType`"""
         if not hasattr(self, 'topDock'): # reuse old
             self.topDock = QDockWidget() # dummy to align other docks to
             self.topDock.setObjectName('topDock') # required to restore state
@@ -355,7 +353,7 @@ class PluginManager():
             p.runTestParallel()
 
     def managePlugins(self):
-        """A dialog to select which plugins should be enabled"""
+        """A dialog to select which plugins should be enabled."""
         if self.DeviceManager.recording:
             if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changin plugins!').exec():
                 self.DeviceManager.stop()
@@ -426,7 +424,7 @@ class PluginManager():
         tree.setItemWidget(p, 5, descriptionLabel)
 
     def closePlugins(self, reload=False):
-        """ close all open connections and leave hardware in save state (voltage off)"""
+        """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
         self.logger.print('Closing.')
         if reload:
             self.splash = SplashScreen()
@@ -513,11 +511,11 @@ class PluginManager():
         QWidget::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
         QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
         QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
-        QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix() 
+        QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix()
                                                  if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
         QToolTip{{background-color: {colors.bg}; color: {colors.fg}; border: black solid 1px}}
         QCheckBox::indicator         {{border:1px solid {colors.fg}; width: 12px;height: 12px;}}
-        QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({(internalMediaPath / 'check_dark.png').as_posix() 
+        QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({(internalMediaPath / 'check_dark.png').as_posix()
                                                                                                            if getDarkMode() else (internalMediaPath / 'check.png').as_posix()})}}
         QTabBar::tab         {{margin:0px 0px 2px 0px; padding:4px; border-width:0px; }}
         QTabBar::tab:selected{{margin:0px 0px 0px 0px; padding:4px; border-bottom-width:2px; color:{colors.highlight}; border-bottom-color:{colors.highlight}; border-style:solid;}}"""
@@ -543,7 +541,7 @@ class PluginManager():
 class Logger(QObject):
     """Redicrects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
     Also shows messages on Status bar.
-    Use :meth:`~esibd.plugins.Plugin.print` of :class:`~esibd.plugins.Plugin` to send messages to the logger."""
+    Use :meth:`~esibd.plugins.Plugin.print` to send messages to the logger."""
 
     printFromThreadSignal = pyqtSignal(str, str, PRINT)
 
@@ -579,7 +577,7 @@ class Logger(QObject):
 
     def write(self, message):
         """Directs messages to terminal, log file, and :ref:`sec:console`.
-        Called directly from stdout or stderr or indirectly via Plugin.print."""
+        Called directly from stdout or stderr or indirectly via :meth:`~esibd.plugins.Plugin.print`."""
         if self.active:
             if self.terminalOut is not None: # after packaging with pyinstaller the programm will not be connected to a terminal
                 self.terminalOut.write(message) # write to original stdout
@@ -590,16 +588,17 @@ class Logger(QObject):
             # handles new lines in system error messages better than Console.write
             # needs to run in main_thread
             self.pluginManager.Console.mainConsole.output.insertPlainText(message)
+            self.pluginManager.Console.mainConsole.scrollToBottom()
 
     def print(self, message, sender=f'{PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, console, statusbar, and console.
 
         :param message: A short and descriptive message.
         :type message: str
-        :param sender: The name of the sending plugin, defaults to f'{PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}'
+        :param sender: The name of the sending plugin'
         :type sender: str, optional
-        :param flag: Signals the status of the message, defaults to PRINT.MESSAGE
-        :type flag: :meth:`~esibd.core.PRINT`, optional
+        :param flag: Signals the status of the message, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
+        :type flag: :class:`~esibd.const.PRINT`, optional
         """
         if current_thread() is not main_thread():
             # redirect to main thread if needed to avoid chanign GUI from parallel thread.
@@ -625,11 +624,11 @@ class Logger(QObject):
         self.pluginManager.mainWindow.statusBar().setStyleSheet(styleSheet)
 
     def flush(self):
-        """Flushes content to log file"""
+        """Flushes content to log file."""
         self.log.flush()
 
     def close(self):
-        """Disables logging and restores stdout and stderr"""
+        """Disables logging and restores stdout and stderr."""
         if self.active:
             self.log.close()
             self.active = False
@@ -747,58 +746,6 @@ class Parameter():
     Typically they are not initialized directly but via a :meth:`~esibd.core.parameterDict`
     from which settings and channels take the relevant information.
 
-    name : str
-        The parameter name.
-    value : var
-        The default value of the parameter in any supported type.
-    min : float
-        Minimum limit for numerical properties.
-    max : float
-        Maximum limit for numerical properties.
-    toolTip : str
-        Tooltip used to describe the parameter.
-    items : [str]
-        List of options for parameters with a combobox.
-    widgetType : :meth:`~esibd.core.Parameter.TYPE`
-        They type determines which widget is used to represent the parameter in the user interface.
-    advanced : bool
-        If True, parameter will only be visible in advanced mode.
-        Only applies to channel parameters.
-    header : str
-        Header used for the corresponding column in list of channels.
-        The parameter name is used if not specified.
-        Only applies to channel parameters.
-    widget : QWidget
-        A custom widget that will be used instead of the automatically provided one.
-    event : method
-        A function that will be triggered when the parameter value changes.
-    internal : bool
-        Set to True to save parameter value in the registry (using QSetting)
-        instead of configuration files. This can help to reduce clutter in
-        configuration files and restore essential parameters even if
-        configuration files get moved or lost.
-    attr : str
-        Allows direct access to the parameter. Only applies to channel and settings parameters.
-            E.g. The *color* parameter of a channel specifies *attr=’color’*
-            and can thus be accessed via *channel.color*.
-
-            E.g. The *Session path* parameter in :class:`~esibd.plugins.Settings` specifies
-            *attr=’sessionPath’* and can thus be accessed via
-            *Settings.sessionPath*.
-
-            E.g. The *interval* parameter of a device specifies
-            *attr=’interval’* and can thus be accessed via *device.interval*.
-
-            E.g. The *notes* parameter of a scan specifies *attr=’notes’* and
-            can thus be accessed via *scan.notes*.
-    indicator : bool
-        Indicators cannot be edited by the user.
-    instantUpdate : bool
-        By default, events are triggered as soon as the value changes. If set
-        to False, certain events will only be triggered if editing is
-        finished by the *enter* key or if the widget loses focus.
-    print : method
-        Reference to :meth:`~esibd.plugins.Plugin.print`.
     """
 
     # general keys
@@ -838,13 +785,75 @@ class Parameter():
         COLOR = 'COLOR'
         """A ColorButton that allows to select a color."""
         BOOL  = 'BOOL'
-        """A boolean flag, represented by a checkbox."""
+        """A boolean, represented by a checkbox."""
         INT   = 'INT'
         """An integer spinbox."""
         FLOAT = 'FLOAT'
-        """An floating point spinbox."""
+        """A floating point spinbox."""
         EXP   = 'EXP'
-        """An spinbox with scientific format."""
+        """A spinbox with scientific format."""
+
+    name : str
+    """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
+    value : str
+    """The default value of the parameter in any supported type."""
+    min : float
+    """Minimum limit for numerical properties."""
+    max : float
+    """Maximum limit for numerical properties."""
+    toolTip : str
+    """Tooltip used to describe the parameter."""
+    items : [str]
+    """List of options for parameters with a combobox."""
+    widgetType : TYPE
+    """They type determines which widget is used to represent the parameter in the user interface."""
+    advanced : bool
+    """If True, parameter will only be visible in advanced mode.
+    Only applies to channel parameters."""
+    header : str
+    """Header used for the corresponding column in list of channels.
+    The parameter name is used if not specified.
+    Only applies to channel parameters."""
+    widget : QWidget
+    """A custom widget that will be used instead of the automatically provided one."""
+    event : callable
+    """A function that will be triggered when the parameter value changes."""
+    internal : bool
+    """Set to True to save parameter value in the registry (using QSetting)
+    instead of configuration files. This can help to reduce clutter in
+    configuration files and restore essential parameters even if
+    configuration files get moved or lost."""
+    attr : str
+    """Allows direct access to the parameter. Only applies to channel and settings parameters.
+
+    E.g. The *color* parameter of a channel specifies *attr=’color’*
+    and can thus be accessed via *channel.color*.
+
+    E.g. The *Session path* parameter in :class:`~esibd.plugins.Settings` specifies
+    *attr=’sessionPath’* and can thus be accessed via
+    *Settings.sessionPath*.
+
+    E.g. The *interval* parameter of a device specifies
+    *attr=’interval’* and can thus be accessed via *device.interval*.
+
+    E.g. The *notes* parameter of a scan specifies *attr=’notes’* and
+    can thus be accessed via *scan.notes*."""
+    indicator : bool
+    """Indicators cannot be edited by the user."""
+    instantUpdate : bool
+    """By default, events are triggered as soon as the value changes. If set
+    to False, certain events will only be triggered if editing is
+    finished by the *enter* key or if the widget loses focus."""
+    print : callable
+    """Reference to :meth:`~esibd.plugins.Plugin.print`."""
+    fullName : str
+    """Will contain path of setting in HDF5 file if applicable."""
+    tree : QTreeWidget
+    """None, unless the parameter is used for settings."""
+    itemWidget : QTreeWidgetItem
+    """If this is not None, parameter is part of a channel otherwise of a setting."""
+    extendedEvent : callable
+    """Used to add internal events on top of the user assigned ones."""
 
     def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, widget=None, internal=False,
                     tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, instantUpdate=True):
@@ -852,18 +861,18 @@ class Parameter():
         self.widgetType = widgetType if widgetType is not None else self.TYPE.LABEL
         self.index = index
         self.print = _parent.print
-        self.fullName = name # will contain path of setting in HDF5 file if applicable
-        self.name = Path(name).name # only use last element in case its a path
+        self.fullName = name
+        self.name = Path(name).name
         self.toolTip = toolTip
         self._items = items.split(',') if items is not None else None
-        self.tree = tree # None unless the parameter is used for settings
-        self.itemWidget = itemWidget # if this is not None, parameter is part of a device channel
-        self.widget = widget # None unless widget provided -> can be used to place an interface to a settings anywhere
+        self.tree = tree
+        self.itemWidget = itemWidget
+        self.widget = widget
         self._changedEvent = None
         self._valueChanged = False
-        self.event = event # None unless widget provided -> can be used to place an interface to a settings anywhere
-        self.extendedEvent = event # allows to add internal events on top of the explicitly assigned ones
-        self.internal = internal # internal settings will not be exported to file but saved using QSetting
+        self.event = event
+        self.extendedEvent = event
+        self.internal = internal
         self.indicator = indicator
         self.instantUpdate = instantUpdate
         self.rowHeight = QLineEdit().sizeHint().height() - 4
@@ -1006,8 +1015,8 @@ class Parameter():
         self.default = self.value
 
     def applyWidget(self):
-        """create UI widget depending on widget type
-        Linking dedicated widget if provided
+        """Creates UI widget depending on :attr:`~esibd.core.Parameter.widgetType`.
+        Links dedicated :attr:`~esibd.core.Parameter.widget` if provided.
         """
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.combo = QComboBox() if self.widget is None else self.widget
@@ -1161,7 +1170,7 @@ class Parameter():
 #################################### Settings Item ################################################
 
 class Setting(QTreeWidgetItem, Parameter):
-    """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a device channel."""
+    """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a channel."""
     def __init__(self, value=None, parentItem=None,**kwargs):
         # use keyword arguments rather than positional to avoid issues with multiple inheritace
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
@@ -1266,10 +1275,15 @@ class MetaChannel():
         self.channel = channel # use getChannelByName(name, inout=INOUT.OUT) as argument if applicable
 
 class Channel(QTreeWidgetItem):
-    """A :class:`~esibd.core.Channel` represents a virtual or real parameter and manages all data and
-    metadata related to that parameter. Each :class:`~esibd.plugins.Device` can only have one
-    type of :class:`~esibd.core.Channel`, but channels have dynamic interfaces that allow to
-    account for differences in the physical backend."""
+    """A :class:`channel<esibd.core.Channel>` represents a virtual or real parameter and manages all data and
+    metadata related to that parameter. Each :ref:`device<sec:devices>` can only have one
+    type of channel, but channels have dynamic interfaces that allow to
+    account for differences in the physical backend.
+
+    Channels provide a consistent and structured interface to inputs and
+    outputs. In the advanced mode, channels can be duplicated, moved, or
+    deleted. You may also edit channels directly in the corresponding .ini
+    file in the config path."""
 
     class SignalCommunicate(QObject):
         updateValueSignal = pyqtSignal(float)
@@ -1281,7 +1295,7 @@ class Channel(QTreeWidgetItem):
     tree : QTreeWidget
     """TreeWidget containing the channel widgets."""
     inout : INOUT
-    """Reference to :meth:`~esibd.plugins.Device.inout`."""
+    """Reference to :class:`~esibd.plugins.Device.inout`."""
     plotCurve : pyqtgraph.PlotCurveItem
     """The plotCurve in the corresponding :class:`~esibd.plugins.LiveDisplay`."""
     lastAppliedValue : any
@@ -1416,7 +1430,7 @@ class Channel(QTreeWidgetItem):
 
     def setDisplayedParameters(self):
         """Used to determine which parameters to use and in what order.
-        Extend using insertParameter to add more parameters"""
+        Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
         self.displayedParameters = [self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.LINEWIDTH, self.COLOR]
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
@@ -1528,8 +1542,8 @@ class Channel(QTreeWidgetItem):
             self.device.pluginManager.DeviceManager.updateStaticPlot()
 
     def initGUI(self, item):
-        """call after itemWidget has been added to treeWidget
-            itemWidget needs parent for all graphics operations
+        """Call after item has been added to tree.
+        Item needs parent for all graphics operations.
         """
         for p in self.parameters:
             p.applyWidget()
@@ -1573,7 +1587,7 @@ class Channel(QTreeWidgetItem):
 #################################### Other Custom Widgets #########################################
 
 class QLabviewSpinBox(QSpinBox):
-    """Implements handling of arrow key events based on curser position as in LabView"""
+    """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False):
         super().__init__(parent)
         self.indicator = indicator
@@ -1616,7 +1630,7 @@ class QLabviewSpinBox(QSpinBox):
             self.lineEdit().setCursorPosition(max(cur - 1,0))
 
 class QLabviewDoubleSpinBox(QDoubleSpinBox):
-    """Implements handling of arrow key events based on curser position as in LabView"""
+    """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False):
         super().__init__(parent)
         self.indicator = indicator
@@ -1667,7 +1681,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             self.lineEdit().setCursorPosition(max(cur - 1,0))
 
 class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
-    """Spinbox for scientific notation"""
+    """Spinbox for scientific notation."""
     # inspired by https://gist.github.com/jdreaver/0be2e44981159d0854f5
     # Regular expression to find floats. Match groups are the whole string, the
     # whole coefficient, the decimal part of the coefficient, and the exponent part.
@@ -1736,10 +1750,8 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
 ############################ Third Party Widgets ##################################################
 
 class ControlCursor(Cursor):
-    """Extending implementation given here
-    https://matplotlib.org/3.5.0/gallery/misc/cursor_demo.html
-    cursor only moves when dragged
-    """
+    """Extending internal implementation to get draggable cursor."""
+    # based on https://matplotlib.org/3.5.0/gallery/misc/cursor_demo.html
     def __init__(self, ax, color, **kwargs):
         self.ax = ax
         super().__init__(ax,**kwargs)
@@ -1767,6 +1779,7 @@ class ControlCursor(Cursor):
         self.setPosition(*self.getPosition())
 
 class RestoreFloatComboBox(QComboBox):
+    """ComboBox that allows to restore its value upon restart using an internal :class:`~esibd.core.Setting`"""
 
     def __init__(self, parentPlugin, default, items, attr, **kwargs):
         super().__init__(parent=parentPlugin)
@@ -1783,6 +1796,7 @@ class RestoreFloatComboBox(QComboBox):
         # setattr(self.parentPlugin.__class__, self.attr, makeSettingWrapper(self.setting.fullName, self.parentPlugin.pluginManager.Settings)) # unconsistent results, overlap between instances
 
 class CheckBox(QCheckBox):
+    """Allows to set values in a widget independent consistent way."""
 
     class SignalCommunicate(QObject):
         setValueFromThreadSignal = pyqtSignal(bool)
@@ -1796,6 +1810,7 @@ class CheckBox(QCheckBox):
         self.setChecked(value)
 
 class ToolButton(QToolButton):
+    """Allows to set values in a widget independent consistent way."""
 
     class SignalCommunicate(QObject):
         setValueFromThreadSignal = pyqtSignal(bool)
@@ -1876,7 +1891,7 @@ class StateAction(Action):
         self.state = value
 
 class CompactComboBox(QComboBox):
-    """Combobox that stays small while showing full content in dropdown"""
+    """Combobox that stays small while showing full content in dropdown menu.s"""
     # from JonB at https://forum.qt.io/post/542594
     def showPopup(self):
         # we like the popup to always show the full contents
@@ -1903,10 +1918,9 @@ class CompactComboBox(QComboBox):
             view.setMinimumWidth(maxWidth)
 
 class BetterDockWidget(QDockWidget):
-    """Allows to intercept the closeEvent and update title when floating or tabbing."""
+    """DockWidget with custom title bar allows to intercept the close and float events triggred by user."""
     # future desired features:
-    # - floating docks should have icons, be able to be maximized/minimized and appear as separate windows of the same software in task bar
-    # - float and close buttons should be shown in tab if widget is tabifyed -> hide redundant title bar
+    # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # - some of these are possibe with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118223 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
 
@@ -1914,7 +1928,7 @@ class BetterDockWidget(QDockWidget):
         dockClosingSignal = pyqtSignal()
 
     def __init__(self, plugin):
-        super().__init__(plugin.name)
+        super().__init__(plugin.name, QApplication.instance().mainWindow)
         self.plugin = plugin
         self.signalComm = self.SignalCommunicate()
         self.signalComm.dockClosingSignal.connect(self.plugin.closeGUI)
@@ -1930,17 +1944,12 @@ class BetterDockWidget(QDockWidget):
         # print('toggleTitleBar', self.plugin.name, self.isFloating())
         if self.isFloating(): # dock is floating on its own
             # self.setWindowFlags(Qt.WindowType.Window)
-            # self.setTitleBarWidget(None) # restore original to have something to drag dock around / not needed if titlebar passes mouse events correctly
-            self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
             if self.plugin.titleBarLabel is not None:
                 self.plugin.titleBarLabel.setText(self.plugin.name)
             if hasattr(self.plugin, 'floatAction'):
                 self.plugin.floatAction.state = True
                 # self.plugin.floatAction.setVisible(False)
         else: # dock is inside the mainwindow or an external window
-            # self.setTitleBarWidget(QWidget()) # hide titlebar by using empty widget # stays hidden no need to call again after initialization
-            # self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
-            self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
             if hasattr(self.plugin, 'floatAction'):
                 self.plugin.floatAction.state = False
                 # do not allow to float from external windows as this causes GUI instabilities (empty external windows, crash without error, ...)
@@ -1985,11 +1994,10 @@ class LedIndicator(QAbstractButton):
         self.on_color = QColor(0, 220, 0)
         self.off_color = QColor(0, 60, 0)
 
-    def resizeEvent(self, QResizeEvent):  # pylint: disable = unused-argument # matching standard signature
+    def resizeEvent(self, QResizeEvent): # pylint: disable = unused-argument # matching standard signature
         self.update()
 
-    def paintEvent(self, QPaintEvent):  # pylint: disable = unused-argument # matching standard signature
-        "an event that paints"
+    def paintEvent(self, QPaintEvent): # pylint: disable = unused-argument, missing-function-docstring # matching standard signature
         realSize = min(self.width(), self.height())
 
         painter = QPainter(self)
@@ -2073,7 +2081,8 @@ class LedIndicator(QAbstractButton):
         self.off_color_2 = color
 
 class TextEdit(QPlainTextEdit):
-    """from https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2"""
+    """Editor that is compatible with :class:`~esibd.core.NumberBar`"""
+    # based on https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2119,8 +2128,7 @@ class TextEdit(QPlainTextEdit):
 
         super(TextEdit, self).focusInEvent(e)
 
-    def keyPressEvent(self, e):
-        """keyPressEvent"""
+    def keyPressEvent(self, e): # pylint: disable = missing-function-docstring
         if e.key() == Qt.Key.Key_Tab:
             self.textCursor().insertText("    ")
             return
@@ -2159,10 +2167,11 @@ class TextEdit(QPlainTextEdit):
     ####################################################################
 
 class NumberBar(QWidget):
-    """based on https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2"""
+    """A bar that displays line numbers of an associated editor."""
+    # based on https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2
 
     def __init__(self, parent = None):
-        super(NumberBar, self).__init__(parent)
+        super().__init__(parent)
         self.editor = parent
         self.editor.blockCountChanged.connect(self.update_width)
         self.editor.updateRequest.connect(self.update_on_scroll)
@@ -2184,8 +2193,7 @@ class NumberBar(QWidget):
         if self.width() != width:
             self.setFixedWidth(width)
 
-    def paintEvent(self, event):
-        """paintEvent"""
+    def paintEvent(self, event): # pylint: disable = missing-function-docstring
         if self.isVisible():
             block = self.editor.firstVisibleBlock()
             height = self.fontMetrics().height()
@@ -2222,7 +2230,7 @@ class NumberBar(QWidget):
             painter.end()
 
 class ThemedConsole(pyqtgraph.console.ConsoleWidget):
-    """pyqtgraph.console.ConsoleWidget with colors adjusting to theme"""
+    """pyqtgraph.console.ConsoleWidget with colors adjusting to theme."""
 
     def __init__(self, parent=None, namespace=None, historyFile=None, text=None, editor=None):
         super().__init__(parent, namespace, historyFile, text, editor)
@@ -2351,6 +2359,10 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
             self.frames.append(tb.tb_frame)
             tb = tb.tb_next
 
+    def scrollToBottom(self):
+        sb = self.output.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.
     Adds light and dark theme support to NavigationToolbar2QT."""
@@ -2388,8 +2400,8 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
 class MZCaculator():
     """
     Add to a class derived from Scan.
-    Allows to mark mz locations within a chargestate distrubution, calculates absolute mass, and displays it on the axis.
-    Use Ctrl + Left Mouse to mark and Ctrl + Right Mouse to reset"""
+    Allows to mark mass to charge (m/z) locations within a chargestate distrubution, calculates absolute mass, and displays it on the axis.
+    Use Ctrl + left mouse click to mark and Ctrl + right mouse click to reset."""
     def __init__(self, parentPlugin, ax=None):
         self.parentPlugin = parentPlugin
         if ax:
@@ -2426,7 +2438,7 @@ class MZCaculator():
         self.update_mass_to_charge()
 
     def determine_mass_to_charge(self):
-        """estimates charge states based on m/z values provided by user by minimizing standard deviation of absolute mass within a charge state series.
+        """Estimates charge states based on m/z values provided by user by minimizing standard deviation of absolute mass within a charge state series.
         Provides standard deviation for neightbouring series to allow for validation of the result."""
         if len(self.mz) > 1: # not enough information for analysis
             sort_indices = self.mz.argsort()
@@ -2488,8 +2500,9 @@ class BetterPlotWidget(pg.PlotWidget):
 
 
 class SciAxisItem(pg.AxisItem):
-    """Based on original logTickStrings from https://pyqtgraph.readthedocs.io/en/latest/_modules/pyqtgraph/graphicsItems/AxisItem.html
-    Only difference to source code is 0.1g -> .0e and consistend use of 1 = 10⁰"""
+    """Based on original logTickStrings.
+    Only difference to source code is 0.1g -> .0e and consistend use of 1 = 10⁰."""
+    # based on https://pyqtgraph.readthedocs.io/en/latest/_modules/pyqtgraph/graphicsItems/AxisItem.html
 
     # no ticks when zooming in too much: https://github.com/pyqtgraph/pyqtgraph/issues/1505
 
@@ -2530,8 +2543,8 @@ class DeviceController(QObject):
     hardware communication from :class:`plugins<esibd.plugins.Plugin>` allowing them to use minimal and
     consistent code that can be adjusted and reused independently of the
     hardware. It should do all resource or time intensive communication work
-    in parallel threads to not slow down the main software. Following the
-    producer consumer logic, the :class:`~esibd.core.DeviceController` reads values and assigns
+    in parallel threads to keep the GUI responsive. Following the
+    producer-consumer pattern, the :class:`~esibd.core.DeviceController` reads values from a physical device and assigns
     them to the corresponding :class:`~esibd.core.Channel`. The :class:`devices<esibd.plugins.Device>` will collect data from
     the :class:`~esibd.core.Channel` independently. In case you work with time sensitive
     experiments this concept will need to be adapted. Feel free to use the
@@ -2696,14 +2709,14 @@ class DeviceController(QObject):
         self.stopAcquisition()
 
     def stopAcquisition(self):
-        """Terminates acquisition but leaves communication initialized by default."""
+        """Terminates acquisition but leaves communication initialized."""
         if self.acquisitionThread is not None:
             self.acquiring = False
             return True
         return False
 
 class SplashScreen(QSplashScreen):
-    """Program splash screen indicates start process before main window is ready."""
+    """Program splash screen that indicates loading."""
 
     def __init__(self):
         super().__init__()

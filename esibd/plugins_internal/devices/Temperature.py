@@ -5,7 +5,7 @@ import serial
 import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
 def providePlugins():
     return [Temperature]
@@ -13,6 +13,7 @@ def providePlugins():
 class Temperature(Device):
     """Device that reads the temperature of a silicon diode sensor via Sunpower CryoTel controller.
     It allows to switch units between K and °C."""
+    documentation = None # use __doc__
 
     name = 'Temperature'
     version = '1.0'
@@ -197,7 +198,7 @@ class TemperatureController(DeviceController):
 
     def runInitialization(self):
         """Initializes serial port in paralel thread"""
-        if self.device.getTestMode():
+        if getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
             self.initializing = True
@@ -229,7 +230,7 @@ class TemperatureController(DeviceController):
     def initComplete(self):
         self.temperatures = [0]*len(self.device.channels)
         super().initComplete()
-        if self.device.getTestMode():
+        if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
         if self.restart:
             self.cryoON(True)
@@ -237,13 +238,13 @@ class TemperatureController(DeviceController):
 
     def startAcquisition(self):
         # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
-        if self.port is not None or self.device.getTestMode():
+        if self.port is not None or getTestMode():
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            if self.device.getTestMode():
+            if getTestMode():
                 self.fakeNumbers()
             else:
                 self.readNumbers()
@@ -278,7 +279,7 @@ class TemperatureController(DeviceController):
 
     def cryoON(self, on=False):
         self.ON = on
-        if not self.device.getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized:
             with self.lock:
                 if on:
                     self.CryoTelWrite('COOLER=ON') # start (used to be 'SET SSTOP=0')
@@ -291,7 +292,7 @@ class TemperatureController(DeviceController):
         qm.exec()
 
     def setTemperature(self, channel):
-        if not self.device.getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized:
             if channel.controler == channel.CRYOTEL:
                 Thread(target=self.setTemperatureFromThread, args=(channel,)).start()
 

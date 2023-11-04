@@ -34,7 +34,7 @@ and landing energy.\ :cite:`ochner_low-energy_2021,rauschenbach_electrospray_200
    **Right** :purple:`Deposition stage`, independently controlled :orange:`commercial mass spectrometer` (Thermo Scientific :sup:`TM` Q Exactive :sup:`TM` UHMR instrument), :darkblue:`temperature measurement` (Sunpower CryoTel GTLT), :darkorange:`pressure measurement` (Edwards TIC, Pfeiffer TPG366). See references for more details.
    :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022`
 
-Figure :numref:`fig:setup` shows and overview of the Oxford ESIBD setup,
+:numref:`fig:setup` shows an overview of the Oxford ESIBD setup,
 which combines a commercial mass spectrometer with a custom deposition stage. 
 Most ESIBD experiments comprise a variety of components including an ion
 source, ion guides, mass filters, deflectors, focusing lenses, and

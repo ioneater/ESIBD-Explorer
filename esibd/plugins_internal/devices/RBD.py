@@ -5,7 +5,7 @@ import serial
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
 from esibd.plugins import Device, StaticDisplay, Scan
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel, getTestMode
 
 def providePlugins():
     return [Current]
@@ -15,6 +15,7 @@ class Current(Device):
     9103 picoammeter. The channels show the accumulated charge over time,
     which is proportional to the number of deposited ions. It can also
     reveal on which elements ions are lost."""
+    documentation = None # use __doc__
 
     name = 'RBD'
     version = '1.0'
@@ -281,7 +282,7 @@ class CurrentController(DeviceController):
 
     def runInitialization(self):
         """Initializes serial port in parallel thread."""
-        if self.channel.device.getTestMode():
+        if getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
             self.initializing = True
@@ -314,16 +315,16 @@ class CurrentController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        if self.channel.device.getTestMode():
+        if getTestMode():
             self.print(f'{self.channel.devicename} faking values for testing!', PRINT.WARNING)
 
     def startAcquisition(self):
         # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
-        if (self.port is not None or self.channel.device.getTestMode()) and self.channel.active:
+        if (self.port is not None or getTestMode()) and self.channel.active:
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
-        if self.channel.device.getTestMode():
+        if getTestMode():
             while acquiring():
                 self.fakeSingleNum()
                 self.updateParameters()
@@ -349,7 +350,7 @@ class CurrentController(DeviceController):
             self.print(error)
 
     def setRange(self):
-        if not self.channel.device.getTestMode():
+        if not getTestMode():
             with self.lock:
                 self.RBDWrite(f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}') # set range
                 self.RBDRead()
@@ -358,27 +359,27 @@ class CurrentController(DeviceController):
     def setAverage(self):
         _filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
         _filter = 2**_filter if _filter > 0 else 0
-        if not self.channel.device.getTestMode():
+        if not getTestMode():
             with self.lock:
                 self.RBDWrite(f'F0{_filter:02}') # set filter
                 self.RBDRead()
         self.updateAverageFlag=False
 
     def setBias(self):
-        if not self.channel.device.getTestMode():
+        if not getTestMode():
             with self.lock:
                 self.RBDWrite(f'B{int(self.channel.bias)}') # set bias, convert from bool to int
                 self.RBDRead()
         self.updateBiasFlag=False
 
     def setGrounding(self):
-        if not self.channel.device.getTestMode():
+        if not getTestMode():
             with self.lock:
                 self.RBDWrite('G0') # input grounding off
                 self.RBDRead()
 
     def getName(self):
-        if not self.channel.device.getTestMode():
+        if not getTestMode():
             with self.lock:
                 self.RBDWrite('P') # get channel name
                 name = self.RBDRead()

@@ -8,7 +8,14 @@ def providePlugins():
     return [CustomControl]
 
 class CustomControl(Plugin):
-    """Example of a minimal custom user control."""
+    """The minimal code in "examples/Custom.py" demonstrates how to integrate your own
+    custom elements to the ESIBD Explorer. This should be sufficient as
+    long as your code does not requires interaction with any other elements
+    of the ESIBD Explorer. See :ref:`sec:plugin_system` for more information."""
+    documentation = """The minimal code in examples/Custom.py demonstrates how to integrate your own
+    custom elements to the ESIBD Explorer. This should be sufficient as
+    long as your code does not requires interaction with any other elements
+    of the ESIBD Explorer."""
 
     name = 'CustomControl'
     version = '1.0'

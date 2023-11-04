@@ -18,6 +18,7 @@ package_path = docs_path.parents[1].as_posix()
 sys.path.insert(0, package_path)
 # print(sys.path)
 
+sphinx = True # used for conditional doc strings (direct HTML vs. rst)
 
 project = 'ESIBD Explorer'
 copyright = '2023, Tim Esser'

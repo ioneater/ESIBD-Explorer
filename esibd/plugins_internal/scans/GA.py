@@ -8,7 +8,7 @@ import numpy as np
 
 class GA():
     """Genetic Algorithm for Optimization of Almost Everything
-    by Tim Esser (tim.esser@gmx.de)
+    by ioneater (ioneater.dev@gmail.com)
     Version: 3.2 (2013-2022 / re implemented in Python in 2020)
     Adopted for use with PyQt applications"""
     def __init__(self):

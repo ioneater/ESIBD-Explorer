@@ -118,7 +118,28 @@ def dynamicImport(module, path):
     return Module
 
 def getDarkMode():
+    """Gets the dark mode from :ref:`sec:settings`.
+
+    :return: dark mode
+    :rtype: bool
+    """
     return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
+
+def getDPI():
+    """Gets the DPI from :ref:`sec:settings`.
+
+    :return: DPI
+    :rtype: int
+    """
+    return int(qSet.value(f'{GENERAL}/{DPI}', 100))# need explicit conversion as stored as string
+
+def getTestMode():
+    """Gets the test mode from :ref:`sec:settings`.
+
+    :return: Test mode
+    :rtype: bool
+    """
+    return qSet.value(f'{GENERAL}/{TESTMODE}', 'false') == 'true'
 
 def infoDict(name):
     return {PROGRAM : PROGRAM_NAME, VERSION : f'{VERSION_MAYOR}.{VERSION_MINOR}', PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}

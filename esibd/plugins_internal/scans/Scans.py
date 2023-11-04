@@ -29,7 +29,7 @@ def providePlugins():
     return [Beam, Energy, Omni, Depo, GA]
 
 class Beam(Scan):
-    """Scan that records the current on one electrode as a function of two voltage
+    """Scan that records the ion-beam current on one electrode as a function of two voltage
     channels, typically deflectors. The recorded data can be interpolated to
     enhance the visualization. The resulting image is used to identify
     elements like apertures, samples, and detectors. The beam can be moved
@@ -38,6 +38,7 @@ class Beam(Scan):
     size in both directions. Scan limits can be adopted from the figure or
     centered around the current value, e.g., to zoom in and center on a
     specific feature."""
+    documentation = None # use __doc__
 
     LEFTRIGHT       = 'Left-Right'
     UPDOWN          = 'Up-Down'
@@ -271,6 +272,7 @@ class Energy(Scan):
     and a Gaussian fit that reveals beam-energy center and width. The
     potential on the selected channel can be changed by clicking and
     dragging on the image while holding down the Ctrl key."""
+    documentation = None # use __doc__
 
     name = 'Energy'
     version = '1.0'
@@ -483,6 +485,7 @@ class Omni(Scan):
     interactive mode, a slider will appear that allows to set the value of
     the input channel manually and independent of the scan settings. This
     may be more intuitive and faster than automated scanning, e.g. when looking for a local maximum."""
+    documentation = None # use __doc__
 
     name = 'Omni'
     version = '1.0'
@@ -675,6 +678,7 @@ class Depo(Scan):
     As data analysis is decoupled from data
     acquisition, you can continue to use all other scan modes and
     optimization while the deposition recording is running."""
+    documentation = None # use __doc__
 
     name = 'Depo'
     version = '1.0'
@@ -919,8 +923,26 @@ plt.show()
         self.signalComm.scanUpdateSignal.emit(True) # update graph and save data # placed after while loop to ensure it will be executed
 
 class GA(Scan):
-    """Genetic algorithm that optimizes input channels based on feedback from a single output channel.
-    The output channel can be virtual and contain an equation that references many other channels."""
+    """This plugin allows to integrate an independently developed genetic
+    algorithm (GA) for automated optimization of signals.\ :cite:`esser_cryogenic_2019`
+    Multiple input channels can be selected to be included in the optimization. Make sure to choose safe
+    limits for optimized channels and choose appropriate wait and average
+    values to get valid feedback. The performance and reliability of the
+    optimization depends on the stability and reproducibility of the
+    selected output channel. The output channel can be virtual and contain an 
+    equation that references many other channels. At the end of the optimization the changed
+    parameters will be shown in the plugin. The initial parameters can
+    always be restored in case the optimization fails."""
+    documentation = """This plugin allows to integrate an independently developed genetic
+    algorithm (GA) for automated optimization of signals.
+    Multiple input channels can be selected to be included in the optimization. Make sure to choose safe
+    limits for optimized channels and choose appropriate wait and average
+    values to get valid feedback. The performance and reliability of the
+    optimization depends on the stability and reproducibility of the
+    selected output channel. The output channel can be virtual and contain an 
+    equation that references many other channels. At the end of the optimization the changed
+    parameters will be shown in the plugin. The initial parameters can
+    always be restored in case the optimization fails."""
 
     name = 'GA'
     version = '1.0'

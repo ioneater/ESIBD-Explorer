@@ -7,9 +7,19 @@ A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Dep
    :target: https://esibd-explorer.readthedocs.io/en/latest/index.html
    :alt: Documentation Status
 
-.. image:: https://badge.fury.io/py/cathy.svg
-   :target: https://badge.fury.io/py/cathy
-   :alt: ESIBD Explorer on pypi
+.. image:: https://badge.fury.io/py/esibd-explorer.svg
+   :target: https://badge.fury.io/py/esibd-explorer
+   :alt: ESIBD Explorer on PyPI
+
+.. _`fig:overview`:
+.. figure:: 2023-10_ESIBD_GUI.png
+
+   **ESIBD Explorer user interface.** Colored boxes highlight the five main sections. :blue:`Live displays` showing
+   data from several devices. Central :darkorange:`device manager`.
+   :red:`Configuration and management` section including settings, file explorer, as well devices, scans and other
+   controls. :orange:`Displays` of supported files
+   including saved and running scans. :green:`Console` for
+   debugging and plugin development.
 
 Documentation
 =============
@@ -31,4 +41,4 @@ https://github.com/ioneater/ESIBD-Explorer
 Contact
 =======
 
-TODO
+ioneater.dev@gmail.com

@@ -10,7 +10,7 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCaculator, PluginManager, getDarkMode
+from esibd.core import MZCaculator, PluginManager, getDarkMode, getDPI
 from esibd.plugins import Plugin
 
 #################################### General UI Classes #########################################
@@ -20,6 +20,14 @@ def providePlugins():
 
 class MS(Plugin):
     """The MS plugin allows to display simple mass spectra. Clicking on peaks
+    in a charge state series while holding down the Ctrl key provides a
+    quick estimate of charge state and mass, based on minimizing the standard
+    deviation of the mass as a function of possible charge states. The
+    detailed results are shown in the graph, and help to evaluate the
+    quality of the estimate. In most cases you will need to create your own version of this plugin
+    that is inheriting from the built-in version and redefines how data is
+    loaded for your specific data format. See :ref:`sec:plugin_system` for more information."""
+    documentation = """The MS plugin allows to display simple mass spectra. Clicking on peaks
     in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states. The
@@ -47,7 +55,7 @@ class MS(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=self.getDPI())
+        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
         self.makeFigureCanvasWithToolbar(self.fig)
         self.addContentWidget(self.canvas)
         self.axes=[]
@@ -196,6 +204,7 @@ class PDB(Plugin):
     file formats used by the protein data bank. While the visualization is
     not very sophisticated it may get you started on interacting
     programmatically with those files."""
+    documentation = None # use __doc__
 
     name = 'PDB'
     version = '1.0'
@@ -212,7 +221,7 @@ class PDB(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=self.getDPI())
+        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
         self.makeFigureCanvasWithToolbar(self.fig)
         self.addContentWidget(self.canvas)
         self.axes = []
@@ -269,7 +278,13 @@ class PDB(Plugin):
 
 class LINE(Plugin):
     """The Line plugin allows to display simple 2D data. It is made to work
+    with simple xy text files with a three line header.
+    In most cases you will need to create your own version of this plugin
+    that is inheriting from the build in version and redefines how data is
+    loaded for your specific data format. See :ref:`sec:plugin_system` for more information."""
+    documentation = """The Line plugin allows to display simple 2D data. It is made to work
     with simple xy text files with a three line header."""
+
 
     name = 'Line'
     version = '1.0'
@@ -286,7 +301,7 @@ class LINE(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=self.getDPI())
+        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
         self.makeFigureCanvasWithToolbar(self.fig)
         self.addContentWidget(self.canvas)
         self.axes = []
@@ -343,7 +358,12 @@ class LINE(Plugin):
         self.labelPlot(self.axes[0], self.file.name)
 
 class HOLO(Plugin):
-    """Displays IsoSurface Views of complex 3D numpy arrays, such as holograms."""
+    """The Holo plugin was designed to display 3D NumPy arrays such as
+    holograms from low energy electron holography (LEEH).\ :cite:`longchamp_imaging_2017,ochner_low-energy_2021,ochner_electrospray_2023`
+    Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
+    documentation = """The Holo plugin was designed to display 3D NumPy arrays such as
+    holograms from low energy electron holography (LEEH).
+    Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
 
     name = 'Holo'
     version = '1.0'

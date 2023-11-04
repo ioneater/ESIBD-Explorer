@@ -4,13 +4,13 @@ Installation
 Standalone Windows installer
 ----------------------------
 
-A standalone installer for windows is available at TODO This allows for
-a simple and fast installation but may require more disk space and does
+A `standalone installer for windows <https://github.com/ioneater/ESIBD-Explorer/releases>`_ 
+allows for a simple and fast installation, but may require more disk space and does
 not allow to add additional python libraries for custom plugins.
 
 From PyPi
 -----------------------
-Install directly from the python package index using pip. TODO link to explorer on pypi.
+Install directly from the `Python Package Index <https://pypi.org/project/esibd-explorer>`_ using pip.
 It is highly recommended to use virtual environments, which isolate the installed packages from the system packages::
 
    pip install esibd-explorer
@@ -22,7 +22,7 @@ Run the program using::
 From source (Miniconda)
 -----------------------
 
-| Install `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__
+| Install `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
   or another conda distribution following the instructions on the
   website. You may need to manually add the paths to the following
   folders to the PATH environment variable.
@@ -31,7 +31,7 @@ From source (Miniconda)
 
 Download the source from Go to the setup folder and run create_env.bat
 to install all dependencies. Later, update_env.bat can be used to update
-dependencies. Start the program using start.bat. If desired, you can add
+dependencies. Start the program using *start.bat*. If desired, you can add
 a shortcut to start.bat to the start menu.
 
 From source (other)

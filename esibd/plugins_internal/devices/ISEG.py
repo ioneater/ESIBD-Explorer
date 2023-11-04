@@ -6,7 +6,7 @@ from random import choices
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
 from esibd.plugins import Device#, StaticDisplay
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
 
 ########################## Voltage user interface #################################################
 
@@ -16,6 +16,7 @@ def providePlugins():
 class Voltage(Device):
     """Device that contains a list of voltages channels from an ISEG ECH244 power supply.
     The voltages are monitored and a warning is given if the set potentials are not reached."""
+    documentation = None # use __doc__
 
     name = 'ISEG'
     version = '1.1'
@@ -202,7 +203,7 @@ class VoltageController(DeviceController): # no channels needed
 
     def runInitialization(self):
         """initializes socket for SCPI communication"""
-        if self.device.getTestMode():
+        if getTestMode():
             self.print('Faking monitor values for testing!', PRINT.WARNING)
             self.initialized = True
             self.signalComm.initCompleteSignal.emit()
@@ -239,11 +240,11 @@ class VoltageController(DeviceController): # no channels needed
 
     def read(self, initializing=False):
         # only call from thread! # make sure lock is aquired before and relased after
-        if not self.device.getTestMode() and (self.initialized or initializing):
+        if not getTestMode() and (self.initialized or initializing):
             return self.s.recv(4096).decode("utf-8")
 
     def setVoltage(self, channel):
-        if not self.device.getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized:
             Thread(target=self.setVoltageFromThread, args=(channel,)).start()
 
     def setVoltageFromThread(self, channel):
@@ -252,7 +253,7 @@ class VoltageController(DeviceController): # no channels needed
             self.read()
 
     def applyMonitors(self):
-        if self.device.getTestMode():
+        if getTestMode():
             self.fakeMonitors()
         else:
             for channel in self.device.channels:
@@ -261,9 +262,9 @@ class VoltageController(DeviceController): # no channels needed
 
     def voltageON(self, on=False): # this can run in main thread
         self.ON = on
-        if not self.device.getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized:
             Thread(target=self.voltageONFromThread, args=(on,)).start()
-        elif self.device.getTestMode():
+        elif getTestMode():
             self.fakeMonitors()
 
     def voltageONFromThread(self, on=False):
@@ -284,7 +285,7 @@ class VoltageController(DeviceController): # no channels needed
     def runAcquisition(self, acquiring):
         """monitor potentials continuously"""
         while acquiring():
-            if not self.device.getTestMode():
+            if not getTestMode():
                 with self.lock:
                     for m in self.modules:
                         self.s.sendall(f':MEAS:VOLT? (#{m}@0-{self.maxID+1})\r\n'.encode('utf-8'))

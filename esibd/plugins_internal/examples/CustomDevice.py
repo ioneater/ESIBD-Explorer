@@ -10,7 +10,9 @@ def providePlugins():
     return [CustomDevice]
 
 class CustomDevice(Device):
-    """Example of a custom device."""
+    """The minimal code in *examples/CustomDevice.py* is an example of how to integrate a custom device.
+    See :ref:`sec:plugin_system` for more information."""
+    documentation = """The minimal code in examples/CustomDevice.py is an example of how to integrate a custom device."""
 
     name = 'CustomDevice'
     version = '1.0'

@@ -1,9 +1,9 @@
 """ This module contains only :class:`plugins<esibd.plugins.Plugin>` and plugin templates.
 The user controls generally have a large amount of logic integrated and can act as an intelligent database.
 This avoids complex and error prone synchronization between redundant data in the UI and a separate database.
-Every parameter should only exist in one unique location at run time.
-Separating the logic from the PyQt specific UI elements may be required in the future,
-but only if there are practical and relevant advantages that outweigh the drawbacks of managing syncronization."""
+Every parameter should only exist in one unique location at run time."""
+# Separating the logic from the PyQt specific UI elements may be required in the future,
+# but only if there are practical and relevant advantages that outweigh the drawbacks of managing syncronization."""
 
 import sys
 import os
@@ -45,19 +45,11 @@ if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
 
-def providePlugins():
-    """Returns list of :class:`plugins<esibd.plugins.Plugin>` that are available for activation in the :class:`~esibd.core.PluginManager` user interface accessible from :ref:`sec:settings`.
-
-    :return: Plugin list
-    :rtype: [:class:`~esibd.plugins.Plugin`]
-    """
-    # with current docking system first four plugins have to be of type DeviceManager, control, console, display, in this order for correct UI layout!
-    return [DeviceManager, ESIBDSettings, Console, Browser, Explorer, Notes, Text, Tree]
-
 class Plugin(QWidget):
-    """Abstracts basic GUI code for devices scans and other high level UI elements.
+    """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
     All plugins are ultimately derived from the :class:`~esibd.plugins.Plugin` class.
-    The doc string of the plugin class will be shown in the corresponding help window."""
+    The doc string of the plugin class will be shown in the corresponding help window 
+    unless documentation is implemented explicitly."""
 
     LOAD    = 'Load'
     SAVE    = 'Save'
@@ -71,10 +63,14 @@ class Plugin(QWidget):
        file is selected in the :meth:`~esibd.plugins.Explorer`, the plugins :meth:`~esibd.plugins.Plugin.loadData` function will be called."""
     pluginType : PluginManager.TYPE = PluginManager.TYPE.INTERNAL # overwrite in child class mandatory
     """The type defines the location of the plugin in the user interface and allows to run
-       operations on a group of plugins with the same type."""
+       operations on a group of plugins with the same type using :meth:`~esibd.core.PluginManager.getPluginsByType`."""
     name : str          = "" # specify in child class mandatory
     """A unique name that will be used in the graphic user interface.
        Plugins can be accessed directly from the :ref:`sec:console` using their name."""
+    documentation : str = None # specify in child class
+    """The plugin documentation used in the internal about dialog in the :ref:`sec:browser`.
+    If None, the doc string *__doc__* will be used instead.
+    """
     version : str       = "" # specify in child class mandatory
     """The version of the plugin. Plugins are independent programs that
         require independent versioning and documentation."""
@@ -104,7 +100,7 @@ class Plugin(QWidget):
     dock : EsibdCore.BetterDockWidget
     """The dockWidget that allows to float and rearrange the plugin user interface."""
     fig : plt.figure
-    """A figure, initialized e.g. using `plt.figure(constrained_layout=True, dpi=self.getDPI())`
+    """A figure, initialized e.g. using `plt.figure(constrained_layout=True, dpi=getDPI())`
        and followed by `self.makeFigureCanvasWithToolbar(self.fig)`."""
     axes : [mpl.axes.Axes]
     """The axes of :attr:`~esibd.plugins.Plugin.fig`."""
@@ -146,8 +142,8 @@ class Plugin(QWidget):
 
         :param message: A short informative message.
         :type message: str
-        :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.core.PRINT.MESSAGE`
-        :type flag: :meth:`~esibd.core.PRINT`, optional
+        :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
+        :type flag: :meth:`~esibd.const.PRINT`, optional
         """
         self.pluginManager.logger.print(message, self.name, flag)
 
@@ -269,12 +265,12 @@ class Plugin(QWidget):
         # extend or overwrite to add code that should be executed after all other plugins have been initialized, e.g. modifications of other plugins
 
     def initDock(self):
-        """Initializes the dockWidget."""
+        """Initializes the :class:`~esibd.core.BetterDockWidget`."""
         if not self.initializedDock:
             self.dock = EsibdCore.BetterDockWidget(self)
 
     def provideDock(self):
-        """Adding existing :attr:`~esibd.plugins.Plugin.dock` to UI."""
+        """Adds existing :attr:`~esibd.plugins.Plugin.dock` to UI at position defined by :attr:`esibd.plugins.Plugin.pluginType`."""
         self.print('provideDock', PRINT.DEBUG)
         mw = self.pluginManager.mainWindow
         if not self.initializedDock:
@@ -405,7 +401,7 @@ class Plugin(QWidget):
         self.vertLayout.addLayout(lay)
 
     def supportsFile(self, file):
-        """Tests if a file is supported by the plugin.
+        """Tests if a file is supported by the plugin, based on file name or content.
 
         :param file: File that has been selected by the user.
         :type file: pathlib.Path
@@ -443,16 +439,16 @@ class Plugin(QWidget):
             return g.create_group(name=name, track_order=True)
 
     def about(self):
-        """Displays the about dialog of the plugin using :ref:`sec:browser` or :ref:`sec:text`."""
+        """Displays the about dialog of the plugin using the :ref:`sec:browser`."""
         self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
-            <p>{self.__doc__}<br></p>
+            <p>{self.documentation if self.documentation is not None else self.__doc__}<br></p>
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
             Supported version: {self.supportedVersion}<br></p>"""
             + # add programmer info in testmode, otherwise only show user info
             (f"""<p>Plugin type: {self.pluginType.value}<br>
             Optional: {self.optional}<br>
             Dependency path: {self.dependencyPath.resolve()}<br></p>"""
-            if self.getTestMode() else '')
+            if getTestMode() else '')
             )
 
     def makeFigureCanvasWithToolbar(self, figure):
@@ -499,14 +495,6 @@ class Plugin(QWidget):
         for ann in [child for child in ax.get_children() if isinstance(child, mpl.text.Annotation)]:#[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
 
-    def getDPI(self):
-        """Gets the DPI from :ref:`sec:settings`.
-
-        :return: DPI
-        :rtype: int
-        """
-        return int(qSet.value(f'{GENERAL}/{DPI}', 100))# need explicit conversion as stored as string
-
     def getIcon(self):
         """Gets the plugin icon. Overwrite to introduce custom icons.
         Consider using a themed icon that works in dark and light modes.
@@ -536,14 +524,6 @@ class Plugin(QWidget):
         :rtype: :class:`~esibd.core.BetterIcon`
         """
         return EsibdCore.BetterIcon(str(self.dependencyPath / file))
-
-    def getTestMode(self):
-        """Gets the test mode from :ref:`sec:settings`.
-
-        :return: Test mode
-        :rtype: bool
-        """
-        return qSet.value(f'{GENERAL}/{TESTMODE}', 'false') == 'true'
 
     def updateTheme(self):
         """Changes between dark and light themes. Most
@@ -585,9 +565,9 @@ class Plugin(QWidget):
                     ax.set_ylim(limits[i][1])
                 self.canvas.draw_idle()
                 QApplication.processEvents()
-                self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=self.getDPI())
+                self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
         else:
-            self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=self.getDPI())
+            self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
         if getDarkMode(): # restore dark theme for use inside app
             self.initFig()
             self.plot()
@@ -631,8 +611,8 @@ class Plugin(QWidget):
             label.set_rotation(rotation)
 
     def getDefaultSettings(self):
-        """Defines a dictionary of :meth:`~esibd.core.parameterDict` which specifies default settings for this plugin. 
-        Overwrite or extend as needed to define specific settings that will be added to :ref:`sec:settings`.               
+        """Defines a dictionary of :meth:`~esibd.core.parameterDict` which specifies default settings for this plugin.
+        Overwrite or extend as needed to define specific settings that will be added to :ref:`sec:settings` section.
 
         :return: Settings dictionary
         :rtype: {:meth:`~esibd.core.parameterDict`}
@@ -708,7 +688,7 @@ class StaticDisplay(Plugin):
 
     def initFig(self):
         """:meta private:"""
-        self.fig=plt.figure(constrained_layout=True, dpi=self.getDPI())
+        self.fig=plt.figure(constrained_layout=True, dpi=getDPI())
         self.makeFigureCanvasWithToolbar(self.fig)
         self.outputLayout.addWidget(self.canvas)
         self.axes = []
@@ -835,7 +815,7 @@ class StaticDisplay(Plugin):
         self.inputs, self.outputs = [], []
 
     def loadDataInternal(self, file):
-        """Load data in standard format. Overwrite in derived classes for legacy versions."""
+        """Load data in standard format. Overwrite in derived classes to add support for old file formats."""
         with h5py.File(file,'r') as f:
             if not self.name in f:
                 return False
@@ -915,7 +895,32 @@ plt.show()
 # import pyqtgraph.multiprocess as mp
 
 class LiveDisplay(Plugin):
-    """Displays :class:`~esibd.plugins.Device` data in real time."""
+    """Live displays show the history of measured data over time. The toolbar
+    provides icons to initialize, start, pause, stop acquisition, optionally
+    subtract backgrounds, or export displayed data to the current session.
+    The length of the displayed history is determined by the display time
+    control in the tool bar.
+
+    Frequently updating those plots is typically the computationally most
+    expensive action. Thus you might want to reduce
+    the number of displayed data points in the :ref:`acquisition settings<sec:acquisition_settings>`. This will make sure that
+    the graphs are updated less frequently and select a smaller but
+    consistent subset of data points for a smooth visualization. While
+    PyQtGraph provides its own algorithms for down sampling data (accessible
+    via the context menu), they tend to cause a flicker when updating data."""
+    documentation = """Live displays show the history of measured data over time. The toolbar
+    provides icons to initialize, start, pause, stop acquisition, optionally
+    subtract backgrounds, or export displayed data to the current session.
+    The length of the displayed history is determined by the display time
+    control in the tool bar.
+
+    Frequently updating those plots is typically the computationally most
+    expensive action. Thus you might want to reduce
+    the number of displayed data points in the Settings. This will make sure that
+    the graphs are updated less frequently and select a smaller but
+    consistent subset of data points for a smooth visualization. While
+    PyQtGraph provides its own algorithms for down sampling data (accessible
+    via the context menu), they tend to cause a flicker when updating data."""
 
     pluginType=PluginManager.TYPE.LIVEDISPLAY
 
@@ -1165,7 +1170,42 @@ class LiveDisplay(Plugin):
 ########################## Generic device interface #########################################
 
 class Device(Plugin):
-    """A :class:`~esibd.plugins.Device` manages access to parameters on a physical device, represented as a :class:`~esibd.core.Channel`."""
+    """:class:`Devices<esibd.plugins.Device>` are used to handle communication with one or more
+    physical devices, provide controls to configure the device and display live or
+    previously recorded data. There are *input devices* (sending input from
+    the user to hardware) and *output devices* (reading outputs from
+    hardware). Note that some *input devices* may also read back data from
+    hardware to confirm that the user defined values are applied correctly.
+    
+    The main interface consists of a list of :ref:`sec:channels`. By
+    default only the physically relevant information is shown. By entering
+    the *advanced mode*, additional channel parameters can be configured. The
+    configuration can be exported and imported, though once all channels
+    have been setup it is sufficient to only load values which can be done
+    using a file dialog or from the context menu of an appropriate file in
+    the :ref:`sec:explorer`. After loading the configurations or values, a change log will be
+    available in the :ref:`sec:text` plugin to quickly identify what has changed. Each
+    device also comes with a :ref:`display<sec:displays>` and a :ref:`live display<sec:live_displays>`. 
+    The current values can also be plotted to get a quick overview and identify any
+    unusual values."""
+    documentation = """Device plugins are used to handle communication with one or more
+    devices, provide controls to configure the device and display live or
+    previously recorded data. There are input devices (sending input from
+    the user to hardware) and output devices (reading outputs from
+    hardware). Note that some input devices may also read back data from
+    hardware to confirm that the user defined values are applied correctly.
+    
+    The main interface consists of a list of channels. By
+    default only the physically relevant information is shown. By entering
+    the advanced mode, additional channel parameters can be configured. The
+    configuration can be exported and imported, though once all channels
+    have been setup it is sufficient to only load values which can be done
+    using a file dialog or from the context menu of an appropriate file in
+    the Explorer. After loading the configurations or values, a change log will be
+    available in the Text plugin to quickly identify what has changed. Each
+    device also comes with a display and a live display.
+    The current values can also be plotted to get a quick overview and identify any
+    unusual values."""
 
     version = 1.0
     name = 'Device' # overwrite after inheriting
@@ -1174,15 +1214,13 @@ class Device(Plugin):
     Overwrite with :attr:`~esibd.core.PluginManager.TYPE.OUTPUTDEVICE` after inheriting if applicable."""
     channelType = EsibdCore.Channel
     """Type of :class:`~esibd.core.Channel` used by the device. Overwrite by appropriate type in derived classes."""
-    unit = '' # overwrite in child class
-
     StaticDisplay = StaticDisplay
     """Defined here so that overwriting only affects only instance in device and not all instances.
 
     :meta private:
     """
     LiveDisplay = LiveDisplay
-    """Defined here so that overwriting only affects only instance in device and not all instances.
+    """Defined here so that overwriting only affects single instance in device and not all instances.
 
     :meta private:
     """
@@ -1191,8 +1229,6 @@ class Device(Plugin):
     MAXDATAPOINTS = 'Max data points'
     DISPLAYTIME = 'Display Time'
     LOGGING = 'Logging'
-    channelType : Channel
-    """The type of channel used."""
     unit : str
     """Unit used in user interface."""
     staticDisplay : StaticDisplay
@@ -1346,7 +1382,7 @@ class Device(Plugin):
 
     def init(self):
         """Extend device initialization as needed. Note, this inits the device GUI.
-        Device communication is initialized by the corresponding :class:`esibd.core.DeviceController`"""
+        Device communication is initialized by the corresponding :class:`~esibd.core.DeviceController`."""
         self.resetPlot()
 
     def initialized(self):
@@ -1409,8 +1445,8 @@ class Device(Plugin):
                 c.setHidden(not (self.advanced or c.active or c.display))
 
     def loadConfiguration(self, file=None, default=False):
-        """Loads :class:`~esibd.core.Channel` configuration from file.
-        If only values should be loaded without complete reinitialization, use 'load' function instead.
+        """Loads :class:`channel<esibd.core.Channel>` configuration from file.
+        If only values should be loaded without complete reinitialization, use :attr:`loadValues<esibd.plugins.Device.loadValues>` instead.
 
         :param file: File from which to load configuration, defaults to None
         :type file: pathlib.Path, optional
@@ -1516,7 +1552,7 @@ class Device(Plugin):
 
     def apply(self, apply=False):
         """Applies :class:`~esibd.core.Channel` values to physical devices. Only used by input :class:`devices<esibd.plugins.Device>`.
-        
+
         :param apply: If false, only values that have changed since last apply will be updated, defaults to False
         :type apply: bool, optional
         """
@@ -1541,7 +1577,8 @@ class Device(Plugin):
             self.print('Line plugin required for plotting.', PRINT.WARNING)
 
     def updateChannelConfig(self, items, file):
-        """Scans for changes and displays change log before overwriting old channel configuraion."""
+        """Scans for changes when loading configuration and displays change log
+        before overwriting old channel configuraion."""
         # Note: h5diff can be used alternatively to find changes, but the output is not formated in a user friendly way (hard to correlate values with channels).
         if not self.pluginManager.loading:
             self.changeLog = [f'Change log for loading channels for {self.name} from {file.name}:']
@@ -1705,7 +1742,11 @@ class Device(Plugin):
             fullRange = False
 
         i = self.requireGroup(g, Scan.INPUTCHANNELS)
-        i.create_dataset(self.TIME, data=t if fullRange else t[i_min:i_max], dtype=np.float64, track_order=True) # need double precision to keep all decimal places
+        try:
+            i.create_dataset(self.TIME, data=t if fullRange else t[i_min:i_max], dtype=np.float64, track_order=True) # need double precision to keep all decimal places
+        except ValueError as e:
+            self.print(f'Could not create dataset. If the file already exists, make sure to increase the measurment index and try again. Original error: {e}', PRINT.ERROR)
+            return
 
         o = self.requireGroup(g, Scan.OUTPUTCHANNELS)
         # avoid using getValues() function and use get() to make sure raw data, without background subtraction or unit correction etc. is saved in file
@@ -1781,9 +1822,9 @@ class Device(Plugin):
     def updateValues(self, N=2, apply=False):
         """Updates channel values based on equations.
         This minimal implementation will not give a warning about circular definitions.
-        It will also fail if expressions are nested on more than N levels but N can be increased as needed.
-        N=2 should however be sufficient for day to day work.
-        More complex algorithms should only be implemented if they are required to solve a practical problem."""
+        It will also fail if expressions are nested on more than N levels but N can be increased as needed."""
+        # N=2 should however be sufficient for day to day work.
+        # More complex algorithms should only be implemented if they are required to solve a practical problem.
         if self.updating or self.pluginManager.closing:
             return
         self.updating = True # prevent recursive call caused by changing values from here
@@ -1844,7 +1885,7 @@ class Device(Plugin):
 
     def runDataThread(self, recording):
         """Regulartly triggers reading and appending of data.
-        This uses the current value of :class:`channels<esibd.core.Channel>` which is updated 
+        This uses the current value of :class:`channels<esibd.core.Channel>` which is updated
         independently by the corresponding :class:`~esibd.core.DeviceController`."""
         while recording():
             # time.sleep precision in low ms range on windows -> will usually be a few ms late
@@ -1923,9 +1964,40 @@ class Device(Plugin):
             self.liveDisplay.updateTheme()
 
 class Scan(Plugin):
-    """ Base class for :class:`scans<esibd.plugins.Scan>` and other measurement plugins.
-    Acquires arbitrary output channel values vs. arbitrary input channel values.
-    The dimension of inputs and outputs is dynamic."""
+    """:class:`Scans<esibd.plugins.Scan>` are all sort of measurements that record any number of outputs as a
+    function of any number of inputs. The main interface consists of a list of
+    scan settings. Each scan comes with a tailored display
+    optimized for its specific data format. :ref:`sec:scan_settings` can be imported
+    and exported from the scan toolbar, though in most cases it will be
+    sufficient to import them from the context menu of a previously saved
+    scan file in the :ref:`sec:explorer`. When all settings are defined and all relevant channels are
+    communicating the scan can be started. A scan can be stopped at any
+    time. At the end of a scan the corresponding file will be saved to the
+    :ref:`session path<sec:session_settings>`. The filename is displayed inside the corresponding graph to
+    allow to find the file later based on exported figures. Scan files are
+    saved in the widely used HDF5 file format that allows to keep data and
+    metadata together in a structured binary file. External viewers, such as
+    HDFView, or minimal python scripts based on the h5py package can be used
+    if files need to be accessed externally. Use the
+    context menu of a scan file to create a template plot file using h5py
+    and adjust it to your needs."""
+    documentation = """Scans are all sort of measurements that record any number of outputs as a
+    function of any number of inputs. The main interface consists of a list of
+    scan settings. Each scan comes with a tailored display
+    optimized for its specific data format. Scan settings can be imported
+    and exported from the scan toolbar, though in most cases it will be
+    sufficient to import them from the context menu of a previously saved
+    scan file in the Explorer. When all settings are defined and all relevant channels are
+    communicating the scan can be started. A scan can be stopped at any
+    time. At the end of a scan the corresponding file will be saved to the
+    session path. The filename is displayed inside the corresponding graph to
+    allow to find the file later based on exported figures. Scan files are
+    saved in the widely used HDF5 file format that allows to keep data and
+    metadata together in a structured binary file. External viewers, such as
+    HDFView, or minimal python scripts based on the h5py package can be used
+    if files need to be accessed externally. Use the
+    context menu of a scan file to create a template plot file using h5py
+    and adjust it to your needs."""
 
     PARAMETER   = 'Parameter'
     VERSION     = 'Version'
@@ -1980,7 +2052,7 @@ class Scan(Plugin):
 
     class Display(Plugin):
         """Display for base scan. Extend as needed.
-        
+
         :meta private:
         """
         pluginType=PluginManager.TYPE.DISPLAY
@@ -1999,7 +2071,7 @@ class Scan(Plugin):
             self.initFig()
 
         def initFig(self):
-            self.fig = plt.figure(constrained_layout=True, dpi=self.getDPI())
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
             self.axes = []
             self.makeFigureCanvasWithToolbar(self.fig)
             self.addContentWidget(self.canvas)
@@ -2104,7 +2176,7 @@ class Scan(Plugin):
     @property
     def recording(self):
         """True if currently recording.
-        Set to False to stop acquisition and save available data."""
+        Set to False to stop recording and save available data."""
         return self.recordingAction.state
 
     @recording.setter
@@ -2367,7 +2439,7 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
         :param i: Index of channel.
         :type i: int
         :param inout: Type of channel.
-        :type inout: :attr:`~esibd.core.INOUT`
+        :type inout: :attr:`~esibd.const.INOUT`
         :return: The requested data.
         :rtype: numpy.array
         """
@@ -2868,14 +2940,22 @@ class Tree(Plugin):
         self.raiseDock(True)
 
 class Console(Plugin):
-    """The Console should typically not be needed, unless you are a developer
+    """The console should typically not be needed, unless you are a developer
     or assist in debugging an issue. It is activated from the tool bar of
-    the plugin. Status messages will be logged here. In addition you can
+    the :ref:`sec:settings`. Status messages will be logged here. In addition you can
     also enable writing status messages to a log file, that can be shared
     with a developer for debugging. All features implemented in the user
     interface and more can be accessed directly from this console. Use at
     your own Risk! You can select some commonly used commands directly from
-    the combo box."""
+    the combo box to get started."""
+    documentation = """The console should typically not be needed, unless you are a developer
+    or assist in debugging an issue. It is activated from the tool bar of
+    the settings. Status messages will be logged here. In addition you can
+    also enable writing status messages to a log file, that can be shared
+    with a developer for debugging. All features implemented in the user
+    interface and more can be accessed directly from this console. Use at
+    your own Risk! You can select some commonly used commands directly from
+    the combo box to get started."""
 
     pluginType = PluginManager.TYPE.CONSOLE
     name = 'Console'
@@ -3020,7 +3100,7 @@ class SettingsManager(Plugin):
 
     def initSettingsContextMenuBase(self, setting, pos):
         """General implementation of a context menu.
-        The relevent actions will be chosen based on the type and properties of the setting."""
+        The relevent actions will be chosen based on the type and properties of the :class:`~esibd.core.Setting`."""
         settingsContextMenu = QMenu(self.tree)
         changePathAction = None
         addItemAction = None
@@ -3249,7 +3329,15 @@ class SettingsManager(Plugin):
             g.attrs[Parameter.ITEMS]    = ','.join(self.settings[name].items)
 
 class Settings(SettingsManager):
-    """Manages internal settings and settings defined by other plugins."""
+    """The settings plugin allows to edit, save, and load all general program
+    and hardware settings. Settings can be edited either directly or using
+    the context menu that opens on right click. Settings are stored in an
+    .ini file which can be edited directly with any text editor if needed. The
+    settings file that is used on startup is automatically generated if it
+    does not exist. Likewise, default values are used for any missing
+    parameters. Setting files can be exported or imported from the user
+    interface. A change log will show which settings have changed after importing.
+    In addition, the plugin manager and console can be opened from here."""
 
     version     = '1.0'
     pluginType  = PluginManager.TYPE.CONTROL
@@ -3392,36 +3480,29 @@ class Settings(SettingsManager):
         self.saveSettings(default = True)
         super().close()
 
-class ESIBDSettings(Settings):
-    """Version of the Settings plugin with customized session path.
-    If you need to customize Settings for another experiment you only need to replace this class."""
-
-    SUBSTRATE           = 'Substrate'
-    ION                 = 'Ion'
-    SESSIONTYPE         = 'Session type'
-
-    def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
-                                                                items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', widgetType=Parameter.TYPE.COMBO,
-                                                                event=self.updateSessionPath, attr='substrate')
-        ds[f'{self.SESSION}/{self.ION}']            = parameterDict(value='GroEL', toolTip='Choose ion',
-                                                                items='Betagal, Ferritin, GroEL, ADH, GDH, BSA, DNA, BK', widgetType=Parameter.TYPE.COMBO,
-                                                                event=self.updateSessionPath, attr='molion')
-        ds[f'{self.SESSION}/{self.SESSIONTYPE}']   = parameterDict(value='MS', toolTip='Choose session type',
-                                                                items='MS, depoHV, depoUHV, depoCryo, opt', widgetType=Parameter.TYPE.COMBO,
-                                                                event=self.updateSessionPath, attr='sessionType')
-        return ds
-
-    def buildSessionPath(self):
-        return Path(*[self.substrate, self.molion, datetime.now().strftime(f'%Y-%m-%d_%H-%M_{self.substrate}_{self.molion}_{self.sessionType}')])
-
 class DeviceManager(Plugin):
-    """Top-level manager that controls data acquisition from all instruments.
-    While the instruments run independently in separate threads, this class provides control over all devices.
-    It provides access to individual channels by name, or to all input or outout channels, independent of their devices.
-    This enables for example use of channels of arbitrary devices in channel equations and scan modes.
-    """
+    """The device manager, by default located below the :ref:`sec:live_displays`, bundles
+    functionality of devices and thus allows to initialize, start, and stop
+    data acquisition from all devices with a single click. Ideally, plugins
+    that control potentially dangerous hardware like power supplies, cryo
+    coolers, or vacuum valves should add a status icon to the instrument
+    manager, so that their status is visible at all times and they can be
+    shut down quickly, even when the corresponding plugin tab is is not
+    selected. Internally, the device manager also serves as a
+    central interface to all data channels, independent of the devices they
+    belong to, making it easy to setup collection of any number of output
+    signals as a function of any number of input signals."""
+    documentation = """The device manager, by default located below the live displays, bundles
+    functionality of devices and thus allows to initialize, start, and stop
+    data acquisition from all devices with a single click. Ideally, plugins
+    that control potentially dangerous hardware like power supplies, cryo
+    coolers, or vacuum valves should add a status icon to the instrument
+    manager, so that their status is visible at all times and they can be
+    shut down quickly, even when the corresponding plugin tab is is not
+    selected. Internally, the device manager also serves as a
+    central interface to all data channels, independent of the devices they
+    belong to, making it easy to setup collection of any output
+    signals as a function of any input signals."""
 
     name = 'DeviceManager'
     version = '1.0'
@@ -3493,9 +3574,9 @@ class DeviceManager(Plugin):
                     self.testControl(d.onAction, True, 1)
             for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                 self.print(f'Starting scan {s.name}.')
-                self.testControl(s.recordingAction, True, 1)
-            self.testControl(self.stopAction, True, 10)
-            time.sleep(5) # allow for scans to finish before testing next plugin
+                self.testControl(s.recordingAction, True, 0)
+            time.sleep(10) # allow for scans to finish before testing next plugin
+            self.testControl(self.stopAction, True, 1)
 
     @property
     def recording(self):
@@ -3506,7 +3587,7 @@ class DeviceManager(Plugin):
     def recording(self, recording):
         self._recording = recording
         # allow output widgets to react to change if acquisition state
-        self.recordingAction.state = self.recording
+        self.recordingAction.state = recording
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -3524,8 +3605,8 @@ class DeviceManager(Plugin):
 
         :param name: Unique channel name.
         :type name: str
-        :param inout: Type of channel, defaults to :attr:`~esibd.core.INOUT.BOTH`
-        :type inout: :attr:`~esibd.core.INOUT`, optional
+        :param inout: Type of channel, defaults to :attr:`~esibd.const.INOUT.BOTH`
+        :type inout: :attr:`~esibd.const.INOUT`, optional
         :return: The requested channel.
         :rtype: :class:`~esibd.core.Channel`
         """
@@ -3675,7 +3756,7 @@ class DeviceManager(Plugin):
         self.timer.stop()
 
 class Notes(Plugin):
-    """The Notes plugin can be used to add quick comments to a session or any other folder. 
+    """The Notes plugin can be used to add quick comments to a session or any other folder.
     The comments are saved in simple text files that are loaded automatically once a folder is opened again.
     They are intended to complement but not to replace a lab book."""
 
@@ -3731,7 +3812,68 @@ class Notes(Plugin):
         self.numbers.updateTheme()
 
 class Explorer(Plugin):
-    """File manager that is optimized to work with settings and data from devices, scans, and other plugins."""
+    """The integrated file explorer is used to navigate all results and
+    complementary data. All files can be accessed independently using the operating system
+    file explorer, e.g., when working on a computer where *ESIBD Explorer*
+    is not installed. However, the integrated explorer connects dedicated :ref:`sec:displays`
+    to all files that were created with or are supported by *ESIBD
+    Explorer*. All supported files are preceded with an icon that indicates
+    which plugin will be used to display them. The :ref:`data path<data_path>`, current
+    :ref:`session path<sec:session_settings>`, and a search bar are accessible directly from here. File system
+    links or shortcuts are supported as well.
+
+    The displays were made to simplify data analysis and documentation.
+    They use dedicated and customizable views that allow saving images as
+    files or sending them to the clipboard for sharing or documentation in a
+    lab book. Right clicking supported files opens a context menu that allows
+    to load settings and configurations directly. For example, a scan file
+    does not only contain the scan data, but also allows to inspect and
+    restore all experimental settings used to record it. Note that the
+    context menu only allows to load device values, but the files contain
+    the entire device configuration. To restore the device configuration
+    based on a scan file, import the file from the device toolbar. A double
+    click will open the file in the external default program.
+    Use third party tools like `HDFView <https://www.hdfgroup.org/downloads/hdfview/>`_
+    to view *.hdf* files independently.
+
+    The explorer may also be useful for other applications beyond managing
+    experimental data. For example, if you organize the documentation of the
+    experimental setup in folders following the hierarchy of components and sub
+    components, it allows you to quickly find the corresponding manuals and
+    order numbers. In combination with the :ref:`sec:notes` plugin, you can add comments to
+    each component that will be displayed automatically as soon as you
+    enter the corresponding folder."""
+    documentation = """The integrated file explorer is used to navigate all results and
+    complementary data. All files can be accessed independently using the operating system
+    file explorer, e.g., when working on a computer where ESIBD Explorer
+    is not installed. However, the integrated explorer connects dedicated displays
+    to all files that were created with or are supported by ESIBD
+    Explorer. All supported files are preceded with an icon that indicates
+    which plugin will be used to display them. The data path, current
+    session_settings, and a search bar are accessible directly from here. File system
+    links or shortcuts are supported as well.
+
+    The displays were made to simplify data analysis and documentation.
+    They use dedicated and customizable views that allow saving images as
+    files or sending them to the clipboard for sharing or documentation in a
+    lab book. Right clicking supported files opens a context menu that allows
+    to load settings and configurations directly. For example, a scan file
+    does not only contain the scan data, but also allows to inspect and
+    restore all experimental settings used to record it. Note that the
+    context menu only allows to load device values, but the files contain
+    the entire device configuration. To restore the device configuration
+    based on a scan file, import the file from the device toolbar. A double
+    click will open the file in the external default program.
+    Use third party tools like HDFView 
+    to view .hdf files independently.
+
+    The explorer may also be useful for other applications beyond managing
+    experimental data. For example, if you organize the documentation of the
+    experimental setup in folders following the hierarchy of components and sub
+    components, it allows you to quickly find the corresponding manuals and
+    order numbers. In combination with the :ref:`sec:notes` plugin, you can add comments to
+    each component that will be displayed automatically as soon as you
+    enter the corresponding folder."""
 
     name='Explorer'
     version = '1.0'

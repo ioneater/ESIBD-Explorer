@@ -4,7 +4,7 @@ import re
 import serial
 import numpy as np
 from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT, getTestMode
 
 def providePlugins():
     return [Pressure]
@@ -13,6 +13,7 @@ class Pressure(Device):
     """Device that bundles pressure values form an Edwards TIC and Pfeiffer MaxiGauge into
     a consistent list of channels. This demonstrates handling of values on a logarithmic scale."""
 
+    documentation = None # use __doc__
     name = 'Pressure'
     version = '1.0'
     supportedVersion = '0.6'
@@ -141,7 +142,7 @@ class PressureController(DeviceController):
 
     def runInitialization(self):
         """Initializes serial ports in paralel thread"""
-        if self.device.getTestMode():
+        if getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
             self.initializing = True
@@ -178,18 +179,18 @@ class PressureController(DeviceController):
     def initComplete(self):
         self.pressures = [0]*len(self.device.channels)
         super().initComplete()
-        if self.device.getTestMode():
+        if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
 
     def startAcquisition(self):
         # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
-        if (self.TICport is not None and self.TPGport is not None) or self.device.getTestMode():
+        if (self.TICport is not None and self.TPGport is not None) or getTestMode():
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            if self.device.getTestMode():
+            if getTestMode():
                 self.fakeNumbers()
             else:
                 self.readNumbers()

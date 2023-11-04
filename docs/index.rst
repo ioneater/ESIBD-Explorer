@@ -51,3 +51,5 @@ Links
 
 * :ref:`genindex`
 * Source code: https://github.com/ioneater/ESIBD-Explorer
+* PyPI: https://pypi.org/project/esibd-explorer
+* Contact: ioneater.dev@gmail.com
