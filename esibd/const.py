@@ -34,7 +34,7 @@ UTF8    = 'utf-8'
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class Colors():
-    """Provides dark mode dependant defaul colors"""
+    """Provides dark mode dependant defaul colors."""
 
     def getDarkMode(self):
         # qSet.sync()
@@ -120,7 +120,7 @@ def dynamicImport(module, path):
 def getDarkMode():
     """Gets the dark mode from :ref:`sec:settings`.
 
-    :return: dark mode
+    :return: Dark mode
     :rtype: bool
     """
     return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'

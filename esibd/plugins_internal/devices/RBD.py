@@ -34,7 +34,7 @@ class Current(Device):
 
         def loadDataInternal(self, file):
             """Extending to support legacy files"""
-            if file.name.endswith('.cur.rec'):  # legacy ES-IBD Control file
+            if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
                 with open(file,'r', encoding=self.UTF8) as f:
                     f.readline()
                     headers = f.readline().split(',') # read names from second line

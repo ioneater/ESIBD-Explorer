@@ -3,7 +3,7 @@ import time
 from threading import Thread
 import serial
 import numpy as np
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QApplication
 from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
@@ -178,6 +178,7 @@ class TemperatureController(DeviceController):
         # self.init() only init once explicitly called
         self.restart=False
         self.temperatures = []
+        self.qm = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def stop(self):
         self.device.stop()
@@ -287,9 +288,11 @@ class TemperatureController(DeviceController):
                 else:
                     self.CryoTelWrite('COOLER=OFF') # stop (used to be 'SET SSTOP=1')
                     self.CryoTelRead()
-        qm = QMessageBox(QMessageBox.Icon.Information ,'Water cooling!', f"Remember to turn {'on' if on else 'off'} water cooling!", buttons=QMessageBox.StandardButton.Ok)
-        qm.setWindowIcon(self.device.getIcon())
-        qm.exec()
+        self.qm.setText(f"Remember to turn {'on' if on else 'off'} water cooling!")
+        self.qm.setWindowIcon(self.device.getIcon())
+        self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when de function completes.
+        self.qm.raise_()
+        QApplication.instance().processEvents()
 
     def setTemperature(self, channel):
         if not getTestMode() and self.initialized:

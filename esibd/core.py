@@ -32,7 +32,6 @@ from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, 
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
 
-
 class EsibdExplorer(QMainWindow):
     r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
 
@@ -584,11 +583,10 @@ class Logger(QObject):
             with self.lock:
                 self.log.write(message) # write to log file
                 self.log.flush()
-        if current_thread() is main_thread() and hasattr(self.pluginManager, 'Console') and self.pluginManager.Console.initializedDock:
+        if hasattr(self.pluginManager, 'Console'):
             # handles new lines in system error messages better than Console.write
             # needs to run in main_thread
-            self.pluginManager.Console.mainConsole.output.insertPlainText(message)
-            self.pluginManager.Console.mainConsole.scrollToBottom()
+            self.pluginManager.Console.write(message)
 
     def print(self, message, sender=f'{PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, console, statusbar, and console.
@@ -619,7 +617,7 @@ class Logger(QObject):
             print(message) # redirects to write if active
         else:
             print(message) # only to stdout if not active
-            self.write(f'\n{message}') # call explicitly otherwise
+            self.write(f'\n{message}') # call explicitly
         self.pluginManager.mainWindow.statusBar().showMessage(message)
         self.pluginManager.mainWindow.statusBar().setStyleSheet(styleSheet)
 

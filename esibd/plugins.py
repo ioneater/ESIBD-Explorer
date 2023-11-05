@@ -12,7 +12,7 @@ import ast
 import itertools
 from itertools import islice
 from pathlib import Path
-from threading import Thread, Timer
+from threading import Thread, Timer, current_thread, main_thread
 import timeit
 import time
 import inspect
@@ -32,8 +32,8 @@ from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
-                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QColor, QIcon, QImage, QAction
+                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QTabBar)
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QColor, QIcon, QImage, QAction, QTextCursor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -167,7 +167,7 @@ class Plugin(QWidget):
 
     def testControl(self, control, value, delay=0):
         """Changes control states and triggers corresponding events."""
-        self.print(f'Testing {control.objectName()}.')
+        self.print(f'Testing {control.objectName()}')
         if hasattr(control, 'signalComm'):
             control.signalComm.setValueFromThreadSignal.emit(value)
         if isinstance(control, QAction):
@@ -220,7 +220,6 @@ class Plugin(QWidget):
     def initGUI(self):
         """Initializes the graphic user interface (GUI), independent of all other plugins."""
         # hirarchy: self -> mainDisplayLayout -> mainDisplayWidget -> mainLayout
-        # self is a widget that can be added to a Tabwidget
         # mainDisplayLayout and mainDisplayWidget only exist to enable conversion into a dockarea
         # mainLayout contains the actual content
         self.print('Plugin.initGUI', PRINT.DEBUG)
@@ -1229,7 +1228,7 @@ class Device(Plugin):
     MAXDATAPOINTS = 'Max data points'
     DISPLAYTIME = 'Display Time'
     LOGGING = 'Logging'
-    unit : str
+    unit : str = 'unit'
     """Unit used in user interface."""
     staticDisplay : StaticDisplay
     """Internal plugin to display data from file."""
@@ -2963,6 +2962,8 @@ class Console(Plugin):
     optional = False
     triggerComboBoxSignal = pyqtSignal(int)
 
+    writeSignal = pyqtSignal(str)
+
     def getIcon(self):
         """:meta private:"""
         return self.makeCoreIcon('terminal.png')
@@ -3007,6 +3008,7 @@ class Console(Plugin):
         self.mainConsole.ui.historyBtn.deleteLater()
         self.mainConsole.ui.exceptionBtn.deleteLater()
         self.triggerComboBoxSignal.connect(self.triggerCombo)
+        self.writeSignal.connect(self.write)
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -3040,10 +3042,16 @@ class Console(Plugin):
             self.commonCommandsComboBox.setCurrentIndex(0)
             self.mainConsole.ui.input.setFocus()
 
-    def write(self, _string):
+    def write(self, message):
         # writes to integrated console to keep track of message history
+        # avoid using self.mainConsole.write because stdout is already handled by core.Logger
         if self.initializedDock:
-            self.mainConsole.write(f'{_string}\n')
+            if current_thread() is main_thread():
+                self.mainConsole.output.moveCursor(QTextCursor.MoveOperation.End)
+                self.mainConsole.output.insertPlainText(message)
+                self.mainConsole.scrollToBottom()
+            else:
+                self.writeSignal.emit(message)
 
     def toggleVisible(self):
         self.dock.setVisible(self.pluginManager.Settings.showConsole)
@@ -3346,6 +3354,7 @@ class Settings(SettingsManager):
     # NOTE: default paths should not be in softwarefolder as this might not have write access after installation
     defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/' # use user home dir by default
     defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
+    DOCKWIDTH = 'SettingsDockWidth'
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
@@ -3390,6 +3399,15 @@ class Settings(SettingsManager):
         super().finalizeInit(aboutFunc)
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
+        for t in self.pluginManager.mainWindow.findChildren(QTabBar): # restore width
+            if t.tabText(0) == self.name:
+                width = qSet.value(self.DOCKWIDTH)
+                if width is not None:
+                    self.dock.setMinimumWidth(width)
+                    self.dock.setMaximumWidth(width)
+                    QApplication.instance().processEvents()
+                    self.dock.setMinimumWidth(100)
+                    self.dock.setMaximumWidth(10000)
 
     def loadData(self, file, _show=False):
         """:meta private:"""
@@ -3478,6 +3496,9 @@ class Settings(SettingsManager):
     def close(self):
         """:meta private:"""
         self.saveSettings(default = True)
+        for t in self.pluginManager.mainWindow.findChildren(QTabBar):
+            if t.tabText(0) == self.name:
+                qSet.setValue(self.DOCKWIDTH, t.width()) # store width
         super().close()
 
 class DeviceManager(Plugin):
@@ -3576,7 +3597,10 @@ class DeviceManager(Plugin):
                 self.print(f'Starting scan {s.name}.')
                 self.testControl(s.recordingAction, True, 0)
             time.sleep(10) # allow for scans to finish before testing next plugin
+            self.print('Stopping acquisition, collection and scans.')
             self.testControl(self.stopAction, True, 1)
+            self.print('Stopping acquisition, collection and scans send.')
+            time.sleep(5) # allow for scans to stop and save data before triggering more events
 
     @property
     def recording(self):
@@ -3678,11 +3702,13 @@ class DeviceManager(Plugin):
         self.recording = False
         for d in self.getDevices():
             d.stop()
+            print(f'stopped {d.name}')
         self.stopScans()
 
     def stopScans(self):
         for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             s.recording = False # stop all running scans
+            print(f'stopped {s.name}')
 
     def exportOutputData(self, file=None):
         self.pluginManager.Settings.measurementNumber += 1

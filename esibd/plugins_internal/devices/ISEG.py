@@ -91,7 +91,7 @@ class Voltage(Device):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning modules on or off
             self.controller.voltageON(self.onAction.state)
-        else:
+        elif self.onAction.state is True:
             self.controller.ON = self.onAction.state
             self.init()
 

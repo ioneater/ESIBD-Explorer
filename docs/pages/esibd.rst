@@ -16,7 +16,7 @@ molecules by scanning probe microscopy\ :cite:`hamann_ultrahigh_2011,rauschenbac
 and low-energy electron holography.\ :cite:`longchamp_imaging_2017,ochner_low-energy_2021,ochner_electrospray_2023`
 These experiments show that individual peptides, glycans, and proteins
 can be isolated from a mixture, separated from solvent and contaminants,
-deposited, and imaged. The ES-IBD approach to sample fabrication has
+deposited, and imaged. The ESIBD approach to sample fabrication has
 been used to address fundamental questions related to gas-phase structures,\ :cite:`ochner_low-energy_2021`
 mechanical properties,\ :cite:`anggara_exploring_2020,rinke_active_2014`
 and substrate interactions,\ :cite:`volny_preparative_2005`
@@ -30,9 +30,15 @@ and landing energy.\ :cite:`ochner_low-energy_2021,rauschenbach_electrospray_200
 .. _`fig:setup`:
 .. figure:: 2023-10_ESIBD_Setup.png
 
-   **Overview of the Oxford ESIBD setup.** Colored boxes highlight selected hardware that is controlled by ESIBD Explorer plugins. **Left** :blue:`ESIBD Explorer`, :green:`current measurement` (RBD 9103), :red:`voltage supplies and distribution` (ISEG ECH 244, ISEG EBS 180 05).
-   **Right** :purple:`Deposition stage`, independently controlled :orange:`commercial mass spectrometer` (Thermo Scientific :sup:`TM` Q Exactive :sup:`TM` UHMR instrument), :darkblue:`temperature measurement` (Sunpower CryoTel GTLT), :darkorange:`pressure measurement` (Edwards TIC, Pfeiffer TPG366). See references for more details.
-   :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022`
+   **Overview of the Oxford ESIBD setup.** Colored boxes highlight selected 
+   hardware that is controlled by ESIBD Explorer plugins. **Left** :blue:`ESIBD Explorer`,
+   :green:`current measurement` (RBD 9103), :red:`voltage supplies and distribution` 
+   (ISEG ECH 244, ISEG EBS 180 05). **Right** Custom :purple:`deposition stage`,
+   independently controlled :orange:`commercial mass spectrometer`
+   (Thermo Scientific :sup:`TM` Q Exactive :sup:`TM` UHMR instrument),
+   :darkblue:`temperature measurement` (Sunpower CryoTel GTLT), :darkorange:`pressure measurement`
+   (Edwards TIC, Pfeiffer TPG366). See references for more details.
+   :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022,esser_cryo-em_2023`
 
 :numref:`fig:setup` shows an overview of the Oxford ESIBD setup,
 which combines a commercial mass spectrometer with a custom deposition stage. 

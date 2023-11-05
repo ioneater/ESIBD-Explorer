@@ -6,8 +6,7 @@ import matplotlib as mpl
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import  QSharedMemory
-from esibd.core import EsibdExplorer
-from esibd.const import PROGRAM_NAME, VERSION_MAYOR, VERSION_MINOR # pylint: disable = wildcard-import
+from esibd.core import EsibdExplorer, PROGRAM_NAME, VERSION_MAYOR, VERSION_MINOR
 
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format

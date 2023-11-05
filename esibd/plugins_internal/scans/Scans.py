@@ -93,7 +93,7 @@ class Beam(Scan):
 
     def loadDataInternal(self):
         """Loads data in internal standard format for plotting."""
-        if self.file.name.endswith('.S2D.dat'):  # legacy ES-IBD Control file
+        if self.file.name.endswith('.S2D.dat'):  # legacy ESIBD Control file
             try:
                 data = np.flip(np.loadtxt(self.file).transpose())
             except ValueError as e:
@@ -315,7 +315,7 @@ class Energy(Scan):
 
     def loadDataInternal(self):
         """Loads data in internal standard format for plotting."""
-        if self.file.name.endswith('.swp.dat'): # legacy ES-IBD Control file
+        if self.file.name.endswith('.swp.dat'): # legacy ESIBD Control file
             headers = []
             with open(self.file,'r', encoding=self.UTF8) as f:
                 f.readline()
@@ -1081,10 +1081,11 @@ plt.show()
             time.sleep((self.wait+self.average)/1000)
             self.ga.fitness(np.mean(self.outputs[0].channel.getValues(length=self.measurementsPerStep)))
             if self.log:
-                # printing from thread can cause small delays which may lead to inconsistent printing order -> use normal print instead of self.print
-                print(self.ga.step_string())
+                self.print(self.ga.step_string().replace('GA: ',''))
             _, session_saved = self.ga.check_restart()
             if session_saved:
+                self.print(f'Session Saved -- Average Fitness: {self.ga.average_fitness():6.2f} Best Fitness: {self.ga.best_fitness():6.2f}')
+                self.print(f'Starting Generation {self.ga.current_generation}:')
                 self.inputs[0].data.add(time.time())
                 self.outputs[0].data.add(self.ga.best_fitness())
                 self.outputs[1].data.add(self.ga.average_fitness())
