@@ -30,14 +30,11 @@ A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Dep
    :target: https://badge.fury.io/py/esibd-explorer
    :alt: ESIBD Explorer on PyPI
 
-.. figure:: https://github.com/ioneater/ESIBD-Explorer/blob/main/docs/pages/2023-10_ESIBD_GUI.png
+.. figure:: https://github.com/ioneater/ESIBD-Explorer/blob/main/docs/pages/2023-10_ESIBD_GUI_plain.png
 
-   **ESIBD Explorer user interface.** Colored boxes highlight the five main sections. :blue:`Live displays` showing
-   data from several devices. Central :darkorange:`device manager`.
-   :red:`Configuration and management` section including settings, file explorer, as well devices, scans and other
-   controls. :orange:`Displays` of supported files
-   including saved and running scans. :green:`Console` for
-   debugging and plugin development.
+   **ESIBD Explorer user interface.** The ESIBD Explorer controls all aspects of an Electrospray Ion-Beam Deposition (ESIBD) experiment, 
+   including optimization and characterization of the ion-beam energy, beam intensity, and beam size, as well as monitoring of the deposition. 
+   At each step, results and metadata are saved to document the experiment and allow for later reproduction of all experimental conditions.
 
 Documentation
 =============
@@ -50,6 +47,18 @@ Optionally, to build the documentation yourself from the ``docs/`` folder::
   cd docs/
   make html
 
+Installation
+============
+
+Install directly from the `Python Package Index <https://pypi.org/project/esibd-explorer>`_ using pip::
+
+   pip install esibd-explorer
+
+Run the program using::
+
+   python -m esibd.explorer
+
+Visit the `documentation<https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>` for alternative methods. 
 
 Source code
 ===========
