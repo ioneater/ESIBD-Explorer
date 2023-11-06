@@ -38,6 +38,9 @@ REM git status
 REM git commit -a -m "message"
 REM git push origin main
 
+REM create tag used for releasing exe later
+REM git tag -a 0.6.14 -m "First release public on pipy"
+
 ::::::::
 REM PyPI
 ::::::::
@@ -65,19 +68,20 @@ REM twine upload dist/*
 REM pyinstaller
 :::::::::::::::
 
-call rmdir /q /s build
+call rmdir /q /s pyinstaller_build
 call rmdir /q /s pyinstaller_dist
 conda create -n "esibdtest" python=3.11
 conda activate esibdtest
-pip install esibd-explorer --upgrade
-pip install pyinstaller
+pip install esibd-explorer pyinstaller --upgrade
 
 REM Run the following line to create initial spec file
-pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist
+REM ATTENTION: Check absolute paths inf Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
+pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM do not modify spec file, will be overwritten
+
 
 ::::::::::::::::
 REM InstallForge

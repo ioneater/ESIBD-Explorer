@@ -19,6 +19,7 @@ docs/_static/
 *.spec
 pyinstaller_hooks\__pycache__\
 pyinstaller_dist
+pyinstaller_build
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
