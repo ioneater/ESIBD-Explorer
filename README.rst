@@ -39,7 +39,7 @@ Run the program using::
 
    python -m esibd.explorer
 
-Visit the `documentation <https://esibd-explorer.readthedocs.io/en/latest/pages/install>`_ for alternative methods. 
+Visit the `documentation <https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>`_ for alternative methods. 
 
 Source code
 ===========
