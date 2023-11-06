@@ -159,7 +159,6 @@ class Plugin(QWidget):
             self._loading +=1
         else:
             self._loading -= 1
-        # print(self.name, self._loading)
 
     def test(self):
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
@@ -1049,7 +1048,6 @@ class LiveDisplay(Plugin):
             return
         # otherwise toogle visibility is sufficient
         for channel in self.device.channels:
-            # print(channel.name, channel.display)
             if channel.display:
                 channel.plotCurve.setPen(pg.mkPen(QColor(channel.color), width=int(channel.linewidth)))
                 channel.plotCurve.opts['name'] = channel.name
@@ -1475,7 +1473,8 @@ class Device(Plugin):
                 else: # Generate default settings file if file was not found.
                     # To update files with new parameters, simply delete the old file and the new one will be generated.
                     self.print(f'Generating default config file {file}')
-                    self.addChannel(item={})
+                    for i in range(9):
+                        self.addChannel(item={Parameter.NAME : f'{self.name}{i+1}'})
                     self.exportConfiguration(file, default=True)
             else: # file.suffix == EsibdCore.FILE_H5:
                 with h5py.File(name=file, mode='r', track_order=True) as f:
@@ -1827,7 +1826,6 @@ class Device(Plugin):
         if self.updating or self.pluginManager.closing:
             return
         self.updating = True # prevent recursive call caused by changing values from here
-        # print(self.name,'updateValues rand:', np.random.rand())
         channels = self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if self.inout == INOUT.IN else self.pluginManager.DeviceManager.channels(inout=INOUT.BOTH)
         for _ in range(N): # go through parsing N times, in case the dependencies are not ordered
             for channel in [c for c in self.channels if not c.active and c.equation != '']: # ignore if no equation defined
@@ -3702,13 +3700,11 @@ class DeviceManager(Plugin):
         self.recording = False
         for d in self.getDevices():
             d.stop()
-            print(f'stopped {d.name}')
         self.stopScans()
 
     def stopScans(self):
         for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             s.recording = False # stop all running scans
-            print(f'stopped {s.name}')
 
     def exportOutputData(self, file=None):
         self.pluginManager.Settings.measurementNumber += 1

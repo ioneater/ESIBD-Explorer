@@ -183,12 +183,9 @@ class MS(Plugin):
             xdata = self.origXData[mask]
             ydata = self.origYData[mask]
             cutoff = abs(0.0001*(ymax-ymin))
-            # print('xdata before ', len(xdata),'cutoff: ', cutoff)
             while [abs(ydata[i] - ydata[i-1]) > cutoff for i in range(len(ydata))].count(True) > self.max_points:
                 cutoff *= 4
-                # print([abs(ydata[i] - ydata[i-1]) > cutoff for i, v in enumerate(ydata)].count(True), self.max_points, cutoff)
             mask = [abs(ydata[i] - ydata[i-1]) > cutoff for i in range(len(ydata))]
-            # print('xdata cleaned ', len(xdata[mask]),'cutoff', cutoff)
             return xdata[mask], ydata[mask]
 
         def update(self, ax):
@@ -420,7 +417,6 @@ class HOLO(Plugin):
         self.raiseDock(_show)
 
     def mapSliderToData(self, slider, data):
-        # print(slider.value(), data.min(), data.max(), data.min() + slider.value()/100*(data.max() - data.min()))
         return data.min() + slider.value()/100*(data.max() - data.min())
 
     def drawSurface(self, angle=True):

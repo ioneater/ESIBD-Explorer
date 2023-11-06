@@ -56,7 +56,7 @@ twine upload -r testpypi dist/*
 REM conda create -n "estest" python=3.11
 REM conda activate estest
 REM pip install -i https://test.pypi.org/simple/ esibd-explorer
-REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer==0.6.11 # use pypi dependencies that are not present on testpypi 
+REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer==0.6.12 # use pypi dependencies that are not present on testpypi 
 
 REM only upload on real pypi after testing!
 REM twine upload dist/*
@@ -66,9 +66,10 @@ REM pyinstaller
 :::::::::::::::
 
 call rmdir /q /s build
+call rmdir /q /s pyinstaller_dist
 conda create -n "esibdtest" python=3.11
 conda activate esibdtest
-pip install -i https://pypi.org/simple/ esibd-explorer
+pip install esibd-explorer --upgrade
 pip install pyinstaller
 
 REM Run the following line to create initial spec file

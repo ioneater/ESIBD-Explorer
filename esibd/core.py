@@ -185,7 +185,6 @@ class PluginManager():
             self._loading +=1
         else:
             self._loading -= 1
-        # print('pluginManager', self._loading)
 
     def loadPlugins(self, reload=False):
         """Loads all enabled plugins."""
@@ -1551,7 +1550,7 @@ class Channel(QTreeWidgetItem):
                 self.getParameterByName(name).value = item[name]
             else:
                 self.getParameterByName(name).value = default[self.VALUE]
-                if not name in self.tempParameters() and not item == {}: # item == {} -> generating default file
+                if not name in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
                     self.print(f'Added missing parameter {name} to channel {self.name} using default value {default[self.VALUE]}.')
 
         line = self.getParameterByName(self.EQUATION).line
@@ -1690,7 +1689,6 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
 
         def valid_float_string(self, string):
             match = self._float_re.search(string)
-            # print(string, match.groups()[0], match.groups()[0] == string, match)
             return match.groups()[0] == string if match else False
 
         def validate(self, string, position): # -> typing.Tuple[State, str, int]:
@@ -1939,7 +1937,6 @@ class BetterDockWidget(QDockWidget):
 
     def toggleTitleBar(self):
         """Updates titlebar as dock is changing from floating to docked states."""
-        # print('toggleTitleBar', self.plugin.name, self.isFloating())
         if self.isFloating(): # dock is floating on its own
             # self.setWindowFlags(Qt.WindowType.Window)
             if self.plugin.titleBarLabel is not None:
@@ -2476,7 +2473,6 @@ class BetterPlotWidget(pg.PlotWidget):
     def mouseMoveEvent(self, ev):
         pos = QPointF(ev.pos())
         if self.getPlotItem().getViewBox().geometry().contains(pos): # add offset
-            # print(ev.pos(), self.getPlotItem().getViewBox().mapSceneToView(pos))
             pos = self.getPlotItem().getViewBox().mapSceneToView(pos)
             try:
                 if self.getPlotItem().ctrl.logYCheck.isChecked():
@@ -2506,7 +2502,6 @@ class SciAxisItem(pg.AxisItem):
 
     def logTickStrings(self, values, scale, spacing):
         estrings = [f'{x:.0e}' for x in 10 ** np.array(values).astype(float) * np.array(scale)]
-        # print(estrings, values, scale)
         convdict = {"0": "⁰",
                     "1": "¹",
                     "2": "²",

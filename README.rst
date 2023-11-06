@@ -11,7 +11,7 @@ A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Dep
    :target: https://badge.fury.io/py/esibd-explorer
    :alt: ESIBD Explorer on PyPI
 
-.. figure:: https://github.com/ioneater/ESIBD-Explorer/blob/main/docs/pages/2023-10_ESIBD_GUI_plain.png
+.. figure:: https://github.com/ioneater/ESIBD-Explorer/blob/main/docs/pages/2023-10_ESIBD_GUI_plain.png?raw=true
 
    **ESIBD Explorer user interface.** The ESIBD Explorer controls all aspects of an Electrospray Ion-Beam Deposition (ESIBD) experiment, 
    including optimization and characterization of the ion-beam energy, beam intensity, and beam size, as well as monitoring of the deposition. 
