@@ -66,8 +66,8 @@ REM pyinstaller
 :::::::::::::::
 
 call rmdir /q /s build
-conda create -n "estest" python=3.11
-conda activate estest
+conda create -n "esibdtest" python=3.11
+conda activate esibdtest
 pip install -i https://pypi.org/simple/ esibd-explorer
 pip install pyinstaller
 

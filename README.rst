@@ -1,22 +1,3 @@
-.. raw:: html
-
-   <style> .yellow {color:yellow} </style>
-   <style> .red {color:#c00000} </style>
-   <style> .green {color:#70ad47} </style>
-   <style> .blue {color:#00b0f0} </style>
-   <style> .darkblue {color:#0070c0} </style>
-   <style> .orange {color:#ffc000} </style>
-   <style> .darkorange {color:#ed7d31} </style>
-   <style> .purple {color:#b381d9} </style>
-
-.. role:: red
-.. role:: green
-.. role:: blue
-.. role:: darkblue
-.. role:: orange
-.. role:: darkorange
-.. role:: purple
-
 ESIBD Explorer
 ==============
 
@@ -58,7 +39,7 @@ Run the program using::
 
    python -m esibd.explorer
 
-Visit the `documentation<https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>` for alternative methods. 
+Visit the `documentation<https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>`_ for alternative methods. 
 
 Source code
 ===========
