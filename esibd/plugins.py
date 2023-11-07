@@ -3159,14 +3159,8 @@ class SettingsManager(Plugin):
         # call after all defaultSettings have been added!
         self.loadSettings(default=True)
 
-    def loadSettings(self, file=None, default=False): # public method
+    def loadSettings(self, file=None, default=False):
         """Loads settings from hdf or ini file."""
-        if self.pluginManager.DeviceManager.recording:
-            if EsibdCore.CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
-                self.pluginManager.DeviceManager.stop()
-                # settings necessary for acquistions will temporarily be unavailable during loading
-            else:
-                return
         self.loading = True
         if default:
             file = self.defaultFile
@@ -3447,6 +3441,15 @@ class Settings(SettingsManager):
         ds[f'{self.SESSION}/{self.SESSIONPATH}']   = parameterDict(value='', toolTip='Path for storing session data. Relative to data path.',
                                                                 widgetType=Parameter.TYPE.LABEL, attr='sessionPath')
         return ds
+
+    def loadSettings(self, file=None, default=False):   
+        if self.pluginManager.DeviceManager.recording:
+            if EsibdCore.CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
+                self.pluginManager.DeviceManager.stop()
+                # settings necessary for acquistions will temporarily be unavailable during loading
+            else:
+                return
+        super().loadSettings(file=file, default=default)
 
     def updateDataPath(self):
         if not self.pluginManager.loading:

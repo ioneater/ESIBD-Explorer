@@ -40,6 +40,7 @@ REM git push origin main
 
 REM create tag used for releasing exe later
 REM git tag -a 0.6.14 -m "First release public on pipy"
+REM git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 ::::::::
 REM PyPI
