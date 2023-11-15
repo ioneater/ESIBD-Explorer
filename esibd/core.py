@@ -2448,7 +2448,7 @@ class MZCaculator():
             self.update_mass_to_charge()
 
     def mass_string(self, offset, label):
-        return f'{label} mass (Da): {np.average(self.mz*self.charges[self.c1+offset:self.c1+offset+len(self.mz)]):.2f}, std: {self.STD[self.c1+offset]:.2f}'
+        return f'{label} mass (Da): {np.average(self.mz*np.flip(self.charges[self.c1+offset:self.c1+offset+len(self.mz)])):.2f}, std: {self.STD[self.c1+offset]:.2f}'
 
     def update_mass_to_charge(self):
         for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]:#[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:

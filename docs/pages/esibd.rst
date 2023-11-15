@@ -10,9 +10,9 @@ from solution to the gas-phase using electrospray ionization to form
 intense (if required *m/z*-filtered) molecular ion beams, which are then
 deposited with well defined energy onto various surfaces in vacuum.\ :cite:`johnson_soft-_2016, cyriac_low-energy_2012, krumbein_fast_2021`
 It has been successfully enabling high-resolution imaging of complex
-molecules by scanning probe microscopy\ :cite:`hamann_ultrahigh_2011,rauschenbach_mass_2016,abb_two-dimensional_2016,deng_close_2012,rinke_active_2014,wu_imaging_2020,fremdling_preparative_2022`
-, transmission electron microscopy\ :cite:`mikhailov_mass-selective_2014,prabhakaran_rational_2016,vats_electron_2018`
-, cryo-EM,\ :cite:`esser_mass-selective_2022,esser_cryo-em_2022`
+molecules by scanning probe microscopy,\ :cite:`hamann_ultrahigh_2011,rauschenbach_mass_2016,abb_two-dimensional_2016,deng_close_2012,rinke_active_2014,wu_imaging_2020,fremdling_preparative_2022`
+transmission electron microscopy,\ :cite:`mikhailov_mass-selective_2014,prabhakaran_rational_2016,vats_electron_2018`
+cryo-EM,\ :cite:`esser_mass-selective_2022,esser_cryo-em_2022`
 and low-energy electron holography.\ :cite:`longchamp_imaging_2017,ochner_low-energy_2021,ochner_electrospray_2023`
 These experiments show that individual peptides, glycans, and proteins
 can be isolated from a mixture, separated from solvent and contaminants,
@@ -37,8 +37,7 @@ and landing energy.\ :cite:`ochner_low-energy_2021,rauschenbach_electrospray_200
    independently controlled :orange:`commercial mass spectrometer`
    (Thermo Scientific :sup:`TM` Q Exactive :sup:`TM` UHMR instrument),
    :darkblue:`temperature measurement` (Sunpower CryoTel GTLT), :darkorange:`pressure measurement`
-   (Edwards TIC, Pfeiffer TPG366). See references for more details.
-   :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022,esser_cryo-em_2023`
+   (Edwards TIC, Pfeiffer TPG366). See references for more details.\ :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022,esser_cryo-em_2023`
 
 :numref:`fig:setup` shows an overview of the Oxford ESIBD setup,
 which combines a commercial mass spectrometer with a custom deposition stage. 
