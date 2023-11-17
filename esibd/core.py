@@ -8,6 +8,7 @@ import sys
 import traceback
 import subprocess
 from threading import Timer, Lock, Thread, current_thread, main_thread
+from typing import Any
 from pathlib import Path
 from datetime import datetime
 from enum import Enum
@@ -792,7 +793,7 @@ class Parameter():
 
     name : str
     """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
-    value : str
+    value : Any
     """The default value of the parameter in any supported type."""
     min : float
     """Minimum limit for numerical properties."""
@@ -1369,7 +1370,7 @@ class Channel(QTreeWidgetItem):
         channel = {}
         channel[self.SELECT  ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     toolTip='Plots data as a function of selected channel.', event=lambda : self.device.channelSelection(channel = self) , attr='select')
-        channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+        channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=self.enabledChanged, attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name')
