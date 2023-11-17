@@ -1481,7 +1481,7 @@ class Channel(QTreeWidgetItem):
         """Returns plain Numpy array of values.
         Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained."""
         if self.device.useBackgrounds and subtractBackground:
-            return self.values.get(length=length, _min=_min, _max=_max, n=n) - self.backgrounds.get(_min=_min, _max=_max, n=n)
+            return self.values.get(length=length, _min=_min, _max=_max, n=n) - self.backgrounds.get(length=length, _min=_min, _max=_max, n=n)
         else:
             return self.values.get(length=length, _min=_min, _max=_max, n=n)
 
@@ -1531,6 +1531,8 @@ class Channel(QTreeWidgetItem):
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
         if not self.enabled and self.plotCurve is not None:
             self.plotCurve = None
+        if self.inout == INOUT.IN:
+            self.device.apply()            
 
     def updateDisplay(self):
         if not self.device.loading:

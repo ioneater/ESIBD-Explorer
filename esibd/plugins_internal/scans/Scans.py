@@ -834,8 +834,9 @@ class Depo(Scan):
                 if done:
                     time_done_str = self.roundDateTime(datetime.fromtimestamp(float(_timeInt[-1]))).strftime('%H:%M')
             if len(_time) > 0: # predict scan based on last 10 datapoints
+                hh, mm= divmod(int(np.ceil((_timeInt[-1]-_timeInt[0])//60)), 60)
                 self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(_time[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
-                                        + f"{charge[-1]-charge[0]:2.1f} pAh deposited within {int(np.ceil((_timeInt[-1]-_timeInt[0])//60))} min")
+                                        + f"{charge[-1]-charge[0]:2.1f} pAh deposited within " + (f"{hh} h {mm} min" if hh > 0 else f"{mm} min"))
         else: # no data
             self.removeAnnotations(self.display.axes[1])
             self.display.currentLine.set_data([],[])
@@ -1105,7 +1106,8 @@ plt.show()
     def saveScanParallel(self, file):
         self.changeLog = [f'Change log for optimizing channels by {self.name}:']
         for c in [c for c in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if c.optimize]:
-            self.changeLog.append(f'Changed value of {c.name} from {self.ga.GAget(c.name, c.value, initial=True)} to {self.ga.GAget(c.name, c.value, index=0)}.')
+            if not c.getParameterByName(Parameter.VALUE).equals(self.ga.GAget(c.name, c.value, initial=True)):
+                self.changeLog.append(f'Changed value of {c.name} from {self.ga.GAget(c.name, c.value, initial=True)} to {self.ga.GAget(c.name, c.value, index=0):6.2f}.')
         if len(self.changeLog) == 1:
             self.changeLog.append('No changes.')
         self.pluginManager.Text.setTextParallel('\n'.join(self.changeLog))

@@ -2227,6 +2227,7 @@ class Scan(Plugin):
 
     def loadSettings(self, file=None, default=False):
         self.settingsMgr.loadSettings(file=file, default=default)
+        self.settingsMgr.expandTree()
         self.updateDisplayChannel()
         self.estimateScanTime()
 
@@ -3477,7 +3478,7 @@ class Settings(SettingsManager):
         :type mesNum: int, optional
         """
         if not self.pluginManager.loading:
-            self.sessionPath = self.buildSessionPath()
+            self.sessionPath = self.pathInputValidation(self.buildSessionPath())
             self.measurementNumber = mesNum
             self.print(f'Updated session path to {self.sessionPath}')
 
@@ -3493,6 +3494,13 @@ class Settings(SettingsManager):
         fullSessionPath = Path(*[self.dataPath, self.sessionPath])
         fullSessionPath.mkdir(parents=True, exist_ok=True) # create if not already existing
         return fullSessionPath / f'{fullSessionPath.name}_{self.measurementNumber:03d}{extension}'
+
+    def componentInputValidation(self, c):
+        illegal_characters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+        return ''.join(char if char not in illegal_characters else '_' for char in c)
+
+    def pathInputValidation(self, path):
+        return Path(*[self.componentInputValidation(c) for c in path.parts])
 
     def close(self):
         """:meta private:"""

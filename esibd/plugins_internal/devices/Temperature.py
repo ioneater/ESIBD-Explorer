@@ -229,7 +229,7 @@ class TemperatureController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
-        self.temperatures = [0]*len(self.device.channels)
+        self.temperatures = [c.value for c in self.device.channels]
         super().initComplete()
         if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
@@ -269,7 +269,8 @@ class TemperatureController(DeviceController):
 
     def fakeNumbers(self):
         for i, c in enumerate(self.device.channels):
-            self.temperatures[i] = c.value*np.random.uniform(.95, 1.05) # allow for small fluctuation
+            # exponentially approach target or room temp + small fluctuation
+            self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((c.value if self.device.onAction.state else 300)-self.temperatures[i]),0)
 
     def rndTemperature(self):
         return np.random.uniform(0, 400)

@@ -5,7 +5,6 @@ from datetime import datetime
 from esibd.plugins import Settings
 from esibd.core import parameterDict, Parameter
 
-
 class ESIBDSettings(Settings):
     """This version of the Settings plugin has a customized session path.
     If you need to customize Settings for another experiment you only need to replace this class."""
