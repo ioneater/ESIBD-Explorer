@@ -754,7 +754,7 @@ class StaticDisplay(Plugin):
         self.initData()
         if self.loadDataInternal(file):
             self.outputs.reverse() # reverse to plot first outputs on top of later outputs
-            self.plot()
+            self.plot(update=True)
             self.raiseDock(_show)
         else:
             self.print(f'Could not load file {file.name}.', PRINT.WARNING)
@@ -765,14 +765,14 @@ class StaticDisplay(Plugin):
         for a in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
             a.setVisible(self.plotEfficient)
         if self.file is not None and len(self.outputs) > 0:
-            self.plot()
+            self.plot(update=True)
 
     def updateStaticPlot(self):
         # update if channel settings have changed and data is present
         if self.initializedDock and not self.loading and len(self.outputs) > 0:
             self.plot()
 
-    def plot(self):
+    def plot(self, update=False):
         """Plots channels from file, using real channel information (color, linewidth, ...) if available."""
         # as this is only done once we can plot all data without thinning
         if self.plotEfficient:
@@ -808,7 +808,7 @@ class StaticDisplay(Plugin):
             self.labelPlot(self.axes[0], self.file.name)
             leg = self.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
             leg.set_in_layout(False)
-        else:
+        elif update:
             self.staticPlotWidget.autoRange() # required to trigger update
 
     def initData(self):
@@ -1901,18 +1901,18 @@ class Device(Plugin):
             c.plotCurve = None
 
     def toggleLiveDisplay(self, visible=None):
-        displayIndex = list(self.channels[0].getSortedDefaultChannel().keys()).index(Channel.DISPLAY) if len(self.channels) > 0 else None
+        # displayIndex = list(self.channels[0].getSortedDefaultChannel().keys()).index(Channel.DISPLAY) if len(self.channels) > 0 else None
         if visible if visible is not None else self.showLiveDisplay:
             self.liveDisplay.provideDock()
             self.liveDisplay.finalizeInit()
             self.liveDisplay.raiseDock(True)
-            if not displayIndex is None:
-                self.tree.setColumnHidden(displayIndex, False)
+            # if not displayIndex is None:
+            #     self.tree.setColumnHidden(displayIndex, False)
         else:
             if self.liveDisplayActive():
                 self.liveDisplay.closeGUI()
-            if not displayIndex is None:
-                self.tree.setColumnHidden(displayIndex, True)
+            # if not displayIndex is None:
+            #     self.tree.setColumnHidden(displayIndex, True)
             self.pluginManager.toggleTitleBarDelayed()
 
     def liveDisplayActive(self):

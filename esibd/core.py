@@ -2489,10 +2489,9 @@ class BetterPlotWidget(pg.PlotWidget):
         return super().mouseMoveEvent(ev)
 
     def mouseReleaseEvent(self, ev):
-        if self.parent is not None:
+        if self.parent is not None:# and isinstance(self.parent,PluginManager.TYPE.):
             self.parent.plot()
         return super().mouseReleaseEvent(ev)
-
 
 class SciAxisItem(pg.AxisItem):
     """Based on original logTickStrings.
