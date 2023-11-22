@@ -250,7 +250,7 @@ class Plugin(QWidget):
         self.loading = True
         self.print('Plugin.finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(self.about if aboutFunc is None else aboutFunc, 'About', self.makeCoreIcon('help_large.png'))
+        self.aboutAction = self.addAction(self.about if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large.png'))
         self.floatAction = self.addStateAction(self.setFloat, 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
