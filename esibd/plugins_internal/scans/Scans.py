@@ -16,7 +16,7 @@ from asteval import Interpreter
 from PyQt6.QtWidgets import QSlider
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
-from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport
+from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, CloseDialog
 from esibd.plugins import Scan
 winsound = None
 if sys.platform == 'win32':
@@ -756,11 +756,19 @@ class Depo(Scan):
                                                             widgetType=Parameter.TYPE.BOOL, attr='warn')
         ds['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
                                                             widgetType=Parameter.TYPE.BOOL, attr='autoscale')
+        ds['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', widgetType=Parameter.TYPE.BOOL, attr='dialog')
         return ds
 
     def updateDepoTarget(self):
         if self.display is not None and self.display.initializedDock:
             self.display.updateDepoTarget()
+
+    def toggleRecording(self):
+        if self.recording and self.dialog and not CloseDialog(title='Start check list', ok='Start',
+            prompt='Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?').exec():
+            self.recordingAction.state = False
+            return
+        super().toggleRecording()
 
     def initScan(self):
         # overwrite parent

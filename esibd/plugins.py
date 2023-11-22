@@ -2155,9 +2155,9 @@ class Scan(Plugin):
         self.settingsMgr.init()
         self.notes = '' # should always have current notes or no notes
 
-        self.addAction(lambda : self.loadSettings(file=None),'Load Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.addAction(lambda : self.saveSettings(file=None),'Export Settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
-        self.recordingAction = self.addStateAction(self.toggleRecording,'Start Scan.', self.ICON_PLAY,'Stop Scan.', self.ICON_STOP)
+        self.addAction(lambda : self.loadSettings(file=None),'Load settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.addAction(lambda : self.saveSettings(file=None),'Export settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.recordingAction = self.addStateAction(self.toggleRecording,'Start.', self.ICON_PLAY,'Stop.', self.ICON_STOP)
         self.estimateScanTime()
         self.loading = False
 
@@ -3443,7 +3443,7 @@ class Settings(SettingsManager):
                                                                 widgetType=Parameter.TYPE.LABEL, attr='sessionPath')
         return ds
 
-    def loadSettings(self, file=None, default=False):   
+    def loadSettings(self, file=None, default=False):
         if self.pluginManager.DeviceManager.recording:
             if EsibdCore.CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
                 self.pluginManager.DeviceManager.stop()

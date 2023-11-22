@@ -7,7 +7,7 @@ A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Dep
    :target: https://esibd-explorer.readthedocs.io/en/latest/index.html
    :alt: Documentation Status
 
-# github will cash the logo so updates may only become effective after a few days, the link will still point to the lates version
+.. github will cash the logo so updates may only become effective after a few days, the link will still point to the lates version
 .. image:: https://badge.fury.io/py/esibd-explorer.svg
    :target: https://badge.fury.io/py/esibd-explorer
    :alt: ESIBD Explorer on PyPI

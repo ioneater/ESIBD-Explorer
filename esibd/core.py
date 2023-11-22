@@ -354,7 +354,7 @@ class PluginManager():
     def managePlugins(self):
         """A dialog to select which plugins should be enabled."""
         if self.DeviceManager.recording:
-            if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changin plugins!').exec():
+            if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changing plugins!').exec():
                 self.DeviceManager.stop()
             else:
                 return
@@ -1532,8 +1532,6 @@ class Channel(QTreeWidgetItem):
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
         if not self.enabled and self.plotCurve is not None:
             self.plotCurve = None
-        if self.inout == INOUT.IN:
-            self.device.apply()            
 
     def updateDisplay(self):
         if not self.device.loading:
@@ -1921,7 +1919,7 @@ class BetterDockWidget(QDockWidget):
     # future desired features:
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # - some of these are possibe with pyqtgraph but this introduces other limitations and bugs
-    # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118223 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
+    # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
 
     class SignalCommunicate(QObject):
         dockClosingSignal = pyqtSignal()
