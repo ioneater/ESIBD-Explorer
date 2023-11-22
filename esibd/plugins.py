@@ -552,8 +552,9 @@ class Plugin(QWidget):
         """Copy matplotlib figure to clipboard."""
         buf = io.BytesIO()
         limits = []
-        if getDarkMode():
-            with mpl.style.context('default'): # clipboard image should always use light theme for labbooks and sharing
+        if getDarkMode() and not getClipboardTheme():
+            # use default light theme for clipboard
+            with mpl.style.context('default'): 
                 for ax in self.axes:
                     limits.append((ax.get_xlim(), ax.get_ylim()))
                 self.initFig()
@@ -566,7 +567,8 @@ class Plugin(QWidget):
                 self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
         else:
             self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
-        if getDarkMode(): # restore dark theme for use inside app
+        if getDarkMode() and not getClipboardTheme(): 
+            # restore dark theme for use inside app
             self.initFig()
             self.plot()
             for i, ax in enumerate(self.axes):
@@ -719,13 +721,13 @@ class StaticDisplay(Plugin):
         if self.plotEfficient: # maptplotlib
             super().copyClipboard()
         else: # pyqt
-            if getDarkMode():
+            if getDarkMode() and not getClipboardTheme():
                 qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
-                self.updateTheme()
+                self.updateTheme() # use default light theme for clipboard
                 QApplication.processEvents()
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
                 qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
-                self.updateTheme()
+                self.updateTheme() # restore dark theme
             else:
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
 
@@ -1020,13 +1022,13 @@ class LiveDisplay(Plugin):
     def copyClipboard(self):
         """Extends matplotlib based version to add support for pyqtgraph."""
         buf = io.BytesIO()
-        if getDarkMode():
+        if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
-            self.updateTheme()
+            self.updateTheme() # use default light theme for clipboard
             QApplication.processEvents()
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
-            self.updateTheme()
+            self.updateTheme() # restore dark theme
         else:
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
         buf.close()
@@ -3433,8 +3435,10 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=False, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda : self.pluginManager.DeviceManager.initDevices() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True)
-        ds[f'{GENERAL}/{DARKMODE}']             = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
-                                                                widgetType=Parameter.TYPE.BOOL, attr='darkMode')
+        ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
+                                                                widgetType=Parameter.TYPE.BOOL)
+        ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
+                                                                internal=True, widgetType=Parameter.TYPE.BOOL)
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
                                                                 instantUpdate=False, # only trigger event when changed by user!

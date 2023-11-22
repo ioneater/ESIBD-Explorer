@@ -19,6 +19,7 @@ DATAPATH        = 'Data path'
 CONFIGPATH      = 'Config path'
 PLUGINPATH      = 'Plugin path'
 DARKMODE        = 'Dark mode'
+CLIPBOARDTHEME  = 'Clipboard theme'
 DPI             = 'DPI'
 TESTMODE        = 'Test mode'
 GEOMETRY        = 'GEOMETRY'
@@ -124,6 +125,14 @@ def getDarkMode():
     :rtype: bool
     """
     return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
+
+def getClipboardTheme():
+    """Gets the dark clipboard mode from :ref:`sec:settings`.
+
+    :return: Dark clipboard mode
+    :rtype: bool
+    """
+    return qSet.value(f'{GENERAL}/{CLIPBOARDTHEME}', 'true') == 'true'
 
 def getDPI():
     """Gets the DPI from :ref:`sec:settings`.
