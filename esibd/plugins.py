@@ -254,7 +254,7 @@ class Plugin(QWidget):
         self.floatAction = self.addStateAction(self.setFloat, 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
-        if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY]:
+        if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
             self.closeAction = self.addAction(self.closeUserGUI, 'Close.', self.makeCoreIcon('close.png'))
         QApplication.instance().processEvents() # required to allow adding dock to tab before self.dock.toggleTitleBar()
         self.dock.toggleTitleBar() # will show titleBarLabel only if not tabbed or floating
@@ -435,6 +435,15 @@ class Plugin(QWidget):
             return g[name]
         else:
             return g.create_group(name=name, track_order=True)
+        
+    def expandTree(self, tree):
+        # expand all categories
+        it = QTreeWidgetItemIterator(tree, QTreeWidgetItemIterator.IteratorFlag.HasChildren)
+        while it.value():
+            it.value().setExpanded(True)
+            it +=1
+        # size to content
+        tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
     def about(self):
         """Displays the about dialog of the plugin using the :ref:`sec:browser`."""
@@ -2155,6 +2164,7 @@ class Scan(Plugin):
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
         self.settingsMgr.addDefaultSettings(plugin=self)
         self.settingsMgr.init()
+        self.expandTree(self.settingsMgr.tree)
         self.notes = '' # should always have current notes or no notes
 
         self.addAction(lambda : self.loadSettings(file=None),'Load settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
@@ -2229,7 +2239,7 @@ class Scan(Plugin):
 
     def loadSettings(self, file=None, default=False):
         self.settingsMgr.loadSettings(file=file, default=default)
-        self.settingsMgr.expandTree()
+        self.expandTree(self.settingsMgr.tree)
         self.updateDisplayChannel()
         self.estimateScanTime()
 
@@ -3073,6 +3083,13 @@ class Console(Plugin):
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""
 
+    # useful Console prompts for debugging: 
+    # tree = QTreeWidget() 
+    # Settings.vertLayout.addWidget(tree)  
+    # q = QTreeWidgetItem()
+    # tree.invisibleRootItem().addChild(q) 
+    # tree.setItemWidget(q,1,QCheckBox()) 
+
     version = '1.0'
     pluginType = PluginManager.TYPE.INTERNAL
 
@@ -3264,15 +3281,6 @@ class SettingsManager(Plugin):
                             indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], toolTip=item[Parameter.TOOLTIP],
                             tree=item[Parameter.TREE], widgetType=item[Parameter.WIDGETTYPE], widget=item[Parameter.WIDGET], event=item[Parameter.EVENT],
                             parentItem=self.hdfRequireParentItem(item[Parameter.NAME], self.tree.invisibleRootItem()))
-
-    def expandTree(self, tree):
-        # expand all categories
-        it = QTreeWidgetItemIterator(tree, QTreeWidgetItemIterator.IteratorFlag.HasChildren)
-        while it.value():
-            it.value().setExpanded(True)
-            it +=1
-        # size to content
-        tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
     def hdfRequireParentItem(self, name, parentItem):
         names = name.split('/')

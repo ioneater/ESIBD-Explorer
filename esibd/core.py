@@ -512,7 +512,6 @@ class PluginManager():
         QMainWindow::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
         QMainWindow::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
         QWidget::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
-        QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
         QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
         QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix()
                                                  if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
@@ -527,6 +526,7 @@ class PluginManager():
         # QPlainTextEdit{{border-color:{fg}; border-width:1px; border-style:solid;}}
         # QStatusBar::item {{border: 1px solid red;}}
         # QCheckBox::indicator{{border:1px solid {fg};}}
+        # QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}} # causes focus on hover -> other widgets loose focus -> no side effect when leaving out
         QApplication.setPalette(pal)
         self.mainWindow.setStyleSheet(self.styleSheet)
         plt.style.use('dark_background' if getDarkMode() else 'default')
@@ -751,9 +751,7 @@ class Parameter():
     of providing consistent user controls, linking events, input validation,
     context menus, and restoring values.
     Typically they are not initialized directly but via a :meth:`~esibd.core.parameterDict`
-    from which settings and channels take the relevant information.
-
-    """
+    from which settings and channels take the relevant information."""
 
     # general keys
     NAME        = 'Name'
