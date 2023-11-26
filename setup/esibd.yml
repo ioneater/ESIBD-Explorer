@@ -35,4 +35,5 @@ dependencies:
     - readthedocs-sphinx-search
     - twine
     - build
+    - bumpversion
 prefix: C:\Users\tim.esser\Miniconda3\envs\esibd

@@ -554,7 +554,7 @@ class Plugin(QWidget):
         limits = []
         if getDarkMode() and not getClipboardTheme():
             # use default light theme for clipboard
-            with mpl.style.context('default'): 
+            with mpl.style.context('default'):
                 for ax in self.axes:
                     limits.append((ax.get_xlim(), ax.get_ylim()))
                 self.initFig()
@@ -567,7 +567,7 @@ class Plugin(QWidget):
                 self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
         else:
             self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
-        if getDarkMode() and not getClipboardTheme(): 
+        if getDarkMode() and not getClipboardTheme():
             # restore dark theme for use inside app
             self.initFig()
             self.plot()
@@ -1364,7 +1364,7 @@ class Device(Plugin):
         self.resetPlot() # update legend in case channels have changed
         self.liveDisplay.recording = True
         self.liveDisplay.lagging = 0
-        self.dataThread = Thread(target=self.runDataThread, args =(lambda : self.liveDisplay.recording,))
+        self.dataThread = Thread(target=self.runDataThread, args =(lambda : self.liveDisplay.recording,), name=f'{self.name} dataThread')
         self.dataThread.daemon = True # Terminate with main app independent of stop condition
         self.dataThread.start()
 
@@ -2460,7 +2460,7 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
                         self.recordingAction.state = True
                     self.finished = False
                     self.plot(update=False, done=False) # init plot without data, some widgets may be able to update data only without redrawing the rest
-                    self.runThread = Thread(target=self.run, args =(lambda : self.recording,))
+                    self.runThread = Thread(target=self.run, args =(lambda : self.recording,), name=f'{self.name} runThread')
                     self.runThread.daemon = True
                     self.runThread.start()
                     self.display.raiseDock()
@@ -2475,7 +2475,7 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
         self.plot(update=not done, done=done)
         if done: # save data
             self.pluginManager.Explorer.activeFileFullPath = self.file
-            self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,))
+            self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,), name=f'{self.name} saveThread')
             self.saveThread.daemon = True # Terminate with main app independent of stop condition
             self.saveThread.start()
 
@@ -2998,6 +2998,7 @@ class Console(Plugin):
             "print(param.widgetType, param.value, param.getWidget()) # print parameter properties",
             "chan.getParameterByName(chan.VALUE).getWidget().setStyleSheet('background-color:red;') # test widget styling",
             "[p.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for p in chan.parameters]",
+            "PluginManager.showThreads() # show all active threads",
             "# qSet.clear() # reset settings saved in registry. Use to test fresh deployment",
             "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
             "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
@@ -3508,7 +3509,7 @@ class Settings(SettingsManager):
 
     def close(self):
         """:meta private:"""
-        self.saveSettings(default = True)
+        self.saveSettings(default=True)
         for t in self.pluginManager.mainWindow.findChildren(QTabBar):
             if t.tabText(0) == self.name:
                 qSet.setValue(self.DOCKWIDTH, t.width()) # store width
@@ -3595,7 +3596,7 @@ class DeviceManager(Plugin):
         self.dock.toggleTitleBar() # Label not needed for DeviceManager
         self.timer = QTimer()
         self.timer.timeout.connect(self.store)
-        self.timer.setInterval(3600000)
+        self.timer.setInterval(3600000) # every 1 hour
         self.timer.start()
 
     def runTestParallel(self):
@@ -3762,11 +3763,17 @@ class DeviceManager(Plugin):
                 d.updateValues()
 
     def store(self):
-        """Regularly stores device data to minimize loss in the event of a program crash.
-        Safer to run in main thread, in case GUI elements are accessed."""
+        """Regularly stores device settings and data to minimize loss in the event of a program crash.
+        Make sure that no GUI elements are accessed when running from parallel thread!"""
+        # NOTE: deamon=True is not used to prevent the unlikely case where the thread is terminated halve way through because the program is closing.
         if self.restoreData:
             for d in self.getDevices():
-                d.exportOutputData(default=True)
+                Thread(target=d.exportConfiguration, kwargs={'default':True}, name=f'{d.name} exportConfigurationThread').start()
+                Thread(target=d.exportOutputData, kwargs={'default':True}, name=f'{d.name} exportOutputDataThread').start()
+            # for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN): # scan settings already saved when changed
+            #     Thread(target=s.settingsMgr.saveSettings, kwargs={'default':True}).start()
+             # Settings already saved when changed
+            # Thread(target=self.pluginManager.Settings.saveSettings, kwargs={'default':True}).start()
 
     def toggleRecording(self):
         """Toggle recording of data."""

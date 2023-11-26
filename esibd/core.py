@@ -8,6 +8,7 @@ import sys
 import traceback
 import subprocess
 from threading import Timer, Lock, Thread, current_thread, main_thread
+import threading
 from typing import Any
 from pathlib import Path
 from datetime import datetime
@@ -351,6 +352,9 @@ class PluginManager():
         for p in self.plugins:
             p.runTestParallel()
 
+    def showThreads(self):
+        self.Text.setText('\n'.join([thread.name for thread in threading.enumerate()]), True)
+
     def managePlugins(self):
         """A dialog to select which plugins should be enabled."""
         if self.DeviceManager.recording:
@@ -680,6 +684,11 @@ class DynamicNp():
             newdata[:self.size] = self.data
             self.data = newdata
         if self.max_size is not None and self.size >= self.max_size:
+            # Tested performance via console using
+            # a = [EsibdCore.DynamicNp(initialData=np.ones(500000),max_size=90) for _ in range(1000)]
+            # a[0].get().shape
+            # timeit.timeit('[d.add(1) for d in a]', number=1, globals=globals())
+            # resulting time 2.5 s -> negligible for all relevant use cases
             # thin out old data. use only every second value for first half of array to limit RAM use
             a, b = np.array_split(self.get(), 2) # pylint: disable=[unbalanced-tuple-unpacking] # balance not relevant, as long as it is consistent
             self.size = a[::2].shape[0]+b.shape[0]
@@ -2115,13 +2124,11 @@ class TextEdit(QPlainTextEdit):
     def textUnderCursor(self):
         tc = self.textCursor()
         tc.select(QTextCursor.WordUnderCursor)
-
         return tc.selectedText()
 
     def focusInEvent(self, e):
         if self._completer is not None:
             self._completer.setWidget(self)
-
         super(TextEdit, self).focusInEvent(e)
 
     def keyPressEvent(self, e): # pylint: disable = missing-function-docstring
@@ -2591,7 +2598,7 @@ class DeviceController(QObject):
             return
         self.close() # terminate old thread before starting new one
         # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
-        self.initThread = Thread(target=self.runInitialization)
+        self.initThread = Thread(target=self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
 
@@ -2613,7 +2620,7 @@ class DeviceController(QObject):
             if self.acquisitionThread.is_alive():
                 self.print('Data reading thread did not complete. Reset connection manually.', PRINT.ERROR)
                 return
-        self.acquisitionThread = Thread(target=self.runAcquisition, args =(lambda : self.acquiring,))
+        self.acquisitionThread = Thread(target=self.runAcquisition, args =(lambda : self.acquiring,), name=f'{self.device.name} acquisitionThread')
         self.acquisitionThread.daemon = True
         self.acquiring = True # terminate old thread before starting new one
         self.acquisitionThread.start()

@@ -298,7 +298,7 @@ class TemperatureController(DeviceController):
     def setTemperature(self, channel):
         if not getTestMode() and self.initialized:
             if channel.controler == channel.CRYOTEL:
-                Thread(target=self.setTemperatureFromThread, args=(channel,)).start()
+                Thread(target=self.setTemperatureFromThread, args=(channel,), name=f'{self.name} setTemperatureFromThreadThread').start()
 
     def setTemperatureFromThread(self, channel):
         with self.lock:

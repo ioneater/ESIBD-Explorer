@@ -19,18 +19,19 @@ A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Dep
    At each step, results and metadata are saved to document the experiment and allow for later reproduction of all experimental conditions.
 
 Documentation
-=============
+-------------
 
 Read the documentation online at http://esibd-explorer.rtfd.io/
 
-Optionally, to build the documentation yourself from the ``docs/`` folder::
-
+..
+   Optionally, to build the documentation yourself from the ``docs/`` folder::
+.. 
   pip install sphinx
   cd docs/
   make html
 
 Installation
-============
+------------
 
 Install directly from the `Python Package Index <https://pypi.org/project/esibd-explorer>`_ using pip::
 
@@ -43,11 +44,11 @@ Run the program using::
 Visit the `documentation <https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>`_ for alternative methods. 
 
 Source code
-===========
+-----------
 
 https://github.com/ioneater/ESIBD-Explorer
 
 Contact
-=======
+-------
 
 ioneater.dev@gmail.com
