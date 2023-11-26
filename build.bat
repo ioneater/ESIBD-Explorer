@@ -10,6 +10,18 @@ REM call setup/create_env.bat
 call activate esibd
 
 :::::::::::::::::::::::::::
+REM Bump version
+:::::::::::::::::::::::::::
+
+REM update version in pyproject.toml
+REM update PROGRAM_VERSION in config.py
+
+REM Note that the program has to access the version during development and after deployment to test for plugin compatibility
+REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases, 
+REM requiring to update the version in both files
+REM bumpversion / bump-my-version seems overkill
+
+:::::::::::::::::::::::::::
 REM Sphinx -> read the docs
 :::::::::::::::::::::::::::
 

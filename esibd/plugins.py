@@ -48,7 +48,7 @@ aeval = Interpreter()
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
     All plugins are ultimately derived from the :class:`~esibd.plugins.Plugin` class.
-    The doc string of the plugin class will be shown in the corresponding help window 
+    The doc string of the plugin class will be shown in the corresponding help window
     unless documentation is implemented explicitly."""
 
     LOAD    = 'Load'
@@ -76,7 +76,7 @@ class Plugin(QWidget):
         require independent versioning and documentation."""
     optional : bool     = True # specify in child to prenvent user from disabling this plugin
     """Defines if the user can deactivate the plugin in the :class:`~esibd.core.PluginManager` user interface."""
-    supportedVersion : [str] = f'{VERSION_MAYOR}.{VERSION_MINOR}'
+    supportedVersion : str = str(PROGRAM_VERSION)
     """By default the current program version is used. You can
        define a fixed version and future program versions will
        state that they are incompatible with this plugin. This can be used to
@@ -435,7 +435,7 @@ class Plugin(QWidget):
             return g[name]
         else:
             return g.create_group(name=name, track_order=True)
-        
+
     def expandTree(self, tree):
         # expand all categories
         it = QTreeWidgetItemIterator(tree, QTreeWidgetItemIterator.IteratorFlag.HasChildren)
@@ -1184,7 +1184,7 @@ class Device(Plugin):
     the user to hardware) and *output devices* (reading outputs from
     hardware). Note that some *input devices* may also read back data from
     hardware to confirm that the user defined values are applied correctly.
-    
+
     The main interface consists of a list of :ref:`sec:channels`. By
     default only the physically relevant information is shown. By entering
     the *advanced mode*, additional channel parameters can be configured. The
@@ -1193,7 +1193,7 @@ class Device(Plugin):
     using a file dialog or from the context menu of an appropriate file in
     the :ref:`sec:explorer`. After loading the configurations or values, a change log will be
     available in the :ref:`sec:text` plugin to quickly identify what has changed. Each
-    device also comes with a :ref:`display<sec:displays>` and a :ref:`live display<sec:live_displays>`. 
+    device also comes with a :ref:`display<sec:displays>` and a :ref:`live display<sec:live_displays>`.
     The current values can also be plotted to get a quick overview and identify any
     unusual values."""
     documentation = """Device plugins are used to handle communication with one or more
@@ -1202,7 +1202,7 @@ class Device(Plugin):
     the user to hardware) and output devices (reading outputs from
     hardware). Note that some input devices may also read back data from
     hardware to confirm that the user defined values are applied correctly.
-    
+
     The main interface consists of a list of channels. By
     default only the physically relevant information is shown. By entering
     the advanced mode, additional channel parameters can be configured. The
@@ -2692,7 +2692,7 @@ class Browser(Plugin):
     def openAbout(self):
         """Simple dialog displaying program purpose, version, and creators"""
         self.setHtml(title=f'About {PROGRAM_NAME}', html=f"""
-        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}</h1>{ABOUTHTML}""")
+        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title, html):
         self.provideDock()
@@ -3083,12 +3083,12 @@ class Console(Plugin):
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""
 
-    # useful Console prompts for debugging: 
-    # tree = QTreeWidget() 
-    # Settings.vertLayout.addWidget(tree)  
+    # useful Console prompts for debugging:
+    # tree = QTreeWidget()
+    # Settings.vertLayout.addWidget(tree)
     # q = QTreeWidgetItem()
-    # tree.invisibleRootItem().addChild(q) 
-    # tree.setItemWidget(q,1,QCheckBox()) 
+    # tree.invisibleRootItem().addChild(q)
+    # tree.setItemWidget(q,1,QCheckBox())
 
     version = '1.0'
     pluginType = PluginManager.TYPE.INTERNAL
@@ -3916,7 +3916,7 @@ class Explorer(Plugin):
     the entire device configuration. To restore the device configuration
     based on a scan file, import the file from the device toolbar. A double
     click will open the file in the external default program.
-    Use third party tools like HDFView 
+    Use third party tools like HDFView
     to view .hdf files independently.
 
     The explorer may also be useful for other applications beyond managing

@@ -290,8 +290,9 @@ class PluginManager():
         Enabled state is saved and restored from an independent file and can also be edited using the plugins dialog."""
         QApplication.processEvents() # break down expensive initialization to allow update splash screens while loading
         self.logger.print(f'loadPlugin {Plugin.name}', flag=PRINT.DEBUG)
-        if version.parse(Plugin.supportedVersion) != version.parse(f'{VERSION_MAYOR}.{VERSION_MINOR}'):
-            self.logger.print(f'Plugin {Plugin.name} supports {PROGRAM_NAME} {Plugin.supportedVersion}. It is not compatible with {PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}.', flag=PRINT.WARNING)
+        if version.parse(Plugin.supportedVersion).major != PROGRAM_VERSION.major or version.parse(Plugin.supportedVersion).minor != PROGRAM_VERSION.minor:
+            # NOTE: we ignore micro (packaging.version name for patch)
+            self.logger.print(f'Plugin {Plugin.name} supports {PROGRAM_NAME} {Plugin.supportedVersion}. It is not compatible with {PROGRAM_NAME} {PROGRAM_VERSION}.', flag=PRINT.WARNING)
             return
         if Plugin.name in [p.name for p in self.plugins]:
             self.logger.print(f'Ignoring duplicate plugin {Plugin.name}.', flag=PRINT.WARNING)
@@ -592,7 +593,7 @@ class Logger(QObject):
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
 
-    def print(self, message, sender=f'{PROGRAM_NAME} {VERSION_MAYOR}.{VERSION_MINOR}', flag=PRINT.MESSAGE): # only used for program messages
+    def print(self, message, sender=f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, console, statusbar, and console.
 
         :param message: A short and descriptive message.

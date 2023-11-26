@@ -151,4 +151,4 @@ def getTestMode():
     return qSet.value(f'{GENERAL}/{TESTMODE}', 'false') == 'true'
 
 def infoDict(name):
-    return {PROGRAM : PROGRAM_NAME, VERSION : f'{VERSION_MAYOR}.{VERSION_MINOR}', PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}
+    return {PROGRAM : PROGRAM_NAME, VERSION : str(PROGRAM_VERSION), PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}

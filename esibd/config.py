@@ -1,6 +1,7 @@
 """ Defines program specific constants. Replace when using the tools provided by ESIBD Explorer to create a separate software."""
 
 from pathlib import Path
+from packaging import version
 
 COMPANY_NAME    = 'ESIBD LAB'
 PROGRAM_NAME    = 'ESIBD Explorer'
@@ -11,8 +12,7 @@ ABOUTHTML       = f"""<p>{PROGRAM_NAME} controls all aspects of an ESIBD experim
                     Rauschenbach Lab: <a href='https://rauschenbach.chem.ox.ac.uk/'>https://rauschenbach.chem.ox.ac.uk/</a><br>
                     Present implementation in Python/PyQt: ioneater <a href='mailto:ioneater.dev@gmail.com'>ioneater.dev@gmail.com</a><br>
                     Original implementation in LabView: rauschi2000 <a href='mailto:stephan.rauschenbach@chem.ox.ac.uk'>stephan.rauschenbach@chem.ox.ac.uk</a><br></p>"""
-VERSION_MAYOR   = 0
-VERSION_MINOR   = 6
+PROGRAM_VERSION   = version.parse('0.6.15') # mayor.minor.patch/micro
 internalPluginPath = Path(__file__).parent / 'plugins_internal'
 internalMediaPath = Path(__file__).parent / 'media'
 PROGRAM_ICON    = internalMediaPath / 'ESIBD_Explorer.png'
