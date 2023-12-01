@@ -23,6 +23,9 @@ CLIPBOARDTHEME  = 'Clipboard theme'
 DPI             = 'DPI'
 TESTMODE        = 'Test mode'
 GEOMETRY        = 'GEOMETRY'
+SETTINGSWIDTH   = 'SettingsWidth'
+SETTINGSHEIGHT  = 'SettingsHeight'
+CONSOLEHEIGHT   = 'ConsoleHeight'
 
 # file types
 FILE_INI = '.ini'
@@ -62,7 +65,6 @@ class Colors():
         return '#8ab4f7' if getDarkMode() else '#0063e6'
 
 colors = Colors()
-
 
 class INOUT(Enum):
     """Used to specify if a function affects only input, only output, or all channels."""

@@ -3,6 +3,7 @@ Generally all objects that are used accross multiple modules should be defined h
 Whenever it is possible to make definitions only locally where they are needed, this is preferred.
 For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique."""
 
+import time
 import re
 import sys
 import traceback
@@ -90,6 +91,11 @@ class EsibdExplorer(QMainWindow):
     def saveUiState(self):
         """Saves size and location of main window."""
         qSet.setValue(GEOMETRY, self.saveGeometry())
+        self.pluginManager.Settings.raiseDock(True) # need to be visible to give right dimensions
+        QApplication.processEvents()
+        qSet.setValue(SETTINGSWIDTH, self.pluginManager.Settings.mainDisplayWidget.width()) # store width
+        qSet.setValue(SETTINGSHEIGHT, self.pluginManager.Settings.mainDisplayWidget.height()) # store height
+        qSet.setValue(CONSOLEHEIGHT, self.pluginManager.Console.mainDisplayWidget.height()) # store height
         # qSet.setValue(GEOMETRY, self.mainWindow.geometry())
         # qSet.setValue(self.WINDOWSTATE, self.mainWindow.saveState())
 
@@ -452,12 +458,37 @@ class PluginManager():
             self.logger.close()
 
     def finalizeUiState(self):
+        """Restores dimensions of core plugins."""
         self.Settings.raiseDock() # make sure settings tab visible after start
+        self.Console.toggleVisible()
         QApplication.processEvents()
+
+        width = qSet.value(SETTINGSWIDTH)
+        if width is not None:
+            self.Settings.mainDisplayWidget.setMinimumWidth(width)
+            self.Settings.mainDisplayWidget.setMaximumWidth(width)
+        height = qSet.value(SETTINGSHEIGHT)
+        if height is not None:
+            self.Settings.mainDisplayWidget.setMinimumHeight(height)
+            self.Settings.mainDisplayWidget.setMaximumHeight(height)
+        height = qSet.value(CONSOLEHEIGHT)
+        if height is not None and self.Settings.showConsole:
+            self.Console.mainDisplayWidget.setMinimumHeight(height)
+            self.Console.mainDisplayWidget.setMaximumHeight(height)
+        QTimer.singleShot(1000, self.resetMainDisplayWidgetLimits)
         self.Explorer.raiseDock() # only works if given at least .3 ms delay after loadPlugins completed
         if hasattr(self, 'Browser'):
             self.Browser.raiseDock()
-        self.Console.toggleVisible()
+
+    def resetMainDisplayWidgetLimits(self):
+        """Resets limits to allow for user scaling if plugin sizes.
+        Needs to be called after releasing event loop or changes will not be applied."""
+        self.Settings.mainDisplayWidget.setMinimumWidth(100)
+        self.Settings.mainDisplayWidget.setMaximumWidth(10000)
+        self.Settings.mainDisplayWidget.setMinimumHeight(100)
+        self.Settings.mainDisplayWidget.setMaximumHeight(10000)
+        self.Console.mainDisplayWidget.setMinimumHeight(100)
+        self.Console.mainDisplayWidget.setMaximumHeight(10000)
 
     def getMainPlugins(self):
         """Returns all plugins found in the control section, including devices, controls, and scans."""

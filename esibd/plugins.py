@@ -32,13 +32,14 @@ from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
-                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QTabBar)
+                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton)
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QColor, QIcon, QImage, QAction, QTextCursor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6 import QtCore
 import esibd.core as EsibdCore
+import esibd.const as EsibdConst
 from esibd.core import INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
 if sys.platform == 'win32':
@@ -256,7 +257,7 @@ class Plugin(QWidget):
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
             self.closeAction = self.addAction(self.closeUserGUI, 'Close.', self.makeCoreIcon('close.png'))
-        QApplication.instance().processEvents() # required to allow adding dock to tab before self.dock.toggleTitleBar()
+        QApplication.processEvents() # required to allow adding dock to tab before self.dock.toggleTitleBar()
         self.dock.toggleTitleBar() # will show titleBarLabel only if not tabbed or floating
         self.updateTheme()
         self.loading = False
@@ -285,7 +286,7 @@ class Plugin(QWidget):
                 else:
                     mw.tabifyDockWidget(liveDisplays[-1].dock, self.dock) # add to other live displays
                     if len(liveDisplays) == 1:
-                        QApplication.instance().processEvents()
+                        QApplication.processEvents()
                         liveDisplays[0].dock.toggleTitleBar() # tabstate changing for fist one when second one added
             elif self.pluginType in [PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE, PluginManager.TYPE.CONTROL, PluginManager.TYPE.SCAN]:
                 if self.pluginManager.firstControl is None:
@@ -3025,8 +3026,9 @@ class Console(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'np':np, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'Parameter':Parameter, 'QtCore':QtCore,
-                    'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
+        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'np':np, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
+                    'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager,
+                      'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
         for p in self.pluginManager.plugins: # direct access to plugins
             namespace[p.name] = p
         self.mainConsole.localNamespace=namespace
@@ -3358,7 +3360,6 @@ class Settings(SettingsManager):
     # NOTE: default paths should not be in softwarefolder as this might not have write access after installation
     defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/' # use user home dir by default
     defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
-    DOCKWIDTH = 'SettingsDockWidth'
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
@@ -3403,15 +3404,6 @@ class Settings(SettingsManager):
         super().finalizeInit(aboutFunc)
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
-        for t in self.pluginManager.mainWindow.findChildren(QTabBar): # restore width
-            if t.tabText(0) == self.name:
-                width = qSet.value(self.DOCKWIDTH)
-                if width is not None:
-                    self.dock.setMinimumWidth(width)
-                    self.dock.setMaximumWidth(width)
-                    QApplication.instance().processEvents()
-                    self.dock.setMinimumWidth(100)
-                    self.dock.setMaximumWidth(10000)
 
     def loadData(self, file, _show=False):
         """:meta private:"""
@@ -3518,9 +3510,6 @@ class Settings(SettingsManager):
     def close(self):
         """:meta private:"""
         self.saveSettings(default=True)
-        for t in self.pluginManager.mainWindow.findChildren(QTabBar):
-            if t.tabText(0) == self.name:
-                qSet.setValue(self.DOCKWIDTH, t.width()) # store width
         super().close()
 
 class DeviceManager(Plugin):

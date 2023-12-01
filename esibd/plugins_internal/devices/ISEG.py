@@ -245,7 +245,7 @@ class VoltageController(DeviceController): # no channels needed
 
     def setVoltage(self, channel):
         if not getTestMode() and self.initialized:
-            Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.name} setVoltageFromThreadThread').start()
+            Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.device.name} setVoltageFromThreadThread').start()
 
     def setVoltageFromThread(self, channel):
         with self.lock:
@@ -263,7 +263,7 @@ class VoltageController(DeviceController): # no channels needed
     def voltageON(self, on=False): # this can run in main thread
         self.ON = on
         if not getTestMode() and self.initialized:
-            Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.name} voltageONFromThreadThread').start()
+            Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
         elif getTestMode():
             self.fakeMonitors()
 

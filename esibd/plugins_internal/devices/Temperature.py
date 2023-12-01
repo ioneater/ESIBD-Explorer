@@ -293,12 +293,12 @@ class TemperatureController(DeviceController):
         self.qm.setWindowIcon(self.device.getIcon())
         self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when de function completes.
         self.qm.raise_()
-        QApplication.instance().processEvents()
+        QApplication.processEvents()
 
     def setTemperature(self, channel):
         if not getTestMode() and self.initialized:
             if channel.controler == channel.CRYOTEL:
-                Thread(target=self.setTemperatureFromThread, args=(channel,), name=f'{self.name} setTemperatureFromThreadThread').start()
+                Thread(target=self.setTemperatureFromThread, args=(channel,), name=f'{self.device.name} setTemperatureFromThreadThread').start()
 
     def setTemperatureFromThread(self, channel):
         with self.lock:
