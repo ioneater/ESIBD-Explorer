@@ -212,9 +212,12 @@ class VoltageController(DeviceController): # no channels needed
             try:
                 # self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
-                with self.lock:
-                    self.s.sendall('*IDN?\r\n'.encode('utf-8'))
-                    self.print(self.read())
+                with self.lock.acquire_timeout(2) as acquired:
+                    if acquired:
+                        self.s.sendall('*IDN?\r\n'.encode('utf-8'))
+                        self.print(self.read())
+                    else:
+                        self.print('Could not acquire lock to initialize.')
                 self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
                 # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions

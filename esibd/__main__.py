@@ -12,7 +12,7 @@ from esibd.core import EsibdExplorer, PROGRAM_NAME, PROGRAM_VERSION
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format
 mpl.rcParams['savefig.bbox']  = 'tight' # trim white space by default (also when saving from toolBar)
-warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
+#warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
 
 def main():
     app = QApplication(sys.argv)

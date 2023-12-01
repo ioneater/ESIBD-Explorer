@@ -3,7 +3,6 @@ Generally all objects that are used accross multiple modules should be defined h
 Whenever it is possible to make definitions only locally where they are needed, this is preferred.
 For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique."""
 
-import time
 import re
 import sys
 import traceback
@@ -11,6 +10,7 @@ import subprocess
 from threading import Timer, Lock, Thread, current_thread, main_thread
 import threading
 from typing import Any
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
 from enum import Enum
@@ -481,8 +481,9 @@ class PluginManager():
             self.Browser.raiseDock()
 
     def resetMainDisplayWidgetLimits(self):
-        """Resets limits to allow for user scaling if plugin sizes.
-        Needs to be called after releasing event loop or changes will not be applied."""
+        """Resets limits to allow for user scaling if plugin sizes."""
+        # Needs to be called after releasing event loop or changes will not be applied.
+        # QApplication.processEvents() is not sufficient
         self.Settings.mainDisplayWidget.setMinimumWidth(100)
         self.Settings.mainDisplayWidget.setMaximumWidth(10000)
         self.Settings.mainDisplayWidget.setMinimumHeight(100)
@@ -619,6 +620,7 @@ class Logger(QObject):
             with self.lock:
                 self.log.write(message) # write to log file
                 self.log.flush()
+
         if hasattr(self.pluginManager, 'Console'):
             # handles new lines in system error messages better than Console.write
             # needs to run in main_thread
@@ -2567,6 +2569,32 @@ class SciAxisItem(pg.AxisItem):
                 dstrings.append(e)
         return dstrings
 
+class TimeoutLock(object):
+    """A Lock that allows to specify a timeout inside a with statement.
+    Can be used as normal Lock or optonally using 'self.lock.acquire_timeout(2) as acquired'"""
+    # based on https://stackoverflow.com/questions/16740104/python-lock-with-statement-and-timeout
+    def __init__(self):
+        self._lock = threading.Lock()
+
+    def acquire(self, blocking=True, timeout=-1):
+        return self._lock.acquire(blocking, timeout)
+
+    @contextmanager
+    def acquire_timeout(self, timeout):
+        result = self._lock.acquire(timeout=timeout)
+        yield result
+        if result:
+            self._lock.release()
+
+    def release(self):
+        self._lock.release()
+
+    def __enter__(self):
+        self._lock.__enter__()
+
+    def __exit__(self):
+        self._lock.__exit__()
+
 class DeviceController(QObject):
     """Each :class:`~esibd.plugins.Device` or :class:`~esibd.core.Channel` comes with a :class:`~esibd.core.DeviceController`. The
     :class:`~esibd.core.DeviceController` is not itself a :class:`~esibd.plugins.Plugin`. It only abstracts the direct
@@ -2602,7 +2630,7 @@ class DeviceController(QObject):
     """A parallel thread used to initialize communication."""
     acquisitionThread : Thread = None
     """A parallel thread that regularly reads values from the device."""
-    lock : Lock
+    lock : TimeoutLock # Lock
     """Lock used to avoid race conditions when communicating with the hardware."""
     acquiring : bool = False
     """True, while *acquisitionThread* is running. *AcquisitionThread* terminates if set to False."""
@@ -2616,7 +2644,7 @@ class DeviceController(QObject):
         self.channel = None # overwrite with parent if applicable
         self.device = parent # overwrite with channel.device if applicable
         self.print = parent.print
-        self.lock = Lock() # init here so each instance gets its own lock
+        self.lock = TimeoutLock() # init here so each instance gets its own lock
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
