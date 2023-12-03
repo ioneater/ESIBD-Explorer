@@ -52,6 +52,8 @@ class Temperature(Device):
         ds[f'{self.name}/Interval'][Parameter.VALUE] = 5000 # overwrite default value
         ds[f'{self.name}/CryoTel COM'] = parameterDict(value='COM3', toolTip='COM port of Sunpower CryoTel.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, attr='CRYOTELCOM')
+        ds[f'{self.name}/Toggle threshold'] = parameterDict(value=15, toolTip='Cooler is toggled on and off to stay within threshold from set value.',
+                                          widgetType=Parameter.TYPE.INT, attr='toggleThreshold')
         ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return ds
 
@@ -188,8 +190,11 @@ class TemperatureController(DeviceController):
         if self.ON:
             self.cryoON(on=False)
         if self.port is not None:
-            with self.lock:
-                self.port.close()
+            with self.lock.acquire_timeout(2) as acquired:
+                if acquired:
+                    self.port.close()
+                else:
+                    self.print('Cannot acquire lock to close port.')
         self.initialized = False
 
     def stopAcquisition(self):
@@ -212,16 +217,11 @@ class TemperatureController(DeviceController):
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
                     timeout=3)
-                # self.CryoTelWrite('SET TBAND=5') # set temperature band
-                # self.CryoTelRead()
-                # self.CryoTelWrite('SET PID=2')# set temperature control mode
-                # self.CryoTelRead()
-                # self.CryoTelWrite('SET SSTOPM=0') # enable use of SET SSTOP
-                # self.CryoTelRead()
-                # self.CryoTelWrite('SENSOR') # test if configured for correct temperature sensor DT-670
-                # self.CryoTelRead()
-                # self.CryoTelWrite('SENSOR=DT-670') # set Sensor if applicable
-                # self.CryoTelRead()
+                # self.CryoTelWriteRead('SET TBAND=5') # set temperature band
+                # self.CryoTelWriteRead('SET PID=2')# set temperature control mode
+                # self.CryoTelWriteRead('SET SSTOPM=0') # enable use of SET SSTOP
+                # self.CryoTelWriteRead('SENSOR') # test if configured for correct temperature sensor DT-670
+                # self.CryoTelWriteRead('SENSOR=DT-670') # set Sensor if applicable
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -252,20 +252,34 @@ class TemperatureController(DeviceController):
             self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 
+    toggleCounter = 0
     def readNumbers(self):
+        """Reads the temperature."""
         for i, c in enumerate(self.device.channels):
             if c.controler == c.CRYOTEL:
-                with self.lock:
-                    self.CryoTelWrite('TC') # Display Cold-Tip Temperature (same on old and new controller)
-                    v = self.CryoTelRead() # response
-                    try:
-                        v = float(v)
-                        self.temperatures[i] = v
-                    except ValueError as e:
-                        self.print(f'Error while reading temp: {e}', PRINT.ERROR)
-                        self.temperatures[i] = np.nan
+                v = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
+                try:
+                    v = float(v)
+                    self.temperatures[i] = v
+                except ValueError as e:
+                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.temperatures[i] = np.nan
             else:
                 self.temperatures[i] = np.nan
+
+        # toggle cryo on off to stabilize at temperatures above what is possible with minimal power
+        # temporary mode. to be replaced by temperature regulation using heater.
+        # only test once a minute as cooler takes 30 s to turn on or off
+        # in case of overcurrent error the cooler won't turn on and there is no need for additional safety check
+        self.toggleCounter += 1
+        if self.ON and np.mod(self.toggleCounter, int(60000/self.device.interval)) == 0 and self.device.channels[0].monitor != 0 and self.device.channels[0].monitor != np.nan:
+            if self.device.channels[0].monitor < self.device.channels[0].value - self.device.toggleThreshold:
+                self.print(f'Toggle cooler off. {self.device.channels[0].monitor} K is under lower threshold of {self.device.channels[0].value - self.device.toggleThreshold} K.')
+                self.CryoTelWriteRead(message='COOLER=OFF')
+            elif self.device.channels[0].monitor > self.device.channels[0].value + self.device.toggleThreshold:
+                if self.CryoTelWriteRead('COOLER') != 'POWER': # avoid sending command repeatedly
+                    self.print(f'Toggle cooler on. {self.device.channels[0].monitor} K is over upper threshold of {self.device.channels[0].value + self.device.toggleThreshold} K.')
+                    self.CryoTelWriteRead(message='COOLER=POWER')
 
     def fakeNumbers(self):
         for i, c in enumerate(self.device.channels):
@@ -282,13 +296,10 @@ class TemperatureController(DeviceController):
     def cryoON(self, on=False):
         self.ON = on
         if not getTestMode() and self.initialized:
-            with self.lock:
-                if on:
-                    self.CryoTelWrite('COOLER=ON') # start (used to be 'SET SSTOP=0')
-                    self.CryoTelRead()
-                else:
-                    self.CryoTelWrite('COOLER=OFF') # stop (used to be 'SET SSTOP=1')
-                    self.CryoTelRead()
+            if on:
+                self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
+            else:
+                self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
         self.qm.setText(f"Remember to turn {'on' if on else 'off'} water cooling!")
         self.qm.setWindowIcon(self.device.getIcon())
         self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when de function completes.
@@ -301,19 +312,20 @@ class TemperatureController(DeviceController):
                 Thread(target=self.setTemperatureFromThread, args=(channel,), name=f'{self.device.name} setTemperatureFromThreadThread').start()
 
     def setTemperatureFromThread(self, channel):
-        with self.lock:
-            self.CryoTelWrite(f'TTARGET={channel.value}') # used to be SET TTARGET=
-            self.CryoTelRead()
+        self.CryoTelWriteRead(message=f'TTARGET={channel.value}') # used to be SET TTARGET=
 
     # use following from internal console for testing
     # Temperature.controller.lock.CryoTelWriteRead('TC')
 
     def CryoTelWriteRead(self, message):
-        """Allows to write and read from Console while using lock."""
+        """Allows to write and read while using lock with timeout."""
         readback = ''
-        with self.lock:
-            self.CryoTelWrite(message)
-            readback = self.CryoTelRead() # reads return value
+        with self.lock.acquire_timeout(2) as acquired:
+            if acquired:
+                self.CryoTelWrite(message)
+                readback = self.CryoTelRead() # reads return value
+            else:
+                self.print(f'Cannot acquire lock for CryoTel communication. Query: {message}')
         return readback
 
     def CryoTelWrite(self, message):

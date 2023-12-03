@@ -7,7 +7,7 @@ import re
 import sys
 import traceback
 import subprocess
-from threading import Timer, Lock, Thread, current_thread, main_thread
+from threading import Timer, Thread, current_thread, main_thread
 import threading
 from typing import Any
 from contextlib import contextmanager
@@ -590,7 +590,7 @@ class Logger(QObject):
         self.pluginManager = pluginManager
         self.logFileName = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}',(Path.home() / PROGRAM_NAME / 'conf/').as_posix())) / f'{PROGRAM_NAME.lower()}.log'
         self.active = False
-        self.lock = Lock()
+        self.lock = TimeoutLock()
         self.printFromThreadSignal.connect(self.print)
         if qSet.value(LOGGING, 'false') == 'true':
             self.open()
@@ -617,9 +617,11 @@ class Logger(QObject):
         if self.active:
             if self.terminalOut is not None: # after packaging with pyinstaller the programm will not be connected to a terminal
                 self.terminalOut.write(message) # write to original stdout
-            with self.lock:
-                self.log.write(message) # write to log file
-                self.log.flush()
+            with self.lock.acquire_timeout(2) as acquired:
+                if acquired:
+                    self.log.write(message) # write to log file
+                    self.log.flush()
+                # else: cannot print without using recursion
 
         if hasattr(self.pluginManager, 'Console'):
             # handles new lines in system error messages better than Console.write
@@ -2571,7 +2573,7 @@ class SciAxisItem(pg.AxisItem):
 
 class TimeoutLock(object):
     """A Lock that allows to specify a timeout inside a with statement.
-    Can be used as normal Lock or optonally using 'self.lock.acquire_timeout(2) as acquired'"""
+    Can be used as normal Lock or optonally using 'with self.lock.acquire_timeout(2) as acquired:'"""
     # based on https://stackoverflow.com/questions/16740104/python-lock-with-statement-and-timeout
     def __init__(self):
         self._lock = threading.Lock()
@@ -2592,8 +2594,8 @@ class TimeoutLock(object):
     def __enter__(self):
         self._lock.__enter__()
 
-    def __exit__(self):
-        self._lock.__exit__()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._lock.__exit__(exc_type, exc_val, exc_tb)
 
 class DeviceController(QObject):
     """Each :class:`~esibd.plugins.Device` or :class:`~esibd.core.Channel` comes with a :class:`~esibd.core.DeviceController`. The

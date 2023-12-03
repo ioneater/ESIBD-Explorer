@@ -268,11 +268,13 @@ class CurrentController(DeviceController):
     def close(self):
         super().close()
         if self.port is not None:
-            with self.lock:
-                if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
-                    self.RBDWrite('I0000') # stop sampling
-                    self.RBDRead()
-                self.port.close()
+            if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
+                self.RBDWriteRead('I0000') # stop sampling
+            with self.lock.acquire_timeout(2) as acquired:
+                if acquired:
+                    self.port.close()
+                else:
+                    self.print(f'Cannot acquire lock to close port of {self.channel.devicename}.')
         self.initialized = False
 
     def stopAcquisition(self):
@@ -330,13 +332,10 @@ class CurrentController(DeviceController):
                 self.updateParameters()
                 time.sleep(self.channel.device.interval/1000)
         else:
-            with self.lock:
-                self.RBDWrite(f'I{self.channel.device.interval:04d}') # start sampling with given interval (implement high speed communication if available)
-                self.RBDRead()
+            self.RBDWriteRead(message=f'I{self.channel.device.interval:04d}') # start sampling with given interval (implement high speed communication if available)
             while acquiring():
-                with self.lock:
-                    self.readSingleNum()
-                    self.updateParameters()
+                self.readSingleNum()
+                self.updateParameters()
 
     def updateDeviceName(self, name):
         self.channel.devicename = name
@@ -350,39 +349,25 @@ class CurrentController(DeviceController):
             self.print(error)
 
     def setRange(self):
-        if not getTestMode():
-            with self.lock:
-                self.RBDWrite(f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}') # set range
-                self.RBDRead()
+        self.RBDWriteRead(message=f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}') # set range
         self.updateRangeFlag=False
 
     def setAverage(self):
         _filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
         _filter = 2**_filter if _filter > 0 else 0
-        if not getTestMode():
-            with self.lock:
-                self.RBDWrite(f'F0{_filter:02}') # set filter
-                self.RBDRead()
+        self.RBDWriteRead(message=f'F0{_filter:02}') # set filter
         self.updateAverageFlag=False
 
     def setBias(self):
-        if not getTestMode():
-            with self.lock:
-                self.RBDWrite(f'B{int(self.channel.bias)}') # set bias, convert from bool to int
-                self.RBDRead()
+        self.RBDWriteRead(message=f'B{int(self.channel.bias)}') # set bias, convert from bool to int
         self.updateBiasFlag=False
 
     def setGrounding(self):
-        if not getTestMode():
-            with self.lock:
-                self.RBDWrite('G0') # input grounding off
-                self.RBDRead()
+        self.RBDWriteRead(message='G0') # input grounding off
 
     def getName(self):
         if not getTestMode():
-            with self.lock:
-                self.RBDWrite('P') # get channel name
-                name = self.RBDRead()
+            name = self.RBDWriteRead(message='P') # get channel name
         else:
             name = 'UNREALSMURF'
         if '=' in name:
@@ -429,7 +414,12 @@ class CurrentController(DeviceController):
 
     def readSingleNum(self):
         if not self.channel.device.pluginManager.closing:
-            msg=self.RBDRead()
+            msg = ''
+            with self.lock.acquire_timeout(2) as acquiring:
+                if acquiring:
+                    msg=self.RBDRead()
+                else:
+                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.")
             parsed = self.parse_message_for_sample(msg)
             if any (sym in parsed for sym in ['<','>']):
                 self.signalComm.updateValueSignal.emit(0, True, False, f'{self.channel.devicename}: {parsed}')
@@ -473,3 +463,15 @@ class CurrentController(DeviceController):
 
     def RBDRead(self):
         return self.serialRead(self.port)
+
+    def RBDWriteRead(self, message):
+        """Allows to write and read while using lock with timeout."""
+        readback = ''
+        if not getTestMode():
+            with self.lock.acquire_timeout(2) as acquired:
+                if acquired:
+                    self.RBDWrite(message) # get channel name
+                    readback = self.RBDRead()
+                else:
+                    self.print(f"Cannot acquire lock for RBD communication. Query {message}.")
+        return readback

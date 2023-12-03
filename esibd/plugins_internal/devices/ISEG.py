@@ -212,12 +212,7 @@ class VoltageController(DeviceController): # no channels needed
             try:
                 # self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
-                with self.lock.acquire_timeout(2) as acquired:
-                    if acquired:
-                        self.s.sendall('*IDN?\r\n'.encode('utf-8'))
-                        self.print(self.read())
-                    else:
-                        self.print('Could not acquire lock to initialize.')
+                self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
                 self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
                 # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
@@ -241,19 +236,12 @@ class VoltageController(DeviceController): # no channels needed
             if self.device.pluginManager.closing:
                 time.sleep(.1) # allow for time to finish last event before application is closed and external thread looses access to elements in main thread
 
-    def read(self, initializing=False):
-        # only call from thread! # make sure lock is aquired before and relased after
-        if not getTestMode() and (self.initialized or initializing):
-            return self.s.recv(4096).decode("utf-8")
-
     def setVoltage(self, channel):
         if not getTestMode() and self.initialized:
             Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.device.name} setVoltageFromThreadThread').start()
 
     def setVoltageFromThread(self, channel):
-        with self.lock:
-            self.s.sendall(f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
-            self.read()
+        self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
     def applyMonitors(self):
         if getTestMode():
@@ -271,10 +259,8 @@ class VoltageController(DeviceController): # no channels needed
             self.fakeMonitors()
 
     def voltageONFromThread(self, on=False):
-        with self.lock:
-            for m in self.modules:
-                self.s.sendall(f":VOLT {'ON' if on else 'OFF'},(#{m}@0-{self.maxID})\r\n".encode('utf-8'))
-                self.read()
+        for m in self.modules:
+            self.ISEGWriteRead(message=f":VOLT {'ON' if on else 'OFF'},(#{m}@0-{self.maxID})\r\n".encode('utf-8'))
 
     def fakeMonitors(self):
         for channel in self.device.channels:
@@ -289,16 +275,34 @@ class VoltageController(DeviceController): # no channels needed
         """monitor potentials continuously"""
         while acquiring():
             if not getTestMode():
-                with self.lock:
-                    for m in self.modules:
-                        self.s.sendall(f':MEAS:VOLT? (#{m}@0-{self.maxID+1})\r\n'.encode('utf-8'))
-                        res = self.read()#. rstripreplace('\r\n','')
-                        if res != '':
-                            try:
-                                monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trainling '\r\n'
-                                # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                                self.voltages[m] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
-                            except (ValueError, TypeError) as e:
-                                self.print(f'Monitor parsing error: {e} for {res}.')
+                for m in self.modules:
+                    res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{m}@0-{self.maxID+1})\r\n'.encode('utf-8'))
+                    if res != '':
+                        try:
+                            monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trainling '\r\n'
+                            # fill up to self.maxID to handle all modules the same independent of the number of channels.
+                            self.voltages[m] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
+                        except (ValueError, TypeError) as e:
+                            self.print(f'Monitor parsing error: {e} for {res}.')
             self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
+
+    def ISEGWrite(self, message):
+        self.s.sendall(message)
+
+    def ISEGRead(self):
+        # only call from thread! # make sure lock is aquired before and relased after
+        if not getTestMode() and (self.initialized):
+            return self.s.recv(4096).decode("utf-8")
+
+    def ISEGWriteRead(self, message):
+        """Allows to write and read while using lock with timeout."""
+        readback = ''
+        if not getTestMode():
+            with self.lock.acquire_timeout(2) as acquired:
+                if acquired:
+                    self.ISEGWrite(message) # get channel name
+                    readback = self.ISEGRead()
+                else:
+                    self.print(f"Cannot acquire lock for ISEG communication. Query {message}.")
+        return readback
