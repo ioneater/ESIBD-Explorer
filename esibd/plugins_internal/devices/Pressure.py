@@ -135,14 +135,14 @@ class PressureController(DeviceController):
                     self.TICport.close()
                     self.TICport = None
                 else:
-                    self.print('Cannot acquire lock to close TICport.')
+                    self.print('Cannot acquire lock to close TICport.', PRINT.WARNING)
         if self.TPGport is not None:
             with self.TPGlock.acquire_timeout(2) as acquired:
                 if acquired:
                     self.TPGport.close()
                     self.TPGport = None
                 else:
-                    self.print('Cannot acquire lock to close TPGport.')
+                    self.print('Cannot acquire lock to close TPGport.', PRINT.WARNING)
         self.initialized = False
 
     def stopAcquisition(self):
@@ -165,11 +165,7 @@ class PressureController(DeviceController):
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=True,
                     timeout=5)
-                with self.TIClock.acquire_timeout(2) as acquired:
-                    if acquired:
-                        self.print(f"TIC Status: {self.TICWriteRead(message=902)}") # query status
-                    else:
-                        self.print('Cannot acquire lock to initialize TIC.')
+                self.print(f"TIC Status: {self.TICWriteRead(message=902)}") # query status
                 self.TPGport=serial.Serial(
                     f'{self.device.TPGCOM}',
                     baudrate=9600,
@@ -178,11 +174,7 @@ class PressureController(DeviceController):
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
                     timeout=5)
-                with self.TPGlock.acquire_timeout(2) as acquired:
-                    if acquired:
-                        self.print(f"MaxiGauge Status: {self.TPGWriteRead(message='TID')}")# gauge identification
-                    else:
-                        self.print('Cannot acquire lock to initialize MaxiGauge.')
+                self.print(f"MaxiGauge Status: {self.TPGWriteRead(message='TID')}")# gauge identification
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -273,7 +265,7 @@ class PressureController(DeviceController):
                 self.TICWrite(message)
                 readback = self.TICRead() # reads return value
             else:
-                self.print(f'Cannot acquire lock for TIC communication. Query: {message}')
+                self.print(f'Cannot acquire lock for TIC communication. Query: {message}', PRINT.WARNING)
         return readback
 
     def TPGWrite(self, message):
@@ -303,5 +295,5 @@ class PressureController(DeviceController):
                 self.TPGWrite(message)
                 readback = self.TPGRead() # reads return value
             else:
-                self.print(f'Cannot acquire lock for Maxigauge communication. Query: {message}')
+                self.print(f'Cannot acquire lock for Maxigauge communication. Query: {message}', PRINT.WARNING)
         return readback

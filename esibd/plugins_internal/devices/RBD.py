@@ -274,7 +274,7 @@ class CurrentController(DeviceController):
                 if acquired:
                     self.port.close()
                 else:
-                    self.print(f'Cannot acquire lock to close port of {self.channel.devicename}.')
+                    self.print(f'Cannot acquire lock to close port of {self.channel.devicename}.', PRINT.WARNING)
         self.initialized = False
 
     def stopAcquisition(self):
@@ -419,7 +419,7 @@ class CurrentController(DeviceController):
                 if acquiring:
                     msg=self.RBDRead()
                 else:
-                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.")
+                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.", PRINT.WARNING)
             parsed = self.parse_message_for_sample(msg)
             if any (sym in parsed for sym in ['<','>']):
                 self.signalComm.updateValueSignal.emit(0, True, False, f'{self.channel.devicename}: {parsed}')
@@ -473,5 +473,5 @@ class CurrentController(DeviceController):
                     self.RBDWrite(message) # get channel name
                     readback = self.RBDRead()
                 else:
-                    self.print(f"Cannot acquire lock for RBD communication. Query {message}.")
+                    self.print(f"Cannot acquire lock for RBD communication. Query {message}.", PRINT.WARNING)
         return readback

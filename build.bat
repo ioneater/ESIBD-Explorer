@@ -2,6 +2,14 @@ REM Start script for windows
 REM based on https://www.pythonguis.com/tutorials/packaging-pyqt5-pyside2-applications-windows-pyinstaller/
 
 :::::::::::::::::::::
+REM Testing
+:::::::::::::::::::::
+
+REM test with resetting qSet
+REM test using PluginManger.test()
+REM test with hardware
+
+:::::::::::::::::::::
 REM Environment setup
 :::::::::::::::::::::
 
@@ -69,10 +77,11 @@ REM python -m esibd.explorer # start gui using module
 twine check dist/*
 twine upload -r testpypi dist/*
 
-REM conda create -n "estest" python=3.11
+REM conda create -y -n "estest" python=3.11
 REM conda activate estest
-REM pip install -i https://test.pypi.org/simple/ esibd-explorer
-REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer==0.6.12 # use pypi dependencies that are not present on testpypi 
+REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer # ==0.6.15 NOTE latest will be used if no version specified  # use pypi dependencies that are not present on testpypi 
+REM python -m esibd.reset # clear registry settings to emulate fresh install
+REM python -m esibd.explorer # test software
 
 REM only upload on real pypi after testing!
 REM twine upload dist/*
@@ -83,7 +92,7 @@ REM pyinstaller
 
 call rmdir /q /s pyinstaller_build
 call rmdir /q /s pyinstaller_dist
-conda create -n "esibdtest" python=3.11
+conda create -y -n "esibdtest" python=3.11
 conda activate esibdtest
 pip install esibd-explorer pyinstaller --upgrade
 

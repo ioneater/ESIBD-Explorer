@@ -6,7 +6,7 @@ import warnings
 import matplotlib as mpl
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import  QSharedMemory
+from PyQt6.QtCore import QSharedMemory
 from esibd.core import EsibdExplorer, PROGRAM_NAME, PROGRAM_VERSION
 
 mpl.use('Qt5Agg')

@@ -13,7 +13,7 @@ import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
 from asteval import Interpreter
-from PyQt6.QtWidgets import QSlider
+from PyQt6.QtWidgets import QSlider, QMessageBox
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
 from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, CloseDialog
@@ -700,8 +700,8 @@ class Depo(Scan):
             self.axes[0].tick_params(axis='x', which='both', bottom=False, labelbottom=False)
             self.addRightAxis(self.axes[0])
             self.addRightAxis(self.axes[1])
-            self.axes[0].set_ylabel('Current (pA)')
-            self.axes[1].set_ylabel('Charge (pAh)')
+            self.axes[0].set_ylabel('I (pA)')
+            self.axes[1].set_ylabel('Q (pAh)')
             self.axes[1].set_xlabel(self.TIME)
             self.tilt_xlabels(self.axes[1])
             self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top',
@@ -727,6 +727,10 @@ class Depo(Scan):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
+        self.qm = QMessageBox(QMessageBox.Icon.Information, 'Deposition checklist.',
+        'Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?',
+        buttons=QMessageBox.StandardButton.Ok)
+        self.qm.setWindowIcon(self.getIcon())
 
     def getIcon(self):
         return self.makeIcon('depo.png')
@@ -764,10 +768,8 @@ class Depo(Scan):
             self.display.updateDepoTarget()
 
     def toggleRecording(self):
-        if self.recording and self.dialog and not CloseDialog(title='Start check list', ok='Start',
-            prompt='Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?').exec():
-            self.recordingAction.state = False
-            return
+        self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
+        self.qm.raise_()
         super().toggleRecording()
 
     def initScan(self):

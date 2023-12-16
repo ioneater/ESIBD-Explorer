@@ -304,5 +304,5 @@ class VoltageController(DeviceController): # no channels needed
                     self.ISEGWrite(message) # get channel name
                     readback = self.ISEGRead()
                 else:
-                    self.print(f"Cannot acquire lock for ISEG communication. Query {message}.")
+                    self.print(f"Cannot acquire lock for ISEG communication. Query {message}.", PRINT.WARNING)
         return readback

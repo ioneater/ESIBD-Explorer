@@ -24,6 +24,8 @@ dependencies:
     - h5py
     - configobj
     - pylint
+    - openpyxl
+    - python-pptx
     - PyQt6
     - PyQt6-WebEngine
     - pyqtgraph==0.13.1

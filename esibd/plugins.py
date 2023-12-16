@@ -120,10 +120,6 @@ class Plugin(QWidget):
         self._loading = 0
         self.labelAnnotation = None
         self.dock = None
-        self.titleBar = QToolBar()
-        self.titleBar.setIconSize(QSize(16, 16))
-        self.titleBarLabel = QLabel('')
-        self.titleBar.addWidget(self.titleBarLabel)
         self.fig = None
         self.axes = []
         self.canvas = None
@@ -236,7 +232,11 @@ class Plugin(QWidget):
             self.vertLayout = QVBoxLayout() # contains row(s) with buttons on top and content below
             self.vertLayout.setSpacing(0)
             self.vertLayout.setContentsMargins(0, 0, 0, 0)
-            self.mainLayout.addLayout(self.vertLayout)
+            self.mainLayout.addLayout(self.vertLayout)            
+            self.titleBar = QToolBar()
+            self.titleBar.setIconSize(QSize(16, 16))
+            self.titleBarLabel = QLabel('')
+            self.titleBar.addWidget(self.titleBarLabel)
             self.initializedGUI = True
 
     def finalizeInit(self, aboutFunc=None):
@@ -443,8 +443,6 @@ class Plugin(QWidget):
         while it.value():
             it.value().setExpanded(True)
             it +=1
-        # size to content
-        tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
     def about(self):
         """Displays the about dialog of the plugin using the :ref:`sec:browser`."""
@@ -653,6 +651,7 @@ class Plugin(QWidget):
             plt.close(self.fig)
         self.fig = None
         self.canvas = None
+        self.titleBar = None
         self.initializedGUI = False
         self.initializedDock = False
 
@@ -2160,6 +2159,9 @@ class Scan(Plugin):
         super().initGUI()
         settingsTreeWidget = QTreeWidget()
         settingsTreeWidget.setHeaderLabels([self.PARAMETER, self.VALUE])
+        settingsTreeWidget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # size to content prevents manual resize
+        settingsTreeWidget.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.addContentWidget(settingsTreeWidget)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=settingsTreeWidget,
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
@@ -3010,7 +3012,6 @@ class Console(Plugin):
             "chan.getParameterByName(chan.VALUE).getWidget().setStyleSheet('background-color:red;') # test widget styling",
             "[p.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for p in chan.parameters]",
             "PluginManager.showThreads() # show all active threads",
-            "# qSet.clear() # reset settings saved in registry. Use to test fresh deployment",
             "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
             "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
         ])
@@ -3181,6 +3182,7 @@ class SettingsManager(Plugin):
         # call this after creating the instance, as the instance is required during initialization
         # call after all defaultSettings have been added!
         self.loadSettings(default=True)
+        # QTimer.singleShot(100, lambda : self.tree.setColumnWidth(0, 200))
 
     def loadSettings(self, file=None, default=False):
         """Loads settings from hdf or ini file."""
@@ -3365,6 +3367,8 @@ class Settings(SettingsManager):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
         self.tree.setHeaderLabels(['Parameter','Value'])
         self.tree.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # size to content prevents manual resize
+        self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.confINI = f'{self.name}.ini'
         self.loadGeneralSettings = f'Load {PROGRAM_NAME} settings.'
         super().__init__(parentPlugin=self, tree=self.tree,

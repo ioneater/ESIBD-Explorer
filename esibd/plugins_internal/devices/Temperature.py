@@ -194,7 +194,7 @@ class TemperatureController(DeviceController):
                 if acquired:
                     self.port.close()
                 else:
-                    self.print('Cannot acquire lock to close port.')
+                    self.print('Cannot acquire lock to close port.', PRINT.WARNING)
         self.initialized = False
 
     def stopAcquisition(self):
@@ -300,9 +300,9 @@ class TemperatureController(DeviceController):
                 self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
             else:
                 self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
-        self.qm.setText(f"Remember to turn {'on' if on else 'off'} water cooling!")
+        self.qm.setText(f"Remember to turn {'on' if on else 'off'} water cooling and gas ballast!")
         self.qm.setWindowIcon(self.device.getIcon())
-        self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when de function completes.
+        self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
         self.qm.raise_()
         QApplication.processEvents()
 
@@ -325,7 +325,7 @@ class TemperatureController(DeviceController):
                 self.CryoTelWrite(message)
                 readback = self.CryoTelRead() # reads return value
             else:
-                self.print(f'Cannot acquire lock for CryoTel communication. Query: {message}')
+                self.print(f'Cannot acquire lock for CryoTel communication. Query: {message}', PRINT.WARNING)
         return readback
 
     def CryoTelWrite(self, message):

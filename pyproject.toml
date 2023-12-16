@@ -5,25 +5,30 @@ version = "0.6.15"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
 readme = "README.rst"
+# For tools, versions should be fixed. For libraries they should be constrained as little as possible.
+# Since this project is both I minimize restaints. The windows installer will come with a fixed dependencies. 
+# commeted version numbers only show the last tested stable configuration
 dependencies = [
-	'numpy',
-	'biopython',
-	'scipy',
-	'asteval',
-	'configparser',
-	'keyboard',
-	'pyperclip',
-	'python-socketio',
-	'pyserial',
-	'pywin32; sys_platform == "win32"',
-	'Send2Trash',
-	'matplotlib',
-	'h5py',
-	'configobj',
-	'PyQt6',
-	'PyQt6-WebEngine',
+	'asteval', # ==0.9.31
+	'biopython', # ==1.81
+	'configobj', # ==5.0.8
+	'configparser', # ==5.3.0
+	'h5py', # ==3.10.0
+	'keyboard', # ==0.13.5
+	'matplotlib', # ==3.8.2
+	'numpy', # ==1.26.2
+	'openpyxl', # ==3.1.2
+	'PyOpenGL', # ==3.1.7
+	'pyperclip', # ==1.8.2
+	'PyQt6', # ==6.6.1
+	'PyQt6-WebEngine', # ==6.6.0
+	'python-pptx', # ==0.6.23
+	'pyserial', # ==3.5
+	'python-socketio', # ==5.10.0
+	'pywin32; sys_platform == "win32"', # ==306
 	'pyqtgraph==0.13.1',
-	'PyOpenGL',
+	'scipy', # ==1.11.4
+	'Send2Trash', # ==1.8.2
 ]
 authors = [
   { name = "ioneater", email = "ioneater.dev@gmail.com" },
