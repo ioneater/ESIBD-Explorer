@@ -18,6 +18,7 @@ LOGGING         = 'Logging'
 DATAPATH        = 'Data path'
 CONFIGPATH      = 'Config path'
 PLUGINPATH      = 'Plugin path'
+DEBUG           = 'Debug mode'
 DARKMODE        = 'Dark mode'
 CLIPBOARDTHEME  = 'Clipboard theme'
 DPI             = 'DPI'
@@ -39,10 +40,6 @@ qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class Colors():
     """Provides dark mode dependant defaul colors."""
-
-    def getDarkMode(self):
-        # qSet.sync()
-        return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
 
     @property
     def fg(self):
@@ -119,6 +116,14 @@ def dynamicImport(module, path):
     Module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(Module)
     return Module
+
+def getShowDebug():
+    """Gets the debug mode from :ref:`sec:settings`.
+
+    :return: Debug mode
+    :rtype: bool
+    """
+    return qSet.value(f'{GENERAL}/{DEBUG}', 'true') == 'true'
 
 def getDarkMode():
     """Gets the dark mode from :ref:`sec:settings`.

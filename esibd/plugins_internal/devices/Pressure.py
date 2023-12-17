@@ -164,7 +164,7 @@ class PressureController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=True,
-                    timeout=5)
+                    timeout=2)
                 self.print(f"TIC Status: {self.TICWriteRead(message=902)}") # query status
                 self.TPGport=serial.Serial(
                     f'{self.device.TPGCOM}',
@@ -173,7 +173,7 @@ class PressureController(DeviceController):
                     parity=serial.PARITY_NONE,
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
-                    timeout=5)
+                    timeout=2)
                 self.print(f"MaxiGauge Status: {self.TPGWriteRead(message='TID')}")# gauge identification
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
@@ -220,6 +220,7 @@ class PressureController(DeviceController):
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[c.id]}')
                     try:
                         self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
+                        # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.pressures[i] = np.nan
@@ -229,6 +230,7 @@ class PressureController(DeviceController):
                         a, p = msg.split(',')
                         if a == '0':
                             self.pressures[i] = float(p) # set unit to mbar on device
+                            # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                         else:
                             self.print(f'Could not read pressure for {c.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
                             self.pressures[i] = np.nan
@@ -255,7 +257,8 @@ class PressureController(DeviceController):
         self.serialWrite(self.TICport, f'?V{_id}\r')
 
     def TICRead(self):
-        return self.serialRead(self.TICport)
+        # Note: unlike most other devices TIC terminates messages with \r and not \r\n
+        return self.serialRead(self.TICport, EOL='\r')
 
     def TICWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""

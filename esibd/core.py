@@ -162,8 +162,6 @@ class PluginManager():
         self.mainWindow = QApplication.instance().mainWindow
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.')
-        # self.debug = True # set to True to print debug messages
-        self.debug = False # set to True to print debug messages
         self.userPluginPath     = None
         self.pluginFile         = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
@@ -642,7 +640,7 @@ class Logger(QObject):
             # redirect to main thread if needed to avoid chanign GUI from parallel thread.
             self.printFromThreadSignal.emit(message, sender, flag)
             return
-        if flag == PRINT.DEBUG and not self.pluginManager.debug:
+        if flag == PRINT.DEBUG and not getShowDebug():
             return
         flagstring = ''
         styleSheet = 'color : white;' if getDarkMode() else 'color : black;'
@@ -2720,7 +2718,7 @@ class DeviceController(QObject):
             self.print(f'Attribute error, try to reinitialize communication: {e}', PRINT.ERROR)
             self.stopDelayed()
 
-    def serialRead(self, port, encoding='utf-8'):
+    def serialRead(self, port, encoding='utf-8', EOL='\n'):
         """Reads a string from a serial port. Takes care of decoding messages
         from bytes and catches common exceptions.
 
@@ -2732,7 +2730,10 @@ class DeviceController(QObject):
         :rtype: str
         """
         try:
-            return port.readline().decode(encoding).rstrip()
+            if EOL == '\n':
+                return port.readline().decode(encoding).rstrip()
+            else: # e.g. EOL == '\r'
+                return port.read_until(EOL.encode('utf-8')).decode(encoding).rstrip()
         except UnicodeDecodeError as e:
             self.print(f'Error while decoding message: {e}', PRINT.ERROR)
         except serial.SerialTimeoutException as e:

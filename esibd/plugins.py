@@ -232,7 +232,7 @@ class Plugin(QWidget):
             self.vertLayout = QVBoxLayout() # contains row(s) with buttons on top and content below
             self.vertLayout.setSpacing(0)
             self.vertLayout.setContentsMargins(0, 0, 0, 0)
-            self.mainLayout.addLayout(self.vertLayout)            
+            self.mainLayout.addLayout(self.vertLayout)
             self.titleBar = QToolBar()
             self.titleBar.setIconSize(QSize(16, 16))
             self.titleBarLabel = QLabel('')
@@ -1353,6 +1353,7 @@ class Device(Plugin):
 
     def intervalChanged(self):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
+        self.estimateStorage()
 
     def startAcquisition(self):
         """Extend to start all device related communication."""
@@ -1426,8 +1427,8 @@ class Device(Plugin):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
         self.maxDataPoints = (self.maxStorage * 1024**2 - 8) / (4 * numChannelsBackgrounds)  # including time channel
         totalDays = self.interval / 1000 * self.maxDataPoints / 3600 / 24
-        self.pluginManager.Settings.settings[f'{self.name}/Max data points'].getWidget().setToolTip(
-        f'Using a current interval of {self.interval} ms and maximum storage of {self.maxStorage:d} MB allows for\n'+
+        self.pluginManager.Settings.settings[f'{self.name}/{self.MAXDATAPOINTS}'].getWidget().setToolTip(
+        f'Using an interval of {self.interval} ms and maximum storage of {self.maxStorage:d} MB allows for\n'+
         f'a history of {totalDays:.2f} days or {self.maxDataPoints} datapoints for {len(self.channels)} channels.\n'+
         'After this time, data thinning will allow to retain even older data, but at lower resolution.')
 
@@ -3440,6 +3441,7 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=False, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda : self.pluginManager.DeviceManager.initDevices() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True)
+        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
