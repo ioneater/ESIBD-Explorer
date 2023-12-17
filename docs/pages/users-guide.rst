@@ -6,10 +6,10 @@ Getting started
 To get started, it is recommended to first configure a few essential :ref:`sec:settings`.
 Chose your :ref:`data path<data_path>`, :ref:`config path<config_path>` and if applicable :ref:`plugin path<plugin_path>`.
 Enable a few devices, scans, and other plugins in the plugin manager.
+Select which live displays should be visible.
 Activate the test mode to simulate device communication while you familiarize yourself with the user interface.
 Record a few scans and inspect the generated file structure and files.
 Make use of tool tips and integrated documentation (questionmark icons) to learn about the plugins and settings.
-
 
 User interface overview
 -----------------------

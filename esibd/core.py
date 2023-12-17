@@ -1878,7 +1878,7 @@ class StateAction(Action):
     """Extends QActions to show different icons depending on a state.
     Values are restored using QSettings if name is provided."""
 
-    def __init__(self, parentPlugin, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, func=None, before=None, attr=None, restore=True):
+    def __init__(self, parentPlugin, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, func=None, before=None, attr=None, restore=True, default='false'):
         super().__init__(iconFalse, toolTipFalse, parentPlugin)
         self.parentPlugin = parentPlugin
         self.iconFalse = iconFalse
@@ -1899,7 +1899,7 @@ class StateAction(Action):
         if func is not None:
             self.triggered.connect(func) # see comments above about "checked"
         if restore and self.fullName is not None:
-            self.state = qSet.value(self.fullName,'false') == 'true'
+            self.state = qSet.value(self.fullName, default) == 'true'
         else:
             self.state = False # init
         if before is None:

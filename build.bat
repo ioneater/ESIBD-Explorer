@@ -1,20 +1,19 @@
 REM Start script for windows
 REM based on https://www.pythonguis.com/tutorials/packaging-pyqt5-pyside2-applications-windows-pyinstaller/
 
-:::::::::::::::::::::
-REM Testing
-:::::::::::::::::::::
-
-REM test with resetting qSet
-REM test using PluginManger.test()
-REM test with hardware
+REM do not run this a script
+REM run individual blocks manually and only proceed if successful
+exit
 
 :::::::::::::::::::::
 REM Environment setup
 :::::::::::::::::::::
 
 REM If applicable perform clean install of virtual environment 
-REM call setup/create_env.bat
+REM start from ESIBD_Explorer
+cd setup
+call create_env.bat
+cd ..
 call activate esibd
 
 :::::::::::::::::::::::::::
@@ -46,7 +45,7 @@ REM call docs\make.bat html
 
 
 :::::::
-REM Git
+REM git
 :::::::
 REM git config --global user.email "XXX@XXX.com" # setup email
 REM git config --global user.name "ioneater" # setup user name
@@ -59,7 +58,7 @@ REM git commit -a -m "message"
 REM git push origin main
 
 REM create tag used for releasing exe later
-REM git tag -a 0.6.14 -m "First release public on pipy"
+REM git tag -a 0.6.16 -m "First stable release public on pipy"
 REM git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 ::::::::
@@ -77,11 +76,15 @@ REM python -m esibd.explorer # start gui using module
 twine check dist/*
 twine upload -r testpypi dist/*
 
-REM conda create -y -n "estest" python=3.11
-REM conda activate estest
-REM pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer # ==0.6.15 NOTE latest will be used if no version specified  # use pypi dependencies that are not present on testpypi 
+REM test on pypitest
+conda create -y -n "estest" python=3.11
+conda activate estest
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
+REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi 
 REM python -m esibd.reset # clear registry settings to emulate fresh install
-REM python -m esibd.explorer # test software
+REM test software
+REM test software with hardware!
+python -m esibd.explorer 
 
 REM only upload on real pypi after testing!
 REM twine upload dist/*
@@ -95,6 +98,8 @@ call rmdir /q /s pyinstaller_dist
 conda create -y -n "esibdtest" python=3.11
 conda activate esibdtest
 pip install esibd-explorer pyinstaller --upgrade
+REM test software
+python -m esibd.explorer 
 
 REM Run the following line to create initial spec file
 REM ATTENTION: Check absolute paths inf Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
@@ -113,5 +118,11 @@ REM Next, create setup.exe using InstallForge
 REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
+
+
+::::::::::::::::
+REM git release
+::::::::::::::::
+
 
 cmd /k REM keep batch open to see potential build errors

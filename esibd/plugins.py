@@ -348,7 +348,7 @@ class Plugin(QWidget):
             self.titleBar.insertAction(before, a)
         return a
 
-    def addStateAction(self, func=None, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, before=None, attr=None, restore=True):
+    def addStateAction(self, func=None, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, before=None, attr=None, restore=True, default='false'):
         """Adds an action with can be toggled between two states, each having a
         dedicated tooltip and icon.
 
@@ -375,7 +375,7 @@ class Plugin(QWidget):
         """
         # Using wrapper allows to pass parentPlugin implicitly and keep signature consistent.
         return EsibdCore.StateAction(parentPlugin=self, toolTipFalse=toolTipFalse, iconFalse=iconFalse, toolTipTrue=toolTipTrue,
-                                     iconTrue=iconTrue, func=func, before=before, attr=attr, restore=restore)
+                                     iconTrue=iconTrue, func=func, before=before, attr=attr, restore=restore, default=default)
 
     def toggleTitleBar(self):
         """Adjusts the title bar layout and :attr:`~esibd.plugins.Plugin.titleBarLabel` depending on the state of the :attr:`~esibd.plugins.Plugin.dock` (tabbed, floating, ...).
@@ -1291,7 +1291,7 @@ class Device(Plugin):
         self.addAction(func=self.init, toolTip='(Re-)initialize device.', icon=self.makeCoreIcon('rocket-fly.png'))
         self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
                                               toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
-                                              attr='showLiveDisplay', func=self.toggleLiveDisplay)
+                                              attr='showLiveDisplay', func=self.toggleLiveDisplay, default='true')
         self.duplicateChannelAction    = self.addAction(func=self.duplicateChannel, toolTip='Insert copy of selected channel.', icon=self.makeCoreIcon('table-insert-row.png'))
         self.deleteChannelAction    = self.addAction(func=self.deleteChannel, toolTip='Delete selected channel.', icon=self.makeCoreIcon('table-delete-row.png'))
         self.moveChannelUpAction    = self.addAction(func=lambda : self.moveChannel(up=True), toolTip='Move selected channel up.', icon=self.makeCoreIcon('table-up.png'))
