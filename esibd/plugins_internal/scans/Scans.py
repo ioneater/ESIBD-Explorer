@@ -768,8 +768,9 @@ class Depo(Scan):
             self.display.updateDepoTarget()
 
     def toggleRecording(self):
-        self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
-        self.qm.raise_()
+        if self.recording:
+            self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
+            self.qm.raise_()
         super().toggleRecording()
 
     def initScan(self):
