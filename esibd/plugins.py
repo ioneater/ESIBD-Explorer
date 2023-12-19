@@ -3438,7 +3438,7 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{DPI}']                    = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
                                                                 items='100, 150, 200, 300', widgetType=Parameter.TYPE.INTCOMBO)
         # access using getTestMode()
-        ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=False, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
+        ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda : self.pluginManager.DeviceManager.initDevices() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True)
         ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL)

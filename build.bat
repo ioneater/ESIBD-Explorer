@@ -57,10 +57,6 @@ REM git status
 REM git commit -a -m "message"
 REM git push origin main
 
-REM create tag used for releasing exe later
-REM git tag -a 0.6.16 -m "First stable release public on pipy"
-REM git push origin main --tags REM to include tags (otherwise tags are ignored)
-
 ::::::::
 REM PyPI
 ::::::::
@@ -119,10 +115,20 @@ REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and se
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
-
 ::::::::::::::::
 REM git release
 ::::::::::::::::
 
+REM create tag used for releasing exe later
+git tag -a 0.6.16 -m "message"
+git push origin main --tags REM to include tags (otherwise tags are ignored)
 
-cmd /k REM keep batch open to see potential build errors
+REM create release with changelog based on commits and following sections
+
+REM Added 		for new features.
+REM Changed 	for changes in existing functionality.
+REM Deprecated 	for soon-to-be removed features.
+REM Removed 	for now removed features.
+REM Fixed 		for any bug fixes.
+REM Security 	in case of vulnerabilities.
+REM Performance for speed improvements
