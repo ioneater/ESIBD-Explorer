@@ -141,8 +141,8 @@ class VoltageChannel(Channel):
     def initGUI(self, item):
         super().initGUI(item)
         # overwrite limits with specific save voltage range. all other properties for self.MIN/self.MAX are inherited from parent
-        # note that this is just to get a reasonable witdh for the controls
-        # the real savety limits are the values of min max as defined in the user interface and configuration file
+        # note that this is just to get a reasonable width for the controls
+        # the real safety limits are the values of min max as defined in the user interface and configuration file
         _min = self.getParameterByName(self.MIN)
         _min.spin.setMinimum(-5000)
         _min.spin.setMaximum(5000)
@@ -150,7 +150,7 @@ class VoltageChannel(Channel):
         _max.spin.setMinimum(-5000)
         _max.spin.setMaximum(5000)
 
-    def setVoltage(self, apply): # this actually sets the voltage on the powersupply!
+    def setVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.setVoltage(self)
             self.lastAppliedValue = self.value

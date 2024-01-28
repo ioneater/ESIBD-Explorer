@@ -907,6 +907,7 @@ class LiveDisplay(Plugin):
     """Live displays show the history of measured data over time. The toolbar
     provides icons to initialize, start, pause, stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
+    Data is only collected if the corresponding live display is visible.
     The length of the displayed history is determined by the display time
     control in the tool bar.
 
@@ -920,6 +921,7 @@ class LiveDisplay(Plugin):
     documentation = """Live displays show the history of measured data over time. The toolbar
     provides icons to initialize, start, pause, stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
+    Data is only collected if the corresponding live display is visible.
     The length of the displayed history is determined by the display time
     control in the tool bar.
 
