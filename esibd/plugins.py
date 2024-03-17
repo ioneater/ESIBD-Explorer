@@ -2565,8 +2565,8 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
     def close(self):
         """:meta private:"""
         super().close()
-        if self.initializedDock:
-            self.settingsMgr.saveSettings(default=True)
+        # if self.initializedDock:
+        #     self.settingsMgr.saveSettings(default=True) # scan settings saved immedeately when changed
         if self.recording:
             self.recording = False
             if self.pluginManager.closing:
@@ -3521,10 +3521,10 @@ class Settings(SettingsManager):
     def pathInputValidation(self, path):
         return Path(*[self.componentInputValidation(c) for c in path.parts])
 
-    def close(self):
-        """:meta private:"""
-        self.saveSettings(default=True)
-        super().close()
+    # def close(self):
+    #     """:meta private:"""
+    #     self.saveSettings(default=True) # not needed, settings are saved instantly when changed
+    #     super().close()
 
 class DeviceManager(Plugin):
     """The device manager, by default located below the :ref:`sec:live_displays`, bundles
