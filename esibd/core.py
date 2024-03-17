@@ -9,7 +9,7 @@ import traceback
 import subprocess
 from threading import Timer, Thread, current_thread, main_thread
 import threading
-from typing import Any
+from typing import Any, List
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
@@ -850,7 +850,7 @@ class Parameter():
     """Maximum limit for numerical properties."""
     toolTip : str
     """Tooltip used to describe the parameter."""
-    items : [str]
+    items : List[str]
     """List of options for parameters with a combobox."""
     widgetType : TYPE
     """They type determines which widget is used to represent the parameter in the user interface."""
@@ -1349,7 +1349,7 @@ class Channel(QTreeWidgetItem):
     """Reference to last value. Allows to decide if hardware update is required."""
     parameters : Parameter
     """List of channel parameters."""
-    displayedParameters : [str]
+    displayedParameters : List[str]
     """List of parameters that determines which parameters are shown in the
        user interface and in what order. Compare :meth:`~esibd.core.Channel.insertDisplayedParameter`.
        If your custom parameter is not in this list it will not be visible in the user interface."""

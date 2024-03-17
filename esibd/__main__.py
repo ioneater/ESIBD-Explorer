@@ -4,7 +4,7 @@ import os
 import ctypes
 import warnings
 import matplotlib as mpl
-import matplotlib.backends.backend_pdf
+import matplotlib.backends.backend_pdf # pylint: disable = unused-import # required to assure backend is included
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSharedMemory

@@ -122,6 +122,8 @@ class PressureController(DeviceController):
         self.TPGlock = TimeoutLock()
         self.lock = None # avoid using by accident
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
+        self.TICinitialized = False
+        self.TPGinitialized = False
         self.pressures = []
 
     def stop(self):
@@ -144,6 +146,8 @@ class PressureController(DeviceController):
                 else:
                     self.print('Cannot acquire lock to close TPGport.', PRINT.WARNING)
         self.initialized = False
+        self.TICinitialized = False
+        self.TPGinitialized = False
 
     def stopAcquisition(self):
         if super().stopAcquisition():
@@ -165,7 +169,14 @@ class PressureController(DeviceController):
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=True,
                     timeout=2)
-                self.print(f"TIC Status: {self.TICWriteRead(message=902)}") # query status
+                TICStatus = self.TICWriteRead(message=902)
+                self.print(f"TIC Status: {TICStatus}") # query status
+                if TICStatus == '':
+                    raise ValueError('TIC did not return status.')
+                self.TICinitialized = True
+            except Exception as e: # pylint: disable=[broad-except]
+                self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+            try:
                 self.TPGport=serial.Serial(
                     f'{self.device.TPGCOM}',
                     baudrate=9600,
@@ -174,12 +185,16 @@ class PressureController(DeviceController):
                     stopbits=serial.STOPBITS_ONE,
                     xonxoff=False,
                     timeout=2)
-                self.print(f"MaxiGauge Status: {self.TPGWriteRead(message='TID')}")# gauge identification
-                self.signalComm.initCompleteSignal.emit()
+                TPGStatus = self.TPGWriteRead(message='TID')
+                self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification                
+                if TPGStatus == '':
+                    raise ValueError('TPG did not return status.')
+                self.TPGinitialized = True
             except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'Error while initializing: {e}', PRINT.ERROR)
-            finally:
-                self.initializing = False
+                self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
+            if self.TICinitialized or self.TPGinitialized:
+                self.signalComm.initCompleteSignal.emit()
+            self.initializing = False
 
     def initComplete(self):
         self.pressures = [0]*len(self.device.channels)
@@ -216,7 +231,7 @@ class PressureController(DeviceController):
         """read pressures for all channels"""
         for i, c in enumerate(self.device.channels):
             if c.enabled and c.active:
-                if c.controller == c.TIC:
+                if c.controller == c.TIC and self.TICinitialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[c.id]}')
                     try:
                         self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
@@ -224,7 +239,7 @@ class PressureController(DeviceController):
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.pressures[i] = np.nan
-                elif c.controller == c.TPG:
+                elif c.controller == c.TPG and self.TPGinitialized:
                     msg = self.TPGWriteRead(message=f'PR{c.id}')
                     try:
                         a, p = msg.split(',')

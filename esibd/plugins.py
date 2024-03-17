@@ -13,6 +13,7 @@ import itertools
 from itertools import islice
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
+from typing import List
 import timeit
 import time
 import inspect
@@ -59,7 +60,7 @@ class Plugin(QWidget):
     TIME    = 'Time'
     UTF8    = 'utf-8'
     FILTER_INI_H5 = 'INI or H5 File (*.ini *.h5)'
-    previewFileTypes : [str] = [] # specify in child class if applicable
+    previewFileTypes : List[str] = [] # specify in child class if applicable
     """File extensions that are supported by this plugin. If a corresponding
        file is selected in the :meth:`~esibd.plugins.Explorer`, the plugins :meth:`~esibd.plugins.Plugin.loadData` function will be called."""
     pluginType : PluginManager.TYPE = PluginManager.TYPE.INTERNAL # overwrite in child class mandatory
@@ -103,7 +104,7 @@ class Plugin(QWidget):
     fig : plt.figure
     """A figure, initialized e.g. using `plt.figure(constrained_layout=True, dpi=getDPI())`
        and followed by `self.makeFigureCanvasWithToolbar(self.fig)`."""
-    axes : [mpl.axes.Axes]
+    axes : List[mpl.axes.Axes]
     """The axes of :attr:`~esibd.plugins.Plugin.fig`."""
     initializedGUI : bool
     """A flag signaling if the plugin graphical user interface has been initialized.
@@ -1247,7 +1248,7 @@ class Device(Plugin):
     """Internal plugin to display data in real time."""
     inout : INOUT
     """Flag specifying if this is an input or output device."""
-    channels : [Channel]
+    channels : List[Channel]
     """List of :class:`channels<esibd.core.Channel>`."""
     useBackgrounds : bool
     """If True, the device implements controls to define and subtract background signals."""
@@ -2047,9 +2048,9 @@ class Scan(Plugin):
     """The internal plugin used to display scan data."""
     runThread : Thread
     """Parallel thread that updates the scan channel(s) and reads out the display channel(s)."""
-    inputs : [EsibdCore.MetaChannel]
+    inputs : List[EsibdCore.MetaChannel]
     """List of input :class:`meta channels<esibd.core.MetaChannel>`."""
-    outputs : [EsibdCore.MetaChannel]
+    outputs : List[EsibdCore.MetaChannel]
     """List of output :class:`meta channels<esibd.core.MetaChannel>`."""
 
     class SignalCommunicate(QObject):
@@ -3724,7 +3725,7 @@ class DeviceManager(Plugin):
                 liveDisplay.recording = False
             self.stopScans()
         elif self.recording:
-            self.recordingAction.state = self.recording 
+            self.recordingAction.state = self.recording
 
     def stop(self, manual=False):
         """Close all communication

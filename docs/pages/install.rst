@@ -5,8 +5,8 @@ Standalone Windows installer
 ----------------------------
 
 A `standalone installer for windows <https://github.com/ioneater/ESIBD-Explorer/releases>`_ 
-allows for a simple and fast installation, but may require more disk space and does
-not allow to add additional python libraries for custom plugins.
+allows for a simple and fast installation, but may require more disk space, does
+not allow to overwrite internal plugins, and does not allow to add additional python libraries for custom plugins.
 
 From PyPi
 -----------------------
