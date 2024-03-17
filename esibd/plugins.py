@@ -2296,6 +2296,12 @@ class Scan(Plugin):
             c = self.getChannelByName(name, inout=INOUT.OUT)
             if c is None:
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
+            elif not c.device.initialized():
+                self.print(f'{c.device.name} is not initialized.', PRINT.WARNING)
+            elif not c.device.liveDisplay.recording:
+                self.print(f'{c.device.name} is not recording.', PRINT.WARNING)
+            elif not c.enabled:
+                self.print(f'{c.name} is not enabled.', PRINT.WARNING)
             else:
                 if len(self.inputs) == 1: # 1D scan
                     data = np.zeros(len(self.inputs[0].data)) # cant reuse same array for all outputs as they would refer to same instance.

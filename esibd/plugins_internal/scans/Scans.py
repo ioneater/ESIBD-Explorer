@@ -781,6 +781,12 @@ class Depo(Scan):
             c = self.getChannelByName(name, inout=INOUT.OUT)
             if c is None:
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
+            elif not c.device.initialized():
+                self.print(f'{c.device.name} is not initialized.', PRINT.WARNING)
+            elif not c.device.liveDisplay.recording:
+                self.print(f'{c.device.name} is not recording.', PRINT.WARNING)
+            elif not c.enabled:
+                self.print(f'{c.name} is not enabled.', PRINT.WARNING)
             else:
                 c.resetCharge()
                 self.outputs.append(MetaChannel(name=f'{c.name}', data=DynamicNp(), unit=c.device.unit, channel=c))
