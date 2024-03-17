@@ -3458,7 +3458,7 @@ class Settings(SettingsManager):
 
     def loadSettings(self, file=None, default=False):
         if self.pluginManager.DeviceManager.recording:
-            if EsibdCore.CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
+            if EsibdCore.CloseDialog(title='Stop acquisition?', ok='Stop acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
                 self.pluginManager.DeviceManager.stop()
                 # settings necessary for acquistions will temporarily be unavailable during loading
             else:
@@ -3481,7 +3481,7 @@ class Settings(SettingsManager):
             splash.close()
 
     def updatePluginPath(self):
-        if EsibdCore.CloseDialog(title='Restart Now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
+        if EsibdCore.CloseDialog(title='Restart now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
             self.pluginManager.closePlugins(reload=True)
 
     def updateSessionPath(self, mesNum=0):
@@ -3712,16 +3712,21 @@ class DeviceManager(Plugin):
             liveDisplay.updateLivePlot()
 
     def stopRecording(self):
-        self.recording = False
-        for liveDisplay in self.getActiveLiveDisplays():
-            liveDisplay.recording = False
-        self.stopScans()
+        if EsibdCore.CloseDialog(title='Stop all recording?', ok='Stop all recording', prompt='Stop recording on all devices? Active scans will be stopped.').exec():
+            self.recording = False
+            for liveDisplay in self.getActiveLiveDisplays():
+                liveDisplay.recording = False
+            self.stopScans()
+        elif self.recording:
+            self.recordingAction.state = self.recording 
 
     def stop(self):
-        self.recording = False
-        for d in self.getDevices():
-            d.stop()
-        self.stopScans()
+        """Close all communication"""
+        if EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+            self.recording = False
+            for d in self.getDevices():
+                d.stop()
+            self.stopScans()
 
     def stopScans(self):
         for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):

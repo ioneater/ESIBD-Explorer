@@ -4,6 +4,7 @@ import os
 import ctypes
 import warnings
 import matplotlib as mpl
+import matplotlib.backends.backend_pdf
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSharedMemory

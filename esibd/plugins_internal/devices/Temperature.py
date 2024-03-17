@@ -300,7 +300,7 @@ class TemperatureController(DeviceController):
                 self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
             else:
                 self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
-        self.qm.setText(f"Remember to turn {'on' if on else 'off'} water cooling and gas ballast!")
+        self.qm.setText(f"Remember to turn water cooling {'on' if on else 'off'} and gas ballast {'off' if on else 'on'}!")
         self.qm.setWindowIcon(self.device.getIcon())
         self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
         self.qm.raise_()
