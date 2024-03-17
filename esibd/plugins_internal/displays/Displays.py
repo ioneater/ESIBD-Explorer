@@ -104,10 +104,6 @@ class MS(Plugin):
 
     def plot(self):
         """plots MS data"""
-        # downsampler slower and more buggy than just using large mass spec data directly
-        # ms,= self.axes[0].plot([np.min(x), np.max(x)],[np.min(y), np.max(y)])
-        # self.ddd = self.DataDisplayDownsampler(x, y, self.canvas, ms)
-        # self.axes[0].callbacks.connect('xlim_changed', self.ddd.update)
         self.axes[0].clear()
         self.axes[0].set_xlabel('m/z (Th)')
         if self.usePaperStyle:
@@ -156,45 +152,6 @@ class MS(Plugin):
             self.paperAction.iconFalse = self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png')
             self.paperAction.iconTrue = self.getIcon()
             self.paperAction.updateIcon(self.usePaperStyle)
-
-    class DataDisplayDownsampler:
-        """A class that will downsample the data and recompute when zoomed.
-        based on https://matplotlib.org/3.5.0/gallery/event_handling/resample.html
-        """
-        def __init__(self, xdata, ydata, canvas, line, max_points=100000):
-            self.origYData = ydata
-            self.origXData = xdata
-            self.max_points = max_points # maximum points used to display. change for your quality/performance needs
-            self.delta = xdata[-1] - xdata[0]
-            self.canvas = canvas
-            self.line = line
-
-        def downsample(self, ax):
-            """Reduce number of datapoints while keeping essential plot features"""
-            # get the points in the view range
-            xmin, xmax = ax.get_xlim()
-            ymin, ymax = ax.get_ylim()
-            mask = (self.origXData > xmin) & (self.origXData < xmax)
-            # dilate the mask by one to catch the points just outside
-            # of the view range to not truncate the line
-            mask = np.convolve([1, 1, 1], mask, mode='same').astype(bool)
-            # ratio = max(np.sum(mask) // self.max_points, 1) # sort out how many points to drop
-            # mask data original
-            xdata = self.origXData[mask]
-            ydata = self.origYData[mask]
-            cutoff = abs(0.0001*(ymax-ymin))
-            while [abs(ydata[i] - ydata[i-1]) > cutoff for i in range(len(ydata))].count(True) > self.max_points:
-                cutoff *= 4
-            mask = [abs(ydata[i] - ydata[i-1]) > cutoff for i in range(len(ydata))]
-            return xdata[mask], ydata[mask]
-
-        def update(self, ax):
-            # Update the line
-            lims = ax.viewLim
-            if abs(lims.width - self.delta) > 1e-8:
-                self.delta = lims.width
-                self.line.set_data(*self.downsample(ax))
-                self.canvas.draw_idle()
 
 class PDB(Plugin):
     """The PDB plugin allows to display atoms defined in the .pdb and .pdb1

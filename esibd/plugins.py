@@ -3572,7 +3572,7 @@ class DeviceManager(Plugin):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.stopAction = self.addAction(func=self.stop, toolTip='Close all communication.', icon=self.ICON_STOP)
+        self.stopAction = self.addAction(func=lambda : self.stop(manual=True), toolTip='Close all communication.', icon=self.ICON_STOP)
         self.addAction(func=self.initDevices, toolTip='Initialize all communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         # lambda needed to avoid "checked" parameter passed by QAction
         self.exportAction = self.addAction(func=lambda : self.exportOutputData(), toolTip='Save all visible history to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
@@ -3720,9 +3720,13 @@ class DeviceManager(Plugin):
         elif self.recording:
             self.recordingAction.state = self.recording 
 
-    def stop(self):
-        """Close all communication"""
-        if EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+    def stop(self, manual=False):
+        """Close all communication
+
+        :param manual: Indicates if triggered by user, defaults to False
+        :type manual: bool, optional
+        """
+        if not manual or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
             self.recording = False
             for d in self.getDevices():
                 d.stop()
