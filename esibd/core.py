@@ -1403,6 +1403,7 @@ class Channel(QTreeWidgetItem):
     DISPLAY     = 'Display'
     ACTIVE      = 'Active'
     REAL        = 'Real'
+    SMOOTH      = 'Smooth'
     LINEWIDTH   = 'Linewidth'
     COLOR       = 'Color'
     MIN         = 'Min'
@@ -1438,8 +1439,13 @@ class Channel(QTreeWidgetItem):
         channel[self.REAL    ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='R', toolTip='Set to real for physically exiting channels.',
                                     event=self.realChanged, attr='real')
+        channel[self.SMOOTH  ] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+                                        items='0, 2, 4, 8, 16, 32', attr='smooth',
+                                        # event=self.updateDisplay, # update display causes distracting rescaling ->
+                                        # should only be relevant for live data anyways, but if needed updateDisplay can be trigered by any of the other parameters like linewidth or displaytime
+                                        toolTip='Smooth using running average with selected window.')
         channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='2, 4, 6, 8, 10', attr='linewidth', event=self.updateDisplay)
+                                        items='2, 4, 6, 8, 10', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
         # NOTE: avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#ffffff', widgetType=Parameter.TYPE.COLOR, advanced=True,
@@ -1478,7 +1484,7 @@ class Channel(QTreeWidgetItem):
     def setDisplayedParameters(self):
         """Used to determine which parameters to use and in what order.
         Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
-        self.displayedParameters = [self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.LINEWIDTH, self.COLOR]
+        self.displayedParameters = [self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.COLOR]
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)

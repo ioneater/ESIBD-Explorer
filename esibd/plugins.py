@@ -22,6 +22,7 @@ from datetime import datetime
 import configparser
 import h5py
 import numpy as np
+from scipy.ndimage import uniform_filter1d
 import pyperclip
 from send2trash import send2trash
 from asteval import Interpreter
@@ -799,12 +800,15 @@ class StaticDisplay(Plugin):
             y = self.parentPlugin.convertDataDisplay((o.data-o.background)[:length]
                                            if self.parentPlugin.useBackgrounds and (self.subtractStaticBackground if self.backgroundAction is not None else False)
                                            else o.data[:length])
+            
             if o.channel is None:
                 if self.plotEfficient:
                     self.axes[0].plot([datetime.fromtimestamp(float(t)) for t in x], y, label=f'{o.name} ({o.unit})')
                 else:
                     self.staticPlotWidget.plot(x, y, name=f'{o.name} ({o.unit})') # initialize empty plots
             elif o.channel.display:
+                if o.channel.smooth != 0:
+                    y = uniform_filter1d(y, o.channel.smooth)
                 if self.plotEfficient:
                     self.axes[0].plot([datetime.fromtimestamp(float(t)) for t in x], y, label=f'{o.channel.name} ({o.channel.device.getUnit()})',
                                       color=o.channel.color, linewidth=o.channel.linewidth/2)
@@ -1108,6 +1112,8 @@ class LiveDisplay(Plugin):
                             channel.plotCurve.clear()
                         else:
                             l = min(timeAx.shape[0], y.shape[0]) # make sure x any y have same shape
+                            if channel.smooth != 0:
+                                y = uniform_filter1d(y, channel.smooth)
                             channel.plotCurve.setData(timeAx[:l], y[:l])
                     else:
                         channel.plotCurve.clear()

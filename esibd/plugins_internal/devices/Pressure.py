@@ -186,7 +186,7 @@ class PressureController(DeviceController):
                     xonxoff=False,
                     timeout=2)
                 TPGStatus = self.TPGWriteRead(message='TID')
-                self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification                
+                self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
                 if TPGStatus == '':
                     raise ValueError('TPG did not return status.')
                 self.TPGinitialized = True

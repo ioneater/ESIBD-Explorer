@@ -160,10 +160,10 @@ class CurrentChannel(Channel):
         channel[self.DEVICENAME ] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
         channel[self.RANGE      ] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
-                                        event=self.updateRange)
+                                        event=self.updateRange, toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE    ] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
-                                        event=self.updateAverage)
+                                        event=self.updateAverage, toolTip='Running average on hardware side.')
         channel[self.BIAS       ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                         toolTip='Apply internal bias.', attr='bias',
                                         event=self.updateBias)
