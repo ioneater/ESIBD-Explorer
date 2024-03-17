@@ -1993,7 +1993,10 @@ class BetterDockWidget(QDockWidget):
                 # need to allow float to leave external window -> need to make safe / dragging using standard titlebar works but not using custom titlebar
                 # self.plugin.floatAction.setVisible(isinstance(self.parent(), QMainWindow))
             if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
-                self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
+                # self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
+                self.plugin.titleBarLabel.setText(self.plugin.name) # need to apply for proper resizing, even if set to '' next
+                if isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) > 0:
+                    self.plugin.titleBarLabel.setText('')
             if not isinstance(self.parent(), QMainWindow):
                 self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
             #     # close button will not be functional as QDockWidget.DockWidgetFeature.DockWidgetClosable is not set -> remove superfluous button
