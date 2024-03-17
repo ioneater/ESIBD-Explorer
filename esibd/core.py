@@ -30,7 +30,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
-                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar)
+                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
@@ -179,6 +179,8 @@ class PluginManager():
         self.firstDisplay = None
         self._loading = 0
         self.closing = False
+        self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
+
 
     @property
     def loading(self):
@@ -258,9 +260,15 @@ class PluginManager():
             for file in [file for file in _dir.iterdir() if file.name.endswith('.py')]:
                 try:
                     Module = dynamicImport(file.stem, file)
-                except Exception as e: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw
+                except Exception as e: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw here
                     # No unpredicatble Exeption in a single plugin should break the whole application
                     self.logger.print(f'Could not import module {file.stem}: {e}', flag=PRINT.ERROR)
+                    # Note, this will not show in the Console Plugin which is not yet fully initialized. -> show in separate dialog window:
+                    self.qm.setText(f'Could not import module {file.stem}: {e}')
+                    self.qm.setIcon(QMessageBox.Icon.Warning)
+                    # self.qm.setWindowIcon(QMessageBox.icon)
+                    self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
+                    self.qm.raise_()
                 else:
                     if hasattr(Module,'providePlugins'):
                         self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
