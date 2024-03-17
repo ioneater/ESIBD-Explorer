@@ -219,7 +219,7 @@ class PluginManager():
             self.confParser.read(self.pluginFile)
 
         import esibd.providePlugins # pylint: disable = import-outside-toplevel # avoid circular import
-        self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=Path('media'))
+        self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=Path('esibd/media'))
         self.loadPluginsFromPath(internalPluginPath)
         self.userPluginPath.mkdir(parents=True, exist_ok=True)
         if self.userPluginPath == internalPluginPath:
