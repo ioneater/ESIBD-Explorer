@@ -174,6 +174,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.optional"><code class="docutils literal notranslate"><span class="pre">DeviceManager.optional</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.pluginType"><code class="docutils literal notranslate"><span class="pre">DeviceManager.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.previewFileTypes"><code class="docutils literal notranslate"><span class="pre">DeviceManager.previewFileTypes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.stop"><code class="docutils literal notranslate"><span class="pre">DeviceManager.stop()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.store"><code class="docutils literal notranslate"><span class="pre">DeviceManager.store()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.toggleRecording"><code class="docutils literal notranslate"><span class="pre">DeviceManager.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.version"><code class="docutils literal notranslate"><span class="pre">DeviceManager.version</span></code></a></li>
@@ -550,8 +551,9 @@
 <section id="standalone-windows-installer">
 <h2><span class="section-number">1.1. </span>Standalone Windows installer<a class="headerlink" href="#standalone-windows-installer" title="Link to this heading"></a></h2>
 <p>A <a class="reference external" href="https://github.com/ioneater/ESIBD-Explorer/releases">standalone installer for windows</a>
-allows for a simple and fast installation, but may require more disk space and does
-not allow to add additional python libraries for custom plugins.</p>
+allows for a simple and fast installation, but may require more disk space, does
+not allow to overwrite internal plugins, and does not allow to add additional python libraries.
+You will still be able to include custom plugins and inherit from internal plugins.</p>
 </section>
 <section id="from-pypi">
 <h2><span class="section-number">1.2. </span>From PyPi<a class="headerlink" href="#from-pypi" title="Link to this heading"></a></h2>
