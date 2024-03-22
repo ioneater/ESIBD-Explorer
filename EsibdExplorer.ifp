@@ -3,7 +3,7 @@
 ProjectFileVersion = 1.1
 [General]
 Program name = ESIBD Explorer
-Program version = 0.6.16
+Program version = 0.6.17
 Windows XP = 0
 Windows Server 2003 = 0
 Windows Vista = 0
@@ -91,7 +91,7 @@ exe
 \pard\f0\fs16\lang1036 ESIBD Explorer: A comprehensive data acquisition and analysis tool for\par
 Electrospray Ion-Beam Deposition experiments and beyond.\par
 \par
-Copyright (C) 2021-2023 Tim Esser <ioneater.dev@gmail.com>.\par
+Copyright (C) 2021-2024 Tim Esser <ioneater.dev@gmail.com>.\par
 \par
 The software is distributed under the terms of the GNU General Public License\par
 version 2 or later.\par

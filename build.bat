@@ -12,9 +12,12 @@ REM Environment setup
 REM If applicable perform clean install of virtual environment 
 REM start from ESIBD_Explorer
 cd setup
-call create_env.bat
+call create_env.bat REM make sure no other environments (including VSCode) are active during this step
 cd ..
 call activate esibd
+
+REM If no change to the environment since last deployment following is sufficient.
+call conda update -y -n base conda
 
 :::::::::::::::::::::::::::
 REM Bump version
@@ -22,6 +25,8 @@ REM Bump version
 
 REM update version in pyproject.toml
 REM update PROGRAM_VERSION in config.py
+REM if applicable update year in license file
+REM update copyright year and release version also in docs/config.py
 
 REM Note that the program has to access the version during development and after deployment to test for plugin compatibility
 REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases, 
@@ -73,7 +78,7 @@ twine check dist/*
 twine upload -r testpypi dist/*
 
 REM test on pypitest
-conda create -y -n "estest" python=3.11
+conda create -y -n "estest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
 REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi 
@@ -91,14 +96,14 @@ REM pyinstaller
 
 call rmdir /q /s pyinstaller_build
 call rmdir /q /s pyinstaller_dist
-conda create -y -n "esibdtest" python=3.11
+conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
 pip install esibd-explorer pyinstaller --upgrade
 REM test software
 python -m esibd.explorer 
 
 REM Run the following line to create initial spec file
-REM ATTENTION: Check absolute paths inf Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
+REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
 pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time
@@ -111,7 +116,7 @@ REM InstallForge
 ::::::::::::::::
 
 REM Next, create setup.exe using InstallForge
-REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable
+REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable and update "Product Version" and update year in license section!
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
@@ -120,10 +125,11 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git tag -a 0.6.16 -m "message"
+git tag -a 0.6.17 -m "Realeasing version 0.6.17"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
-REM create release with changelog based on commits and following sections
+REM create release on github with changelog based on commits and following sections
+REM attach ESIBD_Explorer-setup.exe to release
 
 REM Added 		for new features.
 REM Changed 	for changes in existing functionality.

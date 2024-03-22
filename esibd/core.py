@@ -1689,6 +1689,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf) # limit explicitly if needed, this seems more useful than the [0, 100] default range
+        self.setDisplayDecimals(2)
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
@@ -1698,6 +1699,10 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             event.ignore()
         else:
             return super().contextMenuEvent(event)
+
+    def setDisplayDecimals(self, prec):
+        # decimals used for display. NOTE: internal precision needs to be highers
+        self.displayDecimals = prec
 
     def wheelEvent(self, event):
         event.ignore()
@@ -1773,7 +1778,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         return float(text)
 
     def textFromValue(self, value):
-        return f'{value:.2E}'.replace('E-0', 'E-')
+        return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
 
     def stepBy(self, step):
         text = self.lineEdit().text()
