@@ -7,6 +7,7 @@ import re
 import sys
 import traceback
 import subprocess
+import pickle
 from threading import Timer, Thread, current_thread, main_thread
 import threading
 from typing import Any, List
@@ -2419,6 +2420,20 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
     def scrollToBottom(self):
         sb = self.output.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    def loadHistory(self):
+        h = None
+        try:
+            h = super().loadHistory()
+        except EOFError as e:
+            print(f'Could not load history: {e}')        
+        return h
+        
+    def saveHistory(self, history):
+        """Store the list of previously-invoked command strings."""
+        if self.historyFile is not None:
+            with open(self.historyFile, 'wb') as pf:
+                pickle.dump(history, pf) # correcting order of arguments in pickle.dump
 
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.

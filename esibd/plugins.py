@@ -800,7 +800,7 @@ class StaticDisplay(Plugin):
             y = self.parentPlugin.convertDataDisplay((o.data-o.background)[:length]
                                            if self.parentPlugin.useBackgrounds and (self.subtractStaticBackground if self.backgroundAction is not None else False)
                                            else o.data[:length])
-            
+
             if o.channel is None:
                 if self.plotEfficient:
                     self.axes[0].plot([datetime.fromtimestamp(float(t)) for t in x], y, label=f'{o.name} ({o.unit})')
@@ -2958,12 +2958,13 @@ class Tree(Plugin):
         self.provideDock()
         self.tree.clear()
         for o in [o for o in dir(obj) if not o.startswith('_') and (_filter is None or _filter.lower() in o.lower())]:
-            d = QTreeWidgetItem(self.tree,[o])
             attr = getattr(obj, o)
             if callable(attr):
+                d = QTreeWidgetItem(self.tree,[o])
                 d.setIcon(0, QIcon(self.ICON_FUNCMET))
                 d.setToolTip(0, attr.__doc__)
             else:
+                d = QTreeWidgetItem(self.tree,[f'{o}: {attr}'])
                 d.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
                 d.setToolTip(0, repr(attr))
         self.raiseDock(True)
@@ -3002,7 +3003,10 @@ class Console(Plugin):
         """:meta private:"""
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1) # enable hiding
-        self.mainConsole    = EsibdCore.ThemedConsole()
+        self.historyFile = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.pluginManager.Settings.defaultConfigPath)) / 'console_history.bin'
+        self.historyFile.touch(exist_ok=True)
+        # self.historyFile = open(hf,'w')
+        self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
         self.mainConsole.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
                                 'You can select some commonly used commands directly from the combobox below.\n'
                                 'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
@@ -3098,6 +3102,10 @@ class Console(Plugin):
         """:meta private:"""
         super().updateTheme()
         self.mainConsole.updateTheme()
+
+    # def close(self):
+    #     self.historyFile.close()
+    #     return super().close()
 
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""
