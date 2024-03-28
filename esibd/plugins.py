@@ -1663,6 +1663,9 @@ class Device(Plugin):
             if index == 0 and up or index == len(self.channels)-1 and not up:
                 self.print(f"Cannot move channel further {'up' if up else 'down'}.")
                 return
+            if self.modifyChannel().device.initialized():
+                self.print(f"Stop commuinication for {self.modifyChannel().device.name} to move channel.")
+                return
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             oldValues = selectedChannel.values.get()
