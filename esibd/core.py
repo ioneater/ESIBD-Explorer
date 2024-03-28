@@ -1656,7 +1656,7 @@ class QLabviewSpinBox(QSpinBox):
             event.ignore()
         else:
             return super().contextMenuEvent(event)
-
+        
     def wheelEvent(self, event):
         event.ignore()
 
@@ -1690,7 +1690,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf) # limit explicitly if needed, this seems more useful than the [0, 100] default range
-        self.setDisplayDecimals(2)
+        self.displayDecimals = 2
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
@@ -1702,8 +1702,13 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             return super().contextMenuEvent(event)
 
     def setDisplayDecimals(self, prec):
-        # decimals used for display. NOTE: internal precision needs to be highers
+        # decimals used for display.
         self.displayDecimals = prec
+        self.setDecimals(max(self.displayDecimals, self.decimals())) # keep internal precission higher if explicitly defined. ensure minimum precision corresponds to display
+        self.value = self.value
+
+    def textFromValue(self, value):
+        return f'{value:.{self.displayDecimals}f}'
 
     def wheelEvent(self, event):
         event.ignore()
@@ -1713,16 +1718,21 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         text = self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
         dig = len(text.strip('-').split('.')[0])
+        # first digit
         if cur <= 1 or cur <= 2 and '-' in text:
             pos = dig - 1
+        # digits before decimal
         elif cur < dig and not '-' in text:
             pos = dig - cur
         elif cur < dig + 1 and '-' in text:
             pos = dig - cur + 1
+        # last digit before decimal
         elif cur == dig and not '-' in text or cur == dig + 1 and '-' in text:
             pos = 0
+        # first digit after decimal
         elif cur == dig + 1 and not '-' in text or cur == dig + 2 and '-' in text:
             pos = -1
+        # remaining digits after decimal
         else:
             pos = dig-cur + 2 if '-' in text else dig-cur + 1
         val=self.value()+10**pos*step # use step for sign
@@ -2426,9 +2436,9 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         try:
             h = super().loadHistory()
         except EOFError as e:
-            print(f'Could not load history: {e}')        
+            print(f'Could not load history: {e}')
         return h
-        
+
     def saveHistory(self, history):
         """Store the list of previously-invoked command strings."""
         if self.historyFile is not None:

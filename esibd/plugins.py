@@ -1107,7 +1107,8 @@ class LiveDisplay(Plugin):
                         # however, cant exclude that one data point added between definition of timeAx and y
                         y = self.device.convertDataDisplay(channel.getValues(subtractBackground=self.subtractLiveBackground if self.backgroundAction is not None else False,
                                               _min=i_min, _max=i_max, n=n)) # ignore last data point, possibly added after definition of timeAx #, _callSync='off'
-                        if any(np.isnan([y[0], y[-1]])):
+                        if y.shape[0] == 0 or any(np.isnan([y[0], y[-1]])):
+                            # TODO y.shape[0] == 0 # should never happen as y is nan padded to timeAx.shape[0] which is > 1
                             # cannot draw if only np.nan (e.g. when zooming into old data where a channel did not exist or was not enabled and data was padded with np.nan)
                             channel.plotCurve.clear()
                         else:
