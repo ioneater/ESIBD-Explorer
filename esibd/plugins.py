@@ -1107,8 +1107,8 @@ class LiveDisplay(Plugin):
                         # however, cant exclude that one data point added between definition of timeAx and y
                         y = self.device.convertDataDisplay(channel.getValues(subtractBackground=self.subtractLiveBackground if self.backgroundAction is not None else False,
                                               _min=i_min, _max=i_max, n=n)) # ignore last data point, possibly added after definition of timeAx #, _callSync='off'
-                        if y.shape[0] == 0 or any(np.isnan([y[0], y[-1]])):
-                            # TODO y.shape[0] == 0 # should never happen as y is nan padded to timeAx.shape[0] which is > 1
+                        if any(np.isnan([y[0], y[-1]])):
+                            # y.shape[0] == 0 # should never happen as y is nan padded to timeAx.shape[0] which is > 1. It was reported only once and did not reoccur after a simple restart.
                             # cannot draw if only np.nan (e.g. when zooming into old data where a channel did not exist or was not enabled and data was padded with np.nan)
                             channel.plotCurve.clear()
                         else:
@@ -1518,6 +1518,7 @@ class Device(Plugin):
                         for i, v in enumerate(values):
                             items[i][name] = v
                     self.updateChannelConfig(items, file)
+
             self.tree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
                                                     for name, dict in self.channels[0].getSortedDefaultChannel().items()])
             self.tree.header().setStretchLastSection(False)
@@ -1598,25 +1599,17 @@ class Device(Plugin):
 
     def updateChannelConfig(self, items, file):
         """Scans for changes when loading configuration and displays change log
-        before overwriting old channel configuraion."""
+        before overwriting old channel configuraion.
+
+        :param items: :class:`~esibd.core.Channel` items from file
+        :type items: List[:class:`~esibd.core.Channel`]
+        :param file: config file
+        :type file: pathlib.Path
+        """
         # Note: h5diff can be used alternatively to find changes, but the output is not formated in a user friendly way (hard to correlate values with channels).
         if not self.pluginManager.loading:
             self.changeLog = [f'Change log for loading channels for {self.name} from {file.name}:']
-            default=self.channelType(device=self, tree=None)
-            for i in items:
-                c = self.getChannelByName(i[Parameter.NAME])
-                if c is None:
-                    self.changeLog.append(f'Adding channel {i[Parameter.NAME]}')
-                else:
-                    for name in default.getSortedDefaultChannel():
-                        if name in i and not c.getParameterByName(name).equals(i[name]):
-                            self.changeLog.append(f'Updating parameter {name} on channel {c.name} from {c.getParameterByName(name).value} to {i[name]}')
-            newNames = [i[Parameter.NAME] for i in items]
-            for c in self.channels:
-                if c.name not in newNames:
-                    self.changeLog.append(f'Removing channel {c.name}')
-            if len(self.changeLog) == 1:
-                self.changeLog.append('No changes.')
+            self.changeLog += self.compareItemsConfig(items)[0]
             self.pluginManager.Text.setText('\n'.join(self.changeLog), False) # show changelog
             self.print('Configuration updated. Change log available in Text plugin.')
         # clear and load new channels
@@ -1627,6 +1620,52 @@ class Device(Plugin):
             if np.mod(len(self.channels),5) == 0:
                 QApplication.processEvents()
                 #print(f'{self.name} {len(self.channels)} channels')
+
+    def compareItemsConfig(self, items, ignoreIndicators=False):
+        """Compares channel items from file with current configuration.
+        This allows to track changes and decide if files need to be updated.
+
+        :param items: :class:`~esibd.core.Channel` items from file
+        :type items: List[:class:`~esibd.core.Channel`]
+        :param ignoreIndicators: Set to True if deciding about file updates (indicators are not saved in files).
+        :type ignoreIndicators: bool
+        """
+        changeLog = []
+        changed = True
+        default=self.channelType(device=self, tree=None)
+        for item in items:
+            channel = self.getChannelByName(item[Parameter.NAME])
+            if channel is None:
+                changeLog.append(f'Adding channel {item[Parameter.NAME]}')
+            else:
+                for name in default.getSortedDefaultChannel():
+                    parameter = channel.getParameterByName(name)
+                    if name in item and not parameter.equals(item[name]):
+                        if parameter.indicator and ignoreIndicators:
+                            continue
+                        changeLog.append(f'Updating parameter {name} on channel {channel.name} from {parameter.value} to {item[name]}')
+        newNames = [item[Parameter.NAME] for item in items]
+        for channel in self.channels:
+            if channel.name not in newNames:
+                changeLog.append(f'Removing channel {channel.name}')
+        if len(changeLog) == 0:
+            changeLog.append('No changes.')
+            changed = False
+        return changeLog, changed
+
+    def channelConfigChanged(self, file=None, default=True):
+        """Scans for changes when saving configuration."""
+        changed = False
+        if default:
+            file = self.customConfigFile(self.confINI)
+        if file.exists():
+            confParser = configparser.ConfigParser()
+            confParser.read(file)
+            if len(confParser.items()) > 2: # minimum: DEFAULT, Info, and one Channel
+                items = [i for n, i in confParser.items() if n not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]]
+                changeLog, changed = self.compareItemsConfig(items, ignoreIndicators=True)
+                # self.pluginManager.Text.setText('\n'.join(changeLog), False) # optionally use changelog for debugging
+        return changed
 
     def modifyChannel(self):
         selectedChannel = self.getSelectedChannel()
@@ -1657,6 +1696,11 @@ class Device(Plugin):
             self.resetPlot()
 
     def moveChannel(self, up):
+        """Moves the channel up or down in the list of channels.
+
+        :param up: Move up if True, else down.
+        :type up: bool
+        """
         selectedChannel = self.modifyChannel()
         if selectedChannel is not None:
             index = self.channels.index(selectedChannel)
@@ -1820,7 +1864,8 @@ class Device(Plugin):
 
     def close(self):
         self.stopAcquisition()
-        self.exportConfiguration(default=True)
+        if self.channelConfigChanged(default=True):
+            self.exportConfiguration(default=True)
         self.exportOutputData(default=True)
 
     def closeGUI(self):
@@ -1924,18 +1969,13 @@ class Device(Plugin):
             c.plotCurve = None
 
     def toggleLiveDisplay(self, visible=None):
-        # displayIndex = list(self.channels[0].getSortedDefaultChannel().keys()).index(Channel.DISPLAY) if len(self.channels) > 0 else None
         if visible if visible is not None else self.showLiveDisplay:
             self.liveDisplay.provideDock()
             self.liveDisplay.finalizeInit()
             self.liveDisplay.raiseDock(True)
-            # if not displayIndex is None:
-            #     self.tree.setColumnHidden(displayIndex, False)
         else:
             if self.liveDisplayActive():
                 self.liveDisplay.closeGUI()
-            # if not displayIndex is None:
-            #     self.tree.setColumnHidden(displayIndex, True)
             self.pluginManager.toggleTitleBarDelayed()
 
     def liveDisplayActive(self):

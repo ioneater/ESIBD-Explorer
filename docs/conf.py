@@ -1,4 +1,4 @@
-# Configuration file for the Sphinx documentation builder.
+"""Configuration file for the Sphinx documentation builder."""
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
@@ -21,7 +21,7 @@ sys.path.insert(0, package_path)
 sphinx = True # used for conditional doc strings (direct HTML vs. rst)
 
 project = 'ESIBD Explorer'
-copyright = '2024, Tim Esser'
+project_copyright = '2024, Tim Esser'
 author = 'Tim Esser'
 release = '0.6'
 

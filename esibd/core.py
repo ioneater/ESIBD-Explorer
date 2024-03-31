@@ -1656,7 +1656,7 @@ class QLabviewSpinBox(QSpinBox):
             event.ignore()
         else:
             return super().contextMenuEvent(event)
-        
+
     def wheelEvent(self, event):
         event.ignore()
 
