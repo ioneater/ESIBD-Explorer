@@ -2443,7 +2443,7 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         """Store the list of previously-invoked command strings."""
         if self.historyFile is not None:
             with open(self.historyFile, 'wb') as pf:
-                pickle.dump(history, pf) # correcting order of arguments in pickle.dump
+                pickle.dump(history, pf) # TODO remove after upgrading package / correcting order of arguments in pickle.dump
 
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.

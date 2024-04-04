@@ -1662,8 +1662,8 @@ class Device(Plugin):
             confParser = configparser.ConfigParser()
             confParser.read(file)
             if len(confParser.items()) > 2: # minimum: DEFAULT, Info, and one Channel
-                items = [i for n, i in confParser.items() if n not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]]
-                changeLog, changed = self.compareItemsConfig(items, ignoreIndicators=True)
+                items = [i for name, i in confParser.items() if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]]
+                changeLog, changed = self.compareItemsConfig(items, ignoreIndicators=True) # pylint: disable = unused-variable
                 # self.pluginManager.Text.setText('\n'.join(changeLog), False) # optionally use changelog for debugging
         return changed
 

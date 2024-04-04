@@ -16,7 +16,7 @@ from asteval import Interpreter
 from PyQt6.QtWidgets import QSlider, QMessageBox
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
-from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport
+from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, qSet
 from esibd.plugins import Scan
 winsound = None
 if sys.platform == 'win32':
@@ -31,7 +31,8 @@ def providePlugins():
 class Beam(Scan):
     """Scan that records the ion-beam current on one electrode as a function of two voltage
     channels, typically deflectors. The recorded data can be interpolated to
-    enhance the visualization. The resulting image is used to identify
+    enhance the visualization. A 1:1 aspect ratio is used by default, but a variable ratio
+    can be enabled to maximize use of space. The resulting image is used to identify
     elements like apertures, samples, and detectors. The beam can be moved
     between those elements by clicking and dragging on the image while
     holding down the Ctrl key. Limits can be coupled to have the same step
@@ -49,19 +50,28 @@ class Beam(Scan):
     class Display(Scan.Display):
         """Display for Beam Scan."""
 
+        axesAspectAction = None
+
         def finalizeInit(self, aboutFunc=None):
             self.mouseActive = True
             super().finalizeInit(aboutFunc)
             self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.getIcon(), toolTipTrue='Interpolation off.',
                                                          iconTrue=self.scan.makeIcon('beam_no_int.png'), before=self.copyAction,
                                                          func=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
+            self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.',
+                                                        toolTipTrue='Fixed axes aspect ratio.',
+                                                        iconFalse=self.scan.getIcon(), iconTrue=self.scan.getIcon(), # defined in updateTheme
+                                                        before=self.copyAction,
+                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
+            self.updateTheme()
 
         def initFig(self):
             super().initFig()
             engine = self.fig.get_layout_engine()
             engine.set(rect=(0.05,0.0,0.8,0.9)) # constrained_layout ignores labels on colorbar
             self.axes.append(self.fig.add_subplot(111))
-            self.axes[0].set_aspect('equal', adjustable='box')
+            if not qSet.value(f'{self.scan.name}/varAxesAspect', 'false') == 'true': # use qSet directly in case control is not yet initialized
+                self.axes[0].set_aspect('equal', adjustable='box')
             self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
             self.canvas.mpl_connect('button_press_event', self.mouseEvent)
             self.canvas.mpl_connect('button_release_event', self.mouseEvent)
@@ -74,6 +84,14 @@ class Beam(Scan):
         def runTestParallel(self):
             if super().runTestParallel():
                 self.testControl(self.interpolateAction, not self.interpolate, 1)
+                self.testControl(self.axesAspectAction, not self.varAxesAspect, 1)
+
+        def updateTheme(self):
+            if self.axesAspectAction is not None:
+                self.axesAspectAction.iconFalse = self.scan.makeIcon('aspect_variable_dark.png' if getDarkMode() else 'aspect_variable.png')
+                self.axesAspectAction.iconTrue = self.scan.makeIcon('aspect_fixed_dark.png' if getDarkMode() else 'aspect_fixed.png')
+                self.axesAspectAction.updateIcon(self.axesAspectAction.state)
+            return super().updateTheme()
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
