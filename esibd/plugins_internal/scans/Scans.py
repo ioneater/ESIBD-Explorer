@@ -63,7 +63,7 @@ class Beam(Scan):
                                                         iconFalse=self.scan.getIcon(), iconTrue=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction,
                                                         func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
-            self.updateTheme()
+            self.updateTheme() # set icons for axesAspectActions
 
         def initFig(self):
             super().initFig()

@@ -1430,8 +1430,9 @@ class Device(Plugin):
         Only used by output devices."""
         if self.useBackgrounds:
             for channel in self.channels: # save present signal as background
-                # use average of last 10 datapoints of possible
-                channel.background = np.mean(channel.getValues(subtractBackground=False)[-10:]) if len(channel.getValues(subtractBackground=False)) > 10 else channel.value
+                # use average of last 10 s if possible
+                length = min(int(10000/self.interval),len(channel.getValues(subtractBackground=False)))
+                channel.background = np.mean(channel.getValues(subtractBackground=False)[-length:])
 
     def estimateStorage(self):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)

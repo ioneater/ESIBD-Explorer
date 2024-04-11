@@ -2491,8 +2491,8 @@ class MZCaculator():
             self.canvas = ax.figure.canvas
         self.mz = np.array([]) # array with selected m/z values
         self.cs = None
-        self.charges=np.array([]) # for charge state up to 100
-        self.maxChargeState = 100 # maximal value for lowest charge state
+        self.charges=np.array([]) # for charge state
+        self.maxChargeState = 200 # maximal value for lowest charge state
         self.STD = np.array([]) # array with standard deviations for each charge state
         self.c1 = 0 # charge state of lowest m/z value
         self.intensity = np.array([]) # y value for selected m/z values (for plotting only)
