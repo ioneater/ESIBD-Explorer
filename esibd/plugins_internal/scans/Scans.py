@@ -247,13 +247,15 @@ class Beam(Scan):
         return """# add your custom plot code here
 
 _interpolate = False # set to True to interpolate data
+varAxesAspect = False # set to True to use variable axes aspect ratio
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
 fig = plt.figure(constrained_layout=True)
 ax = fig.add_subplot(111)
-ax.set_aspect('equal', adjustable='box')
+if not varAxesAspect:
+    ax.set_aspect('equal', adjustable='box')
 divider = make_axes_locatable(ax)
 cont = None
 cax = divider.append_axes("right", size="5%", pad=0.15)
