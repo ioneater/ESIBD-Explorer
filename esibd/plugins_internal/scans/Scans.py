@@ -16,7 +16,7 @@ from asteval import Interpreter
 from PyQt6.QtWidgets import QSlider, QMessageBox
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
-from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, qSet
+from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState
 from esibd.plugins import Scan
 winsound = None
 if sys.platform == 'win32':
@@ -26,7 +26,7 @@ else:
 aeval = Interpreter()
 
 def providePlugins():
-    return [Beam, Energy, Omni, Depo, GA]
+    return [Beam, Spectra, Energy, Omni, Depo, GA]
 
 class Beam(Scan):
     """Scan that records the ion-beam current on one electrode as a function of two voltage
@@ -41,8 +41,8 @@ class Beam(Scan):
     specific feature."""
     documentation = None # use __doc__
 
-    LEFTRIGHT       = 'Left-Right'
-    UPDOWN          = 'Up-Down'
+    LEFTRIGHT = 'Left-Right'
+    UPDOWN = 'Up-Down'
     name = 'Beam'
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
@@ -55,8 +55,8 @@ class Beam(Scan):
         def finalizeInit(self, aboutFunc=None):
             self.mouseActive = True
             super().finalizeInit(aboutFunc)
-            self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.getIcon(), toolTipTrue='Interpolation off.',
-                                                         iconTrue=self.scan.makeIcon('beam_no_int.png'), before=self.copyAction,
+            self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'), toolTipTrue='Interpolation off.',
+                                                         iconTrue=self.scan.makeIcon('interpolate_off.png'), before=self.copyAction,
                                                          func=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
             self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.',
                                                         toolTipTrue='Fixed axes aspect ratio.',
@@ -64,13 +64,16 @@ class Beam(Scan):
                                                         before=self.copyAction,
                                                         func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
             self.updateTheme() # set icons for axesAspectActions
+            self.initFig()
 
         def initFig(self):
+            if self.axesAspectAction is None:
+                return
             super().initFig()
             engine = self.fig.get_layout_engine()
             engine.set(rect=(0.05,0.0,0.8,0.9)) # constrained_layout ignores labels on colorbar
             self.axes.append(self.fig.add_subplot(111))
-            if not qSet.value(f'{self.scan.name}/varAxesAspect', 'false') == 'true': # use qSet directly in case control is not yet initialized
+            if not self.varAxesAspect: # use qSet directly in case control is not yet initialized
                 self.axes[0].set_aspect('equal', adjustable='box')
             self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
             self.canvas.mpl_connect('button_press_event', self.mouseEvent)
@@ -93,7 +96,7 @@ class Beam(Scan):
                 self.axesAspectAction.updateIcon(self.axesAspectAction.state)
             return super().updateTheme()
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('.S2D.dat')
@@ -265,8 +268,8 @@ def getMeshgrid(scaling=1):
 
 x, y = getMeshgrid()
 z = outputs[output_index].data.ravel()
-ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
-ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
+ax.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
+ax.set_ylabel(f'{inputs[1].name} ({inputs[1].unit})')
 
 if _interpolate:
     rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].data.ravel())
@@ -284,6 +287,245 @@ plt.show()
     def getMeshgrid(self, scaling=1):
         # interpolation with more than 50 x 50 gridpoints gets slow and does not add much to the quality for typical scans
         return np.meshgrid(*[np.linspace(i.data[0], i.data[-1], len(i.data) if scaling == 1 else min(len(i.data)*scaling, 50)) for i in self.inputs])
+
+class Spectra(Beam):
+    """This scan shares many features of the Beam scan.
+    The main difference is that it adds the opption to plot the data in the form
+    of multiple spectra instead of a single 2D plot.
+    The spectra can be plotted stacked (Y axis represents value of Y input channel and data of display channel is normalized.)
+    or overlayed (Y axis represents data of display channel and value of Y input channels are indicated in a legend).
+    In addition, the average of all spectra can be displayed.
+    If you want to remeasure the same spectrum several times,
+    consider defining a dummy channel that can be used as an index."""
+    # NOTE: by inheriting from Beam, this creates another independent instance which allows the user to use both at the same time.
+    # This allows for a more flexible use compared to adding these features as options to Beam directly.
+    # It also serves as an example for how to inherit from scans that can help users to make their own versions.
+    # As this is backwards compatible with files saved by Beam scan, it is possible to disable Beam scan if you want to make sure Spectra scan is opening the file.
+
+    name = 'Spectra'
+    version = '1.0'
+    LEFTRIGHT = 'X'
+    UPDOWN = 'Y'
+
+    class Display(Beam.Display):
+        """Displays data for Spectra scan."""
+        modeAction = None
+        averageAction = None
+
+        def __init__(self, scan, **kwargs):
+            super(Beam.Display, self).__init__(scan, **kwargs)
+            self.lines = None
+
+        def finalizeInit(self, aboutFunc=None):
+            self.mouseActive = False
+            super().finalizeInit(aboutFunc)
+            self.averageAction = self.addStateAction(toolTipFalse='Show average.',
+                                                        toolTipTrue='Hide average.',
+                                                        iconFalse=self.scan.getIcon(), # defined in updateTheme
+                                                        before=self.copyAction,
+                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
+            self.modeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
+                                                                   MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
+                                                                   MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
+                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
+            self.updateTheme() # set icons
+            self.initFig() # call after finalizeInit completed
+
+        def initFig(self):
+            if self.modeAction is None:
+                return
+            self.lines = None
+            if self.plotMode == self.modeAction.labels.contour:
+                super().initFig()
+                return
+            super(Beam.Display, self).initFig()
+            self.axes.append(self.fig.add_subplot(111))
+            if not self.varAxesAspect: # use qSet directly in case control is not yet initialized
+                self.axes[0].set_aspect('equal', adjustable='box')
+
+        def updateTheme(self):
+            if self.averageAction is not None:
+                self.averageAction.iconFalse = self.scan.makeIcon('average_dark.png' if getDarkMode() else 'average_light.png')
+                self.averageAction.iconTrue = self.averageAction.iconFalse
+                self.averageAction.updateIcon(self.averageAction.state)
+            return super().updateTheme()
+
+    def __init__(self, **kwargs):
+        super(Beam, self).__init__(**kwargs)
+        self.useDisplayChannel = True
+        self.previewFileTypes.append('beam.h5')
+
+    def getIcon(self):
+        return self.makeIcon('stacked.png')
+
+    def initScan(self):
+        self.display.lines = None
+        return super().initScan()
+
+    def loadDataInternal(self):
+        self.display.lines = None
+        if self.file.name.endswith('beam.h5'):
+            with h5py.File(self.file, 'r') as f:
+                g = f[self.pluginManager.Beam.name] # only modifiation needed to open beam files. data structure is identical
+                i = g[self.INPUTCHANNELS]
+                for name, data in i.items():
+                    self.inputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT],
+                                                   channel=self.getChannelByName(name, inout=INOUT.IN)))
+                o = g[self.OUTPUTCHANNELS]
+                for name, data in o.items():
+                    self.outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT],
+                                                   channel=self.getChannelByName(name, inout=INOUT.OUT)))
+        else:
+            return super(Beam, self).loadDataInternal()
+
+    def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
+        """Plots 2D scan data"""
+        # timing test with 50 datapoints: update True: 33 ms, update False: 120 ms
+
+        if self.display.plotMode == self.display.modeAction.labels.contour:
+            super().plot(update=update, done=done, **kwargs)
+            return
+        if self.loading or len(self.outputs) == 0:
+            return
+
+        # self.display.axes[0].clear()
+        x = np.linspace(self.inputs[0].data[0], self.inputs[0].data[-1], len(self.inputs[0].data))
+        y = np.linspace(self.inputs[1].data[0], self.inputs[1].data[-1], len(self.inputs[1].data))
+        if self.display.lines is None:
+            self.display.axes[0].clear()
+            self.display.lines = [] # dummy plots
+            for i, z in enumerate(self.outputs[self.getOutputIndex()].data):
+                if self.display.plotMode == self.display.modeAction.labels.stacked:
+                    self.display.lines.append(self.display.axes[0].plot([], [])[0])
+                else: # self.display.modeAction.labels.overlay
+                    self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
+            if self.display.average:
+                if self.display.plotMode == self.display.modeAction.labels.stacked:
+                    self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
+                else: # self.display.modeAction.labels.overlay
+                    self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
+            if self.display.plotMode == self.display.modeAction.labels.overlay:
+                leg = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
+                leg.set_in_layout(False)
+
+        if not update:
+            self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+            self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
+        for i, z in enumerate(self.outputs[self.getOutputIndex()].data):
+            if self.display.plotMode == self.display.modeAction.labels.stacked:
+                if np.abs(z.max()-z.min()) != 0:
+                    z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
+                self.display.lines[i].set_data(x, z + y[i] - z[0])
+            else: # self.display.modeAction.labels.overlay
+                self.display.lines[i].set_data(x, z)
+        if self.display.average:
+            z = np.mean(self.outputs[self.getOutputIndex()].data, 0)
+            if self.display.plotMode == self.display.modeAction.labels.stacked:
+                if np.abs(z.max()-z.min()) != 0:
+                    z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
+                self.display.lines[-1].set_data(x, z + y[-1] + y[1]-y[0] - z[0])
+            else: # self.display.modeAction.labels.overlay
+                self.display.lines[-1].set_data(x, z)
+
+        self.display.axes[0].relim() # adjust to data
+        self.setLabelMargin(self.display.axes[0], 0.15)
+        self.updateToolBar(update=update)
+        if len(self.outputs) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        else:
+            self.labelPlot(self.display.axes[0], self.file.name)
+
+    def run(self, recording):
+        """Steps through input values, records output values, and triggers plot update.
+        Executed in runThread. Will likely need to be adapted for custom scans."""
+        # definition of steps updated to scan along x instead of y axis.
+        steps = [t[::-1] for t in list(itertools.product(*[i.data for i in [self.inputs[1],self.inputs[0]]]))]
+        self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:02}. Estimated time: {self.scantime}')
+        for i, step in enumerate(steps): # scan over all steps
+            waitlong = False
+            for j, _input in enumerate(self.inputs):
+                if not waitlong and abs(_input.channel.value-step[j]) > self.largestep:
+                    waitlong=True
+                _input.channel.signalComm.updateValueSignal.emit(step[j])
+            time.sleep(((self.waitlong if waitlong else self.wait)+self.average)/1000) # if step is larger than threashold use longer wait time
+            for j, o in enumerate(self.outputs):
+                # 2D scan
+                # definition updated to scan along x instead of y axis.
+                o.data[i//len(self.inputs[0].data), i%len(self.inputs[0].data)] = np.mean(o.channel.getValues(
+                    subtractBackground=o.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
+
+            if i == len(steps)-1 or not recording(): # last step
+                for j, _input in enumerate(self.inputs):
+                    _input.channel.signalComm.updateValueSignal.emit(_input.initial)
+                time.sleep(.5) # allow time to reset to initial value before saving
+                self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
+                self.signalComm.updateRecordingSignal.emit(False)
+                break # in case this is last step
+            else:
+                self.signalComm.scanUpdateSignal.emit(False) # update graph
+
+    def pythonPlotCode(self): # TODO update
+        return """# add your custom plot code here
+
+_interpolate = False # set to True to interpolate data
+varAxesAspect = False # set to True to use variable axes aspect ratio
+average = False # set to true to display an average spectrum
+plotMode = 'stacked' # 'stacked', 'overlay', or 'contour' # select the representation of your data
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy import interpolate
+
+fig = plt.figure(constrained_layout=True)
+ax = fig.add_subplot(111)
+if not varAxesAspect:
+    ax.set_aspect('equal', adjustable='box')
+
+def getMeshgrid(scaling=1):
+    return np.meshgrid(*[np.linspace(i.data[0], i.data[-1], len(i.data) if scaling == 1 else min(len(i.data)*scaling, 50)) for i in inputs])
+
+ax.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
+ax.set_ylabel(f'{inputs[1].name} ({inputs[1].unit})')
+
+if plotMode == 'contour':
+    divider = make_axes_locatable(ax)
+    cont = None
+    cax = divider.append_axes("right", size="5%", pad=0.15)
+    x, y = getMeshgrid()
+    z = outputs[output_index].data.ravel()
+
+    if _interpolate:
+        rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].data.ravel())
+        xi, yi = getMeshgrid(2) # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+        zi = rbf(xi, yi)
+        cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot') # contour with interpolation
+    else:
+        cont = ax.pcolormesh(x, y, outputs[output_index].data, cmap='afmhot') # contour without interpolation
+    cbar = fig.colorbar(cont, cax=cax) # match axis and color bar size # , format='%d'
+    cbar.ax.set_title(outputs[0].unit)
+else:
+    x = np.linspace(inputs[0].data[0], inputs[0].data[-1], len(inputs[0].data))
+    y = np.linspace(inputs[1].data[0], inputs[1].data[-1], len(inputs[1].data))
+    for i, z in enumerate(outputs[output_index].data):
+        if plotMode == 'stacked':
+            if np.abs(z.max()-z.min()) != 0:
+                z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
+            ax.plot(x, z + y[i] - z[0])
+        else: # 'overlay'
+            ax.plot(x, z, label=y[i])
+    if average:
+        z = np.mean(outputs[output_index].data, 0)
+        if plotMode == 'stacked':
+            if np.abs(z.max()-z.min()) != 0:
+                z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
+            ax.plot(x, z + y[-1] + y[1]-y[0] - z[0], linewidth=4)
+        else: # 'overlay'
+            ax.plot(x, z, label='avg', linewidth=4)
+    if plotMode == 'overlay':
+        leg = ax.legend(loc='best', prop={'size': 10}, frameon=False)
+        leg.set_in_layout(False)
+plt.show()
+        """
+
 
 class Energy(Scan):
     """Scan that records the current on one electrode, typically a detector plate, as a
@@ -465,8 +707,8 @@ y = np.diff(outputs[output_index].data)/np.diff(inputs[0].data)
 x = inputs[0].data[:y.shape[0]]+np.diff(inputs[0].data)[0]/2
 
 ax0.set_xlim(inputs[0].data[0], inputs[0].data[-1])
-ax0.set_ylabel(f'{{outputs[output_index].name}} ({{outputs[output_index].unit}})')
-ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax0.set_ylabel(f'{outputs[output_index].name} ({outputs[output_index].unit})')
+ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
 
 ax0.plot(inputs[0].data, outputs[output_index].data, marker='.', linestyle='None', color=MYBLUE, label='.')[0]
 ax1.plot(x, map_percent(-y), marker='.', linestyle='None', color=MYRED)[0]
@@ -477,12 +719,12 @@ try:
         ax1.plot(x_fit, map_percent(y_fit), color=MYRED)[0]
         ax1.annotate(text='', xy=(u-fwhm/2.3, 50), xycoords='data', xytext=(u+fwhm/2.3, 50), textcoords='data',
 	        arrowprops=dict(arrowstyle="<->", color=MYRED), va='center')
-        ax1.annotate(text=f'center: {{u:2.1f}} V\\nFWHM: {{fwhm:2.1f}} V', xy=(u-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
+        ax1.annotate(text=f'center: {u:2.1f} V\\nFWHM: {fwhm:2.1f} V', xy=(u-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
             textcoords='data', ha='right', va='center', color=MYRED)
     else:
         print('Fitted mean outside data range. Ignore fit.')
 except RuntimeError as e:
-    print(f'Fit failed with error: {{e}}')
+    print(f'Fit failed with error: {e}')
 
 plt.show()
         """
@@ -660,11 +902,11 @@ plt.show()
                 # changing input is done in main thrad using slider. Scan is only recording result.
                 time.sleep((self.wait+self.average)/1000) # if step is larger than threashold use longer wait time
                 if self.inputs[0].channel.device.liveDisplay.recording: # get average
-                    self.inputs[0].data.add(np.mean(self.inputs[0].channel.getValues(length=self.measurementsPerStep)))
+                    self.inputs[0].data.add(np.mean(self.inputs[0].channel.getValues(subtractBackground=self.inputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
                 else: # use last value
                     self.inputs[0].data.add(self.inputs[0].channel.value)
                 for j, o in enumerate(self.outputs):
-                    self.outputs[j].data.add(np.mean(o.channel.getValues(length=self.measurementsPerStep)))
+                    self.outputs[j].data.add(np.mean(o.channel.getValues(subtractBackground=o.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
                 if not recording(): # last step
                     self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
                     self.signalComm.updateRecordingSignal.emit(False)
@@ -680,7 +922,7 @@ plt.show()
                 self.inputs[0].channel.signalComm.updateValueSignal.emit(step)
                 time.sleep(((self.waitlong if waitlong else self.wait)+self.average)/1000) # if step is larger than threashold use longer wait time
                 for j, o in enumerate(self.outputs):
-                    o.data[i] = np.mean(o.channel.getValues(length=self.measurementsPerStep))
+                    o.data[i] = np.mean(o.channel.getValues(subtractBackground=o.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
                 if i == len(steps)-1 or not recording(): # last step
                     self.inputs[0].channel.signalComm.updateValueSignal.emit(self.inputs[0].initial)
                     time.sleep(.5) # allow time to reset to initial value before saving
@@ -946,7 +1188,7 @@ plt.show()
             self.inputs[0].data.add(time.time())
             for i, o in enumerate(self.outputs):
                 if i%2 == 0:
-                    self.outputs[i].data.add(np.mean(o.channel.getValues(subtractBackground=True, length=self.measurementsPerStep)))
+                    self.outputs[i].data.add(np.mean(o.channel.getValues(subtractBackground=o.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
                 else:
                     self.outputs[i].data.add(o.channel.charge)
             if self.warn and winsound is not None: # Sound only supported for windows
@@ -967,7 +1209,7 @@ class GA(Scan):
     limits for optimized channels and choose appropriate wait and average
     values to get valid feedback. The performance and reliability of the
     optimization depends on the stability and reproducibility of the
-    selected output channel. The output channel can be virtual and contain an 
+    selected output channel. The output channel can be virtual and contain an
     equation that references many other channels. At the end of the optimization the changed
     parameters will be shown in the plugin. The initial parameters can
     always be restored in case the optimization fails."""
@@ -977,7 +1219,7 @@ class GA(Scan):
     limits for optimized channels and choose appropriate wait and average
     values to get valid feedback. The performance and reliability of the
     optimization depends on the stability and reproducibility of the
-    selected output channel. The output channel can be virtual and contain an 
+    selected output channel. The output channel can be virtual and contain an
     equation that references many other channels. At the end of the optimization the changed
     parameters will be shown in the plugin. The initial parameters can
     always be restored in case the optimization fails."""
@@ -1111,13 +1353,13 @@ plt.show()
         """Run GA optimization."""
         #first datapoint before optimization
         self.inputs[0].data.add(time.time())
-        fitnessStart = np.mean(self.outputs[0].channel.getValues(length=self.measurementsPerStep))
+        fitnessStart = np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
         self.outputs[0].data.add(fitnessStart)
         self.outputs[1].data.add(fitnessStart)
         while recording():
             self.gaSignalComm.updateValuesSignal.emit(-1, False)
             time.sleep((self.wait+self.average)/1000)
-            self.ga.fitness(np.mean(self.outputs[0].channel.getValues(length=self.measurementsPerStep)))
+            self.ga.fitness(np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
                 self.print(self.ga.step_string().replace('GA: ',''))
             _, session_saved = self.ga.check_restart()

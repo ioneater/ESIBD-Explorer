@@ -474,6 +474,12 @@ Beam
 .. automodule:: esibd.plugins_internal.scans.Scans.Beam
    :noindex:
 
+Spectra
+~~~~~~~
+
+.. automodule:: esibd.plugins_internal.scans.Scans.Spectra
+   :noindex:
+
 Energy
 ~~~~~~
 

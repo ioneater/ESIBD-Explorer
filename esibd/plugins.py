@@ -102,6 +102,8 @@ class Plugin(QWidget):
     """A reference to the central :class:`~esibd.core.PluginManager`."""
     dock : EsibdCore.BetterDockWidget
     """The dockWidget that allows to float and rearrange the plugin user interface."""
+    scan = None
+    """A :meth:`~esibd.plugins.Scan` that provides content to display."""
     fig : plt.figure
     """A figure, initialized e.g. using `plt.figure(constrained_layout=True, dpi=getDPI())`
        and followed by `self.makeFigureCanvasWithToolbar(self.fig)`."""
@@ -318,7 +320,7 @@ class Plugin(QWidget):
         # self.loading = False
 
     def requiredPlugin(self, name):
-        """Throws exeption if required plugin is not available."""
+        """Displays error message if required plugin is not available."""
         if not hasattr(self.pluginManager, name):
             self.print(f'Plugin {name} required for {self.name}', PRINT.ERROR)
             # raise ModuleNotFoundError(f'Error: Plugin {name} required for {self.name}.')
@@ -371,6 +373,8 @@ class Plugin(QWidget):
         :type attr: str, optional
         :param restore: If True state will be restored when the program is restarted, defaults to True
         :type restore: bool, optional
+        :param default: Default state as saved by qSettings, defaults to false
+        :type default: str, optional
         :return: The new StateAction
         :rtype: :class:`~esibd.core.StateAction`
 
@@ -378,6 +382,30 @@ class Plugin(QWidget):
         # Using wrapper allows to pass parentPlugin implicitly and keep signature consistent.
         return EsibdCore.StateAction(parentPlugin=self, toolTipFalse=toolTipFalse, iconFalse=iconFalse, toolTipTrue=toolTipTrue,
                                      iconTrue=iconTrue, func=func, before=before, attr=attr, restore=restore, default=default)
+
+    def addMultiStateAction(self, func=None, states=None, before=None, attr=None, restore=True, default=0):
+        """Adds an action with can be toggled between two states, each having a
+        dedicated tooltip and icon.
+
+        :param func: The function triggered by the stateAction, defaults to None
+        :type func: method, optional
+        :param states: The list of states the control can represent, defaults to a list of empty states
+        :type states: List[:class:`~esibd.core.MultiState`], optional
+        :param before: An existing action or stateAction before which the new action will be placed, defaults to None.
+            If None, the new stateAction will be added to the end.
+        :type before: :class:`~esibd.core.Action`, optional
+        :param attr: Enables direct access to the state of the stateAction using self.attr, defaults to None
+        :type attr: str, optional
+        :param restore: If True state will be restored when the program is restarted, defaults to True
+        :type restore: bool, optional
+        :param default: Index of default state, defaults to 0
+        :type default: int, optional
+        :return: The new StateAction
+        :rtype: :class:`~esibd.core.StateAction`
+
+        """
+        # Using wrapper allows to pass parentPlugin implicitly and keep signature consistent.
+        return EsibdCore.MultiStateAction(parentPlugin=self, states=states, func=func, before=before, attr=attr, restore=restore, default=default)
 
     def toggleTitleBar(self):
         """Adjusts the title bar layout and :attr:`~esibd.plugins.Plugin.titleBarLabel` depending on the state of the :attr:`~esibd.plugins.Plugin.dock` (tabbed, floating, ...).
@@ -539,7 +567,7 @@ class Plugin(QWidget):
         Only update the remaining controls using style sheets.
         Extend to adjust colors to app theme.
         """
-        if self.fig is not None and not self.loading:
+        if self.fig is not None and not self.loading and (self.scan is None or self.scan.file is not None):
             self.initFig()
             self.plot()
         if hasattr(self,'navToolBar') and self.navToolBar is not None:
@@ -554,6 +582,23 @@ class Plugin(QWidget):
         is changed. Overwrite your figure initialization here to make sure all references are updated correctly."""
         self.fig = None
         self.canvas = None
+
+    def provideFig(self):
+        if self.fig is not None and ((
+                plt.rcParams['axes.facecolor'] == 'black' and self.fig.get_facecolor() == (1.0, 1.0, 1.0, 1.0)) # should be black but is white
+                or (plt.rcParams['axes.facecolor'] == 'white' and self.fig.get_facecolor() == (0.0, 0.0, 0.0, 1.0))): # should be white but is black
+            # need to create new fig to change matplotlib style
+            plt.close(self.fig)
+            self.fig = None
+        if self.fig is None:
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
+            self.makeFigureCanvasWithToolbar(self.fig)
+            self.addContentWidget(self.canvas)
+        else:
+            self.fig.clf() # reuse if possible
+            self.fig.set_constrained_layout(True)
+            self.fig.set_dpi(getDPI())
+        self.axes = []
 
     def plot(self):
         """If applicable, overwrite with a plugin specific plot method."""
@@ -596,13 +641,19 @@ class Plugin(QWidget):
             QApplication.clipboard().setText(text)
 
     def setLabelMargin(self, ax, margin):
-        """Sets top margin only, to reserve space for file name label.""" # not yet implemented https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
+        """Sets top margin only, to reserve space for file name label.
+        :param ax: The axis to which to add the top margin
+        :type ax: matplotlib.pyplot.axis
+        :param margin: The margin to add. 0.15 -> add 15 % margin
+        :type margin: float
+        
+        """ # not yet implemented https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
         # ax.set_ymargin(0) # we do not use margins
         # ax.autoscale_view() # useless after limits are set -> use autoscale
         ax.autoscale(True)
         lim = ax.get_ylim()
         delta = np.diff(lim)
-        ax.set_ylim(lim[0], lim[1] + delta*margin) # margin=0.15 -> add 15 % margin for file label
+        ax.set_ylim(lim[0], lim[1] + delta*margin)
 
     def addRightAxis(self, ax):
         """Adds additional y labels on the right."""
@@ -1434,6 +1485,9 @@ class Device(Plugin):
                 length = min(int(10000/self.interval),len(channel.getValues(subtractBackground=False)))
                 channel.background = np.mean(channel.getValues(subtractBackground=False)[-length:])
 
+    def subtractBackgroundActive(self):
+        return self.useBackgrounds and self.liveDisplayActive and self.liveDisplay.subtractLiveBackground
+
     def estimateStorage(self):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
         self.maxDataPoints = (self.maxStorage * 1024**2 - 8) / (4 * numChannelsBackgrounds)  # including time channel
@@ -2134,10 +2188,7 @@ class Scan(Plugin):
             self.initFig()
 
         def initFig(self):
-            self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
-            self.axes = []
-            self.makeFigureCanvasWithToolbar(self.fig)
-            self.addContentWidget(self.canvas)
+            self.provideFig()
 
         def provideDock(self):
             """:meta private:"""
@@ -2600,9 +2651,10 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
             time.sleep(((self.waitlong if waitlong else self.wait)+self.average)/1000) # if step is larger than threashold use longer wait time
             for j, o in enumerate(self.outputs):
                 if len(self.inputs) == 1: # 1D scan
-                    o.data[i] = np.mean(o.channel.getValues(length=self.measurementsPerStep))
+                    o.data[i] = np.mean(o.channel.getValues(subtractBackground=o.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
                 else: # 2D scan, higher dimensions not jet supported
-                    o.data[i%len(self.inputs[1].data), i//len(self.inputs[1].data)] = np.mean(o.channel.getValues(length=self.measurementsPerStep))
+                    o.data[i%len(self.inputs[1].data), i//len(self.inputs[1].data)] = np.mean(o.channel.getValues(subtractBackground=o.channel.device.subtractBackgroundActive(),
+                                                                                                                  length=self.measurementsPerStep))
 
             if i == len(steps)-1 or not recording(): # last step
                 for j, _input in enumerate(self.inputs):
@@ -3055,6 +3107,7 @@ class Console(Plugin):
         self.mainConsole.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
                                 'You can select some commonly used commands directly from the combobox below.\n'
                                 'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
+        # mainConsole.write missing in pyqtgraph 0.3.14 . update pyqtgraph if fixed in next version https://github.com/pyqtgraph/pyqtgraph/issues/2975
         self.vertLayout.addWidget(self.mainConsole, 1) # https://github.com/pyqtgraph/pyqtgraph/issues/404 # add before hintsTextEdit
         self.commonCommandsComboBox = EsibdCore.CompactComboBox()
         self.commonCommandsComboBox.wheelEvent = lambda event: None
@@ -3092,7 +3145,7 @@ class Console(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'np':np, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
+        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
                     'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager,
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
         for p in self.pluginManager.plugins: # direct access to plugins
@@ -4160,6 +4213,7 @@ class Explorer(Plugin):
                 for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                     if scan.supportsFile(self.activeFileFullPath):
                         copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {scan.name} plot file.')
+                        break # only use first match
             elif self.activeFileFullPath.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
                 try:
@@ -4199,6 +4253,7 @@ class Explorer(Plugin):
                     if scan.supportsFile(self.activeFileFullPath):
                         scan.generatePythonPlotCode()
                         self.populateTree(clear=False)
+                        break # only use first match
             elif explorerContextMenuAction in loadSettingsActions:
                 for w in self.pluginManager.getMainPlugins():
                     if explorerContextMenuAction.text() == self.LOADSETTINGS(w):

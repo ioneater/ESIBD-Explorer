@@ -1331,7 +1331,12 @@ class Channel(QTreeWidgetItem):
     Channels provide a consistent and structured interface to inputs and
     outputs. In the advanced mode, channels can be duplicated, moved, or
     deleted. You may also edit channels directly in the corresponding .ini
-    file in the config path."""
+    file in the config path.
+    
+    Channels are accessible from any plugin using :meth:`~esibd.plugins.DeviceManager.getChannelByName`.
+    This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
+    Please avoid using very short names, and names that are a subset of names of other channels.
+    """
 
     class SignalCommunicate(QObject):
         updateValueSignal = pyqtSignal(float)
@@ -1446,7 +1451,7 @@ class Channel(QTreeWidgetItem):
                                         # should only be relevant for live data anyways, but if needed updateDisplay can be trigered by any of the other parameters like linewidth or displaytime
                                         toolTip='Smooth using running average with selected window.')
         channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='2, 4, 6, 8, 10', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
+                                        items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
         # NOTE: avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#ffffff', widgetType=Parameter.TYPE.COLOR, advanced=True,
@@ -1927,7 +1932,7 @@ class StateAction(Action):
             self.setObjectName(self.fullName)
             setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to acces state by using attribute from parentPlugin
         if func is not None:
-            self.triggered.connect(func) # see comments above about "checked"
+            self.triggered.connect(func)
         if restore and self.fullName is not None:
             self.state = qSet.value(self.fullName, default) == 'true'
         else:
@@ -1957,6 +1962,78 @@ class StateAction(Action):
 
     def setValue(self, value):
         self.state = value
+
+class MultiState():
+
+    def __init__(self, label='', toolTip='', icon=None):
+        self.label = label
+        self.toolTip = toolTip
+        self.icon = icon
+
+class MultiStateAction(Action):
+    """Extends QActions to show different icons depending on multiple states.
+    Values are restored using QSettings if name is provided."""
+
+    class Labels():
+        pass
+
+    def __init__(self, parentPlugin, states=None, func=None, before=None, attr=None, restore=True, default=0):
+        super().__init__(states[0].icon, states[0].toolTip, parentPlugin)
+        self.parentPlugin = parentPlugin
+        self.states = states
+        # self.labels = enum.Enum('labels', {key: value for key, value in zip([state.label for state in self.states], range(len(self.states)))})
+        self.labels = self.Labels() # use labels as parameters to avoid hard coding
+        for state in self.states:
+            setattr(self.labels, state.label, state.label)
+        # self.setCheckable(True) # checked state is binary -> not useful for multiple states, but needed to trigger the triggered event
+        # self.toggled.connect(self.updateIcon)
+        self.setToolTip(states[0].toolTip)
+        self.attr = attr
+        self.fullName = None
+        if self.attr is None:
+            self.setObjectName(f'{self.parentPlugin.name}/{states[0].toolTip}')
+        else:
+            self.fullName = f'{self.parentPlugin.name}/{self.attr}'
+            self.setObjectName(self.fullName)
+            setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to acces state by using attribute from parentPlugin
+        if func is not None:
+            self.triggered.connect(lambda: (self.rollState(), func()))
+        if restore and self.fullName is not None:
+            self._state = min(int(qSet.value(self.fullName, default)), len(states)-1)
+        else:
+            self._state = 0 # init
+        if before is None:
+            self.parentPlugin.titleBar.addAction(self)
+        else:
+            self.parentPlugin.titleBar.insertAction(before, self)
+
+    def stateFromLabel(self, label):
+        return next((i for i in range(len(self.states)) if self.states[i].label == label), 0)
+
+    def labelFromState(self, state):
+        return self.states[state].label
+
+    def rollState(self):
+        self._state = np.mod(self._state + 1, len(self.states))
+        self.updateIcon()
+
+    @property
+    def state(self): # use lables for api
+        return self.labelFromState(self._state)
+
+    @state.setter
+    def state(self, label):
+        self._state = self.stateFromLabel(label)
+
+    def updateIcon(self):
+        if self.fullName is not None:
+            qSet.setValue(self.fullName, self._state) # store state as int
+        self.setIcon(self.states[self._state].icon)
+        self.setToolTip(self.states[self._state].toolTip)
+
+    def setValue(self, value):
+        # value should be a valid label corresponding to one of the defined states
+        self._state = self.stateFromLabel(value)
 
 class CompactComboBox(QComboBox):
     """Combobox that stays small while showing full content in dropdown menu.s"""

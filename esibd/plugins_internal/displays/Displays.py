@@ -55,10 +55,7 @@ class MS(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
-        self.makeFigureCanvasWithToolbar(self.fig)
-        self.addContentWidget(self.canvas)
-        self.axes=[]
+        self.provideFig()
         self.axes.append(self.fig.add_subplot(111))
         self.mzCalc.setAxis(self.axes[0]) # update axis but reuse picked positions until reset explicitly
         self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
@@ -175,10 +172,7 @@ class PDB(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
-        self.makeFigureCanvasWithToolbar(self.fig)
-        self.addContentWidget(self.canvas)
-        self.axes = []
+        self.provideFig()
         self.axes.append(self.fig.add_subplot(111, projection='3d'))
 
     def provideDock(self):
@@ -255,10 +249,7 @@ class LINE(Plugin):
         self.initFig()
 
     def initFig(self):
-        self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
-        self.makeFigureCanvasWithToolbar(self.fig)
-        self.addContentWidget(self.canvas)
-        self.axes = []
+        self.provideFig()
         self.axes.append(self.fig.add_subplot(111))
         self.line = None
 
