@@ -62,6 +62,8 @@ class EsibdExplorer(QMainWindow):
         self.addAction(self.actionFull_Screen) # action only works when added to a widget
         self.maximized  = False
         self.loadPluginsSignal.connect(self.loadPlugins)
+        self.statusLabel = QLabel()
+        self.statusBar().addWidget(self.statusLabel)
         QTimer.singleShot(0, self.loadPluginsSignal.emit) # let event loop start before loading plugins
 
     def loadPlugins(self):
@@ -181,7 +183,6 @@ class PluginManager():
         self._loading = 0
         self.closing = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
-
 
     @property
     def loading(self):
@@ -665,6 +666,7 @@ class Logger(QObject):
         else:
             print(message) # only to stdout if not active
             self.write(f'\n{message}') # call explicitly
+        self.pluginManager.mainWindow.statusLabel.setText('test')
         self.pluginManager.mainWindow.statusBar().showMessage(message)
         self.pluginManager.mainWindow.statusBar().setStyleSheet(styleSheet)
 

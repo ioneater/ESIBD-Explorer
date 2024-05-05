@@ -1047,7 +1047,7 @@ class Depo(Scan):
                 self.print(f'{c.device.name} is not initialized.', PRINT.WARNING)
             elif not c.device.liveDisplay.recording:
                 self.print(f'{c.device.name} is not recording.', PRINT.WARNING)
-            elif not c.enabled:
+            elif not c.enabled and c.real:
                 self.print(f'{c.name} is not enabled.', PRINT.WARNING)
             else:
                 c.resetCharge()
