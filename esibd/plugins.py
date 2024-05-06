@@ -1326,6 +1326,7 @@ class Device(Plugin):
             self.inout = INOUT.OUT
         self.useBackgrounds = False
         self.channels = []
+        self.channelsChanged = False
         self.updating = False # Surpress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
         self.interval_tolerance = None # how much the acquisitoin interval is allowd to deviate
@@ -1919,7 +1920,7 @@ class Device(Plugin):
 
     def close(self):
         self.stopAcquisition()
-        if self.channelConfigChanged(default=True) or self.pluginManager.channelsChanged:
+        if self.channelConfigChanged(default=True) or self.channelsChanged:
             self.exportConfiguration(default=True)
         self.exportOutputData(default=True)
 

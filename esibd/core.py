@@ -182,7 +182,6 @@ class PluginManager():
         self.firstDisplay = None
         self._loading = 0
         self.closing = False
-        self.channelsChanged = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
     @property
@@ -1617,7 +1616,7 @@ class Channel(QTreeWidgetItem):
                 self.getParameterByName(name).value = default[self.VALUE]
                 if not name in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
                     self.print(f'Added missing parameter {name} to channel {self.name} using default value {default[self.VALUE]}.')
-                    self.device.pluginManager.channelsChanged = True
+                    self.device.channelsChanged = True
 
         line = self.getParameterByName(self.EQUATION).line
         line.setMinimumWidth(200)
