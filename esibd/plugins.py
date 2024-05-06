@@ -3104,17 +3104,17 @@ class Console(Plugin):
         self.historyFile.touch(exist_ok=True)
         # self.historyFile = open(hf,'w')
         self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
-        self.mainConsole.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
-                                'You can select some commonly used commands directly from the combobox below.\n'
-                                'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
-        # mainConsole.write missing in pyqtgraph 0.3.14 . update pyqtgraph if fixed in next version https://github.com/pyqtgraph/pyqtgraph/issues/2975
+        self.mainConsole.repl._lastCommandRow = 0 # TODO report not checking for None if uninitialized!
+        self.mainConsole.repl.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
+                                 'You can select some commonly used commands directly from the combobox below.\n'
+                                 'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
         self.vertLayout.addWidget(self.mainConsole, 1) # https://github.com/pyqtgraph/pyqtgraph/issues/404 # add before hintsTextEdit
         self.commonCommandsComboBox = EsibdCore.CompactComboBox()
         self.commonCommandsComboBox.wheelEvent = lambda event: None
         self.commonCommandsComboBox.addItems([
             "select command",
             "Browser.previewFileTypes # access plugin properties directly using plugin name",
-            "ISEG.voltageMgr # get device specific hardware manager",
+            "ISEG.controller # get device specific hardware manager",
             "RBD.channels # get channels of a device",
             "Energy.display.fig # get specific figure",
             "Tree.inspect(Energy) # show methods and attributes of any object in Tree plugin",
@@ -3136,9 +3136,9 @@ class Console(Plugin):
         self.commonCommandsComboBox.setMaximumWidth(150)
         self.commonCommandsComboBox.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
         self.commonCommandsComboBox.currentIndexChanged.connect(self.commandChanged)
-        self.mainConsole.ui.horizontalLayout.insertWidget(1, self.commonCommandsComboBox)
-        self.mainConsole.ui.historyBtn.deleteLater()
-        self.mainConsole.ui.exceptionBtn.deleteLater()
+        self.mainConsole.repl.inputLayout.insertWidget(1, self.commonCommandsComboBox)
+        self.mainConsole.historyBtn.deleteLater()
+        self.mainConsole.exceptionBtn.deleteLater()
         self.triggerComboBoxSignal.connect(self.triggerCombo)
         self.writeSignal.connect(self.write)
 
@@ -3170,14 +3170,14 @@ class Console(Plugin):
 
     def commandChanged(self, _):
         if self.commonCommandsComboBox.currentIndex() != 0:
-            self.mainConsole.ui.input.setText(self.commonCommandsComboBox.currentText())
-            self.mainConsole.ui.input.execCmd()
+            self.mainConsole.input.setText(self.commonCommandsComboBox.currentText())
+            self.mainConsole.input.execCmd()
             self.commonCommandsComboBox.setCurrentIndex(0)
-            self.mainConsole.ui.input.setFocus()
+            self.mainConsole.input.setFocus()
 
     def write(self, message):
         # writes to integrated console to keep track of message history
-        # avoid using self.mainConsole.write because stdout is already handled by core.Logger
+        # avoid using self.mainConsole.repl.write() because stdout is already handled by core.Logger
         if self.initializedDock:
             if current_thread() is main_thread():
                 self.mainConsole.output.moveCursor(QTextCursor.MoveOperation.End)
@@ -3200,10 +3200,6 @@ class Console(Plugin):
         """:meta private:"""
         super().updateTheme()
         self.mainConsole.updateTheme()
-
-    # def close(self):
-    #     self.historyFile.close()
-    #     return super().close()
 
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""

@@ -17,7 +17,7 @@ cd ..
 call activate esibd
 
 REM If no change to the environment since last deployment following is sufficient.
-call conda update -y -n base conda
+call conda update -y -n base -c conda-forge conda
 
 :::::::::::::::::::::::::::
 REM Bump version

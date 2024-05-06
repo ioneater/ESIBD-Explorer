@@ -7,7 +7,6 @@ import re
 import sys
 import traceback
 import subprocess
-import pickle
 from threading import Timer, Thread, current_thread, main_thread
 import threading
 from typing import Any, List
@@ -27,12 +26,12 @@ import matplotlib.pyplot as plt # pylint: disable = unused-import # need to impo
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-import # QtWebEngineWidgets must be imported or Qt.AA_ShareOpenGLContexts must be set before a QCoreApplication instance is created
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QThread, QCoreApplication #, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
 
@@ -50,7 +49,8 @@ class EsibdExplorer(QMainWindow):
     def __init__(self):
         """Sets up basic user interface and triggers loading of plugins."""
         super().__init__()
-        dummy = QWebEngineView(parent=self) # switch to GL compatibility mode https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
+        # switch to GL compatibility mode here to avoid UI glitches later https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
+        dummy = QWebEngineView(parent=self)
         dummy.setHtml('dummy')
         dummy.deleteLater()
         self.restoreUiState()
@@ -62,8 +62,8 @@ class EsibdExplorer(QMainWindow):
         self.addAction(self.actionFull_Screen) # action only works when added to a widget
         self.maximized  = False
         self.loadPluginsSignal.connect(self.loadPlugins)
-        self.statusLabel = QLabel()
-        self.statusBar().addWidget(self.statusLabel)
+        # self.statusLabel = QLabel()
+        # self.statusBar().addWidget(self.statusLabel)
         QTimer.singleShot(0, self.loadPluginsSignal.emit) # let event loop start before loading plugins
 
     def loadPlugins(self):
@@ -632,7 +632,7 @@ class Logger(QObject):
                 # else: cannot print without using recursion
 
         if hasattr(self.pluginManager, 'Console'):
-            # handles new lines in system error messages better than Console.write
+            # handles new lines in system error messages better than Console.repl.write()
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
 
@@ -666,7 +666,7 @@ class Logger(QObject):
         else:
             print(message) # only to stdout if not active
             self.write(f'\n{message}') # call explicitly
-        self.pluginManager.mainWindow.statusLabel.setText('test')
+        # self.pluginManager.mainWindow.statusLabel.setText('test')
         self.pluginManager.mainWindow.statusBar().showMessage(message)
         self.pluginManager.mainWindow.statusBar().setStyleSheet(styleSheet)
 
@@ -2104,7 +2104,7 @@ class BetterDockWidget(QDockWidget):
             if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
                 # self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
                 self.plugin.titleBarLabel.setText(self.plugin.name) # need to apply for proper resizing, even if set to '' next
-                if isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) > 0:
+                if len(self.parent().tabifiedDockWidgets(self)) > 0:
                     self.plugin.titleBarLabel.setText('')
             if not isinstance(self.parent(), QMainWindow):
                 self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
@@ -2389,140 +2389,17 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.hlColor = '#51537e' if getDarkMode() else '#ccccff' # highlight
         self.output.setStyleSheet(f'QPlainTextEdit{{background-color:{colors.bg};}}')
 
-    def runCmd(self, cmd):
-        #cmd = str(self.input.lastCmd)
-
-        orig_stdout = sys.stdout
-        orig_stderr = sys.stderr
-        encCmd = re.sub(r'>', '&gt;', re.sub(r'<', '&lt;', cmd))
-        encCmd = re.sub(r' ', '&nbsp;', encCmd)
-
-        self.ui.historyList.addItem(cmd)
-        self.saveHistory(self.input.history[1:100])
-
-        try:
-            sys.stdout = self
-            sys.stderr = self
-            if self.multiline is not None:
-                self.write("<br><b>%s</b>\n"%encCmd, html=True, scrollToBottom=True) # pylint: disable = consider-using-f-string # do not modify original source
-                self.execMulti(cmd)
-            else:
-                self.write(f"<br><div style='background-color: {self.hlColor}; color: {self.fgColor}'><b>%s</b>\n"%encCmd, html=True, scrollToBottom=True)
-                self.inCmd = True
-                self.execSingle(cmd)
-
-            if not self.inCmd:
-                self.write("</div>\n", html=True, scrollToBottom=True)
-
-        finally:
-            sys.stdout = orig_stdout
-            sys.stderr = orig_stderr
-
-            sb = self.ui.historyList.verticalScrollBar()
-            sb.setValue(sb.maximum())
-
-    def write(self, strn, html=False, scrollToBottom='auto'):
-        """Write a string into the console.
-
-        If scrollToBottom is 'auto', then the console is automatically scrolled
-        to fit the new text only if it was already at the bottom.
-        """
-        isGuiThread = QThread.currentThread() == QCoreApplication.instance().thread()
-        if not isGuiThread:
-            sys.__stdout__.write(strn)
-            return
-
-        sb = self.output.verticalScrollBar()
-        scroll = sb.value()
-        if scrollToBottom == 'auto':
-            atBottom = scroll == sb.maximum()
-            scrollToBottom = atBottom
-
-        self.output.moveCursor(QTextCursor.MoveOperation.End)
-        if html:
-            self.output.textCursor().insertHtml(strn)
-        else:
-            if self.inCmd:
-                self.inCmd = False
-                self.output.textCursor().insertHtml(f"</div><br><div style='font-weight: normal; background-color: {self.bgColor}; color: {self.fgColor}'>")
-            self.output.insertPlainText(strn)
-
-        if scrollToBottom:
-            sb.setValue(sb.maximum())
-        else:
-            sb.setValue(scroll)
-
-    def setStack(self, frame=None, tb=None):
-        """Display a call stack and exception traceback.
-
-        This allows the user to probe the contents of any frame in the given stack.
-
-        *frame* may either be a Frame instance or None, in which case the current
-        frame is retrieved from ``sys._getframe()``.
-
-        If *tb* is provided then the frames in the traceback will be appended to
-        the end of the stack list. If *tb* is None, then sys.exc_info() will
-        be checked instead.
-        """
-        self.ui.clearExceptionBtn.setEnabled(True)
-
-        if frame is None:
-            frame = sys._getframe().f_back
-
-        if tb is None:
-            tb = sys.exc_info()[2]
-
-        self.ui.exceptionStackList.clear()
-        self.frames = []
-
-        # Build stack up to this point
-        for index, line in enumerate(traceback.extract_stack(frame)): # pylint: disable = unused-variable # do not modify original source
-            # extract_stack return value changed in python 3.5
-            if 'FrameSummary' in str(type(line)):
-                line = (line.filename, line.lineno, line.name, line._line)
-
-            self.ui.exceptionStackList.addItem('File "%s", line %s, in %s()\n  %s' % line) # pylint: disable = consider-using-f-string # do not modify original source
-        while frame is not None:
-            self.frames.insert(0, frame)
-            frame = frame.f_back
-
-        if tb is None:
-            return
-
-        self.ui.exceptionStackList.addItem('-- exception caught here: --')
-        item = self.ui.exceptionStackList.item(self.ui.exceptionStackList.count()-1)
-        item.setBackground(QBrush(QColor(self.bgColor)))
-        item.setForeground(QBrush(QColor(self.fgColor)))
-        self.frames.append(None)
-
-        # And finish the rest of the stack up to the exception
-        for index, line in enumerate(traceback.extract_tb(tb)):
-            # extract_stack return value changed in python 3.5
-            if 'FrameSummary' in str(type(line)):
-                line = (line.filename, line.lineno, line.name, line._line)
-
-            self.ui.exceptionStackList.addItem('File "%s", line %s, in %s()\n  %s' % line) # pylint: disable = consider-using-f-string # do not modify original source
-        while tb is not None:
-            self.frames.append(tb.tb_frame)
-            tb = tb.tb_next
-
     def scrollToBottom(self):
         sb = self.output.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def loadHistory(self):
+    def loadHistory(self): # TODO report issue
         h = None
         try:
             h = super().loadHistory()
         except EOFError as e:
             print(f'Could not load history: {e}')
         return h
-
-    def saveHistory(self, history):
-        """Store the list of previously-invoked command strings."""
-        if self.historyFile is not None:
-            with open(self.historyFile, 'wb') as pf:
-                pickle.dump(history, pf) # TODO remove after upgrading package / correcting order of arguments in pickle.dump
 
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.

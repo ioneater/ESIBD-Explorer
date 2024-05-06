@@ -20,13 +20,15 @@ dependencies = [
 	'openpyxl', # ==3.1.2
 	'PyOpenGL', # ==3.1.7
 	'pyperclip', # ==1.8.2
-	'PyQt6', # ==6.6.1
-	'PyQt6-WebEngine', # ==6.6.0
+    'pyqt6==6.6',
+    'pyqt6-qt6==6.6',
+    'pyqt6-webengine==6.6',
+    'pyqt6-webengine-qt6==6.6',
 	'python-pptx', # ==0.6.23
 	'pyserial', # ==3.5
 	'python-socketio', # ==5.10.0
 	'pywin32; sys_platform == "win32"', # ==306
-	'pyqtgraph==0.13.1',
+	'pyqtgraph==0.13.7',
 	'scipy', # ==1.11.4
 	'Send2Trash', # ==1.8.2
 ]

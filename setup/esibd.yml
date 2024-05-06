@@ -26,9 +26,11 @@ dependencies:
     - pylint
     - openpyxl
     - python-pptx
-    - PyQt6
-    - PyQt6-WebEngine
-    - pyqtgraph==0.13.1
+    - pyqt6==6.6
+    - pyqt6-qt6==6.6
+    - pyqt6-webengine==6.6
+    - pyqt6-webengine-qt6==6.6
+    - pyqtgraph==0.13.7
     - PyOpenGL
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
