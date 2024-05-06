@@ -182,6 +182,7 @@ class PluginManager():
         self.firstDisplay = None
         self._loading = 0
         self.closing = False
+        self.channelsChanged = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
     @property
@@ -1616,6 +1617,7 @@ class Channel(QTreeWidgetItem):
                 self.getParameterByName(name).value = default[self.VALUE]
                 if not name in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
                     self.print(f'Added missing parameter {name} to channel {self.name} using default value {default[self.VALUE]}.')
+                    self.device.pluginManager.channelsChanged = True
 
         line = self.getParameterByName(self.EQUATION).line
         line.setMinimumWidth(200)
@@ -2104,7 +2106,7 @@ class BetterDockWidget(QDockWidget):
             if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
                 # self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
                 self.plugin.titleBarLabel.setText(self.plugin.name) # need to apply for proper resizing, even if set to '' next
-                if len(self.parent().tabifiedDockWidgets(self)) > 0:
+                if hasattr(self.parent(), 'tabifiedDockWidgets') and len(self.parent().tabifiedDockWidgets(self)) > 0:
                     self.plugin.titleBarLabel.setText('')
             if not isinstance(self.parent(), QMainWindow):
                 self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
@@ -2393,7 +2395,7 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         sb = self.output.verticalScrollBar()
         sb.setValue(sb.maximum())
 
-    def loadHistory(self): # TODO report issue
+    def loadHistory(self): # extend to catch error if file does not exist
         h = None
         try:
             h = super().loadHistory()
@@ -2494,7 +2496,7 @@ class MZCaculator():
         return f'{label} mass (Da): {np.average(self.mz*np.flip(self.charges[self.c1+offset:self.c1+offset+len(self.mz)])):.2f}, std: {self.STD[self.c1+offset]:.2f}'
 
     def update_mass_to_charge(self):
-        for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]:#[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
+        for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]: #[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
         if len(self.mz) > 1:
             for x, y, c in zip(self.mz, self.intensity, self.cs):
@@ -2535,7 +2537,7 @@ class BetterPlotWidget(pg.PlotWidget):
             self.parent.plot()
         return super().mouseReleaseEvent(ev)
 
-class SciAxisItem(pg.AxisItem):
+class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
     """Based on original logTickStrings.
     Only difference to source code is 0.1g -> .0e and consistend use of 1 = 10⁰."""
     # based on https://pyqtgraph.readthedocs.io/en/latest/_modules/pyqtgraph/graphicsItems/AxisItem.html

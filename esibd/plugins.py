@@ -1919,7 +1919,7 @@ class Device(Plugin):
 
     def close(self):
         self.stopAcquisition()
-        if self.channelConfigChanged(default=True):
+        if self.channelConfigChanged(default=True) or self.pluginManager.channelsChanged:
             self.exportConfiguration(default=True)
         self.exportOutputData(default=True)
 
@@ -3104,7 +3104,7 @@ class Console(Plugin):
         self.historyFile.touch(exist_ok=True)
         # self.historyFile = open(hf,'w')
         self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
-        self.mainConsole.repl._lastCommandRow = 0 # TODO report not checking for None if uninitialized!
+        self.mainConsole.repl._lastCommandRow = 0 # not checking for None if uninitialized! -> initialize
         self.mainConsole.repl.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
                                  'You can select some commonly used commands directly from the combobox below.\n'
                                  'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
