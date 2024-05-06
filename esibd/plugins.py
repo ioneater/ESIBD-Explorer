@@ -1318,6 +1318,55 @@ class Device(Plugin):
         plotSignal = pyqtSignal()
         """Signal that triggers plotting of history."""
 
+    class ChannelPlot(Plugin):
+        """Simplified version of the Line plugin for plotting channels."""
+
+        name = 'Line'
+        version = '1.0'
+        pluginType = PluginManager.TYPE.DISPLAY
+
+        def __init__(self, device, pluginManager=None, dependencyPath=None):
+            super().__init__(pluginManager, dependencyPath)
+            self.device = device
+            self.name = self.device.name
+
+        def getIcon(self):
+            return self.makeIcon('chart.png')
+
+        def initGUI(self):
+            super().initGUI()
+            self.initFig()
+
+        def initFig(self):
+            self.provideFig()
+            self.axes.append(self.fig.add_subplot(111))
+            self.line = None
+
+        def provideDock(self):
+            if super().provideDock():
+                self.finalizeInit()
+
+        def finalizeInit(self, aboutFunc=None):
+            super().finalizeInit(aboutFunc)
+            self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+
+        def runTestParallel(self):
+            if super().runTestParallel():
+                self.testControl(self.copyAction, True, 1)
+                self.testControl(self.dataAction, True, 1)                
+
+        def plot(self):
+            """Plots current values from all real :class:`channels<esibd.core.Channel>`."""
+            self.axes[0].clear()
+            y = [c.value for c in self.device.channels if c.real]
+            labels = [c.name for c in self.device.channels if c.real]
+            _colors = [c.color for c in self.device.channels if c.real]
+            x = np.arange(len(y))
+            self.axes[0].scatter(x, y, marker='.', color=_colors)
+            self.axes[0].set_ylabel(self.device.unit)
+            self.axes[0].set_xticks(x, labels, rotation=30, ha='right', rotation_mode='anchor')
+            self.canvas.draw_idle()
+
     def __init__(self, **kwargs): # Always use keyword arguments to allow forwarding to parent classes.
         super().__init__(**kwargs)
         if self.pluginType == PluginManager.TYPE.INPUTDEVICE:
@@ -1327,6 +1376,7 @@ class Device(Plugin):
         self.useBackgrounds = False
         self.channels = []
         self.channelsChanged = False
+        self.channelPlot = None
         self.updating = False # Surpress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
         self.interval_tolerance = None # how much the acquisitoin interval is allowd to deviate
@@ -1364,7 +1414,7 @@ class Device(Plugin):
         self.estimateStorage()
         if self.inout == INOUT.IN:
             self.addAction(lambda : self.loadValues(None),'Load values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
-            self.plotAction = self.addAction(self.plot,'Plot values.', icon=self.makeCoreIcon('chart.png'))
+            self.plotAction = self.addAction(self.showChannelPlot,'Plot values.', icon=self.makeCoreIcon('chart.png'))
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -1400,6 +1450,8 @@ class Device(Plugin):
                 self.staticDisplay.runTestParallel()
             if self.liveDisplayActive():
                 self.liveDisplay.runTestParallel()
+            if self.channelPlotActive():
+                self.channelPlot.runTestParallel()
             # init, start, pause, stop acquisition will be tested by instManager
             self.testControl(self.advancedAction, True, 1) # keep history, test manually for dummy devices if applicable
             self.testControl(self.saveAction, True, 1)
@@ -1633,25 +1685,6 @@ class Device(Plugin):
         :param apply: If false, only values that have changed since last apply will be updated, defaults to False
         :type apply: bool, optional
         """
-
-    def plot(self):
-        """Plots current values from all real :class:`channels<esibd.core.Channel>`."""
-        # use linewidget if available -> error else
-        if hasattr(self.pluginManager,'Line'):
-            lw = self.pluginManager.Line
-            lw.provideDock()
-            lw.axes[0].clear()
-            y = [c.value for c in self.channels if c.real]
-            labels = [c.name for c in self.channels if c.real]
-            _colors = [c.color for c in self.channels if c.real]
-            x = np.arange(len(y))
-            lw.axes[0].scatter(x, y, marker='.', color=_colors)
-            lw.axes[0].set_ylabel(self.unit)
-            lw.axes[0].set_xticks(x, labels, rotation=30, ha='right', rotation_mode='anchor')
-            lw.canvas.draw_idle()
-            lw.raiseDock()
-        else:
-            self.print('Line plugin required for plotting.', PRINT.WARNING)
 
     def updateChannelConfig(self, items, file):
         """Scans for changes when loading configuration and displays change log
@@ -1928,6 +1961,7 @@ class Device(Plugin):
         """:meta private:"""
         self.toggleLiveDisplay(False)
         self.toggleStaticDisplay(False)
+        self.toggleChannelPlot(False)
         super().closeGUI()
 
     def loadData(self, file, _show=True):
@@ -2068,6 +2102,22 @@ class Device(Plugin):
     def getUnit(self):
         """Overwrite if you want to change units dynamically."""
         return self.unit
+
+    def channelPlotActive(self):
+        return self.channelPlot is not None and self.channelPlot.initializedDock
+    
+    def toggleChannelPlot(self, visible):
+        if visible:
+            if self.channelPlot is None or not self.channelPlot.initializedDock:
+                self.channelPlot = self.ChannelPlot(device=self, pluginManager=self.pluginManager, dependencyPath=self.dependencyPath)
+                self.channelPlot.provideDock()
+        elif self.channelPlot is not None and self.channelPlot.initializedDock:
+            self.channelPlot.closeGUI()
+
+    def showChannelPlot(self):
+        self.toggleChannelPlot(True)
+        self.channelPlot.raiseDock(True)
+        self.channelPlot.plot()
 
     def updateTheme(self):
         """:meta private:"""
