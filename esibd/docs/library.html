@@ -18,7 +18,7 @@
         <script src="_static/jquery.js?v=5d32c60e"></script>
         <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="_static/documentation_options.js?v=ec806d2c"></script>
-        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
         <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="_static/copybutton.js?v=f281be69"></script>
@@ -108,8 +108,9 @@
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#pressure">3.8.3. Pressure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#temperature">3.8.4. Temperature</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#beam">3.8.5. Beam</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#energy">3.8.6. Energy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#depo">3.8.7. Depo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#spectra">3.8.6. Spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#energy">3.8.7. Energy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#depo">3.8.8. Depo</a></li>
 </ul>
 </li>
 </ul>
@@ -126,13 +127,16 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">5. Library Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-esibd.plugins">5.1. The plugin module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.plugins.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.ChannelPlot"><code class="docutils literal notranslate"><span class="pre">Device.ChannelPlot</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">Device.SignalCommunicate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.addChannel"><code class="docutils literal notranslate"><span class="pre">Device.addChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.appendOutputData"><code class="docutils literal notranslate"><span class="pre">Device.appendOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.apply"><code class="docutils literal notranslate"><span class="pre">Device.apply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.channelConfigChanged"><code class="docutils literal notranslate"><span class="pre">Device.channelConfigChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.channelType"><code class="docutils literal notranslate"><span class="pre">Device.channelType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.channels"><code class="docutils literal notranslate"><span class="pre">Device.channels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.close"><code class="docutils literal notranslate"><span class="pre">Device.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.compareItemsConfig"><code class="docutils literal notranslate"><span class="pre">Device.compareItemsConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.convertDataDisplay"><code class="docutils literal notranslate"><span class="pre">Device.convertDataDisplay()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.documentation"><code class="docutils literal notranslate"><span class="pre">Device.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.exportConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.exportConfiguration()</span></code></a></li>
@@ -147,8 +151,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.liveDisplay"><code class="docutils literal notranslate"><span class="pre">Device.liveDisplay</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.loadConfiguration()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.loadValues"><code class="docutils literal notranslate"><span class="pre">Device.loadValues()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.moveChannel"><code class="docutils literal notranslate"><span class="pre">Device.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.name"><code class="docutils literal notranslate"><span class="pre">Device.name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.plot"><code class="docutils literal notranslate"><span class="pre">Device.plot()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.pluginType"><code class="docutils literal notranslate"><span class="pre">Device.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.restoreOutputData"><code class="docutils literal notranslate"><span class="pre">Device.restoreOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.runDataThread"><code class="docutils literal notranslate"><span class="pre">Device.runDataThread()</span></code></a></li>
@@ -192,6 +196,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addContentLayout"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentLayout()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addContentWidget"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentWidget()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addMultiStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addMultiStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addRightAxis"><code class="docutils literal notranslate"><span class="pre">Plugin.addRightAxis()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.addStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.axes"><code class="docutils literal notranslate"><span class="pre">Plugin.axes</span></code></a></li>
@@ -231,6 +236,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.requireGroup"><code class="docutils literal notranslate"><span class="pre">Plugin.requireGroup()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.requiredPlugin"><code class="docutils literal notranslate"><span class="pre">Plugin.requiredPlugin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.runTestParallel"><code class="docutils literal notranslate"><span class="pre">Plugin.runTestParallel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.scan"><code class="docutils literal notranslate"><span class="pre">Plugin.scan</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.setLabelMargin"><code class="docutils literal notranslate"><span class="pre">Plugin.setLabelMargin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.supportedVersion"><code class="docutils literal notranslate"><span class="pre">Plugin.supportedVersion</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.supportsFile"><code class="docutils literal notranslate"><span class="pre">Plugin.supportsFile()</span></code></a></li>
@@ -390,6 +396,7 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.MetaChannel"><code class="docutils literal notranslate"><span class="pre">MetaChannel</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.core.MultiStateAction"><code class="docutils literal notranslate"><span class="pre">MultiStateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.NumberBar"><code class="docutils literal notranslate"><span class="pre">NumberBar</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Parameter.TYPE"><code class="docutils literal notranslate"><span class="pre">Parameter.TYPE</span></code></a></li>
@@ -464,11 +471,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.SplashScreen"><code class="docutils literal notranslate"><span class="pre">SplashScreen</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.StateAction"><code class="docutils literal notranslate"><span class="pre">StateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.TextEdit"><code class="docutils literal notranslate"><span class="pre">TextEdit</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.core.ThemedConsole.setStack"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.setStack()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.core.ThemedConsole.write"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.write()</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.ThemedNavigationToolbar"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.ThemedNavigationToolbar.updateNavToolbarTheme"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar.updateNavToolbarTheme()</span></code></a></li>
 </ul>
@@ -575,6 +578,101 @@ device also comes with a <a class="reference internal" href="pages/users-guide.h
 The current values can also be plotted to get a quick overview and identify any
 unusual values.</p>
 <dl class="py class">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ChannelPlot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot" title="Link to this definition"></a></dt>
+<dd><p>Simplified version of the Line plugin for plotting channels.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.finalizeInit">
+<span class="sig-name descname"><span class="pre">finalizeInit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aboutFunc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.finalizeInit" title="Link to this definition"></a></dt>
+<dd><p>Executed after all other Plugins are initialized. Use this for code
+that modifies other <a class="reference internal" href="#esibd.plugins.Plugin" title="esibd.plugins.Plugin"><code class="xref py py-class docutils literal notranslate"><span class="pre">Plugins</span></code></a>, e.g. adding an <a class="reference internal" href="#esibd.core.Action" title="esibd.core.Action"><code class="xref py py-class docutils literal notranslate"><span class="pre">Action</span></code></a> to the <a class="reference internal" href="#esibd.plugins.DeviceManager" title="esibd.plugins.DeviceManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">DeviceManager</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>aboutFunc</strong> (<em>method</em><em>, </em><em>optional</em>) – Function displaying the about dialog of the plugin, defaults to None.
+<a class="reference internal" href="#esibd.plugins.Plugin.about" title="esibd.plugins.Plugin.about"><code class="xref py py-meth docutils literal notranslate"><span class="pre">about()</span></code></a> is used if no other is provided.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.getIcon">
+<span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.getIcon" title="Link to this definition"></a></dt>
+<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
+Consider using a themed icon that works in dark and light modes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Icon</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#esibd.core.BetterIcon" title="esibd.core.BetterIcon"><code class="xref py py-class docutils literal notranslate"><span class="pre">BetterIcon</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.initFig">
+<span class="sig-name descname"><span class="pre">initFig</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.initFig" title="Link to this definition"></a></dt>
+<dd><p>Will be called when a <a class="reference internal" href="pages/users-guide.html#sec-displays"><span class="std std-ref">display</span></a> is closed and reopened or the theme
+is changed. Overwrite your figure initialization here to make sure all references are updated correctly.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.initGUI">
+<span class="sig-name descname"><span class="pre">initGUI</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.initGUI" title="Link to this definition"></a></dt>
+<dd><p>Initializes the graphic user interface (GUI), independent of all other plugins.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Line'</span></em><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.name" title="Link to this definition"></a></dt>
+<dd><p>A unique name that will be used in the graphic user interface.
+Plugins can be accessed directly from the <a class="reference internal" href="pages/users-guide.html#sec-console"><span class="std std-ref">Console</span></a> using their name.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.plot" title="Link to this definition"></a></dt>
+<dd><p>Plots current values from all real <a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">channels</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.pluginType">
+<span class="sig-name descname"><span class="pre">pluginType</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#esibd.core.PluginManager.TYPE" title="esibd.core.PluginManager.TYPE"><span class="pre">PluginManager.TYPE</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Display'</span></em><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.pluginType" title="Link to this definition"></a></dt>
+<dd><p>The type defines the location of the plugin in the user interface and allows to run
+operations on a group of plugins with the same type using <a class="reference internal" href="#esibd.core.PluginManager.getPluginsByType" title="esibd.core.PluginManager.getPluginsByType"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getPluginsByType()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.provideDock">
+<span class="sig-name descname"><span class="pre">provideDock</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.provideDock" title="Link to this definition"></a></dt>
+<dd><p>Adds existing <a class="reference internal" href="#esibd.plugins.Plugin.dock" title="esibd.plugins.Plugin.dock"><code class="xref py py-attr docutils literal notranslate"><span class="pre">dock</span></code></a> to UI at position defined by <a class="reference internal" href="#esibd.plugins.Plugin.pluginType" title="esibd.plugins.Plugin.pluginType"><code class="xref py py-attr docutils literal notranslate"><span class="pre">esibd.plugins.Plugin.pluginType</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.runTestParallel">
+<span class="sig-name descname"><span class="pre">runTestParallel</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.runTestParallel" title="Link to this definition"></a></dt>
+<dd><p>Runs a series of tests by changing values of selected controls and triggering the corresponding events.
+Extend to add more plugin specific tests.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns True if the plugin is initialized and further tests can be executed.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Device.ChannelPlot.version">
+<span class="sig-name descname"><span class="pre">version</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'1.0'</span></em><a class="headerlink" href="#esibd.plugins.Device.ChannelPlot.version" title="Link to this definition"></a></dt>
+<dd><p>The version of the plugin. Plugins are independent programs that
+require independent versioning and documentation.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="esibd.plugins.Device.SignalCommunicate">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SignalCommunicate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.SignalCommunicate" title="Link to this definition"></a></dt>
 <dd><p>Object than bundles pyqtSignals for the device</p>
@@ -615,6 +713,12 @@ unusual values.</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.channelConfigChanged">
+<span class="sig-name descname"><span class="pre">channelConfigChanged</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.channelConfigChanged" title="Link to this definition"></a></dt>
+<dd><p>Scans for changes when saving configuration.</p>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.plugins.Device.channelType">
 <span class="sig-name descname"><span class="pre">channelType</span></span><a class="headerlink" href="#esibd.plugins.Device.channelType" title="Link to this definition"></a></dt>
@@ -634,6 +738,21 @@ unusual values.</p>
 <dd><p>Closes plugin cleanly without leaving any data or communication
 running. Extend to make sure your custom data and custom
 communication is closed as well.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.compareItemsConfig">
+<span class="sig-name descname"><span class="pre">compareItemsConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignoreIndicators</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.compareItemsConfig" title="Link to this definition"></a></dt>
+<dd><p>Compares channel items from file with current configuration.
+This allows to track changes and decide if files need to be updated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>items</strong> (List[<a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Channel</span></code></a>]) – <a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Channel</span></code></a> items from file</p></li>
+<li><p><strong>ignoreIndicators</strong> (<em>bool</em>) – Set to True if deciding about file updates (indicators are not saved in files).</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -736,17 +855,22 @@ Channels that exist in the file but not in the current configuration will be ign
 Only used by input devices.</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.moveChannel">
+<span class="sig-name descname"><span class="pre">moveChannel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">up</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.moveChannel" title="Link to this definition"></a></dt>
+<dd><p>Moves the channel up or down in the list of channels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>up</strong> (<em>bool</em>) – Move up if True, else down.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.plugins.Device.name">
 <span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Device'</span></em><a class="headerlink" href="#esibd.plugins.Device.name" title="Link to this definition"></a></dt>
 <dd><p>A unique name that will be used in the graphic user interface.
 Plugins can be accessed directly from the <a class="reference internal" href="pages/users-guide.html#sec-console"><span class="std std-ref">Console</span></a> using their name.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="esibd.plugins.Device.plot">
-<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.plot" title="Link to this definition"></a></dt>
-<dd><p>Plots current values from all real <a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">channels</span></code></a>.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -836,6 +960,14 @@ Extend to add custom code to close device communication.</p>
 <span class="sig-name descname"><span class="pre">updateChannelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.updateChannelConfig" title="Link to this definition"></a></dt>
 <dd><p>Scans for changes when loading configuration and displays change log
 before overwriting old channel configuraion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>items</strong> (List[<a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Channel</span></code></a>]) – <a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Channel</span></code></a> items from file</p></li>
+<li><p><strong>file</strong> (<em>pathlib.Path</em>) – config file</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -1077,6 +1209,32 @@ unless documentation is implemented explicitly.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Plugin.addMultiStateAction">
+<span class="sig-name descname"><span class="pre">addMultiStateAction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">states</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">before</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">restore</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.addMultiStateAction" title="Link to this definition"></a></dt>
+<dd><p>Adds an action with can be toggled between two states, each having a
+dedicated tooltip and icon.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> (<em>method</em><em>, </em><em>optional</em>) – The function triggered by the stateAction, defaults to None</p></li>
+<li><p><strong>states</strong> (List[<code class="xref py py-class docutils literal notranslate"><span class="pre">MultiState</span></code>], optional) – The list of states the control can represent, defaults to a list of empty states</p></li>
+<li><p><strong>before</strong> (<a class="reference internal" href="#esibd.core.Action" title="esibd.core.Action"><code class="xref py py-class docutils literal notranslate"><span class="pre">Action</span></code></a>, optional) – An existing action or stateAction before which the new action will be placed, defaults to None.
+If None, the new stateAction will be added to the end.</p></li>
+<li><p><strong>attr</strong> (<em>str</em><em>, </em><em>optional</em>) – Enables direct access to the state of the stateAction using self.attr, defaults to None</p></li>
+<li><p><strong>restore</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True state will be restored when the program is restarted, defaults to True</p></li>
+<li><p><strong>default</strong> (<em>int</em><em>, </em><em>optional</em>) – Index of default state, defaults to 0</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The new StateAction</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#esibd.core.StateAction" title="esibd.core.StateAction"><code class="xref py py-class docutils literal notranslate"><span class="pre">StateAction</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.addRightAxis">
 <span class="sig-name descname"><span class="pre">addRightAxis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.addRightAxis" title="Link to this definition"></a></dt>
 <dd><p>Adds additional y labels on the right.</p>
@@ -1099,6 +1257,7 @@ dedicated tooltip and icon.</p>
 If None, the new stateAction will be added to the end.</p></li>
 <li><p><strong>attr</strong> (<em>str</em><em>, </em><em>optional</em>) – Enables direct access to the state of the stateAction using self.attr, defaults to None</p></li>
 <li><p><strong>restore</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True state will be restored when the program is restarted, defaults to True</p></li>
+<li><p><strong>default</strong> (<em>str</em><em>, </em><em>optional</em>) – Default state as saved by qSettings, defaults to false</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1412,7 +1571,7 @@ timestamp and the name of the sending plugin.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.requiredPlugin">
 <span class="sig-name descname"><span class="pre">requiredPlugin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.requiredPlugin" title="Link to this definition"></a></dt>
-<dd><p>Throws exeption if required plugin is not available.</p>
+<dd><p>Displays error message if required plugin is not available.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1430,10 +1589,20 @@ Extend to add more plugin specific tests.</p>
 </dl>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Plugin.scan">
+<span class="sig-name descname"><span class="pre">scan</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#esibd.plugins.Plugin.scan" title="Link to this definition"></a></dt>
+<dd><p>A <a class="reference internal" href="#esibd.plugins.Scan" title="esibd.plugins.Scan"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Scan()</span></code></a> that provides content to display.</p>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.setLabelMargin">
 <span class="sig-name descname"><span class="pre">setLabelMargin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">margin</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.setLabelMargin" title="Link to this definition"></a></dt>
-<dd><p>Sets top margin only, to reserve space for file name label.</p>
+<dd><p>Sets top margin only, to reserve space for file name label.
+:param ax: The axis to which to add the top margin
+:type ax: matplotlib.pyplot.axis
+:param margin: The margin to add. 0.15 -&gt; add 15 % margin
+:type margin: float</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -1895,6 +2064,9 @@ account for differences in the physical backend.</p>
 outputs. In the advanced mode, channels can be duplicated, moved, or
 deleted. You may also edit channels directly in the corresponding .ini
 file in the config path.</p>
+<p>Channels are accessible from any plugin using <a class="reference internal" href="#esibd.plugins.DeviceManager.getChannelByName" title="esibd.plugins.DeviceManager.getChannelByName"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getChannelByName()</span></code></a>.
+This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
+Please avoid using very short names, and names that are a subset of names of other channels.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="esibd.core.Channel.SignalCommunicate">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SignalCommunicate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Channel.SignalCommunicate" title="Link to this definition"></a></dt>
@@ -2288,6 +2460,14 @@ Overwrite with specific update code.</p>
 <dt class="sig sig-object py" id="esibd.core.DynamicNp.add">
 <span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lenT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.DynamicNp.add" title="Link to this definition"></a></dt>
 <dd><p>Adds the new data point and adjusts the data array as required.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>float</em>) – Datapoint to be added</p></li>
+<li><p><strong>lenT</strong> (<em>int</em><em>, </em><em>optional</em>) – length of corresponding time array, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -2456,6 +2636,13 @@ Each scan is free to define its data with arbitrary dimensions.</p>
 <dt>channel: <a class="reference internal" href="#esibd.core.PluginManager" title="esibd.core.PluginManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">PluginManager</span></code></a></dt><dd><p>The actual channel, if it exists.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="esibd.core.MultiStateAction">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">esibd.core.</span></span><span class="sig-name descname"><span class="pre">MultiStateAction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.MultiStateAction" title="Link to this definition"></a></dt>
+<dd><p>Extends QActions to show different icons depending on multiple states.
+Values are restored using QSettings if name is provided.</p>
 </dd></dl>
 
 <dl class="py class">
@@ -2999,26 +3186,6 @@ Values are restored using QSettings if name is provided.</p>
 <dt class="sig sig-object py" id="esibd.core.ThemedConsole">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">esibd.core.</span></span><span class="sig-name descname"><span class="pre">ThemedConsole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.ThemedConsole" title="Link to this definition"></a></dt>
 <dd><p>pyqtgraph.console.ConsoleWidget with colors adjusting to theme.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="esibd.core.ThemedConsole.setStack">
-<span class="sig-name descname"><span class="pre">setStack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.ThemedConsole.setStack" title="Link to this definition"></a></dt>
-<dd><p>Display a call stack and exception traceback.</p>
-<p>This allows the user to probe the contents of any frame in the given stack.</p>
-<p><em>frame</em> may either be a Frame instance or None, in which case the current
-frame is retrieved from <code class="docutils literal notranslate"><span class="pre">sys._getframe()</span></code>.</p>
-<p>If <em>tb</em> is provided then the frames in the traceback will be appended to
-the end of the stack list. If <em>tb</em> is None, then sys.exc_info() will
-be checked instead.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="esibd.core.ThemedConsole.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">strn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">html</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scrollToBottom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.ThemedConsole.write" title="Link to this definition"></a></dt>
-<dd><p>Write a string into the console.</p>
-<p>If scrollToBottom is ‘auto’, then the console is automatically scrolled
-to fit the new text only if it was already at the bottom.</p>
-</dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
@@ -3233,7 +3400,7 @@ If you need to handle events on value change, link these directly to the events 
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Tim Esser.</p>
+    <p>&#169; Copyright 2024, Tim Esser.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

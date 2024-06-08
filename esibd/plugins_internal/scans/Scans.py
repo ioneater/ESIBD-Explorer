@@ -16,7 +16,8 @@ from asteval import Interpreter
 from PyQt6.QtWidgets import QSlider, QMessageBox
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
-from esibd.core import Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT, pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState
+from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT,
+    pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState, MZCaculator)
 from esibd.plugins import Scan
 winsound = None
 if sys.platform == 'win32':
@@ -26,7 +27,7 @@ else:
 aeval = Interpreter()
 
 def providePlugins():
-    return [Beam, Spectra, Energy, Omni, Depo, GA]
+    return [Beam, Spectra, Energy, Omni, Depo, GA, MassSpec]
 
 class Beam(Scan):
     """Scan that records the ion-beam current on one electrode as a function of two voltage
@@ -152,7 +153,11 @@ class Beam(Scan):
                 self.settingsMgr.settings[f'{direction}/{setting}'].setEnabled(finished)
 
     def estimateScanTime(self):
-        steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_to, self.LR_step), self.getSteps(self.UD_from, self.UD_to, self.UD_step)))
+        if self.LR_from != self.LR_to and self.UD_from != self.UD_to:
+            steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_to, self.LR_step), self.getSteps(self.UD_from, self.UD_to, self.UD_step)))
+        else:
+            self.print('Limits are equal.', PRINT.WARNING)
+            return
         seconds = 0 # estimate scan time
         for i in range(len(steps)):
             waitlong = False
@@ -359,6 +364,7 @@ class Spectra(Beam):
         return self.makeIcon('stacked.png')
 
     def initScan(self):
+        self.toggleDisplay(True)
         self.display.lines = None
         return super().initScan()
 
@@ -464,7 +470,7 @@ class Spectra(Beam):
             else:
                 self.signalComm.scanUpdateSignal.emit(False) # update graph
 
-    def pythonPlotCode(self): # TODO update
+    def pythonPlotCode(self):
         return """# add your custom plot code here
 
 _interpolate = False # set to True to interpolate data
@@ -990,7 +996,7 @@ class Depo(Scan):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Deposition checklist.',
-        'Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?',
+        'Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?',
         buttons=QMessageBox.StandardButton.Ok)
         self.qm.setWindowIcon(self.getIcon())
 
@@ -1392,3 +1398,105 @@ plt.show()
         self.pluginManager.Text.setTextParallel('\n'.join(self.changeLog))
         self.print('Change log available in Text plugin.')
         super().saveScanParallel(file)
+
+class MassSpec(Scan):
+    """Records mass spectra by recording an output channel as a function of a (calibrated) input channel.
+    Clicking on peaks in a charge state series while holding down the Ctrl key provides a
+    quick estimate of charge state and mass, based on minimizing the standard
+    deviation of the mass as a function of possible charge states. 
+    This can be used as a template or a parent class for a simple one dimensional scan of other properties."""
+    documentation = None # use __doc__
+
+    name = 'msScan'
+    version = '1.1'
+    supportedVersion = '0.6'
+    pluginType = PluginManager.TYPE.SCAN
+
+    class Display(Scan.Display):
+
+        def initGUI(self):
+            self.mzCalc = MZCaculator(parentPlugin=self)
+            super().initGUI()
+            self.addAction(lambda: self.copyLineDataClipboard(line=self.ms), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+
+        def initFig(self):
+            super().initFig()
+            self.axes.append(self.fig.add_subplot(111))
+            self.ms  = self.axes[0].plot([], [])[0] # dummy plot
+            self.mzCalc.setAxis(self.axes[0])
+            self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        self.useDisplayChannel = True
+        self.previewFileTypes.append('ms scan.h5')
+
+    def getIcon(self):
+        return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png')
+
+    def getDefaultSettings(self):
+        ds = super().getDefaultSettings()
+        ds[self.DISPLAY][Parameter.VALUE] = 'Detector'
+        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
+        ds[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
+        ds[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
+                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
+        ds[self.FROM]    = parameterDict(value=50 , widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
+        ds[self.TO]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
+        ds[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        return ds
+
+    def initScan(self):
+        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and
+        super().initScan())
+
+    def plot(self, update=False, done=False, **kwargs): # pylint:disable=unused-argument
+        """Plots mass spectrum including metadata"""
+
+        if len(self.outputs) > 0:
+            self.display.ms.set_data(self.inputs[0].data, self.outputs[self.getOutputIndex()].data)
+            if not update:
+                self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} ({self.outputs[self.getOutputIndex()].unit})')
+                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+        else: # no data
+            self.display.ms.set_data([],[])
+        self.display.axes[0].relim() # adjust to data
+        self.setLabelMargin(self.display.axes[0], 0.15)
+        self.updateToolBar(update=update)
+        self.display.mzCalc.update_mass_to_charge()
+        if len(self.outputs) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        else:
+            self.labelPlot(self.display.axes[0], self.file.name)
+
+    def pythonPlotCode(self):
+        return """# add your custom plot code here
+
+fig = plt.figure(constrained_layout=True)
+ax0 = fig.add_subplot(111)
+
+ax0.plot(inputs[0].data, outputs[output_index].data)
+ax0.set_ylabel(f'{outputs[output_index].name} ({outputs[output_index].unit})')
+ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
+
+plt.show()
+"""
+
+    def loadData(self, file, _show=True):
+        super().loadData(file, _show)
+        self.display.mzCalc.clear()
+
+    def loadDataInternal(self):
+        """Loads data in internal standard format for plotting."""
+        if self.file.name.endswith('ms scan.h5'):  # legacy file before removing space in plugin name
+            with h5py.File(self.file,'r') as f:
+                g = f['MS Scan']
+                i = g[self.INPUTCHANNELS]
+                for name, data in i.items():
+                    self.inputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT], channel=self.getChannelByName(name, inout=INOUT.IN)))
+                o = g[self.OUTPUTCHANNELS]
+                for name, data in o.items():
+                    self.outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT], channel=self.getChannelByName(name, inout=INOUT.OUT)))
+        else:
+            super().loadDataInternal()
+            

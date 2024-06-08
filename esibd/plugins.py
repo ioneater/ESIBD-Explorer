@@ -646,7 +646,7 @@ class Plugin(QWidget):
         :type ax: matplotlib.pyplot.axis
         :param margin: The margin to add. 0.15 -> add 15 % margin
         :type margin: float
-        
+
         """ # not yet implemented https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
         # ax.set_ymargin(0) # we do not use margins
         # ax.autoscale_view() # useless after limits are set -> use autoscale
@@ -1353,7 +1353,6 @@ class Device(Plugin):
         def runTestParallel(self):
             if super().runTestParallel():
                 self.testControl(self.copyAction, True, 1)
-                self.testControl(self.dataAction, True, 1)                
 
         def plot(self):
             """Plots current values from all real :class:`channels<esibd.core.Channel>`."""
@@ -2105,7 +2104,7 @@ class Device(Plugin):
 
     def channelPlotActive(self):
         return self.channelPlot is not None and self.channelPlot.initializedDock
-    
+
     def toggleChannelPlot(self, visible):
         if visible:
             if self.channelPlot is None or not self.channelPlot.initializedDock:
@@ -2607,7 +2606,11 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
 
     def getSteps(self, _from, to, step):
         """Returns steps based on _from, to, and step parameters."""
-        return np.arange(_from, to+step*np.sign(to-_from), step*np.sign(to-_from))
+        if _from == to:
+            self.print('Limits are equal.', PRINT.WARNING)
+            return None
+        else:
+            return np.arange(_from, to+step*np.sign(to-_from), step*np.sign(to-_from))
 
     def getData(self, i, inout):
         """Gets the data of a scan channel based on index and type.

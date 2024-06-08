@@ -713,7 +713,13 @@ class DynamicNp():
         self.max_size = max_size
 
     def add(self, x, lenT=None):
-        """Adds the new data point and adjusts the data array as required."""
+        """Adds the new data point and adjusts the data array as required.
+
+        :param x: Datapoint to be added
+        :type x: float
+        :param lenT: length of corresponding time array, defaults to None
+        :type lenT: int, optional
+        """
         if lenT is not None:
             if self.size < lenT:
                 # if length does not match length of time, e.g. becuase channel was enabled later then others or temporarily disabled,

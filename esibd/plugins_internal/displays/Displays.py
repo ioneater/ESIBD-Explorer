@@ -3,14 +3,13 @@ Note this will be imported in ES_IBD_Explorer so that it is equivalent to defini
 This allows to keep the bare UI initialization separated from the more meaningful methods."""
 
 import numpy as np
-import matplotlib.pyplot as plt
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCaculator, PluginManager, getDarkMode, getDPI
+from esibd.core import MZCaculator, PluginManager, getDarkMode
 from esibd.plugins import Plugin
 
 #################################### General UI Classes #########################################

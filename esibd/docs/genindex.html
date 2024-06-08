@@ -17,7 +17,7 @@
         <script src="_static/jquery.js?v=5d32c60e"></script>
         <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="_static/documentation_options.js?v=ec806d2c"></script>
-        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
         <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="_static/copybutton.js?v=f281be69"></script>
@@ -105,8 +105,9 @@
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#pressure">3.8.3. Pressure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#temperature">3.8.4. Temperature</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#beam">3.8.5. Beam</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#energy">3.8.6. Energy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#depo">3.8.7. Depo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#spectra">3.8.6. Spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#energy">3.8.7. Energy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#depo">3.8.8. Depo</a></li>
 </ul>
 </li>
 </ul>
@@ -123,13 +124,16 @@
 <li class="toctree-l1"><a class="reference internal" href="library.html">5. Library Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="library.html#module-esibd.plugins">5.1. The plugin module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.plugins.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.ChannelPlot"><code class="docutils literal notranslate"><span class="pre">Device.ChannelPlot</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">Device.SignalCommunicate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.addChannel"><code class="docutils literal notranslate"><span class="pre">Device.addChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.appendOutputData"><code class="docutils literal notranslate"><span class="pre">Device.appendOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.apply"><code class="docutils literal notranslate"><span class="pre">Device.apply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.channelConfigChanged"><code class="docutils literal notranslate"><span class="pre">Device.channelConfigChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.channelType"><code class="docutils literal notranslate"><span class="pre">Device.channelType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.channels"><code class="docutils literal notranslate"><span class="pre">Device.channels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.close"><code class="docutils literal notranslate"><span class="pre">Device.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.compareItemsConfig"><code class="docutils literal notranslate"><span class="pre">Device.compareItemsConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.convertDataDisplay"><code class="docutils literal notranslate"><span class="pre">Device.convertDataDisplay()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.documentation"><code class="docutils literal notranslate"><span class="pre">Device.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.exportConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.exportConfiguration()</span></code></a></li>
@@ -144,8 +148,8 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.liveDisplay"><code class="docutils literal notranslate"><span class="pre">Device.liveDisplay</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.loadConfiguration()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.loadValues"><code class="docutils literal notranslate"><span class="pre">Device.loadValues()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.moveChannel"><code class="docutils literal notranslate"><span class="pre">Device.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.name"><code class="docutils literal notranslate"><span class="pre">Device.name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.plot"><code class="docutils literal notranslate"><span class="pre">Device.plot()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.pluginType"><code class="docutils literal notranslate"><span class="pre">Device.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.restoreOutputData"><code class="docutils literal notranslate"><span class="pre">Device.restoreOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.runDataThread"><code class="docutils literal notranslate"><span class="pre">Device.runDataThread()</span></code></a></li>
@@ -189,6 +193,7 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addContentLayout"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentLayout()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addContentWidget"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentWidget()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addMultiStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addMultiStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addRightAxis"><code class="docutils literal notranslate"><span class="pre">Plugin.addRightAxis()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.addStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.axes"><code class="docutils literal notranslate"><span class="pre">Plugin.axes</span></code></a></li>
@@ -228,6 +233,7 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.requireGroup"><code class="docutils literal notranslate"><span class="pre">Plugin.requireGroup()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.requiredPlugin"><code class="docutils literal notranslate"><span class="pre">Plugin.requiredPlugin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.runTestParallel"><code class="docutils literal notranslate"><span class="pre">Plugin.runTestParallel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.scan"><code class="docutils literal notranslate"><span class="pre">Plugin.scan</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.setLabelMargin"><code class="docutils literal notranslate"><span class="pre">Plugin.setLabelMargin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.supportedVersion"><code class="docutils literal notranslate"><span class="pre">Plugin.supportedVersion</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Plugin.supportsFile"><code class="docutils literal notranslate"><span class="pre">Plugin.supportsFile()</span></code></a></li>
@@ -387,6 +393,7 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.MetaChannel"><code class="docutils literal notranslate"><span class="pre">MetaChannel</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.MultiStateAction"><code class="docutils literal notranslate"><span class="pre">MultiStateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.NumberBar"><code class="docutils literal notranslate"><span class="pre">NumberBar</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Parameter.TYPE"><code class="docutils literal notranslate"><span class="pre">Parameter.TYPE</span></code></a></li>
@@ -461,11 +468,7 @@
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.SplashScreen"><code class="docutils literal notranslate"><span class="pre">SplashScreen</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.StateAction"><code class="docutils literal notranslate"><span class="pre">StateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.TextEdit"><code class="docutils literal notranslate"><span class="pre">TextEdit</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.ThemedConsole.setStack"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.setStack()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.ThemedConsole.write"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.write()</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.core.ThemedNavigationToolbar"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.ThemedNavigationToolbar.updateNavToolbarTheme"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar.updateNavToolbarTheme()</span></code></a></li>
 </ul>
@@ -586,6 +589,8 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.plugins.Plugin.addMultiStateAction">addMultiStateAction() (esibd.plugins.Plugin method)</a>
+</li>
       <li><a href="library.html#esibd.core.PluginManager.addPluginTreeWidgetItem">addPluginTreeWidgetItem() (esibd.core.PluginManager method)</a>
 </li>
       <li><a href="library.html#esibd.plugins.Plugin.addRightAxis">addRightAxis() (esibd.plugins.Plugin method)</a>
@@ -642,6 +647,8 @@
 </li>
       <li><a href="library.html#esibd.core.Channel.SignalCommunicate">Channel.SignalCommunicate (class in esibd.core)</a>
 </li>
+      <li><a href="library.html#esibd.plugins.Device.channelConfigChanged">channelConfigChanged() (esibd.plugins.Device method)</a>
+</li>
       <li><a href="library.html#esibd.plugins.Device.channels">channels (esibd.plugins.Device attribute)</a>
 </li>
       <li><a href="library.html#esibd.plugins.Device.channelType">channelType (esibd.plugins.Device attribute)</a>
@@ -680,6 +687,8 @@
 </li>
       <li><a href="library.html#esibd.core.CompactComboBox">CompactComboBox (class in esibd.core)</a>
 </li>
+      <li><a href="library.html#esibd.plugins.Device.compareItemsConfig">compareItemsConfig() (esibd.plugins.Device method)</a>
+</li>
       <li><a href="library.html#esibd.core.PluginManager.TYPE.CONSOLE">CONSOLE (esibd.core.PluginManager.TYPE attribute)</a>
 </li>
       <li><a href="library.html#esibd.core.PluginManager.TYPE.CONTROL">CONTROL (esibd.core.PluginManager.TYPE attribute)</a>
@@ -711,6 +720,8 @@
       <li><a href="library.html#esibd.plugins.Device">Device (class in esibd.plugins)</a>
 </li>
       <li><a href="library.html#esibd.core.Channel.device">device (esibd.core.Channel attribute)</a>
+</li>
+      <li><a href="library.html#esibd.plugins.Device.ChannelPlot">Device.ChannelPlot (class in esibd.plugins)</a>
 </li>
       <li><a href="library.html#esibd.plugins.Device.SignalCommunicate">Device.SignalCommunicate (class in esibd.plugins)</a>
 </li>
@@ -815,13 +826,15 @@
       <li><a href="library.html#esibd.core.PluginManager.finalizeInit">finalizeInit() (esibd.core.PluginManager method)</a>
 
       <ul>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.finalizeInit">(esibd.plugins.Device.ChannelPlot method)</a>
+</li>
         <li><a href="library.html#esibd.plugins.Plugin.finalizeInit">(esibd.plugins.Plugin method)</a>
 </li>
       </ul></li>
-      <li><a href="library.html#esibd.core.PluginManager.finalizeUiState">finalizeUiState() (esibd.core.PluginManager method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.core.PluginManager.finalizeUiState">finalizeUiState() (esibd.core.PluginManager method)</a>
+</li>
       <li><a href="library.html#esibd.plugins.Scan.finished">finished (esibd.plugins.Scan property)</a>
 </li>
       <li><a href="library.html#esibd.core.Parameter.TYPE.FLOAT">FLOAT (esibd.core.Parameter.TYPE attribute)</a>
@@ -864,12 +877,16 @@
         <li><a href="library.html#esibd.plugins.Plugin.getDefaultSettings">(esibd.plugins.Plugin method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.const.getDPI">getDPI() (in module esibd.const)</a>
 </li>
-      <li><a href="library.html#esibd.plugins.Plugin.getIcon">getIcon() (esibd.plugins.Plugin method)</a>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.plugins.Device.ChannelPlot.getIcon">getIcon() (esibd.plugins.Device.ChannelPlot method)</a>
+
+      <ul>
+        <li><a href="library.html#esibd.plugins.Plugin.getIcon">(esibd.plugins.Plugin method)</a>
 </li>
+      </ul></li>
       <li><a href="library.html#esibd.core.PluginManager.getMainPlugins">getMainPlugins() (esibd.core.PluginManager method)</a>
 </li>
       <li><a href="library.html#esibd.plugins.Scan.getOutputIndex">getOutputIndex() (esibd.plugins.Scan method)</a>
@@ -920,11 +937,17 @@
 </li>
       <li><a href="library.html#esibd.plugins.Plugin.initDock">initDock() (esibd.plugins.Plugin method)</a>
 </li>
-      <li><a href="library.html#esibd.plugins.Plugin.initFig">initFig() (esibd.plugins.Plugin method)</a>
+      <li><a href="library.html#esibd.plugins.Device.ChannelPlot.initFig">initFig() (esibd.plugins.Device.ChannelPlot method)</a>
+
+      <ul>
+        <li><a href="library.html#esibd.plugins.Plugin.initFig">(esibd.plugins.Plugin method)</a>
 </li>
+      </ul></li>
       <li><a href="library.html#esibd.core.Channel.initGUI">initGUI() (esibd.core.Channel method)</a>
 
       <ul>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.initGUI">(esibd.plugins.Device.ChannelPlot method)</a>
+</li>
         <li><a href="library.html#esibd.plugins.Plugin.initGUI">(esibd.plugins.Plugin method)</a>
 </li>
       </ul></li>
@@ -938,10 +961,10 @@
 </li>
       <li><a href="library.html#esibd.core.DeviceController.initializing">initializing (esibd.core.DeviceController attribute)</a>
 </li>
-      <li><a href="library.html#esibd.plugins.Scan.initScan">initScan() (esibd.plugins.Scan method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.plugins.Scan.initScan">initScan() (esibd.plugins.Scan method)</a>
+</li>
       <li><a href="library.html#esibd.plugins.SettingsManager.initSettingsContextMenuBase">initSettingsContextMenuBase() (esibd.plugins.SettingsManager method)</a>
 </li>
       <li><a href="library.html#esibd.core.DeviceController.initThread">initThread (esibd.core.DeviceController attribute)</a>
@@ -1056,10 +1079,10 @@
 </li>
       <li><a href="library.html#esibd.plugins.Scan.measurementsPerStep">measurementsPerStep (esibd.plugins.Scan attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.const.PRINT.MESSAGE">MESSAGE (esibd.const.PRINT attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.core.MetaChannel">MetaChannel (class in esibd.core)</a>
 </li>
       <li><a href="library.html#esibd.core.Parameter.min">min (esibd.core.Parameter attribute)</a>
@@ -1077,6 +1100,10 @@
         <li><a href="library.html#module-esibd.providePlugins">esibd.providePlugins</a>
 </li>
       </ul></li>
+      <li><a href="library.html#esibd.plugins.Device.moveChannel">moveChannel() (esibd.plugins.Device method)</a>
+</li>
+      <li><a href="library.html#esibd.core.MultiStateAction">MultiStateAction (class in esibd.core)</a>
+</li>
       <li><a href="library.html#esibd.core.MZCaculator">MZCaculator (class in esibd.core)</a>
 </li>
   </ul></td>
@@ -1089,6 +1116,8 @@
 
       <ul>
         <li><a href="library.html#esibd.plugins.Device.name">(esibd.plugins.Device attribute)</a>
+</li>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.name">(esibd.plugins.Device.ChannelPlot attribute)</a>
 </li>
         <li><a href="library.html#esibd.plugins.DeviceManager.name">(esibd.plugins.DeviceManager attribute)</a>
 </li>
@@ -1143,7 +1172,7 @@
 </li>
       <li><a href="library.html#esibd.core.Parameter.TYPE.PATH">PATH (esibd.core.Parameter.TYPE attribute)</a>
 </li>
-      <li><a href="library.html#esibd.plugins.Device.plot">plot() (esibd.plugins.Device method)</a>
+      <li><a href="library.html#esibd.plugins.Device.ChannelPlot.plot">plot() (esibd.plugins.Device.ChannelPlot method)</a>
 
       <ul>
         <li><a href="library.html#esibd.plugins.LiveDisplay.plot">(esibd.plugins.LiveDisplay method)</a>
@@ -1171,11 +1200,11 @@
 </li>
       <li><a href="library.html#esibd.core.PluginManager.plugins">plugins (esibd.core.PluginManager attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.plugins.Device.pluginType">pluginType (esibd.plugins.Device attribute)</a>
 
       <ul>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.pluginType">(esibd.plugins.Device.ChannelPlot attribute)</a>
+</li>
         <li><a href="library.html#esibd.plugins.DeviceManager.pluginType">(esibd.plugins.DeviceManager attribute)</a>
 </li>
         <li><a href="library.html#esibd.plugins.LiveDisplay.pluginType">(esibd.plugins.LiveDisplay attribute)</a>
@@ -1187,6 +1216,8 @@
         <li><a href="library.html#esibd.plugins.StaticDisplay.pluginType">(esibd.plugins.StaticDisplay attribute)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.core.DeviceController.port">port (esibd.core.DeviceController attribute)</a>
 </li>
       <li><a href="library.html#esibd.plugins.DeviceManager.previewFileTypes">previewFileTypes (esibd.plugins.DeviceManager attribute)</a>
@@ -1213,8 +1244,12 @@
       </ul></li>
       <li><a href="library.html#esibd.core.Logger.printFromThreadSignal">printFromThreadSignal (esibd.core.Logger attribute)</a>
 </li>
-      <li><a href="library.html#esibd.plugins.Plugin.provideDock">provideDock() (esibd.plugins.Plugin method)</a>
+      <li><a href="library.html#esibd.plugins.Device.ChannelPlot.provideDock">provideDock() (esibd.plugins.Device.ChannelPlot method)</a>
+
+      <ul>
+        <li><a href="library.html#esibd.plugins.Plugin.provideDock">(esibd.plugins.Plugin method)</a>
 </li>
+      </ul></li>
       <li><a href="library.html#esibd.core.PluginManager.provideDocks">provideDocks() (esibd.core.PluginManager method)</a>
 </li>
       <li><a href="library.html#esibd.providePlugins.providePlugins">providePlugins() (in module esibd.providePlugins)</a>
@@ -1274,6 +1309,8 @@
       <li><a href="library.html#esibd.core.PluginManager.runTestParallel">runTestParallel() (esibd.core.PluginManager method)</a>
 
       <ul>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.runTestParallel">(esibd.plugins.Device.ChannelPlot method)</a>
+</li>
         <li><a href="library.html#esibd.plugins.Plugin.runTestParallel">(esibd.plugins.Plugin method)</a>
 </li>
       </ul></li>
@@ -1299,6 +1336,8 @@
 </li>
       <li><a href="library.html#esibd.core.PluginManager.TYPE.SCAN">SCAN (esibd.core.PluginManager.TYPE attribute)</a>
 </li>
+      <li><a href="library.html#esibd.plugins.Plugin.scan">scan (esibd.plugins.Plugin attribute)</a>
+</li>
       <li><a href="library.html#esibd.plugins.Scan.SignalCommunicate">Scan.SignalCommunicate (class in esibd.plugins)</a>
 </li>
       <li><a href="library.html#esibd.plugins.Scan.SignalCommunicate.scanUpdateSignal">scanUpdateSignal (esibd.plugins.Scan.SignalCommunicate attribute)</a>
@@ -1316,8 +1355,6 @@
       <li><a href="library.html#esibd.plugins.Plugin.setLabelMargin">setLabelMargin() (esibd.plugins.Plugin method)</a>
 </li>
       <li><a href="library.html#esibd.core.ControlCursor.setPosition">setPosition() (esibd.core.ControlCursor method)</a>
-</li>
-      <li><a href="library.html#esibd.core.ThemedConsole.setStack">setStack() (esibd.core.ThemedConsole method)</a>
 </li>
       <li><a href="library.html#esibd.core.Setting">Setting (class in esibd.core)</a>
 </li>
@@ -1499,11 +1536,11 @@
 </li>
       <li><a href="library.html#esibd.core.Channel.values">values (esibd.core.Channel attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.plugins.Device.version">version (esibd.plugins.Device attribute)</a>
 
       <ul>
+        <li><a href="library.html#esibd.plugins.Device.ChannelPlot.version">(esibd.plugins.Device.ChannelPlot attribute)</a>
+</li>
         <li><a href="library.html#esibd.plugins.DeviceManager.version">(esibd.plugins.DeviceManager attribute)</a>
 </li>
         <li><a href="library.html#esibd.plugins.Plugin.version">(esibd.plugins.Plugin attribute)</a>
@@ -1526,11 +1563,7 @@
       <li><a href="library.html#esibd.core.Parameter.widgetType">widgetType (esibd.core.Parameter attribute)</a>
 </li>
       <li><a href="library.html#esibd.core.Logger.write">write() (esibd.core.Logger method)</a>
-
-      <ul>
-        <li><a href="library.html#esibd.core.ThemedConsole.write">(esibd.core.ThemedConsole method)</a>
 </li>
-      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -1543,7 +1576,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Tim Esser.</p>
+    <p>&#169; Copyright 2024, Tim Esser.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

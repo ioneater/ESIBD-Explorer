@@ -18,7 +18,7 @@
         <script src="../_static/jquery.js?v=5d32c60e"></script>
         <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
         <script src="../_static/documentation_options.js?v=ec806d2c"></script>
-        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
         <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
         <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
         <script src="../_static/copybutton.js?v=f281be69"></script>
@@ -108,8 +108,9 @@
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#pressure">3.8.3. Pressure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#temperature">3.8.4. Temperature</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#beam">3.8.5. Beam</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users-guide.html#energy">3.8.6. Energy</a></li>
-<li class="toctree-l3"><a class="reference internal" href="users-guide.html#depo">3.8.7. Depo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users-guide.html#spectra">3.8.6. Spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users-guide.html#energy">3.8.7. Energy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users-guide.html#depo">3.8.8. Depo</a></li>
 </ul>
 </li>
 </ul>
@@ -126,13 +127,16 @@
 <li class="toctree-l1"><a class="reference internal" href="../library.html">5. Library Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../library.html#module-esibd.plugins">5.1. The plugin module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.plugins.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.ChannelPlot"><code class="docutils literal notranslate"><span class="pre">Device.ChannelPlot</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">Device.SignalCommunicate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.addChannel"><code class="docutils literal notranslate"><span class="pre">Device.addChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.appendOutputData"><code class="docutils literal notranslate"><span class="pre">Device.appendOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.apply"><code class="docutils literal notranslate"><span class="pre">Device.apply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.channelConfigChanged"><code class="docutils literal notranslate"><span class="pre">Device.channelConfigChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.channelType"><code class="docutils literal notranslate"><span class="pre">Device.channelType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.channels"><code class="docutils literal notranslate"><span class="pre">Device.channels</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.close"><code class="docutils literal notranslate"><span class="pre">Device.close()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.compareItemsConfig"><code class="docutils literal notranslate"><span class="pre">Device.compareItemsConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.convertDataDisplay"><code class="docutils literal notranslate"><span class="pre">Device.convertDataDisplay()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.documentation"><code class="docutils literal notranslate"><span class="pre">Device.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.exportConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.exportConfiguration()</span></code></a></li>
@@ -147,8 +151,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.liveDisplay"><code class="docutils literal notranslate"><span class="pre">Device.liveDisplay</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">Device.loadConfiguration()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.loadValues"><code class="docutils literal notranslate"><span class="pre">Device.loadValues()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.moveChannel"><code class="docutils literal notranslate"><span class="pre">Device.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.name"><code class="docutils literal notranslate"><span class="pre">Device.name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.plot"><code class="docutils literal notranslate"><span class="pre">Device.plot()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.pluginType"><code class="docutils literal notranslate"><span class="pre">Device.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.restoreOutputData"><code class="docutils literal notranslate"><span class="pre">Device.restoreOutputData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.runDataThread"><code class="docutils literal notranslate"><span class="pre">Device.runDataThread()</span></code></a></li>
@@ -192,6 +196,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addContentLayout"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentLayout()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addContentWidget"><code class="docutils literal notranslate"><span class="pre">Plugin.addContentWidget()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addMultiStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addMultiStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addRightAxis"><code class="docutils literal notranslate"><span class="pre">Plugin.addRightAxis()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.addStateAction"><code class="docutils literal notranslate"><span class="pre">Plugin.addStateAction()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.axes"><code class="docutils literal notranslate"><span class="pre">Plugin.axes</span></code></a></li>
@@ -231,6 +236,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.requireGroup"><code class="docutils literal notranslate"><span class="pre">Plugin.requireGroup()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.requiredPlugin"><code class="docutils literal notranslate"><span class="pre">Plugin.requiredPlugin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.runTestParallel"><code class="docutils literal notranslate"><span class="pre">Plugin.runTestParallel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.scan"><code class="docutils literal notranslate"><span class="pre">Plugin.scan</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.setLabelMargin"><code class="docutils literal notranslate"><span class="pre">Plugin.setLabelMargin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.supportedVersion"><code class="docutils literal notranslate"><span class="pre">Plugin.supportedVersion</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.supportsFile"><code class="docutils literal notranslate"><span class="pre">Plugin.supportsFile()</span></code></a></li>
@@ -390,6 +396,7 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.MetaChannel"><code class="docutils literal notranslate"><span class="pre">MetaChannel</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.MultiStateAction"><code class="docutils literal notranslate"><span class="pre">MultiStateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.NumberBar"><code class="docutils literal notranslate"><span class="pre">NumberBar</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.Parameter"><code class="docutils literal notranslate"><span class="pre">Parameter</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.TYPE"><code class="docutils literal notranslate"><span class="pre">Parameter.TYPE</span></code></a></li>
@@ -464,11 +471,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.SplashScreen"><code class="docutils literal notranslate"><span class="pre">SplashScreen</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.StateAction"><code class="docutils literal notranslate"><span class="pre">StateAction</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.TextEdit"><code class="docutils literal notranslate"><span class="pre">TextEdit</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ThemedConsole.setStack"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.setStack()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ThemedConsole.write"><code class="docutils literal notranslate"><span class="pre">ThemedConsole.write()</span></code></a></li>
-</ul>
-</li>
+<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.ThemedConsole"><code class="docutils literal notranslate"><span class="pre">ThemedConsole</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.ThemedNavigationToolbar"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ThemedNavigationToolbar.updateNavToolbarTheme"><code class="docutils literal notranslate"><span class="pre">ThemedNavigationToolbar.updateNavToolbarTheme()</span></code></a></li>
 </ul>
@@ -577,7 +580,7 @@ folders to the PATH environment variable.</div>
 <div class="line">The installation path may vary on your system. Also give the user
 account full write access in the Miniconda3 folder.</div>
 </div>
-<p>Download the source from Go to the setup folder and run create_env.bat
+<p>Download the source from guthub, go to the setup folder, and run create_env.bat
 to install all dependencies. Later, update_env.bat can be used to update
 dependencies. Start the program using <em>start.bat</em>. If desired, you can add
 a shortcut to start.bat to the start menu.</p>
@@ -602,7 +605,7 @@ package manager, then follow instructions above to run <em>ESIBD Explorer</em>.<
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2023, Tim Esser.</p>
+    <p>&#169; Copyright 2024, Tim Esser.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
