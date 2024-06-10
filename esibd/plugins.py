@@ -3785,9 +3785,9 @@ class DeviceManager(Plugin):
                 self.print(f'Starting scan {s.name}.')
                 self.testControl(s.recordingAction, True, 0)
             time.sleep(10) # allow for scans to finish before testing next plugin
-            self.print('Stopping acquisition, collection and scans.')
+            self.print('Stopping acquisition, collection, and scans.')
             self.testControl(self.stopAction, True, 1)
-            self.print('Stopping acquisition, collection and scans send.')
+            self.print('Stopping acquisition, collection, and scans sent.')
             time.sleep(5) # allow for scans to stop and save data before triggering more events
 
     @property
@@ -3895,7 +3895,7 @@ class DeviceManager(Plugin):
         :param manual: Indicates if triggered by user, defaults to False
         :type manual: bool, optional
         """
-        if not manual or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+        if not manual or self.pluginManager.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
             self.recording = False
             for d in self.getDevices():
                 d.stop()

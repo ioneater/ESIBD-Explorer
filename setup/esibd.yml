@@ -21,6 +21,7 @@ dependencies:
   - pip:
     - sphinx
     - matplotlib
+    - contourpy==1.2.1
     - h5py
     - configobj
     - pylint

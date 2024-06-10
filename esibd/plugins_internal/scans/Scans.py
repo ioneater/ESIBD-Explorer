@@ -625,8 +625,10 @@ class Energy(Scan):
         super().initScan())
 
     def map_percent(self, x):
+        """Maps any range on range 0 to 100."""
         # can't map if largest deviation from minimum is 0, i.e. all zero
-        return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x) > 0) else 0
+        # has to return a sequence as matplotlib now expects sequences for set_x(y)data
+        return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x)) > 0 else [0]
 
     def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
         """Plots energy scan data including metadata"""
@@ -978,7 +980,7 @@ class Depo(Scan):
 
         def updateDepoTarget(self):
             if self.depoChargeTarget is not None:
-                self.depoChargeTarget.set_ydata(self.scan.target)
+                self.depoChargeTarget.set_ydata([self.scan.target])
                 if np.sign(self.scan.target) == 1:
                     self.axes[0].set_ylim(0, 1)
                     self.axes[1].set_ylim(0, 1)
@@ -1036,7 +1038,7 @@ class Depo(Scan):
             self.display.updateDepoTarget()
 
     def toggleRecording(self):
-        if self.recording:
+        if self.recording and not self.pluginManager.testing:
             self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
             self.qm.raise_()
         super().toggleRecording()
@@ -1091,7 +1093,7 @@ class Depo(Scan):
 
     def updateWarnLevel(self):
         if self.display is not None and self.display.currentWarnLine is not None:
-            self.display.currentWarnLine.set_ydata(self.warnlevel)
+            self.display.currentWarnLine.set_ydata([self.warnlevel])
             self.display.canvas.draw_idle()
 
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument

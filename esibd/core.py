@@ -9,6 +9,7 @@ import traceback
 import subprocess
 from threading import Timer, Thread, current_thread, main_thread
 import threading
+import time
 from typing import Any, List
 from contextlib import contextmanager
 from pathlib import Path
@@ -182,6 +183,7 @@ class PluginManager():
         self.firstDisplay = None
         self._loading = 0
         self.closing = False
+        self.testing = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
     @property
@@ -360,12 +362,15 @@ class PluginManager():
 
     def test(self):
         """ Calls :meth:`~esibd.core.PluginManager.runTestParallel` to test most features of for all plugins."""
+        self.testing = True
         Timer(0, self.runTestParallel).start()
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
         for p in self.plugins:
             p.runTestParallel()
+        time.sleep(10)
+        self.testing = False
 
     def showThreads(self):
         self.Text.setText('\n'.join([thread.name for thread in threading.enumerate()]), True)
