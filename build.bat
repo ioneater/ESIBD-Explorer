@@ -83,9 +83,10 @@ conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
 REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi 
 REM python -m esibd.reset # clear registry settings to emulate fresh install
-REM test software
-REM test software with hardware!
-python -m esibd.explorer 
+python -m esibd.explorer
+REM test software using PluginManager.test()
+REM test software PluginManager.test() with hardware!
+REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing
 
 REM only upload on real pypi after testing!
 REM twine upload dist/*
@@ -117,6 +118,12 @@ REM InstallForge
 
 REM Next, create setup.exe using InstallForge
 REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable and update "Product Version" and update year in license section!
+REM C:\Users\tim.esser\Syncthing
+REM C:\DATA\Syncthing
+REM files:
+REM pyinstaller_dist\ESIBD Explorer\_internal
+REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
+
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
@@ -125,10 +132,12 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git tag -a 0.6.17 -m "Realeasing version 0.6.17"
+git tag -a 0.6.18 -m "Realeasing version 0.6.18"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections
+REM Title: Version 0.6.18
+REM Content: start bullet points with capitals and no dot at the end
 REM attach ESIBD_Explorer-setup.exe to release
 
 REM Added 		for new features.
