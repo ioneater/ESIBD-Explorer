@@ -6,7 +6,8 @@ description = "A comprehensive data acquisition and analysis tool for Electrospr
 license = {file = "LICENSE"}
 readme = "README.rst"
 # For tools, versions should be fixed. For libraries they should be constrained as little as possible.
-# Since this project is both I minimize restaints. The windows installer will come with a fixed dependencies. 
+# https://www.reddit.com/r/Python/comments/13j6bri/why_is_strict_fixed_requirements_a_best_practice/
+# Since this project is both I minimize restaints. The windows installer will come with fixed dependencies. 
 # commeted version numbers only show the last tested stable configuration
 dependencies = [
 	'asteval', # ==0.9.31

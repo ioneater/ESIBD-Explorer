@@ -1853,7 +1853,7 @@ class Device(Plugin):
                         elif widgetType == Parameter.TYPE.FLOAT:
                             dtype = np.float32
                         elif widgetType == Parameter.TYPE.BOOL:
-                            dtype = np.bool8
+                            dtype = np.bool_ # used to be bool8
                         elif widgetType == Parameter.TYPE.COLOR:
                             data = [c.getParameterByName(parameter).value for c in self.channels]
                             dtype = 'S7'
