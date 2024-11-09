@@ -605,7 +605,7 @@ class Logger(QObject):
         self.active = False
         self.lock = TimeoutLock()
         self.printFromThreadSignal.connect(self.print)
-        if qSet.value(LOGGING, 'false') == 'true':
+        if qSet.value(LOGGING, 'true') == 'true':
             self.open()
 
     def open(self):
