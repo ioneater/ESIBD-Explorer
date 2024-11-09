@@ -602,7 +602,6 @@ class Logger(QObject):
         """
         super().__init__()
         self.pluginManager = pluginManager
-        self.logFileName = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}',(Path.home() / PROGRAM_NAME / 'conf/').as_posix())) / f'{PROGRAM_NAME.lower()}.log'
         self.active = False
         self.lock = TimeoutLock()
         self.printFromThreadSignal.connect(self.print)
@@ -612,6 +611,7 @@ class Logger(QObject):
     def open(self):
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
         if not self.active:
+            self.logFileName = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}',(Path.home() / PROGRAM_NAME / 'conf/').as_posix())) / f'{PROGRAM_NAME.lower()}.log'
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self # redirect all calls to stdout and stderr to the write function of our logger

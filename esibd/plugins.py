@@ -3661,6 +3661,9 @@ class Settings(SettingsManager):
             self.loadSettings(self.defaultFile)
             QApplication.processEvents()
             self.pluginManager.DeviceManager.restoreConfiguration()
+            if self.pluginManager.logger.active:
+                self.pluginManager.logger.close() # release old log file
+                self.pluginManager.logger.open() # continue logging in new location
             splash.close()
 
     def updatePluginPath(self):
