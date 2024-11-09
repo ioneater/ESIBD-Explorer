@@ -287,12 +287,13 @@ class PluginManager():
             self.pluginNames.append(Plugin.name)
             if Plugin.name not in self.confParser: #add
                 self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.PLUGINTYPE : str(Plugin.pluginType.value),
-                                            self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes), self.DESCRIPTION : Plugin.__doc__, self.OPTIONAL : str(Plugin.optional)}
+                                            self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes),
+                                            self.DESCRIPTION : Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL : str(Plugin.optional)}
             else: # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
                 self.confParser[Plugin.name][self.PLUGINTYPE] = str(Plugin.pluginType.value)
                 self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(Plugin.previewFileTypes)
-                self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.__doc__
+                self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
                 p=self.loadPlugin(Plugin, dependencyPath=dependencyPath)
