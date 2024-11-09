@@ -28,7 +28,7 @@ class Temperature(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.addStateAction(func=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC.png'),
+        self.unitAction = self.addStateAction(func=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK.png'), attr='displayC')
 
     def finalizeInit(self, aboutFunc=None):
@@ -107,6 +107,9 @@ class Temperature(Device):
         super().updateTheme()
         self.onAction.iconFalse = self.getIcon()
         self.onAction.updateIcon(self.onAction.state) # self.on not available on start
+        self.unitAction.iconFalse = self.makeIcon('tempC_dark.png' if getDarkMode() else 'tempC_light.png')
+        self.unitAction.iconTrue = self.makeIcon('tempK_dark.png' if getDarkMode() else 'tempK_light.png')
+        self.unitAction.updateIcon(self.unitAction.state)
 
 class TemperatureChannel(Channel):
     """UI for pressure with integrated functionality"""
