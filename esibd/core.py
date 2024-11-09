@@ -2418,13 +2418,14 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.
     Adds light and dark theme support to NavigationToolbar2QT."""
 
-    def __init__(self, canvas, parentPlugin=None, coordinates=True, dark=False):
+    def __init__(self, canvas, parentPlugin=None, coordinates=True):
         super().__init__(canvas, parentPlugin, coordinates)
         self.parentPlugin = parentPlugin
-        self.updateNavToolbarTheme(dark=dark)
+        self.updateNavToolbarTheme()
 
-    def updateNavToolbarTheme(self, dark):
+    def updateNavToolbarTheme(self):
         """Changes color of icons in matplotlib navigation toolBar to match theme."""
+        dark = getDarkMode()
         for a in self.actions()[:-1]:
             match a.text():
                 case 'Home':

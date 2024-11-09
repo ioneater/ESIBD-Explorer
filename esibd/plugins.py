@@ -498,7 +498,7 @@ class Plugin(QWidget):
             self.canvas.deleteLater()
             self.navToolBar.deleteLater()
         self.canvas = FigureCanvas(figure)
-        self.navToolBar = EsibdCore.ThemedNavigationToolbar(self.canvas, parentPlugin=self, dark=getDarkMode()) # keep reference in order to reset navigation
+        self.navToolBar = EsibdCore.ThemedNavigationToolbar(self.canvas, parentPlugin=self) # keep reference in order to reset navigation
         for action in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
             if hasattr(self,'stretchAction'):
                 self.titleBar.insertAction(self.stretchAction, action)
@@ -570,7 +570,7 @@ class Plugin(QWidget):
             self.initFig()
             self.plot()
         if hasattr(self,'navToolBar') and self.navToolBar is not None:
-            self.navToolBar.updateNavToolbarTheme(getDarkMode())
+            self.navToolBar.updateNavToolbarTheme()
         if hasattr(self,'closeAction'):
             self.closeAction.setIcon(self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
         if hasattr(self,'aboutAction'):
