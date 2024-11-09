@@ -572,9 +572,9 @@ class Plugin(QWidget):
         if hasattr(self,'navToolBar') and self.navToolBar is not None:
             self.navToolBar.updateNavToolbarTheme(getDarkMode())
         if hasattr(self,'closeAction'):
-            self.closeAction.setIcon(self.makeCoreIcon('close_dark.png') if getDarkMode() else self.makeCoreIcon('close_light.png'))
+            self.closeAction.setIcon(self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
         if hasattr(self,'aboutAction'):
-            self.aboutAction.setIcon(self.makeCoreIcon('help_large_dark.png') if getDarkMode() else self.makeCoreIcon('help_large.png'))
+            self.aboutAction.setIcon(self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
 
     def initFig(self):
         """Will be called when a :ref:`display<sec:displays>` is closed and reopened or the theme
@@ -3207,10 +3207,11 @@ class Console(Plugin):
         for p in self.pluginManager.plugins: # direct access to plugins
             namespace[p.name] = p
         self.mainConsole.localNamespace=namespace
-        self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
+        self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
                                               before=self.aboutAction, func=self.toggleLogging)
-        self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, func=self.pluginManager.logger.openLog)
+        self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, func=self.pluginManager.logger.openLog)
+        self.inpectAction = self.addAction(toolTip='Inspect object.', icon=self.makeCoreIcon('zoom_to_rect_large_dark.png'), before=self.toggleLoggingAction, func=self.inspect)
         # self.addAction(toolTip='dummy', icon=self.makeCoreIcon('block.png'),func=self.pluginManager.Temperature.test, before=self.aboutAction)
 
     def runTestParallel(self):
@@ -3252,10 +3253,18 @@ class Console(Plugin):
         else:
             self.pluginManager.logger.close()
 
+    def inspect(self):
+        self.mainConsole.input.setText(f'Tree.inspect({self.mainConsole.input.text()})')
+        self.mainConsole.input.execCmd()
+        self.commonCommandsComboBox.setCurrentIndex(0)
+        self.mainConsole.input.setFocus()
+
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
         self.mainConsole.updateTheme()
+        if hasattr(self,'inpectAction'):
+            self.inpectAction.setIcon(self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'))
 
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""
