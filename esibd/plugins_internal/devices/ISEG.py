@@ -15,7 +15,9 @@ def providePlugins():
 
 class Voltage(Device):
     """Device that contains a list of voltages channels from an ISEG ECH244 power supply.
-    The voltages are monitored and a warning is given if the set potentials are not reached."""
+    The voltages are monitored and a warning is given if the set potentials are not reached.
+    In case of any issues, first make sure ISEG ECH244 and all modules are turned on, and communicating.
+    Use SNMP Control to quickly test this independent of this plugin."""
     documentation = None # use __doc__
 
     name = 'ISEG'
