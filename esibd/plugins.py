@@ -197,7 +197,7 @@ class Plugin(QWidget):
         :rtype: bool
         """
         if self.initializedDock:
-            self.print(f'Started testing for plugin {self.name}.')
+            self.print(f'Started testing for plugin {self.name} {self.version}.')
             self.testControl(self.aboutAction, True, 1)
             # ... add sequence of spaced events to trigger and test all functionality
             return True
@@ -322,8 +322,7 @@ class Plugin(QWidget):
     def requiredPlugin(self, name):
         """Displays error message if required plugin is not available."""
         if not hasattr(self.pluginManager, name):
-            self.print(f'Plugin {name} required for {self.name}', PRINT.ERROR)
-            # raise ModuleNotFoundError(f'Error: Plugin {name} required for {self.name}.')
+            self.print(f'Plugin {name} required for {self.name} {self.version}', PRINT.ERROR)
 
     def addAction(self, func=None, toolTip='', icon=None, before=None):
         """Adds a simple Action to the toolBar.

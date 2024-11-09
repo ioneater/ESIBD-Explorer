@@ -318,7 +318,7 @@ class PluginManager():
                 setattr(self.__class__, p.name, p) # use attributes to access for communication between plugins
             except Exception as e: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw
                 # No unpredicatble Exeption in a single plugin should break the whole application
-                self.logger.print(f'Could not load plugin {Plugin.name}: {e}', flag=PRINT.ERROR)
+                self.logger.print(f'Could not load plugin {Plugin.name} {Plugin.version}: {e}', flag=PRINT.ERROR)
             else:
                 self.plugins.append(p)
                 return p
@@ -334,13 +334,13 @@ class PluginManager():
         # NOTE: when using TopDockWidgetArea there is a superfluous separator on top of the statusbar
         self.mainWindow.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.topDock)
         for p in self.plugins:
-            self.logger.print(f'provideDocks {p.name}', flag=PRINT.DEBUG)
+            self.logger.print(f'provideDocks {p.name} {p.version}', flag=PRINT.DEBUG)
             if not p.pluginType in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or p.name == 'Browser':
                 # display plugins will be initialized when needed, internal plugins do not need GUI
                 try:
                     p.provideDock()
                 except Exception:
-                    self.logger.print(f'Could not load GUI of plugin {p.name}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                    self.logger.print(f'Could not load GUI of plugin {p.name} {p.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                     self.plugins.pop(self.plugins.index(p)) # avoid any further undefined interaction
                 self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
         tabBars = self.mainWindow.findChildren(QTabBar)
@@ -356,7 +356,7 @@ class PluginManager():
                 try:
                     p.finalizeInit()
                 except Exception:
-                    self.logger.print(f'Could not finalize plugin {p.name}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                    self.logger.print(f'Could not finalize plugin {p.name} {p.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                     p.closeGUI()
                     self.plugins.pop(self.plugins.index(p)) # avoid any further undefined interaction
 
@@ -462,7 +462,7 @@ class PluginManager():
                 p.closeGUI()
             except Exception: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw
                 # No unpredicatble Exeption in a single plugin should break the whole application
-                self.logger.print(f'Could not close plugin {p.name}: {traceback.format_exc()}',PRINT.ERROR)
+                self.logger.print(f'Could not close plugin {p.name} {p.version}: {traceback.format_exc()}',PRINT.ERROR)
         if reload:
             self.Explorer.print('Reloading Plugins')
             self.loadPlugins(reload=True) # restore fails if plugins have been added or removed
