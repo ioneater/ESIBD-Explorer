@@ -1076,6 +1076,9 @@ class LiveDisplay(Plugin):
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
         self.plot(apply=True)
 
+    def getIcon(self):
+        return self.device.getIcon()
+
     def runTestParallel(self):
         """:meta private:"""
         if super().runTestParallel():
