@@ -1603,9 +1603,12 @@ class Device(Plugin):
                     self.updateChannelConfig([i for n, i in confParser.items() if n not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file)
                 else: # Generate default settings file if file was not found.
                     # To update files with new parameters, simply delete the old file and the new one will be generated.
-                    self.print(f'Generating default config file {file}')
-                    for i in range(9):
-                        self.addChannel(item={Parameter.NAME : f'{self.name}{i+1}'})
+                    if self.channels == []:
+                        self.print(f'Generating default config file {file}')
+                        for i in range(9):
+                            self.addChannel(item={Parameter.NAME : f'{self.name}{i+1}'})
+                    else:
+                        self.print(f'Generating config file {file}')
                     self.exportConfiguration(file, default=True)
             else: # file.suffix == EsibdCore.FILE_H5:
                 with h5py.File(name=file, mode='r', track_order=True) as f:

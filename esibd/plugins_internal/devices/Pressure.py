@@ -92,7 +92,7 @@ class PressureChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
         # channel[self.VALUE][Parameter.INDICATOR] = False # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.WIDGETTYPE] = Parameter.TYPE.EXP # overwrite existing parameter to change to use exponent notation
-        channel[self.CONTROLLER] = parameterDict(value='None', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.CONTROLLER] = parameterDict(value=self.TIC, widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items=f'{self.TIC},{self.TPG}', attr='controller')
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
