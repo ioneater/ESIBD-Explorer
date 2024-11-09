@@ -2733,7 +2733,7 @@ class DeviceController(QObject):
             self.print(f'Attribute error, try to reinitialize communication: {e}', PRINT.ERROR)
             self.stopDelayed()
 
-    def serialRead(self, port, encoding='utf-8', EOL='\n'):
+    def serialRead(self, port, encoding='utf-8', EOL='\n', strip=None):
         """Reads a string from a serial port. Takes care of decoding messages
         from bytes and catches common exceptions.
 
@@ -2746,9 +2746,15 @@ class DeviceController(QObject):
         """
         try:
             if EOL == '\n':
-                return port.readline().decode(encoding).rstrip()
+                if strip is not None:
+                    return port.readline().decode(encoding).strip(strip).rstrip()
+                else:
+                    return port.readline().decode(encoding).rstrip()
             else: # e.g. EOL == '\r'
-                return port.read_until(EOL.encode('utf-8')).decode(encoding).rstrip()
+                if strip is not None:
+                    return port.read_until(EOL.encode(encoding)).decode(encoding).strip(strip).rstrip()
+                else:
+                    return port.read_until(EOL.encode(encoding)).decode(encoding).rstrip()
         except UnicodeDecodeError as e:
             self.print(f'Error while decoding message: {e}', PRINT.ERROR)
         except serial.SerialTimeoutException as e:
