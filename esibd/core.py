@@ -29,7 +29,7 @@ from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-import # QtWebEngineWidgets must be imported or Qt.AA_ShareOpenGLContexts must be set before a QCoreApplication instance is created
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
-                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, #QPushButton, # QStyle, QLayout,
+                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QPoint
@@ -1415,6 +1415,7 @@ class Channel(QTreeWidgetItem):
                                                     event=default[Parameter.EVENT] if Parameter.EVENT in default else None))
     HEADER      = 'HEADER'
     SELECT      = 'Select'
+    COLLAPSE    = 'Collapse'
     ENABLED     = 'Enabled'
     NAME        = 'Name'
     VALUE       = 'Value'
@@ -1438,8 +1439,10 @@ class Channel(QTreeWidgetItem):
         Overwrite in dependent classes as needed.
         """
         channel = {}
+        channel[self.COLLAPSE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
+                                    toolTip='Collapses all channels of same color below.', event=lambda : self.collapseChanged(toggle=True), attr='collapse', header= '',)
         channel[self.SELECT  ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
-                                    toolTip='Plots data as a function of selected channel.', event=lambda : self.device.channelSelection(channel = self) , attr='select')
+                                    toolTip='Plots data as a function of selected channel.', event=lambda : self.device.channelSelection(channel = self), attr='select')
         channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=self.enabledChanged, attr='enabled')
@@ -1504,7 +1507,7 @@ class Channel(QTreeWidgetItem):
     def setDisplayedParameters(self):
         """Used to determine which parameters to use and in what order.
         Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
-        self.displayedParameters = [self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.COLOR]
+        self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.COLOR]
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
@@ -1547,6 +1550,11 @@ class Channel(QTreeWidgetItem):
     def equationChanged(self):
         if not self.device.loading:
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+
+    def collapseChanged(self, toggle=True):
+        self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
+        if toggle and not self.device.loading: # otherwise only update icon
+            self.device.toggleAdvanced()
 
     def appendValue(self, lenT):
         self.values.add(x=self.value, lenT=lenT)
@@ -1591,8 +1599,10 @@ class Channel(QTreeWidgetItem):
                                 border-style: inset; border-width: 2px; border-color: 'gray';}}''')
             elif isinstance(w, QComboBox):
                 pass
+            elif isinstance(w, QPushButton):
+                w.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
-                w.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px')
+                w.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
         self.updateDisplay()
         return color
 
@@ -1645,6 +1655,14 @@ class Channel(QTreeWidgetItem):
         select.check.setMinimumWidth(5)
         select.check.setCheckable(True)
         select.value = v
+        
+        collapse = self.getParameterByName(self.COLLAPSE)        
+        v = collapse.value
+        collapse.widget = QPushButton()
+        collapse.widget.setCheckable(True)
+        collapse.widget.setStyleSheet('QPushButton{border:none;}')
+        collapse.applyWidget()
+        collapse.value = v
 
         self.updateColor()
         self.realChanged()
@@ -1884,7 +1902,7 @@ class RestoreFloatComboBox(QComboBox):
         # setattr(self.parentPlugin.__class__, self.attr, makeSettingWrapper(self.setting.fullName, self.parentPlugin.pluginManager.Settings)) # unconsistent results, overlap between instances
 
 class CheckBox(QCheckBox):
-    """Allows to set values in a widget independent consistent way."""
+    """Allows to set values in a widget in a consistent way."""
 
     class SignalCommunicate(QObject):
         setValueFromThreadSignal = pyqtSignal(bool)
@@ -1898,7 +1916,7 @@ class CheckBox(QCheckBox):
         self.setChecked(value)
 
 class ToolButton(QToolButton):
-    """Allows to set values in a widget independent consistent way."""
+    """Allows to set values in a widget in a consistent way."""
 
     class SignalCommunicate(QObject):
         setValueFromThreadSignal = pyqtSignal(bool)

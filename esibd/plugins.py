@@ -222,7 +222,7 @@ class Plugin(QWidget):
         # hirarchy: self -> mainDisplayLayout -> mainDisplayWidget -> mainLayout
         # mainDisplayLayout and mainDisplayWidget only exist to enable conversion into a dockarea
         # mainLayout contains the actual content
-        self.print('Plugin.initGUI', PRINT.DEBUG)
+        self.print('initGUI', PRINT.DEBUG)
         if not self.initializedGUI:
             if self.layout() is None: # layout will be retained even if dock is closed.
                 self.mainDisplayLayout = QVBoxLayout()
@@ -253,7 +253,7 @@ class Plugin(QWidget):
         """
         # dock should be present if this is called
         self.loading = True
-        self.print('Plugin.finalizeInit', PRINT.DEBUG)
+        self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
         self.aboutAction = self.addAction(self.about if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large.png'))
         self.floatAction = self.addStateAction(self.setFloat, 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
@@ -280,7 +280,6 @@ class Plugin(QWidget):
             self.loading = True
             self.initGUI()
             self.initDock()
-            self.print('provideDock', PRINT.DEBUG)
             if self.pluginType == PluginManager.TYPE.DEVICEMGR: # should be loaded before any other plugin
                 mw.splitDockWidget(self.pluginManager.topDock, self.dock, Qt.Orientation.Vertical) # below topDock
             elif self.pluginType == PluginManager.TYPE.LIVEDISPLAY:
@@ -307,7 +306,6 @@ class Plugin(QWidget):
                 else:
                     mw.tabifyDockWidget(self.pluginManager.firstDisplay.dock, self.dock)
             self.initializedDock = True # only true after initializing and adding dock to GUI
-            self.print('initializedDock = True', PRINT.DEBUG)
             QApplication.processEvents() # break down expensive initialization to allow update splash screens while loading
             self.loading = False
             return True # dock has been created
@@ -1068,7 +1066,7 @@ class LiveDisplay(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        self.print('finalizeInit', PRINT.DEBUG)
+        self.print('LiveDisplay.finalizeInit', PRINT.DEBUG)
         self.copyAction = self.addAction(self.copyClipboard,'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.displayTimeComboBox = EsibdCore.RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr='displayTime',
                                                         event=lambda : self.plot(apply=True), _min=.2, _max=3600,
@@ -1552,6 +1550,7 @@ class Device(Plugin):
         'After this time, data thinning will allow to retain even older data, but at lower resolution.')
 
     def toggleAdvanced(self, advanced=None):
+        self.pluginManager.logger.print(f'toggleAdvanced {self.name}', flag=PRINT.DEBUG)
         if advanced is not None:
             self.advanced = advanced
         self.importAction.setVisible(self.advanced)
@@ -1571,6 +1570,20 @@ class Device(Plugin):
         else: # INOUT.OUT:
             for c in self.channels:
                 c.setHidden(not (self.advanced or c.active or c.display))
+
+        # Collapses all channels of same color below selected channels.
+        for c in self.channels:
+            index = self.channels.index(c)
+            while True:
+                if index == 0:
+                    break
+                c_above = self.channels[index-1]
+                if c_above.color != c.color:
+                    break
+                if c_above.collapse or (c_above.isHidden() and c_above.active):
+                    c.setHidden(True)
+                    break
+                index = index-1
 
     def loadConfiguration(self, file=None, default=False):
         """Loads :class:`channel<esibd.core.Channel>` configuration from file.
@@ -1636,6 +1649,8 @@ class Device(Plugin):
             self.tree.header().setStretchLastSection(False)
             self.tree.header().setMinimumSectionSize(0)
             self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+            for c in self.channels:
+                c.collapseChanged(toggle=False)
             self.toggleAdvanced(False)
             self.tree.setUpdatesEnabled(True)
             self.loading=False
@@ -4433,6 +4448,7 @@ class Explorer(Plugin):
 
         handled = False
         for p in [p for p in self.pluginManager.plugins if p.supportsFile(self.activeFileFullPath)]:
+            self.print(f'displayContent {self.activeFileFullPath.name} using {p.name}', PRINT.DEBUG)
             p.loadData(file=self.activeFileFullPath, _show=not handled) # after widget is visible to make sure it is drawn properly
             handled = True # display first widget that supports file (others like tree or text come later and are optional)
 
