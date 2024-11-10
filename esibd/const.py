@@ -28,6 +28,11 @@ SETTINGSWIDTH   = 'SettingsWidth'
 SETTINGSHEIGHT  = 'SettingsHeight'
 CONSOLEHEIGHT   = 'ConsoleHeight'
 
+# NOTE: default paths should not be in softwarefolder as this might not have write access after installation
+defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
+defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/'
+defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
+
 # file types
 FILE_INI = '.ini'
 FILE_H5  = '.h5'
@@ -159,3 +164,24 @@ def getTestMode():
 
 def infoDict(name):
     return {PROGRAM : PROGRAM_NAME, VERSION : str(PROGRAM_VERSION), PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+def validatePath(path, default):
+    """Returns a valid path. If the path does not exist, falling back to default. If default does not exist it will be created
+    
+    :return: Valid path
+    :rtype: Path    
+    :return: Indicates if path has changed during validation
+    :rtype: bool
+    """
+    path = Path(path)
+    default = Path(default)
+    if not path.exists():
+        default = Path(default)
+        if path == default:
+            print(f'Creating {default.as_posix()}.')
+        else:
+            print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')
+        default.mkdir(parents=True, exist_ok=True)
+        return default, True
+    else:
+        return path, False

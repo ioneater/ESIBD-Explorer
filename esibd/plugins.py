@@ -3174,7 +3174,7 @@ class Console(Plugin):
         """:meta private:"""
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1) # enable hiding
-        self.historyFile = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.pluginManager.Settings.defaultConfigPath)) / 'console_history.bin'
+        self.historyFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'console_history.bin'
         self.historyFile.touch(exist_ok=True)
         # self.historyFile = open(hf,'w')
         self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
@@ -3219,7 +3219,7 @@ class Console(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
+        namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'sys':sys, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
                     'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager,
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
         for p in self.pluginManager.plugins: # direct access to plugins
@@ -3234,11 +3234,11 @@ class Console(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
-            for i in range(self.commonCommandsComboBox.count()): # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
-                if i != 0:
-                    self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
-                    time.sleep(1)
+        # if super().runTestParallel():
+        # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
+        for i in range(self.commonCommandsComboBox.count())[1:]:
+            self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
+            time.sleep(1)
 
     def triggerCombo(self, i):
         self.commonCommandsComboBox.setCurrentIndex(i)
@@ -3560,9 +3560,6 @@ class Settings(SettingsManager):
     pluginType  = PluginManager.TYPE.CONTROL
     name        = 'Settings'
     optional = False
-    # NOTE: default paths should not be in softwarefolder as this might not have write access after installation
-    defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/' # use user home dir by default
-    defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
@@ -3573,7 +3570,7 @@ class Settings(SettingsManager):
         self.confINI = f'{self.name}.ini'
         self.loadGeneralSettings = f'Load {PROGRAM_NAME} settings.'
         super().__init__(parentPlugin=self, tree=self.tree,
-                         defaultFile=Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) / self.confINI, pluginManager=pluginManager, **kwargs)
+                         defaultFile=validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
 
     def getIcon(self):
@@ -3621,19 +3618,23 @@ class Settings(SettingsManager):
     def getDefaultSettings(self):
         """Defines general default settings"""
         ds = {}
-        ds[f'{GENERAL}/{DATAPATH}']=parameterDict(value=Path.home() / PROGRAM_NAME / 'data/',
+        ds[f'{GENERAL}/{DATAPATH}']=parameterDict(value=defaultDataPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updateDataPath, attr='dataPath')
-        ds[f'{GENERAL}/{CONFIGPATH}']=parameterDict(value=self.defaultConfigPath,
+        ds[f'{GENERAL}/{CONFIGPATH}']=parameterDict(value=defaultConfigPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updateConfigPath, attr='configPath')
-        ds[f'{GENERAL}/{PLUGINPATH}']=parameterDict(value=self.defaultPluginPath,
+        ds[f'{GENERAL}/{PLUGINPATH}']=parameterDict(value=defaultPluginPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=self.updatePluginPath, attr='pluginPath')
         # validate config path before loading settings from file
-        path = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) # validate path and use default if not exists
-        if not path.exists():
-            Path(self.defaultConfigPath).mkdir(parents=True, exist_ok=True)
-            qSet.setValue(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)
-            self.defaultFile = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}', self.defaultConfigPath)) / self.confINI
-            self.print(f'Could not find path {path.as_posix()}. Defaulting to {self.defaultFile.parent.as_posix()}.', PRINT.WARNING)
+        path, changed = validatePath(qSet.value(f'{GENERAL}/{DATAPATH}', defaultDataPath), defaultDataPath)
+        if changed:
+            qSet.setValue(f'{GENERAL}/{DATAPATH}', path)
+        path, changed = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)
+        if changed:
+            qSet.setValue(f'{GENERAL}/{CONFIGPATH}', path)
+            self.defaultFile = path / self.confINI
+        path, changed = validatePath(qSet.value(f'{GENERAL}/{PLUGINPATH}', defaultPluginPath), defaultPluginPath)
+        if changed:
+            qSet.setValue(f'{GENERAL}/{PLUGINPATH}', path)
         # access using getDPI()
         ds[f'{GENERAL}/{DPI}']                    = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
                                                                 items='100, 150, 200, 300', widgetType=Parameter.TYPE.INTCOMBO)

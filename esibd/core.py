@@ -211,9 +211,9 @@ class PluginManager():
         self.loading = True # some events should not be triggered until after the UI is completely initialized
         self.closing = False
 
-        self.userPluginPath     = Path(qSet.value(f'{GENERAL}/{PLUGINPATH}',(Path.home() / PROGRAM_NAME / 'plugins/').as_posix()))
+        self.userPluginPath = validatePath(qSet.value(f'{GENERAL}/{PLUGINPATH}', defaultPluginPath), defaultPluginPath)[0]
         # self.mainWindow.configPath not yet be available -> use directly from qSet
-        self.pluginFile         = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}',(Path.home() / PROGRAM_NAME / 'conf/').as_posix())) / 'plugins.ini'
+        self.pluginFile     = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'plugins.ini'
         self.plugins = []
         self.pluginNames = []
         self.firstControl = None
@@ -364,7 +364,9 @@ class PluginManager():
     def test(self):
         """ Calls :meth:`~esibd.core.PluginManager.runTestParallel` to test most features of for all plugins."""
         self.testing = True
-        Timer(0, self.runTestParallel).start()
+        timer = Timer(0, self.runTestParallel)
+        timer.start()
+        timer.name = 'TestingThread'
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
@@ -611,7 +613,7 @@ class Logger(QObject):
     def open(self):
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
         if not self.active:
-            self.logFileName = Path(qSet.value(f'{GENERAL}/{CONFIGPATH}',(Path.home() / PROGRAM_NAME / 'conf/').as_posix())) / f'{PROGRAM_NAME.lower()}.log'
+            self.logFileName = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}',defaultConfigPath), defaultConfigPath)[0] / f'{PROGRAM_NAME.lower()}.log'
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self # redirect all calls to stdout and stderr to the write function of our logger
@@ -1280,15 +1282,18 @@ class Setting(QTreeWidgetItem, Parameter):
         Finally executes setting specific event if applicable."""
         if not self._parent.loading:
             if self.widgetType == self.TYPE.PATH:
-                path = Path(self.value) # validate path and use default if not exists
-                if not path.exists():
-                    default = Path(self.default)
-                    if path == default:
-                        self.print(f'Creating {default.as_posix()}.')
-                    else:
-                        self.print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.', PRINT.WARNING)
-                    default.mkdir(parents=True, exist_ok=True)
-                    self.value = default
+                path, changed = validatePath(self.value, self.default)
+                if changed:
+                    self.value = path
+                # Path(self.value) # validate path and use default if not exists TODO delete
+                # if not path.exists():
+                #     default = Path(self.default)
+                #     if path == default:
+                #         self.print(f'Creating {default.as_posix()}.')
+                #     else:
+                #         self.print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.', PRINT.WARNING)
+                #     default.mkdir(parents=True, exist_ok=True)
+                #     self.value = default
             elif not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
                 if self._valueChanged:
                     self._valueChanged = False # reset and continue event loop
