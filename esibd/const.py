@@ -87,6 +87,8 @@ class PRINT(Enum):
     """Tag message as error and highlight using color."""
     DEBUG = 3
     """Only show if debug flag is enabled."""
+    EXPLORER = 4
+    """Key messages by Explorer"""
 
 def makeSettingWrapper(name, settingsMgr, docstring=None):
     """ Neutral setting wrapper for convenient access to the value of a setting.

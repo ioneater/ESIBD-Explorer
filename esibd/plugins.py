@@ -3251,7 +3251,7 @@ class Console(Plugin):
             self.mainConsole.input.setFocus()
 
     def write(self, message):
-        # writes to integrated console to keep track of message history
+        """Writes to integrated console to keep track of message history."""
         # avoid using self.mainConsole.repl.write() because stdout is already handled by core.Logger
         if self.initializedDock:
             if current_thread() is main_thread():

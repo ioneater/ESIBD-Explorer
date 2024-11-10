@@ -164,7 +164,7 @@ class PluginManager():
     def __init__(self):
         self.mainWindow = QApplication.instance().mainWindow
         self.logger = Logger(pluginManager=self)
-        self.logger.print('Loading.')
+        self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath     = None
         self.pluginFile         = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
@@ -256,7 +256,7 @@ class PluginManager():
         self.mainWindow.setUpdatesEnabled(True)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
-        self.logger.print('Ready.')
+        self.logger.print('Ready.',flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path):
         for _dir in [_dir for _dir in path.iterdir() if _dir.is_dir()]:
@@ -450,7 +450,7 @@ class PluginManager():
 
     def closePlugins(self, reload=False):
         """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
-        self.logger.print('Closing.')
+        self.logger.print('Closing.',flag=PRINT.EXPLORER)
         if reload:
             self.splash = SplashScreen()
             self.splash.show()
@@ -605,6 +605,8 @@ class Logger(QObject):
         self.pluginManager = pluginManager
         self.active = False
         self.lock = TimeoutLock()
+        self.purgeTo = 8000
+        self.purgeLimit = 10000
         self.printFromThreadSignal.connect(self.print)
         if qSet.value(LOGGING, 'true') == 'true':
             self.open()
@@ -616,7 +618,8 @@ class Logger(QObject):
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self # redirect all calls to stdout and stderr to the write function of our logger
-            self.log = open(self.logFileName, 'w', encoding=UTF8) # pylint: disable=consider-using-with # keep file open instead of reopening for every new line
+            self.purge()
+            self.log = open(self.logFileName, 'a', encoding=UTF8) # pylint: disable=consider-using-with # keep file open instead of reopening for every new line
             self.active = True
 
     def openLog(self):
@@ -634,6 +637,7 @@ class Logger(QObject):
                 self.terminalOut.write(message) # write to original stdout
             with self.lock.acquire_timeout(2) as acquired:
                 if acquired:
+                    self.purge()
                     self.log.write(message) # write to log file
                     self.log.flush()
                 # else: cannot print without using recursion
@@ -642,6 +646,14 @@ class Logger(QObject):
             # handles new lines in system error messages better than Console.repl.write()
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
+
+    def purge(self):     
+        with open(self.logFileName, 'r', encoding=UTF8) as original:
+            lines = original.readlines()
+        if len(lines) > self.purgeLimit:
+            with open(self.logFileName, 'w', encoding=UTF8) as purged:
+                for l in lines[-self.purgeTo:]:
+                    purged.write(l)
 
     def print(self, message, sender=f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, console, statusbar, and console.
@@ -663,6 +675,9 @@ class Logger(QObject):
             flagstring = '⚠️'
         elif flag == PRINT.ERROR:
             flagstring = '❌'
+            flagstring = '⚠️'
+        elif flag == PRINT.EXPLORER:
+            flagstring = '❖'
         else:
             flagstring = 'ℹ️'
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
@@ -2372,7 +2387,8 @@ class IconStatusBar(QStatusBar):
         self.icon_warning = BetterIcon(internalMediaPath / 'unicode_warning.png')
         self.icon_error   = BetterIcon(internalMediaPath / 'unicode_error.png')
         self.icon_info    = BetterIcon(internalMediaPath / 'unicode_info.png')
-        self.setIcon(self.icon_info)
+        self.icon_explorer= BetterIcon(PROGRAM_ICON)
+        self.setIcon(self.icon_explorer)
 
         self._statusLabel = QLabel()
         self._statusLabel.setMinimumWidth(1) # allow ignoring the size hint
@@ -2391,6 +2407,8 @@ class IconStatusBar(QStatusBar):
                 self.setIcon(self.icon_warning)
             case PRINT.ERROR:
                 self.setIcon(self.icon_error)
+            case PRINT.EXPLORER:
+                self.setIcon(self.icon_explorer)
             case _:
                 self.setIcon(self.icon_info)
 
