@@ -29,9 +29,9 @@ from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-import # QtWebEngineWidgets must be imported or Qt.AA_ShareOpenGLContexts must be set before a QCoreApplication instance is created
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
-                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, # QStyle, QLayout,
+                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
-                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
+                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QStyle)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
@@ -63,8 +63,7 @@ class EsibdExplorer(QMainWindow):
         self.addAction(self.actionFull_Screen) # action only works when added to a widget
         self.maximized  = False
         self.loadPluginsSignal.connect(self.loadPlugins)
-        # self.statusLabel = QLabel()
-        # self.statusBar().addWidget(self.statusLabel)
+        self.setStatusBar(IconStatusBar())
         QTimer.singleShot(0, self.loadPluginsSignal.emit) # let event loop start before loading plugins
 
     def loadPlugins(self):
@@ -660,23 +659,21 @@ class Logger(QObject):
             return
         if flag == PRINT.DEBUG and not getShowDebug():
             return
-        flagstring = ''
-        styleSheet = 'color : white;' if getDarkMode() else 'color : black;'
         if flag == PRINT.WARNING:
-            flagstring = ' warning'
-            styleSheet = 'color : orange;' if getDarkMode() else 'color : orangered;'
+            flagstring = '⚠️'
         elif flag == PRINT.ERROR:
-            flagstring = ' error'
-            styleSheet = 'color : red;'
-        message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}{flagstring}: {message}"
+            flagstring = '❌'
+        else:
+            flagstring = 'ℹ️'
+        message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
+        message        = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {flagstring} {sender}: {message}"
         if self.active:
             print(message) # redirects to write if active
         else:
             print(message) # only to stdout if not active
             self.write(f'\n{message}') # call explicitly
-        # self.pluginManager.mainWindow.statusLabel.setText('test')
-        self.pluginManager.mainWindow.statusBar().showMessage(message)
-        self.pluginManager.mainWindow.statusBar().setStyleSheet(styleSheet)
+        self.pluginManager.mainWindow.statusBar().showMessage(message_status)
+        self.pluginManager.mainWindow.statusBar().setFlag(flag)
 
     def flush(self):
         """Flushes content to log file."""
@@ -2347,7 +2344,55 @@ class TextEdit(QPlainTextEdit):
         cr = self.cursorRect()
         cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
         self._completer.complete(cr)
-    ####################################################################
+
+
+class IconStatusBar(QStatusBar):
+    iconClicked = pyqtSignal(bool)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setStyleSheet('''
+            QStatusBar { color: transparent; }
+            QToolButton#statusBarIconWidget { border: none; }
+        ''')
+
+        self._iconWidget = QToolButton(objectName='statusBarIconWidget')
+        # self._iconWidget.setEnabled(False) # indicator only
+        self.addWidget(self._iconWidget)
+        # add direct references to the icon functions
+        self.icon = self._iconWidget.icon
+        self.setIcon = self._iconWidget.setIcon
+        # force the button to always show the icon, even if the 
+        # current style default is different
+        self._iconWidget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+
+        # just set an arbitrary icon
+        # self.icon_message = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
+        # self.icon_error = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
+        # self.icon_warning = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+        self.icon_warning = BetterIcon(internalMediaPath / 'unicode_warning.png')
+        self.icon_error   = BetterIcon(internalMediaPath / 'unicode_error.png')
+        self.icon_info    = BetterIcon(internalMediaPath / 'unicode_info.png')
+        self.setIcon(self.icon_info)
+
+        self._statusLabel = QLabel()
+        self._statusLabel.setMinimumWidth(1) # allow ignoring the size hint
+        self.addWidget(self._statusLabel)
+
+        # self.messageChanged.connect(self._updateStatus)
+
+    def showMessage(self, message, msecs = ...):
+        # ignore internal statusbar which would overlay with our custom label
+        self._statusLabel.setText(message)
+
+
+    def setFlag(self, flag=PRINT.MESSAGE):
+        match flag:
+            case PRINT.WARNING:
+                self.setIcon(self.icon_warning)
+            case PRINT.ERROR:
+                self.setIcon(self.icon_error)
+            case _:
+                self.setIcon(self.icon_info)
 
 class NumberBar(QWidget):
     """A bar that displays line numbers of an associated editor."""
