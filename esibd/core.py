@@ -1642,7 +1642,7 @@ class Channel(QTreeWidgetItem):
             else:
                 self.getParameterByName(name).value = default[self.VALUE]
                 if not name in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
-                    self.print(f'Added missing parameter {name} to channel {self.name} using default value {default[self.VALUE]}.')
+                    self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.device.channelsChanged = True
 
         line = self.getParameterByName(self.EQUATION).line
