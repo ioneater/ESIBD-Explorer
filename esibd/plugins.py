@@ -4164,6 +4164,7 @@ class Explorer(Plugin):
         self.root = None
         self.notesFile = None
         self.displayContentSignal.connect(self.displayContent)
+        self.populating = False
 
     def getIcon(self):
         """:meta private:"""
@@ -4388,6 +4389,7 @@ class Explorer(Plugin):
 
     def populateTree(self, clear=False):
         """Populates or updates filetree."""
+        self.populating = True
         if clear: # otherwise existing tree will be updated (much more efficient)
             self.tree.clear()
         # update navigation arrows
@@ -4411,6 +4413,7 @@ class Explorer(Plugin):
             if it.value().isExpanded():
                 self.load_project_structure(startpath=it.value().path_info, tree=it.value(), _filter=self.filterLineEdit.text(), clear=clear) # populate expanded dirs, independent of recursion depth
             it +=1
+        self.populating = False
 
     def browseDir(self):
         newPath = Path(QFileDialog.getExistingDirectory(parent=None, caption=self.SELECTPATH, directory=self.root.as_posix(),
@@ -4446,7 +4449,8 @@ class Explorer(Plugin):
         Handling for a few general formats is implemented as well.
         For text based formats the text is also shown in the Text tab for quick access if needed.
         The actual handling is redirected to dedicated methods."""
-
+        if self.populating: # avoid trigger display during filtering
+            return
         handled = False
         for p in [p for p in self.pluginManager.plugins if p.supportsFile(self.activeFileFullPath)]:
             self.print(f'displayContent {self.activeFileFullPath.name} using {p.name}', PRINT.DEBUG)
