@@ -1512,7 +1512,7 @@ class Channel(QTreeWidgetItem):
                                         items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
         # NOTE: avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
-        channel[self.COLOR   ] = parameterDict(value='#ffffff', widgetType=Parameter.TYPE.COLOR, advanced=True,
+        channel[self.COLOR   ] = parameterDict(value='#b3b3b3', widgetType=Parameter.TYPE.COLOR, advanced=True,
                                     event=self.updateColor, attr='color')
         if self.inout == INOUT.IN:
             channel[self.MIN     ] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,

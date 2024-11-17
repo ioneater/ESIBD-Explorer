@@ -1715,14 +1715,6 @@ class ChannelManager(Plugin):
         self.channelPlot.raiseDock(True)
         self.channelPlot.plot()
 
-    def updateTheme(self):
-        """:meta private:"""
-        super().updateTheme()
-        if self.staticDisplayActive():
-            self.staticDisplay.updateTheme()
-        if self.liveDisplayActive():
-            self.liveDisplay.updateTheme()
-
     def close(self):
         if self.channelConfigChanged(default=True) or self.channelsChanged:
             self.exportConfiguration(default=True)
@@ -2220,7 +2212,14 @@ class Device(ChannelManager):
     def getUnit(self):
         """Overwrite if you want to change units dynamically."""
         return self.unit
-
+    
+    def updateTheme(self):
+        """:meta private:"""
+        super().updateTheme()
+        if self.staticDisplayActive():
+            self.staticDisplay.updateTheme()
+        if self.liveDisplayActive():
+            self.liveDisplay.updateTheme()
 
 class Scan(Plugin):
     """:class:`Scans<esibd.plugins.Scan>` are all sort of measurements that record any number of outputs as a
@@ -4635,7 +4634,6 @@ class UCM(ChannelManager):
     inout = None # Not applicable here as showing both input and output channels with very minimal logic
     maxDataPoints = 0 # UCM channels do not store data
     useBackgrounds = False
-    liveDisplayActive = False
 
     class UCMChannel(Channel):
         """Minimal UI for abstract channel."""
