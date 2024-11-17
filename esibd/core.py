@@ -1058,53 +1058,34 @@ class Parameter():
         :type changedEvent: func"""
         self._changedEvent=changedEvent
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
-            if self._changedEvent is None:
-                self.combo.currentIndexChanged.disconnect()
-            else:
-                self.combo.currentIndexChanged.connect(self._changedEvent)
+            self.safeConnect(self.combo, self.combo.currentIndexChanged, self._changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
-            if self._changedEvent is None:
-                self.line.editingFinished.disconnect()
-            else:
-                self.line.editingFinished.connect(self._changedEvent)
+            self.safeConnect(self.line,self.line.editingFinished,self._changedEvent)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.instantUpdate:
                 # by default trigger events on every change, not matter if through user interface or software
-                if self._changedEvent is None:
-                    self.spin.valueChanged.disconnect()
-                else:
-                    self.spin.valueChanged.connect(self._changedEvent) 
+                self.safeConnect(self.spin, self.spin.valueChanged, self._changedEvent) 
             else:
-                # trigger events only when changed via user interface
-                if self._changedEvent is None:
-                    self.spin.valueChanged.disconnect()
-                    self.spin.editingFinished.disconnect()
-                else:
-                    self.spin.valueChanged.connect(self.setValueChanged)
-                    self.spin.editingFinished.connect(self._changedEvent)
+                self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
+                self.safeConnect(self.spin, self.spin.editingFinished, self._changedEvent)
         elif self.widgetType == self.TYPE.BOOL:
             if isinstance(self.check, QCheckBox):
-                if self._changedEvent is None:
-                    self.check.stateChanged.disconnect()
-                else:
-                    self.check.stateChanged.connect(self._changedEvent)
+                self.safeConnect(self.check, self.check.stateChanged, self._changedEvent)
             elif isinstance(self.check, QAction):
-                if self._changedEvent is None:
-                    self.check.toggled.disconnect()
-                else:
-                    self.check.toggled.connect(self._changedEvent)
+                self.safeConnect(self.check, self.check.toggled, self._changedEvent)
             else: #isinstance(self.check, QToolButton)
-                if self._changedEvent is None:
-                    self.check.clicked.disconnect()
-                else:
-                    self.check.clicked.connect(self._changedEvent)
+                self.safeConnect(self.check, self.check.clicked, self._changedEvent)
         elif self.widgetType == self.TYPE.COLOR:
-            if self._changedEvent is None:
-                self.colBtn.sigColorChanged.disconnect()
-            else:
-                self.colBtn.sigColorChanged.connect(self._changedEvent)
+            self.safeConnect(self.colBtn, self.colBtn.sigColorChanged, self._changedEvent)
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             pass # self.label.changeEvent.connect(self._changedEvent) # no change events for labels
+
+    def safeConnect(self, control, signal, event):
+        # make sure there is never more than one event assigned to a signal
+        if control.receivers(signal) > 0:
+            signal.disconnect()
+        if event is not None:
+            signal.connect(event)
 
     def setValueChanged(self):
         self._valueChanged = True
@@ -1512,7 +1493,7 @@ class Channel(QTreeWidgetItem):
                                         items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
         # NOTE: avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
-        channel[self.COLOR   ] = parameterDict(value='#b3b3b3', widgetType=Parameter.TYPE.COLOR, advanced=True,
+        channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
                                     event=self.updateColor, attr='color')
         if self.inout == INOUT.IN:
             channel[self.MIN     ] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
@@ -2149,6 +2130,7 @@ class BetterDockWidget(QDockWidget):
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # - some of these are possibe with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
+    # TODO option to use plugin icons instead of text in tabs not currently possible?!
 
     class SignalCommunicate(QObject):
         dockClosingSignal = pyqtSignal()

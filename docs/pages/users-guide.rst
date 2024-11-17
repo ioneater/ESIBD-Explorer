@@ -434,8 +434,8 @@ Console
 ESIBD specific plugins
 ----------------------
 
-The following plugins are specific for ESIBD experiments but may be very
-similar to what is needed for other applications. If you do ESIBD
+The following plugins are used for ESIBD experiments but may be very
+similar or identical to what is needed for other applications. If you do ESIBD
 experiments, make sure to get familiar with those plugins, otherwise
 consider using them as templates for your own custom plugins. See :ref:`sec:plugin_system` for
 more information.

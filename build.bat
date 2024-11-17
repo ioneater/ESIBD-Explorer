@@ -84,6 +84,7 @@ pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/
 REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi 
 REM python -m esibd.reset # clear registry settings to emulate fresh install
 python -m esibd.explorer
+REM activate all plugins for testing!
 REM test software using PluginManager.test()
 REM test software PluginManager.test() with hardware!
 REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing

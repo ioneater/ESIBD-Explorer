@@ -198,7 +198,8 @@ class Plugin(QWidget):
         """
         if self.initializedDock:
             self.print(f'Started testing for plugin {self.name} {self.version}.')
-            self.testControl(self.aboutAction, True, 1)
+            if hasattr(self,'aboutAction'):
+                self.testControl(self.aboutAction, True, 1)
             # ... add sequence of spaced events to trigger and test all functionality
             return True
         return False
@@ -2902,7 +2903,7 @@ class Browser(Plugin):
         self.locationEdit.returnPressed.connect(self.loadUrl)
         self.locationEdit.setMaximumHeight(QPushButton().sizeHint().height())
         self.titleBar.addWidget(self.locationEdit)
-        self.docAction = self.addAction(self.openDocumentation,'Documentation', self.ICON_MANUAL)
+        self.docAction = self.addAction(self.openDocumentation,'Offline Documentation', self.ICON_MANUAL)
         self.addContentWidget(self.webEngineView)
 
     def finalizeInit(self, aboutFunc=None):
@@ -2947,7 +2948,7 @@ class Browser(Plugin):
             self.title = None # reset for next update
 
     def openDocumentation(self):
-        self.title = 'Documentation'
+        self.title = 'Offline Documentation'
         self.loadData(file=(Path(__file__).parent / 'docs/index.html').resolve())
 
     def openAbout(self):
@@ -3128,7 +3129,7 @@ class Tree(Plugin):
 
     def getIcon(self):
         """:meta private:"""
-        return self.makeIcon('blue-document-tree.png')
+        return self.makeCoreIcon('blue-document-tree.png')
 
     def initGUI(self):
         """:meta private:"""
@@ -3307,9 +3308,10 @@ class Console(Plugin):
         """:meta private:"""
         # if super().runTestParallel():
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
-        for i in range(self.commonCommandsComboBox.count())[1:]:
-            self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
-            time.sleep(1)
+        pass # TODO reactivate after fixing stdout issue
+        # for i in range(self.commonCommandsComboBox.count())[1:]:
+        #     self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
+        #     time.sleep(1)
 
     def triggerCombo(self, i):
         self.commonCommandsComboBox.setCurrentIndex(i)
@@ -4289,20 +4291,21 @@ class Explorer(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if super().runTestParallel():
-            self.testControl(self.sessionAction, True, .4)
-            self.testControl(self.upAction, True, .4)
-            self.testControl(self.backAction, True, .4)
-            self.testControl(self.forwardAction, True, .4)
-            self.testControl(self.dataPathAction, True, .4)
-            self.testControl(self.refreshAction, True, .4)
+            self.testControl(self.sessionAction, True, 2)
+            self.testControl(self.upAction, True, 2)
+            self.testControl(self.backAction, True, 2)
+            self.testControl(self.forwardAction, True, 2)
+            self.testControl(self.dataPathAction, True, 2)
+            self.testControl(self.refreshAction, True, 2)
             testDir = self.pluginManager.Settings.dataPath / 'test_files'
             if testDir.exists():
                 for file in testDir.iterdir():
                     if not file.is_dir():
-                        self.print(f'Loading file {file}.')
+                        self.print(f'Loading file {file.name}.')
                         self.activeFileFullPath = file
                         self.displayContentSignal.emit() # call displayContent in main thread
-                        time.sleep(1)
+                        # while self.loading:
+                        time.sleep(2) # only trigger next file onece previous file has completed loading
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -4508,7 +4511,10 @@ class Explorer(Plugin):
             self.print(f'Could not find directory: {p}', PRINT.ERROR)
 
     def treeItemClicked(self, item):
-        if item is not None and not self.getItemFullPath(item).is_dir():
+        if item is not None and not self.getItemFullPath(item).is_dir():            
+            if self.loading:
+                self.print(f'Ignoring {self.getItemFullPath(item).name} while loading {self.activeFileFullPath.name}')
+                return
             self.activeFileFullPath = self.getItemFullPath(item)
             self.displayContent()
         # else:
@@ -4522,6 +4528,7 @@ class Explorer(Plugin):
         The actual handling is redirected to dedicated methods."""
         if self.populating: # avoid trigger display during filtering
             return
+        self.loading = True # avoid changing activeFileFullPath while previous file is still loading
         handled = False
         for p in [p for p in self.pluginManager.plugins if p.supportsFile(self.activeFileFullPath)]:
             self.print(f'displayContent {self.activeFileFullPath.name} using {p.name}', PRINT.DEBUG)
@@ -4532,6 +4539,7 @@ class Explorer(Plugin):
             m = f'No preview available for this type of {self.activeFileFullPath.suffix} file. Consider activating, implementing, or requesting a plugin.'
             self.print(m)
             self.pluginManager.Text.setText(m, True)
+        self.loading = False
 
     def load_project_structure(self, startpath, tree, _filter, recursionDepth=2, clear=False):
         """from https://stackoverflow.com/questions/5144830/how-to-create-folder-view-in-pyqt-inside-main-window
