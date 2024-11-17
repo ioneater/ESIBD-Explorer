@@ -28,8 +28,8 @@ class Temperature(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.unitAction = self.addStateAction(func=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC.png'),
-                                               toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK.png'), attr='displayC')
+        self.unitAction = self.addStateAction(func=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
+                                               toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
     def finalizeInit(self, aboutFunc=None):
         # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self

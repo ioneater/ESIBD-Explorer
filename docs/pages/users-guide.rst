@@ -445,19 +445,31 @@ more information.
 ISEG
 ~~~~
 
-.. automodule:: esibd.plugins_internal.devices.ISEG.Voltage
+.. automodule:: esibd.plugins_internal.ISEG.ISEG.Voltage
    :noindex:
 
 RBD
 ~~~
 
-.. automodule:: esibd.plugins_internal.devices.RBD.Current
+.. automodule:: esibd.plugins_internal.RBD.RBD.Current
    :noindex:
 
 Pressure
 ~~~~~~~~
 
-.. automodule:: esibd.plugins_internal.devices.Pressure.Pressure
+.. automodule:: esibd.plugins_internal.Pressure.Pressure.Pressure
+   :noindex:
+
+TIC
+~~~~~~~~
+
+.. automodule:: esibd.plugins_internal.TIC.TIC.TIC
+   :noindex:
+
+MAXIGAUGE
+~~~~~~~~
+
+.. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
    :noindex:
 
 .. _`sec:Temperature`:
@@ -465,9 +477,9 @@ Pressure
 Temperature
 ~~~~~~~~~~~
 
-.. automodule:: esibd.plugins_internal.devices.Temperature.Temperature
+.. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
    :noindex:
-
+   
 Beam
 ~~~~
 

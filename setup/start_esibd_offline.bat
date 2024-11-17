@@ -4,11 +4,11 @@ REM Otherwise, please use the provided standalone excecutable.
 
 REM Go to location of offline environment
 REM Extract all file created using create_esibd_offline.bat here if not already done
-call cd C:\Users\srgroup\AppData\Local\miniconda3\envs\esibd
+call cd C:\Users\UserName\AppData\Local\miniconda3\envs\esibd
 REM Activate the esibd environment
 call .\Scripts\activate.bat
 REM Change to the location where the ESIBD-Explorer project is mirrored
-call cd C:/Users/srgroup/Desktop/ESIBD_Explorer/ESIBD_Explorer
+call cd C:\path\to\ESIBD_Explorer\ESIBD_Explorer
 REM Start ESIBD-Explorer
 call python start.py
 REM exit

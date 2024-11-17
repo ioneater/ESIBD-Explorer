@@ -260,7 +260,7 @@ class Plugin(QWidget):
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
-            self.closeAction = self.addAction(self.closeUserGUI, 'Close.', self.makeCoreIcon('close.png'))
+            self.closeAction = self.addAction(self.closeUserGUI, 'Close.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
         QApplication.processEvents() # required to allow adding dock to tab before self.dock.toggleTitleBar()
         self.dock.toggleTitleBar() # will show titleBarLabel only if not tabbed or floating
         self.updateTheme()
@@ -539,16 +539,9 @@ class Plugin(QWidget):
         return self.makeCoreIcon('document.png')
 
     def makeCoreIcon(self, file):
-        """Returns an icon based on a filename. Looks for files in the internal media folder.
+        return self.makeIcon(file=file, path=internalMediaPath)
 
-        :param file: Icon file name.
-        :type file: str
-        :return: Icon
-        :rtype: :class:`~esibd.core.BetterIcon`
-        """
-        return EsibdCore.BetterIcon(internalMediaPath / file)
-
-    def makeIcon(self, file):
+    def makeIcon(self, file, path=None):
         """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
 
         :param file: Icon file name.
@@ -556,7 +549,10 @@ class Plugin(QWidget):
         :return: Icon
         :rtype: :class:`~esibd.core.BetterIcon`
         """
-        return EsibdCore.BetterIcon(str(self.dependencyPath / file))
+        iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
+        if not iconPath.exists():
+            self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.WARNING)
+        return EsibdCore.BetterIcon(iconPath)
 
     def updateTheme(self):
         """Changes between dark and light themes. Most
@@ -4226,10 +4222,10 @@ class Explorer(Plugin):
         self.ICON_HOME           = self.makeCoreIcon('home.png')
         self.ICON_SESSION        = self.makeCoreIcon('book-open-bookmark.png')
         self.ICON_DOCUMENT       = self.makeCoreIcon('document.png')
-        self.ICON_BACKWARD       = self.makeCoreIcon('arrow-180')
+        self.ICON_BACKWARD       = self.makeCoreIcon('arrow-180.png')
         self.ICON_FORWARD        = self.makeCoreIcon('arrow.png')
         self.ICON_UP             = self.makeCoreIcon('arrow-090.png')
-        self.ICON_BACKWARD_GRAY  = self.makeCoreIcon('arrow_gray-180')
+        self.ICON_BACKWARD_GRAY  = self.makeCoreIcon('arrow_gray-180.png')
         self.ICON_FORWARD_GRAY   = self.makeCoreIcon('arrow_gray.png')
         self.ICON_UP_GRAY        = self.makeCoreIcon('arrow_gray-090.png')
         self.ICON_REFRESH        = self.makeCoreIcon('arrow-circle-315.png')
@@ -4622,7 +4618,11 @@ class Explorer(Plugin):
         self.populateTree(clear=True)
 
 class UCM(ChannelManager):
-    """Unified Channel Manager (UCM) allows to specify a custom list of channels from all devices.
+    """Unified Channel Manager (UCM) allows to specify a custom list of channels from all :class:`~esibd.plugins.Device`s.
+    This allows to have the most relevant controls and information in one place.
+    All logic remains within the corresponding device plugins. This is just an interface!
+    To get started, simply add channels and name them after existing channels from other devices."""
+    documentation = """Unified Channel Manager (UCM) allows to specify a custom list of channels from all devices.
     This allows to have the most relevant controls and information in one place.
     All logic remains within the corresponding device plugins. This is just an interface!
     To get started, simply add channels and name them after existing channels from other devices."""
