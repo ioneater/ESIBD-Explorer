@@ -675,9 +675,8 @@ class Logger(QObject):
             flagstring = '⚠️'
         elif flag == PRINT.ERROR:
             flagstring = '❌'
-            flagstring = '⚠️'
         elif flag == PRINT.EXPLORER:
-            flagstring = '❖'
+            flagstring = ' ❖'
         else:
             flagstring = 'ℹ️'
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
@@ -1053,26 +1052,57 @@ class Parameter():
         return self._changedEvent
     @changedEvent.setter
     def changedEvent(self, changedEvent):
+        """Assign events to the corresponding controls.
+
+        :param changedEvent: Function to be connected. Disconnect previous function if None
+        :type changedEvent: func"""
         self._changedEvent=changedEvent
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
-            self.combo.currentIndexChanged.connect(self._changedEvent)
+            if self._changedEvent is None:
+                self.combo.currentIndexChanged.disconnect()
+            else:
+                self.combo.currentIndexChanged.connect(self._changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
-            self.line.editingFinished.connect(self._changedEvent)
+            if self._changedEvent is None:
+                self.line.editingFinished.disconnect()
+            else:
+                self.line.editingFinished.connect(self._changedEvent)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.instantUpdate:
-                self.spin.valueChanged.connect(self._changedEvent) # by default trigger events on every change, not matter if through user interface or software
+                # by default trigger events on every change, not matter if through user interface or software
+                if self._changedEvent is None:
+                    self.spin.valueChanged.disconnect()
+                else:
+                    self.spin.valueChanged.connect(self._changedEvent) 
             else:
-                self.spin.valueChanged.connect(self.setValueChanged)
-                self.spin.editingFinished.connect(self._changedEvent) # trigger events only when changed via user interface
+                # trigger events only when changed via user interface
+                if self._changedEvent is None:
+                    self.spin.valueChanged.disconnect()
+                    self.spin.editingFinished.disconnect()
+                else:
+                    self.spin.valueChanged.connect(self.setValueChanged)
+                    self.spin.editingFinished.connect(self._changedEvent)
         elif self.widgetType == self.TYPE.BOOL:
             if isinstance(self.check, QCheckBox):
-                self.check.stateChanged.connect(self._changedEvent)
+                if self._changedEvent is None:
+                    self.check.stateChanged.disconnect()
+                else:
+                    self.check.stateChanged.connect(self._changedEvent)
             elif isinstance(self.check, QAction):
-                self.check.toggled.connect(self._changedEvent)
+                if self._changedEvent is None:
+                    self.check.toggled.disconnect()
+                else:
+                    self.check.toggled.connect(self._changedEvent)
             else: #isinstance(self.check, QToolButton)
-                self.check.clicked.connect(self._changedEvent)
+                if self._changedEvent is None:
+                    self.check.clicked.disconnect()
+                else:
+                    self.check.clicked.connect(self._changedEvent)
         elif self.widgetType == self.TYPE.COLOR:
-            self.colBtn.sigColorChanged.connect(self._changedEvent)
+            if self._changedEvent is None:
+                self.colBtn.sigColorChanged.disconnect()
+            else:
+                self.colBtn.sigColorChanged.connect(self._changedEvent)
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             pass # self.label.changeEvent.connect(self._changedEvent) # no change events for labels
 
@@ -1297,15 +1327,6 @@ class Setting(QTreeWidgetItem, Parameter):
                 path, changed = validatePath(self.value, self.default)
                 if changed:
                     self.value = path
-                # Path(self.value) # validate path and use default if not exists TODO delete
-                # if not path.exists():
-                #     default = Path(self.default)
-                #     if path == default:
-                #         self.print(f'Creating {default.as_posix()}.')
-                #     else:
-                #         self.print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.', PRINT.WARNING)
-                #     default.mkdir(parents=True, exist_ok=True)
-                #     self.value = default
             elif not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
                 if self._valueChanged:
                     self._valueChanged = False # reset and continue event loop
@@ -1395,8 +1416,10 @@ class Channel(QTreeWidgetItem):
        Use :meth:`~esibd.core.Channel.getValues` to get a plain numpy.array."""
     backgrounds : DynamicNp
     """List of backgrounds. Only defined if corresponding device uses backgrounds."""
+    relay : bool
+    """If True, this channel is merely a relay to another channel, e.g. used to display or control parameters from another area in the GUI."""
 
-    def __init__(self, device, tree):
+    def __init__(self, device, tree, relay=False):
         super().__init__() # need to init without tree, otherwise channels will always appended to the end when trying to change order using insertTopLevelItem
         self.device = device
         self.print = device.print
@@ -1409,6 +1432,7 @@ class Channel(QTreeWidgetItem):
         self.parameters = []
         self.displayedParameters = []
         self.values = DynamicNp(max_size=self.device.maxDataPoints)
+        self.relay = relay
         if self.device.useBackgrounds:
             self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
 
@@ -1492,11 +1516,11 @@ class Channel(QTreeWidgetItem):
                                     event=self.updateColor, attr='color')
         if self.inout == INOUT.IN:
             channel[self.MIN     ] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
-                                    event=self.updateMin, attr='min')
+                                    event=self.updateMin, attr='min', header='Min       ')
             channel[self.MAX     ] = parameterDict(value=+50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
-                                    event= self.updateMax, attr='max')
+                                    event= self.updateMax, attr='max', header='Max       ')
             channel[self.OPTIMIZE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
-                                    header='O', toolTip='Selected channels will be optimized using GA', attr='optimize')
+                                    header='O', toolTip='Selected channels will be optimized using GA.', attr='optimize')
         else:
             channel[self.VALUE][Parameter.INDICATOR] = True
             channel[self.NAME][Parameter.EVENT] = self.updateDisplay
@@ -1657,11 +1681,12 @@ class Channel(QTreeWidgetItem):
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.device.channelsChanged = True
 
-        line = self.getParameterByName(self.EQUATION).line
-        line.setMinimumWidth(200)
-        f = line.font()
-        f.setPointSize(8)
-        line.setFont(f)
+        if not self.relay:
+            line = self.getParameterByName(self.EQUATION).line
+            line.setMinimumWidth(200)
+            f = line.font()
+            f.setPointSize(8)
+            line.setFont(f)
 
         select = self.getParameterByName(self.SELECT)
         v = select.value
@@ -1680,18 +1705,24 @@ class Channel(QTreeWidgetItem):
         collapse.widget.setStyleSheet('QPushButton{border:none;}')
         collapse.applyWidget()
         collapse.value = v
+        collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
 
-        self.updateColor()
-        self.realChanged()
-        if self.inout == INOUT.IN:
-            self.updateMin()
-            self.updateMax()
+        if not self.relay:
+            self.updateColor()
+            self.realChanged()
+            if self.inout == INOUT.IN:
+                self.updateMin()
+                self.updateMax()
 
     def updateMin(self):
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
 
     def updateMax(self):
         self.getParameterByName(self.VALUE).spin.setMaximum(self.max)
+
+    def onDelete(self):
+        """Extend to handle events on deleting. E.g. handle references that should remain available."""
+        pass
 
 #################################### Other Custom Widgets #########################################
 

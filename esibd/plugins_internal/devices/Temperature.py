@@ -101,7 +101,7 @@ class Temperature(Device):
 
     def apply(self, apply=False): # pylint: disable = unused-argument # keep default signature
         for c in self.channels:
-            c.setTemperature() # only actually sets voltage if configured and value has changed
+            c.setTemperature() # only actually sets temperature if configured and value has changed
 
     def updateTheme(self):
         super().updateTheme()
@@ -118,15 +118,6 @@ class TemperatureChannel(Channel):
         super().__init__(**kwargs)
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
         self.defaultStyleSheet = None # will be initialized when color is set
-
-    def initGUI(self, item):
-        super().initGUI(item)
-        _min = self.getParameterByName(self.MIN)
-        _min.spin.setMinimum(-5000)
-        _min.spin.setMaximum(5000)
-        _max = self.getParameterByName(self.MAX)
-        _max.spin.setMinimum(-5000)
-        _max.spin.setMaximum(5000)
 
     MONITOR   = 'Monitor'
     CONTROLER = 'Controler'
@@ -152,7 +143,7 @@ class TemperatureChannel(Channel):
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.init()
 
-    def setTemperature(self): # this actually sets the voltage on the powersupply!
+    def setTemperature(self): # this actually sets the temperature on the controller!
         if self.real:
             self.device.controller.setTemperature(self)
 
@@ -172,7 +163,7 @@ class TemperatureChannel(Channel):
 
 class TemperatureController(DeviceController):
     # need to inherit from QObject to allow use of signals
-    """Implements serial communication with RBD 9103.
+    """Implements serial communication.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     def __init__(self, device):
@@ -293,8 +284,8 @@ class TemperatureController(DeviceController):
         return np.random.uniform(0, 400)
 
     def updateValue(self):
-        for c, p in zip(self.device.channels, self.temperatures):
-            c.monitor = p
+        for c, t in zip(self.device.channels, self.temperatures):
+            c.monitor = t
 
     def cryoON(self, on=False):
         self.ON = on

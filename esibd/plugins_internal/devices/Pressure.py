@@ -23,14 +23,14 @@ class Pressure(Device):
     class LiveDisplay(LiveDisplay):
 
         def initGUI(self):
+            self.logY = True
             super().initGUI()
-            self.livePlotWidget.setLogMode(False, True)
 
     class StaticDisplay(StaticDisplay):
 
         def initGUI(self):
+            self.logY = True
             super().initGUI()
-            self.staticPlotWidget.setLogMode(False, True)
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -90,7 +90,6 @@ class PressureChannel(Channel):
         """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
-        # channel[self.VALUE][Parameter.INDICATOR] = False # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.WIDGETTYPE] = Parameter.TYPE.EXP # overwrite existing parameter to change to use exponent notation
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items=f'{self.TIC},{self.TPG}', attr='controller')
@@ -197,7 +196,7 @@ class PressureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.pressures = [0]*len(self.device.channels)
+        self.pressures = [np.nan]*len(self.device.channels)
         super().initComplete()
         if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
@@ -257,7 +256,7 @@ class PressureController(DeviceController):
 
     def fakeNumbers(self):
         for i, p in enumerate(self.pressures):
-            self.pressures[i] = self.rndPressure() if p == 0 else p*np.random.uniform(.99, 1.01) # allow for small fluctuation
+            self.pressures[i] = self.rndPressure() if np.isnan(p) else p*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         exp = np.random.randint(-11, 3)

@@ -44,7 +44,7 @@ UTF8    = 'utf-8'
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class Colors():
-    """Provides dark mode dependant defaul colors."""
+    """Provides dark mode dependent defaul colors."""
 
     @property
     def fg(self):
