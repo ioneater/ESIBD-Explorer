@@ -461,13 +461,13 @@ Pressure
    :noindex:
 
 TIC
-~~~~~~~~
+~~~
 
 .. automodule:: esibd.plugins_internal.TIC.TIC.TIC
    :noindex:
 
 MAXIGAUGE
-~~~~~~~~
+~~~~~~~~~
 
 .. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
    :noindex:

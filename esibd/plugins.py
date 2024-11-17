@@ -4784,11 +4784,6 @@ class UCM(ChannelManager):
         self.importAction.setToolTip('Import channels.')
         self.exportAction.setToolTip('Export channels.')
 
-    def finalizeInit(self, aboutFunc=None):
-        super().finalizeInit(aboutFunc)
-        for c in self.channels:
-            c.connectSource()
-
     def moveChannel(self, up):
         newChannel = super().moveChannel(up)
         if newChannel is not None:
