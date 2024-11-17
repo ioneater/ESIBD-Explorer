@@ -4618,7 +4618,7 @@ class Explorer(Plugin):
         self.populateTree(clear=True)
 
 class UCM(ChannelManager):
-    """Unified Channel Manager (UCM) allows to specify a custom list of channels from all :class:`~esibd.plugins.Device`s.
+    """Unified Channel Manager (UCM) allows to specify a custom list of channels from all :class:`devices<esibd.plugins.Device>`.
     This allows to have the most relevant controls and information in one place.
     All logic remains within the corresponding device plugins. This is just an interface!
     To get started, simply add channels and name them after existing channels from other devices."""
