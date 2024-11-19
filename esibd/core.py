@@ -367,10 +367,15 @@ class PluginManager():
         timer.start()
         timer.name = 'TestingThread'
 
+    def stopTest(self):
+        self.testing = False
+
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
         for p in self.plugins:
             p.runTestParallel()
+            if not self.testing:
+                break
         time.sleep(10)
         self.testing = False
 
@@ -1553,11 +1558,15 @@ class Channel(QTreeWidgetItem):
             self.print(f'Could not find parameter {name}.', PRINT.WARNING)
         return p
 
-    def asDict(self):
-        """Returns a dictionary containing all channel parameters and their values."""
+    def asDict(self, temp=False):
+        """Returns a dictionary containing all channel parameters and their values.
+        
+        :param temp: If true, dict will contain temporary parameters
+        :type temp: bool, optional        
+        """
         d = {}
         for p in self.parameters:
-            if p.name not in self.tempParameters():
+            if temp or p.name not in self.tempParameters():
                 d[p.name] = p.value
         return d
 

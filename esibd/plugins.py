@@ -135,6 +135,7 @@ class Plugin(QWidget):
             self.dependencyPath = dependencyPath
         self.dataClipboardIcon = self.makeCoreIcon('clipboard-paste-document-text.png')
         self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
+        self.testing=False
 
     def print(self, message, flag=PRINT.MESSAGE):
         """The print function will send a message to stdout, the statusbar, the
@@ -163,7 +164,11 @@ class Plugin(QWidget):
 
     def test(self):
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
+        self.testing=True
         Timer(0, self.runTestParallel).start()
+
+    def stopTest(self):
+        self.testing=False
 
     def testControl(self, control, value, delay=0):
         """Changes control states and triggers corresponding events."""
@@ -196,6 +201,8 @@ class Plugin(QWidget):
         :return: Returns True if the plugin is initialized and further tests can be executed.
         :rtype: bool
         """
+        if current_thread() is main_thread():
+            self.print('This should be run in a parallel thread to prevent unpredictable behavior.', flag=PRINT.WARNING)
         if self.initializedDock:
             self.print(f'Started testing for plugin {self.name} {self.version}.')
             if hasattr(self,'aboutAction'):
@@ -1441,14 +1448,14 @@ class ChannelManager(Plugin):
                 confParser = configparser.ConfigParser()
                 confParser[INFO] = infoDict(self.name)
                 for i, channel in enumerate(self.channels):
-                    confParser[f'{self.CHANNEL}_{i:03d}'] = channel.asDict()
+                    confParser[f'{self.CHANNEL}_{i:03d}'] = channel.asDict(temp=True)
                 with open(file,'w', encoding=self.UTF8) as configfile:
                     confParser.write(configfile)
             else: # h5
                 with h5py.File(file,'a', track_order=True) as f:
                     self.hdfUpdateVersion(f)
                     g = self.requireGroup(f, self.name)
-                    for parameter in self.channels[0].asDict():
+                    for parameter in self.channels[0].asDict(temp=True):
                         if parameter in g:
                             self.print(f'Ignoring duplicate parameter {parameter}', PRINT.WARNING)
                             continue
@@ -1556,8 +1563,6 @@ class ChannelManager(Plugin):
                         items[i][Parameter.NAME] = name
                     default = self.channelType(device=self, tree=None)
                     for name, parameter in default.getSortedDefaultChannel().items():
-                        if name in default.tempParameters():
-                            continue # temp parameters are not saved
                         values = None
                         if parameter[Parameter.WIDGETTYPE] in [Parameter.TYPE.INT, Parameter.TYPE.FLOAT]:
                             values = g[name]
@@ -3268,7 +3273,7 @@ class Console(Plugin):
             "Text.inspect(Energy) # more detailed methods and attributes",
             "timeit.timeit('Beam.plot(update=True, done=False)', number=100, globals=globals()) # time execution of plotting",
             "chan = DeviceManager.getChannelByName('RT_Frontplate', inout=INOUT.IN) # get specific input channel",
-            "chan.asDict() # Returns list of channel parameters and their value.",
+            "chan.asDict(temp=True) # Returns list of channel parameters and their value.",
             "chan = DeviceManager.getChannelByName('RT_Detector', inout=INOUT.OUT) # get specific output channel",
             "chan.getParameterByName(chan.ENABLED).getWidget().height() # get property of specific channel",
             "param = chan.getParameterByName(chan.ENABLED) # get specific channel parameter",
@@ -3310,6 +3315,8 @@ class Console(Plugin):
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
         pass # TODO reactivate after fixing stdout issue
         # for i in range(self.commonCommandsComboBox.count())[1:]:
+        #     if not self.testing:
+        #         break
         #     self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
         #     time.sleep(1)
 
@@ -3888,9 +3895,13 @@ class DeviceManager(Plugin):
             self.testControl(self.recordingAction, True, 1)
             self.testControl(self.exportAction, True, 2)
             for d in self.getDevices():
+                if not self.testing:
+                    break
                 if hasattr(d,'onAction'):
                     self.testControl(d.onAction, True, 1)
             for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
+                if not self.testing:
+                    break
                 self.print(f'Starting scan {s.name}.')
                 self.testControl(s.recordingAction, True, 0)
             time.sleep(10) # allow for scans to finish before testing next plugin
@@ -4238,6 +4249,7 @@ class Explorer(Plugin):
         self.notesFile = None
         self.displayContentSignal.connect(self.displayContent)
         self.populating = False
+        self.loadingContent = False
 
     def getIcon(self):
         """:meta private:"""
@@ -4301,11 +4313,14 @@ class Explorer(Plugin):
             if testDir.exists():
                 for file in testDir.iterdir():
                     if not file.is_dir():
+                        if not self.testing:
+                            break
                         self.print(f'Loading file {file.name}.')
                         self.activeFileFullPath = file
                         self.displayContentSignal.emit() # call displayContent in main thread
-                        # while self.loading:
-                        time.sleep(2) # only trigger next file onece previous file has completed loading
+                        time.sleep(2)
+                        if not self.testing:
+                            break
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -4528,7 +4543,7 @@ class Explorer(Plugin):
         The actual handling is redirected to dedicated methods."""
         if self.populating: # avoid trigger display during filtering
             return
-        self.loading = True # avoid changing activeFileFullPath while previous file is still loading
+        self.loadingContent = True # avoid changing activeFileFullPath while previous file is still loading
         handled = False
         for p in [p for p in self.pluginManager.plugins if p.supportsFile(self.activeFileFullPath)]:
             self.print(f'displayContent {self.activeFileFullPath.name} using {p.name}', PRINT.DEBUG)
@@ -4539,7 +4554,7 @@ class Explorer(Plugin):
             m = f'No preview available for this type of {self.activeFileFullPath.suffix} file. Consider activating, implementing, or requesting a plugin.'
             self.print(m)
             self.pluginManager.Text.setText(m, True)
-        self.loading = False
+        self.loadingContent = False
 
     def load_project_structure(self, startpath, tree, _filter, recursionDepth=2, clear=False):
         """from https://stackoverflow.com/questions/5144830/how-to-create-folder-view-in-pyqt-inside-main-window
