@@ -43,7 +43,7 @@ class TIC(Device):
         ds = super().getDefaultSettings()
         ds[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
         ds[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='TICCOM')
+                                          widgetType=Parameter.TYPE.COMBO, attr='COM')
         ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return ds
 
@@ -133,7 +133,7 @@ class PressureController(DeviceController):
         else:
             self.initializing = True
             try:
-                self.TICport=serial.Serial(
+                self.port=serial.Serial(
                     f'{self.device.COM}',
                     baudrate=9600,
                     bytesize=serial.EIGHTBITS,
@@ -201,11 +201,11 @@ class PressureController(DeviceController):
             c.value = p
 
     def TICWrite(self, _id):
-        self.serialWrite(self.TICport, f'?V{_id}\r')
+        self.serialWrite(self.port, f'?V{_id}\r')
 
     def TICRead(self):
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
-        return self.serialRead(self.TICport, EOL='\r')
+        return self.serialRead(self.port, EOL='\r')
 
     def TICWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""

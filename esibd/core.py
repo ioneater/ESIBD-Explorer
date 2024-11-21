@@ -1248,7 +1248,7 @@ class Parameter():
         elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.FLOATCOMBO]:
             return self.value == float(value)
         elif self.widgetType == self.TYPE.EXP:
-            return f'{self.value:.2e}' == f'{value:.2e}'
+            return f'{self.value:.2e}' == f'{float(value):.2e}'
         elif self.widgetType == self.TYPE.COLOR:
             return self.value == value.name() if isinstance(value, QColor) else self.value == value
         elif self.widgetType in [self.TYPE.TEXT, self.TYPE.LABEL, self.TYPE.PATH]:

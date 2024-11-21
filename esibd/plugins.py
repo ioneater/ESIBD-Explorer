@@ -1671,6 +1671,8 @@ class ChannelManager(Plugin):
                 changeLog.append(f'Adding channel {item[Parameter.NAME]}')
             else:
                 for name in default.getSortedDefaultChannel():
+                    if name in channel.tempParameters():
+                        continue
                     parameter = channel.getParameterByName(name)
                     if name in item and not parameter.equals(item[name]):
                         if parameter.indicator and ignoreIndicators:
@@ -1992,7 +1994,9 @@ class Device(ChannelManager):
             self.hdfUpdateVersion(f)
             self.appendOutputData(f, default=default)
         self.print(f'Stored data in {file.name}')
-        if not default:
+        if default:
+            self.exportConfiguration(file=file)
+        else:
             self.pluginManager.DeviceManager.exportConfiguration(file=file) # save corresponding device settings in measurement file
             self.pluginManager.Explorer.populateTree()
 
@@ -4069,11 +4073,10 @@ class DeviceManager(Plugin):
     def store(self):
         """Regularly stores device settings and data to minimize loss in the event of a program crash.
         Make sure that no GUI elements are accessed when running from parallel thread!"""
-        # NOTE: deamon=True is not used to prevent the unlikely case where the thread is terminated halve way through because the program is closing.
+        # NOTE: deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
         # NOTE: scan and plugin settings are already saved as soon as they are changing
         if self.restoreData:
             for d in self.getDevices():
-                Thread(target=d.exportConfiguration, kwargs={'default':True}, name=f'{d.name} exportConfigurationThread').start()
                 Thread(target=d.exportOutputData, kwargs={'default':True}, name=f'{d.name} exportOutputDataThread').start()
 
     def toggleRecording(self):
