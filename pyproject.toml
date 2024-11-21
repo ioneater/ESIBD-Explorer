@@ -18,7 +18,10 @@ dependencies = [
 	'keyboard', # ==0.13.5
 	'matplotlib', # ==3.8.2
 	'contourpy==1.2.1',
+	'nidaqmx',
 	'numpy', # ==1.26.2
+    'pfeiffer-vacuum-protocol',
+	'picosdk',
 	'openpyxl', # ==3.1.2
 	'PyOpenGL', # ==3.1.7
 	'pyperclip', # ==1.8.2
@@ -29,10 +32,12 @@ dependencies = [
 	'python-pptx', # ==0.6.23
 	'pyserial', # ==3.5
 	'python-socketio', # ==5.10.0
+	'pyvisa',
 	'pywin32; sys_platform == "win32"', # ==306
 	'pyqtgraph==0.13.7', 
 	'scipy', # ==1.11.4
 	'Send2Trash', # ==1.8.2
+	'simple_pid',
 ]
 authors = [
   { name = "ioneater", email = "ioneater.dev@gmail.com" },

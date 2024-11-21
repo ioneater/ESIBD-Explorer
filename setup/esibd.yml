@@ -5,34 +5,40 @@ channels:
   - defaults
 dependencies:
   - python==3.11
-  - pyinstaller
-  - numpy
-  - biopython
-  - scipy
-  - asteval
-  - configparser
-  - keyboard
-  - pyperclip
-  - python-socketio
-  - pyserial
-  - pywin32 
-  - Send2Trash
   - pip
   - pip:
-    - sphinx
+    - asteval
+    - biopython
+    - configobj
+    - configparser
+    - h5py
+    - keyboard
     - matplotlib
     - contourpy==1.2.1
-    - h5py
-    - configobj
-    - pylint
+    - nidaqmx
+    - numpy
     - openpyxl
-    - python-pptx
+    - pfeiffer-vacuum-protocol
+    - picosdk
+    - PyOpenGL
+    - pyperclip
     - pyqt6==6.6
     - pyqt6-qt6==6.6
     - pyqt6-webengine==6.6
     - pyqt6-webengine-qt6==6.6
+    - python-pptx
+    - pyserial
+    - python-socketio
+    - pyvisa
+    - pywin32 
     - pyqtgraph==0.13.7
-    - PyOpenGL
+    - scipy
+    - Send2Trash
+    - simple_pid
+    # packages for deployment
+    - pylint
+    - pyinstaller
+    - sphinx
     - sphinx_rtd_theme 
     - sphinxcontrib-bibtex
     - sphinx-copybutton

@@ -216,21 +216,21 @@ class PressureController(DeviceController):
 
     def TPGWrite(self, message):
         # return
-        #self.TPGport.write(bytes(f'{message}\r','ascii'))
-        #ack = self.TPGport.readline()
+        #self.port.write(bytes(f'{message}\r','ascii'))
+        #ack = self.port.readline()
         #self.print(f"ACK: {ack}") # b'\x06\r\n' means ACK or acknowledgment b'\x15\r\n' means NAK or not acknowledgment
-        self.serialWrite(self.TPGport, f'{message}\r', encoding='ascii')
-        self.serialRead(self.TPGport, encoding='ascii') # read acknowledgment
+        self.serialWrite(self.port, f'{message}\r', encoding='ascii')
+        self.serialRead(self.port, encoding='ascii') # read acknowledgment
 
     def TPGRead(self):
         # return 'none'
-        #self.TPGport.write(bytes('\x05\r','ascii')) # \x05 is equivalent to ENQ or enquiry
-        #enq = self.TPGport.readlines() # response followed by NAK
+        #self.port.write(bytes('\x05\r','ascii')) # \x05 is equivalent to ENQ or enquiry
+        #enq = self.port.readlines() # response followed by NAK
         #self.print(f"enq: {enq}") # read acknowledgment
         #return enq[0].decode('ascii').rstrip()
-        self.serialWrite(self.TPGport, '\x05\r', encoding='ascii') # Enquiry propts sending return from previously send mnemonic
-        enq =  self.serialRead(self.TPGport, encoding='ascii') # response
-        self.serialRead(self.TPGport, encoding='ascii') # followed by NAK
+        self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry propts sending return from previously send mnemonic
+        enq =  self.serialRead(self.port, encoding='ascii') # response
+        self.serialRead(self.port, encoding='ascii') # followed by NAK
         return enq
 
     def TPGWriteRead(self, message):
