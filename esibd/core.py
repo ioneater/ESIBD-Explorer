@@ -2553,8 +2553,33 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                 case 'Save':
                     a.setIcon(self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png'))
 
-    def save_figure(self, *args):
-        super().save_figure(*args)
+    def save_figure(self, *args):        
+        limits = []
+        if getDarkMode() and not getClipboardTheme():
+            # use default light theme for clipboard
+            with mpl.style.context('default'):
+                for ax in self.parentPlugin.axes:
+                    limits.append((ax.get_xlim(), ax.get_ylim()))
+                self.parentPlugin.initFig() # canvas, figure, and, ThemedNavigationToolbar will be replaced after this
+                # reconnect new canvas to old instance of ThemedNavigationToolbar to complete saving
+                super().__init__(self.parentPlugin.canvas, self.parentPlugin, self.coordinates)
+                self.parentPlugin.plot()
+                for i, ax in enumerate(self.parentPlugin.axes):
+                    ax.set_xlim(limits[i][0])
+                    ax.set_ylim(limits[i][1])
+                self.canvas.draw_idle()
+                QApplication.processEvents()
+                super().save_figure(*args)
+        else:
+            super().save_figure(*args)
+        if getDarkMode() and not getClipboardTheme():
+            # restore dark theme for use inside app
+            self.parentPlugin.initFig()
+            self.parentPlugin.plot()
+            for i, ax in enumerate(self.parentPlugin.axes):
+                ax.set_xlim(limits[i][0])
+                ax.set_ylim(limits[i][1])
+            self.canvas.draw_idle()
         self.parentPlugin.pluginManager.Explorer.populateTree() # show saved file in Explorer
 
 class MZCaculator():
@@ -2588,9 +2613,10 @@ class MZCaculator():
             self.addMZ(event.xdata, event.ydata)
 
     def addMZ(self, x, y):
-        self.mz = np.append(self.mz, x)
-        self.intensity = np.append(self.intensity, y)
-        self.determine_mass_to_charge()
+        if x is not None and y is not None:
+            self.mz = np.append(self.mz, x)
+            self.intensity = np.append(self.intensity, y)
+            self.determine_mass_to_charge()
 
     def clear(self):
         self.mz = np.array([])

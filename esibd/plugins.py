@@ -2792,7 +2792,7 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
         """Steps through input values, records output values, and triggers plot update.
         Executed in runThread. Will likely need to be adapted for custom scans."""
         steps = list(itertools.product(*[i.data for i in self.inputs]))
-        self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:02}. Estimated time: {self.scantime}')
+        self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps): # scan over all steps
             waitlong = False
             for j, _input in enumerate(self.inputs):
@@ -3786,7 +3786,8 @@ class Settings(SettingsManager):
     def updateDPI(self):
         for w in self.pluginManager.plugins:
             if hasattr(w,'fig') and w.fig is not None:
-                w.fig.set_dpi(self.dpi)
+                w.fig.set_dpi(getDPI())
+                w.plot()
 
     def getMeasurementFileName(self, extension):
         fullSessionPath = Path(*[self.dataPath, self.sessionPath])

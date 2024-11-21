@@ -446,7 +446,7 @@ class Spectra(Beam):
         Executed in runThread. Will likely need to be adapted for custom scans."""
         # definition of steps updated to scan along x instead of y axis.
         steps = [t[::-1] for t in list(itertools.product(*[i.data for i in [self.inputs[1],self.inputs[0]]]))]
-        self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:02}. Estimated time: {self.scantime}')
+        self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps): # scan over all steps
             waitlong = False
             for j, _input in enumerate(self.inputs):
@@ -922,7 +922,7 @@ plt.show()
                     self.signalComm.scanUpdateSignal.emit(False) # update graph
         else:
             steps = self.inputs[0].data
-            self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:02}. Estimated time: {self.scantime}')
+            self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
             for i, step in enumerate(steps): # scan over all steps
                 waitlong = False
                 if not waitlong and abs(self.inputs[0].channel.value-step) > self.largestep:
@@ -1058,9 +1058,12 @@ class Depo(Scan):
             elif not c.enabled and c.real:
                 self.print(f'{c.name} is not enabled.', PRINT.WARNING)
             else:
-                c.resetCharge()
                 self.outputs.append(MetaChannel(name=f'{c.name}', data=DynamicNp(), unit=c.device.unit, channel=c))
-                self.outputs.append(MetaChannel(name=f'{c.name}_{self.CHARGE}', data=DynamicNp(), unit='pAh', channel=c))
+                if hasattr(c, 'resetCharge'):
+                    c.resetCharge()
+                    self.outputs.append(MetaChannel(name=f'{c.name}_{self.CHARGE}', data=DynamicNp(), unit='pAh', channel=c))
+                else:
+                    self.outputs.append(MetaChannel(name=f'{c.name}_dummy', data=DynamicNp(), unit='pAh', channel=c))
         if len(self.outputs) > 0:
             self.inputs.append(MetaChannel(name=self.TIME, data=DynamicNp(dtype=np.float64)))
             self.measurementsPerStep = max(int((self.average/self.interval))-1, 1)
