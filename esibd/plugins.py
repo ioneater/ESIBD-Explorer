@@ -211,6 +211,16 @@ class Plugin(QWidget):
             # ... add sequence of spaced events to trigger and test all functionality
             return True
         return False
+    
+    def waitForCondition(self, condition, interval=0.1, timeout=10):
+        """Waits until condition returns false or timeout expires."""
+        start = time.time()
+        while condition():
+            if time.time() - start < timeout:
+                time.sleep(interval)
+            else:
+                return False
+        return True
 
     def addToolbarStretch(self):
         self.stretchAction = QAction() # dummy to allow adding actions in front of stretch later on
@@ -593,7 +603,7 @@ class Plugin(QWidget):
             plt.close(self.fig)
             self.fig = None
         if self.fig is None:
-            self.fig = plt.figure(constrained_layout=True, dpi=getDPI())
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
             self.makeFigureCanvasWithToolbar(self.fig)
             self.addContentWidget(self.canvas)
         else:
@@ -754,7 +764,7 @@ class StaticDisplay(Plugin):
 
     def initFig(self):
         """:meta private:"""
-        self.fig=plt.figure(constrained_layout=True, dpi=getDPI())
+        self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
         self.makeFigureCanvasWithToolbar(self.fig)
         self.outputLayout.addWidget(self.canvas)
         self.axes = []
@@ -3284,6 +3294,7 @@ class Console(Plugin):
             "chan.getParameterByName(chan.VALUE).getWidget().setStyleSheet('background-color:red;') # test widget styling",
             "[p.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for p in chan.parameters]",
             "PluginManager.showThreads() # show all active threads",
+            "[plt.figure(num).get_label() for num in plt.get_fignums()] # show all active matplotlib figures",
             "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
             "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
         ])
@@ -4304,12 +4315,13 @@ class Explorer(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if super().runTestParallel():
-            self.testControl(self.sessionAction, True, 2)
-            self.testControl(self.upAction, True, 2)
-            self.testControl(self.backAction, True, 2)
-            self.testControl(self.forwardAction, True, 2)
-            self.testControl(self.dataPathAction, True, 2)
-            self.testControl(self.refreshAction, True, 2)
+            for action in [self.sessionAction,self.upAction,self.backAction,self.forwardAction,self.dataPathAction,self.refreshAction]:
+                if not self.testing:
+                    break
+                self.populating = True
+                self.testControl(action, True)
+                if not self.waitForCondition(condition=lambda : self.populating):
+                    self.print(f'Timeout reached wile testing {action.objectName()}')
             testDir = self.pluginManager.Settings.dataPath / 'test_files'
             if testDir.exists():
                 for file in testDir.iterdir():
@@ -4319,9 +4331,9 @@ class Explorer(Plugin):
                         self.print(f'Loading file {file.name}.')
                         self.activeFileFullPath = file
                         self.displayContentSignal.emit() # call displayContent in main thread
-                        time.sleep(2)
-                        if not self.testing:
-                            break
+                        self.loadingContent = True
+                        if not self.waitForCondition(condition=lambda : self.loadingContent):
+                            self.print(f'Timeout reached wile displaying content of {self.activeFileFullPath.name}')
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -4528,7 +4540,7 @@ class Explorer(Plugin):
 
     def treeItemClicked(self, item):
         if item is not None and not self.getItemFullPath(item).is_dir():            
-            if self.loading:
+            if self.loadingContent:
                 self.print(f'Ignoring {self.getItemFullPath(item).name} while loading {self.activeFileFullPath.name}')
                 return
             self.activeFileFullPath = self.getItemFullPath(item)

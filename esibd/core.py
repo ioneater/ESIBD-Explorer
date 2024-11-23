@@ -374,6 +374,7 @@ class PluginManager():
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
+        self.logger.print('Starting testing all plugins.', flag=PRINT.MESSAGE)
         for p in self.plugins:
             p.runTestParallel()
             if not self.testing:

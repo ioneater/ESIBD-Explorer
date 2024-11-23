@@ -13,6 +13,7 @@ from esibd.core import EsibdExplorer, PROGRAM_NAME, PROGRAM_VERSION
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format
 mpl.rcParams['savefig.bbox']  = 'tight' # trim white space by default (also when saving from toolBar)
+mpl.rcParams['figure.max_open_warning']  = 50 # not uncommon to exeed the default of 20 when using multiple plugins
 warnings.filterwarnings("ignore" , message='constrained_layout') # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
 
 def main():
