@@ -72,10 +72,11 @@ class MS(Plugin):
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self):
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.dataAction, True, 1)
             self.testControl(self.paperAction, not self.usePaperStyle, 1)
+        super().runTestParallel()
 
     def supportsFile(self, file):
         if super().supportsFile(file):
@@ -261,9 +262,10 @@ class LINE(Plugin):
         self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.line), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
     def runTestParallel(self):
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.dataAction, True, 1)
+        super().runTestParallel()
 
     def supportsFile(self, file):
         if super().supportsFile(file):

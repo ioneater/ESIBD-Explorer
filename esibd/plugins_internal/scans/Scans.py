@@ -86,9 +86,10 @@ class Beam(Scan):
             self.axes[-1].cursor = None
 
         def runTestParallel(self):
-            if super().runTestParallel():
+            if self.initializedDock:
                 self.testControl(self.interpolateAction, not self.interpolate, 1)
                 self.testControl(self.axesAspectAction, not self.varAxesAspect, 1)
+            # super().runTestParallel() # handled by scan
 
         def updateTheme(self):
             if self.axesAspectAction is not None:

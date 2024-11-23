@@ -368,18 +368,22 @@ class PluginManager():
         timer = Timer(0, self.runTestParallel)
         timer.start()
         timer.name = 'TestingThread'
+        self.Console.mainConsole.input.setText('PluginManager.stopTest()') # prepare to stop
 
     def stopTest(self):
         self.testing = False
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
-        self.logger.print('Starting testing all plugins.', flag=PRINT.MESSAGE)
+        self.logger.print('Start testing all plugins.', flag=PRINT.MESSAGE)
         for p in self.plugins:
+            self.logger.print(f'Starting testing for {p.name} {p.version}.', flag=PRINT.MESSAGE)
+            p.testing = True
             p.runTestParallel()
+            if not p.waitForCondition(condition=lambda : p.testing, timeout=100):                
+                self.logger.print(f'Timeout reached wile testing {p.name}', flag=PRINT.MESSAGE)
             if not self.testing:
                 break
-        time.sleep(10)
         self.testing = False
 
     def showThreads(self):

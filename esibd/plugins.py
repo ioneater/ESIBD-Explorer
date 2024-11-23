@@ -197,23 +197,21 @@ class Plugin(QWidget):
 
     def runTestParallel(self):
         """Runs a series of tests by changing values of selected controls and triggering the corresponding events.
-        Extend to add more plugin specific tests.
-
-        :return: Returns True if the plugin is initialized and further tests can be executed.
-        :rtype: bool
-        """
-        if current_thread() is main_thread():
-            self.print('This should be run in a parallel thread to prevent unpredictable behavior.', flag=PRINT.WARNING)
-        if self.initializedDock:
-            self.print(f'Started testing for plugin {self.name} {self.version}.')
-            if hasattr(self,'aboutAction'):
-                self.testControl(self.aboutAction, True, 1)
-            # ... add sequence of spaced events to trigger and test all functionality
-            return True
-        return False
+        Extend and add call to super().runTestParallel() to the end to ,ake sure testing flag is set to False!
+        """        
+        # ... add sequence of spaced events to trigger and test all functionality
+        self.testing = False
     
     def waitForCondition(self, condition, interval=0.1, timeout=10):
-        """Waits until condition returns false or timeout expires."""
+        """Waits until condition returns false or timeout expires.
+                
+        :param condition: will wait while condition returns True
+        :type condition: callable
+        :param interval: wait interval seconds before checking condition
+        :type interval: float
+        :param timeout: timeout in seconds
+        :type timeout: float
+        """
         start = time.time()
         while condition():
             if time.time() - start < timeout:
@@ -763,10 +761,21 @@ class StaticDisplay(Plugin):
         self.initData()
 
     def initFig(self):
-        """:meta private:"""
-        self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
-        self.makeFigureCanvasWithToolbar(self.fig)
-        self.outputLayout.addWidget(self.canvas)
+        """:meta private:"""        
+        if self.fig is not None and ((
+                plt.rcParams['axes.facecolor'] == 'black' and self.fig.get_facecolor() == (1.0, 1.0, 1.0, 1.0)) # should be black but is white
+                or (plt.rcParams['axes.facecolor'] == 'white' and self.fig.get_facecolor() == (0.0, 0.0, 0.0, 1.0))): # should be white but is black
+            # need to create new fig to change matplotlib style
+            plt.close(self.fig)
+            self.fig = None
+        if self.fig is None:
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
+            self.makeFigureCanvasWithToolbar(self.fig)
+            self.outputLayout.addWidget(self.canvas)
+        else:
+            self.fig.clf() # reuse if possible
+            self.fig.set_constrained_layout(True)
+            self.fig.set_dpi(getDPI())
         self.axes = []
         self.axes.append(self.fig.add_subplot(111))
 
@@ -786,11 +795,12 @@ class StaticDisplay(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.plotEfficientAction, not self.plotEfficient, 1)
             if self.parentPlugin.useBackgrounds:
                 self.testControl(self.backgroundAction, not self.subtractStaticBackground, 1)
+        # super().runTestParallel() handled by device
 
     def copyClipboard(self):
         """Extends matplotlib based version to add support for pyqtgraph."""
@@ -1105,12 +1115,13 @@ class LiveDisplay(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             # init, start, pause, stop acquisition will be tested by instManager
             if self.device.useBackgrounds:
                 self.testControl(self.backgroundAction, not self.subtractLiveBackground, 1)
             # self.testControl(self.clearHistoryAction, True, 1) # keep history, test manually for dummy devices if applicable
             self.testControl(self.exportAction, True, 1)
+        # super().runTestParallel() handled by device
 
     def copyClipboard(self):
         """Extends matplotlib based version to add support for pyqtgraph."""
@@ -1307,8 +1318,9 @@ class ChannelManager(Plugin):
             self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
         def runTestParallel(self):
-            if super().runTestParallel():
+            if self.initializedDock:
                 self.testControl(self.copyAction, True, 1)
+            # super().runTestParallel() handled by channelmanager
 
         def plot(self):
             """Plots current values from all real :class:`channels<esibd.core.Channel>`."""
@@ -1888,8 +1900,10 @@ class Device(ChannelManager):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
+            if hasattr(self,'onAction'):
+                self.testControl(self.onAction, True, 1)
             if self.staticDisplayActive():
                 self.staticDisplay.runTestParallel()
             if self.liveDisplayActive():
@@ -1908,6 +1922,7 @@ class Device(ChannelManager):
                 self.testControl(self.plotAction, True, 1)
                 if hasattr(self,'onAction'):
                     self.testControl(self.onAction, True, 1)
+        self.testing = False
 
     def intervalChanged(self):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
@@ -2376,8 +2391,9 @@ class Scan(Plugin):
 
         def runTestParallel(self):
             """:meta private:"""
-            if super().runTestParallel():
+            if self.initializedDock:
                 self.testControl(self.copyAction, True, 1)
+            # super().runTestParallel() # handled by scan
 
         def mouseEvent(self, event):  # use mouse to move beam # use ctrl key to avoid this while zooming
             """Handles dragging beam in 2D scan or setting retarding grid potential in energy scan"""
@@ -2450,9 +2466,10 @@ class Scan(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             if self.display is not None:
                 self.display.runTestParallel()
+        super().runTestParallel()
 
     @property
     def recording(self):
@@ -2766,7 +2783,7 @@ output_index = next((i for i, o in enumerate(outputs) if o.name == '{self.output
     def scanUpdate(self, done=False):
         self.plot(update=not done, done=done)
         if done: # save data
-            self.pluginManager.Explorer.activeFileFullPath = self.file
+            # self.pluginManager.Explorer.activeFileFullPath = self.file TODO delete
             self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,), name=f'{self.name} saveThread')
             self.saveThread.daemon = True # Terminate with main app independent of stop condition
             self.saveThread.start()
@@ -2935,8 +2952,9 @@ class Browser(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.docAction, True, 1)
+        self.testing = False
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -3071,9 +3089,10 @@ class Text(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.wordWrapAction, True, 1)
             self.testControl(self.textClipboardAction, True, 1)
+        super().runTestParallel()
 
     def updateTheme(self):
         """:meta private:"""
@@ -3325,14 +3344,15 @@ class Console(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        # if super().runTestParallel():
+        if self.initializedDock:
+            pass # TODO reactivate after fixing stdout issue
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
-        pass # TODO reactivate after fixing stdout issue
         # for i in range(self.commonCommandsComboBox.count())[1:]:
         #     if not self.testing:
         #         break
         #     self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
         #     time.sleep(1)
+        super().runTestParallel()
 
     def triggerCombo(self, i):
         self.commonCommandsComboBox.setCurrentIndex(i)
@@ -3899,24 +3919,23 @@ class DeviceManager(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             self.testControl(self.recordingAction, True, 1)
             self.testControl(self.exportAction, True, 2)
-            for d in self.getDevices():
-                if not self.testing:
-                    break
-                if hasattr(d,'onAction'):
-                    self.testControl(d.onAction, True, 1)
             for s in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                 if not self.testing:
                     break
+                # has to run here while all plugins are recording
                 self.print(f'Starting scan {s.name}.')
                 self.testControl(s.recordingAction, True, 0)
-            time.sleep(10) # allow for scans to finish before testing next plugin
-            self.print('Stopping acquisition, collection, and scans.')
+                time.sleep(5) # scan for 5 seconds
+                self.print(f'Stopping scan {s.name}.')
+                self.testControl(s.recordingAction, False, 0)
+                # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
+                if not self.waitForCondition(condition=lambda : not s.finished):
+                    self.print(f'Timeout while stopping scan {s.name}.')
             self.testControl(self.stopAction, True, 1)
-            self.print('Stopping acquisition, collection, and scans sent.')
-            time.sleep(5) # allow for scans to stop and save data before triggering more events
+        super().runTestParallel()        
 
     @property
     def recording(self):
@@ -4314,7 +4333,7 @@ class Explorer(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if super().runTestParallel():
+        if self.initializedDock:
             for action in [self.sessionAction,self.upAction,self.backAction,self.forwardAction,self.dataPathAction,self.refreshAction]:
                 if not self.testing:
                     break
@@ -4334,6 +4353,7 @@ class Explorer(Plugin):
                         self.loadingContent = True
                         if not self.waitForCondition(condition=lambda : self.loadingContent):
                             self.print(f'Timeout reached wile displaying content of {self.activeFileFullPath.name}')
+        super().runTestParallel()
 
     def loadData(self, file, _show=True):
         """:meta private:"""
