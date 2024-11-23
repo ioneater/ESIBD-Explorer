@@ -302,7 +302,7 @@ class Spectra(Beam):
     In addition, the average of all spectra can be displayed.
     If you want to remeasure the same spectrum several times,
     consider defining a dummy channel that can be used as an index."""
-    # NOTE: by inheriting from Beam, this creates another independent instance which allows the user to use both at the same time.
+    # * by inheriting from Beam, this creates another independent instance which allows the user to use both at the same time.
     # This allows for a more flexible use compared to adding these features as options to Beam directly.
     # It also serves as an example for how to inherit from scans that can help users to make their own versions.
     # As this is backwards compatible with files saved by Beam scan, it is possible to disable Beam scan if you want to make sure Spectra scan is opening the file.
@@ -1088,9 +1088,9 @@ class Depo(Scan):
         # overwrite parent to hide charge channels
         self.loading = True
         self.display.displayComboBox.clear()
-        for o in self.outputs:
-            if not f'_{self.CHARGE}' in o.name:
-                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), o.name)
+        for output in self.outputs:
+            if f'_{self.CHARGE}' not in output.name:
+                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
         self.loading = False
         self.updateDisplayDefault()
 

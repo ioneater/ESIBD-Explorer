@@ -5,7 +5,7 @@ import importlib
 from datetime import datetime
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QSettings
-from esibd.config import * # pylint: disable = wildcard-import, unused-wildcard-import
+from esibd.config import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 PROGRAM         = 'Program'
 VERSION         = 'Version'
@@ -28,7 +28,7 @@ SETTINGSWIDTH   = 'SettingsWidth'
 SETTINGSHEIGHT  = 'SettingsHeight'
 CONSOLEHEIGHT   = 'ConsoleHeight'
 
-# NOTE: default paths should not be in softwarefolder as this might not have write access after installation
+# * default paths should not be in softwarefolder as this might not have write access after installation
 defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
 defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/'
 defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
@@ -76,6 +76,10 @@ class INOUT(Enum):
     """Output"""
     BOTH = 2
     """Both input and output."""
+    NONE = 3
+    """Neither input nor output."""
+    ALL = 4
+    """Input and output and all others."""
 
 class PRINT(Enum):
     """Used to specify if a function affects only input, only output, or all channels."""

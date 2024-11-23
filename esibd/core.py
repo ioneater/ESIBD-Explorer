@@ -31,10 +31,10 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-i
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
-                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QStyle)
+                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
-from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
+from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 class EsibdExplorer(QMainWindow):
     r"""ESIBD Explorer: A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
@@ -85,7 +85,7 @@ class EsibdExplorer(QMainWindow):
             self.restoreGeometry(qSet.value(GEOMETRY, self.saveGeometry()))
             # Note that the state on startup will not include dynamic displays which open only as needed. Thus the state cannot be restored.
             # self.mainWindow.restoreState(qSet.value(self.WINDOWSTATE, self.mainWindow.saveState()))
-            # NOTE: need to restore before starting event loop to avoid Unable to set geometry warning
+            # * need to restore before starting event loop to avoid Unable to set geometry warning
         except TypeError as e:
             print(f'Could not restore window state: {e}')
             self.resize(800, 400)
@@ -140,6 +140,8 @@ class PluginManager():
         """Device plugin sending user input to hardware."""
         OUTPUTDEVICE  = 'Output Device'
         """Device plugin sending hardware output to user."""
+        CHANNELMANAGER  = 'Channel Manager'
+        """A plugin that manages channels which are neither inputs or outputs."""
         DISPLAY       = 'Display'
         """Any display plugin, will be places next to scan displays and static displays."""
         LIVEDISPLAY   = 'LiveDisplay'
@@ -234,7 +236,7 @@ class PluginManager():
 
         obsoletePluginNames = []
         for name in self.confParser.keys():
-            if not name == Parameter.DEFAULT.upper() and not name in self.pluginNames:
+            if not name == Parameter.DEFAULT.upper() and name not in self.pluginNames:
                 obsoletePluginNames.append(name)
         if len(obsoletePluginNames) > 0:
             self.logger.print(f"Removing obsolete plugin data: {', '.join(obsoletePluginNames)}", flag=PRINT.WARNING)
@@ -307,7 +309,7 @@ class PluginManager():
         QApplication.processEvents() # break down expensive initialization to allow update splash screens while loading
         self.logger.print(f'loadPlugin {Plugin.name}', flag=PRINT.DEBUG)
         if version.parse(Plugin.supportedVersion).major != PROGRAM_VERSION.major or version.parse(Plugin.supportedVersion).minor != PROGRAM_VERSION.minor:
-            # NOTE: we ignore micro (packaging.version name for patch)
+            # * we ignore micro (packaging.version name for patch)
             self.logger.print(f'Plugin {Plugin.name} supports {PROGRAM_NAME} {Plugin.supportedVersion}. It is not compatible with {PROGRAM_NAME} {PROGRAM_VERSION}.', flag=PRINT.WARNING)
             return
         if Plugin.name in [p.name for p in self.plugins]:
@@ -331,11 +333,11 @@ class PluginManager():
             self.topDock.setObjectName('topDock') # required to restore state
             QApplication.processEvents()
             self.topDock.hide()
-        # NOTE: when using TopDockWidgetArea there is a superfluous separator on top of the statusbar
+        # * when using TopDockWidgetArea there is a superfluous separator on top of the statusbar -> use BottomDockWidgetArea
         self.mainWindow.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.topDock)
         for p in self.plugins:
             self.logger.print(f'provideDocks {p.name} {p.version}', flag=PRINT.DEBUG)
-            if not p.pluginType in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or p.name == 'Browser':
+            if p.pluginType not in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or p.name == 'Browser':
                 # display plugins will be initialized when needed, internal plugins do not need GUI
                 try:
                     p.provideDock()
@@ -657,8 +659,8 @@ class Logger(QObject):
             lines = original.readlines()
         if len(lines) > self.purgeLimit:
             with open(self.logFileName, 'w', encoding=UTF8) as purged:
-                for l in lines[-self.purgeTo:]:
-                    purged.write(l)
+                for line in lines[-self.purgeTo:]:
+                    purged.write(line)
 
     def print(self, message, sender=f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, console, statusbar, and console.
@@ -681,7 +683,7 @@ class Logger(QObject):
         elif flag == PRINT.ERROR:
             flagstring = '❌'
         elif flag == PRINT.EXPLORER:
-            flagstring = ' ❖'
+            flagstring = ' ❖'
         else:
             flagstring = 'ℹ️'
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
@@ -794,7 +796,7 @@ class DynamicNp():
         if length is not None:
             _min = self.size - length
 
-        # NOTE: n cannot be determined internally as it has to match for multiple instances that may have different size (e.g. if one device is initialized later)
+        # * n cannot be determined internally as it has to match for multiple instances that may have different size (e.g. if one device is initialized later)
         # Solution A
         # perfect indices for smooth update but not very efficient
         # return self.data[np.concatenate((np.arange(x0, x0+2*n-np.remainder(x0+2*n, n)), np.arange(x0+2*n-np.remainder(x0+2*n, n), self.size-n, n), np.arange(self.size-n, self.size)))]
@@ -932,7 +934,7 @@ class Parameter():
     """None, unless the parameter is used for settings."""
     itemWidget : QTreeWidgetItem
     """If this is not None, parameter is part of a channel otherwise of a setting."""
-    extendedEvent : callable
+    extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 
     def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, widget=None, internal=False,
@@ -948,10 +950,9 @@ class Parameter():
         self.tree = tree
         self.itemWidget = itemWidget
         self.widget = widget
-        self._changedEvent = None
+        self.extraEvents = []
         self._valueChanged = False
         self.event = event
-        self.extendedEvent = event
         self.internal = internal
         self.indicator = indicator
         self.instantUpdate = instantUpdate
@@ -961,6 +962,7 @@ class Parameter():
         self.max = _max
         self.button = None
         self.spin = None
+        self.loading = False
         self._default = None
         if default is not None:
             self.default = default
@@ -1028,8 +1030,7 @@ class Parameter():
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
-            if self._changedEvent is not None:
-                self._changedEvent() # emit here as it is not emitted by the label
+            self.changedEvent() # emit here as it is not emitted by the label
 
     @property
     def default(self):
@@ -1052,38 +1053,38 @@ class Parameter():
         else:
             return ''
 
-    @property
     def changedEvent(self):
-        return self._changedEvent
-    @changedEvent.setter
-    def changedEvent(self, changedEvent):
-        """Assign events to the corresponding controls.
+        if not self.loading:            
+            if self.event is not None:
+                self.event()
+            for event in self.extraEvents:
+                if event is not None:
+                    event()
 
-        :param changedEvent: Function to be connected. Disconnect previous function if None
-        :type changedEvent: func"""
-        self._changedEvent=changedEvent
+    def applyChangedEvent(self):
+        """Assign events to the corresponding controls."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
-            self.safeConnect(self.combo, self.combo.currentIndexChanged, self._changedEvent)
+            self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
-            self.safeConnect(self.line,self.line.editingFinished,self._changedEvent)
+            self.safeConnect(self.line,self.line.editingFinished,self.changedEvent)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.instantUpdate:
                 # by default trigger events on every change, not matter if through user interface or software
-                self.safeConnect(self.spin, self.spin.valueChanged, self._changedEvent) 
+                self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent) 
             else:
                 self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
-                self.safeConnect(self.spin, self.spin.editingFinished, self._changedEvent)
+                self.safeConnect(self.spin, self.spin.editingFinished, self.changedEvent)
         elif self.widgetType == self.TYPE.BOOL:
             if isinstance(self.check, QCheckBox):
-                self.safeConnect(self.check, self.check.stateChanged, self._changedEvent)
+                self.safeConnect(self.check, self.check.stateChanged, self.changedEvent)
             elif isinstance(self.check, QAction):
-                self.safeConnect(self.check, self.check.toggled, self._changedEvent)
+                self.safeConnect(self.check, self.check.toggled, self.changedEvent)
             else: #isinstance(self.check, QToolButton)
-                self.safeConnect(self.check, self.check.clicked, self._changedEvent)
+                self.safeConnect(self.check, self.check.clicked, self.changedEvent)
         elif self.widgetType == self.TYPE.COLOR:
-            self.safeConnect(self.colBtn, self.colBtn.sigColorChanged, self._changedEvent)
+            self.safeConnect(self.colBtn, self.colBtn.sigColorChanged, self.changedEvent)
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
-            pass # self.label.changeEvent.connect(self._changedEvent) # no change events for labels
+            pass # self.label.changeEvent.connect(self.changedEvent) # no change events for labels
 
     def safeConnect(self, control, signal, event):
         # make sure there is never more than one event assigned to a signal
@@ -1161,10 +1162,7 @@ class Parameter():
                     self.tree.setItemWidget(self, 1, self.getWidget())
             else:
                 self.tree.setItemWidget(self.itemWidget, self.index, self.containerize(self.getWidget())) # container required to hide widgets reliable
-        if self.extendedEvent is not None:
-            self.changedEvent = self.extendedEvent
-        elif self.event is not None:
-            self.changedEvent = self.event
+        self.applyChangedEvent()
 
         self.getWidget().setToolTip(self.toolTip)
         self.getWidget().setMinimumHeight(self.rowHeight) # always keep entire row at consistent height
@@ -1267,31 +1265,32 @@ class Setting(QTreeWidgetItem, Parameter):
         # use keyword arguments rather than positional to avoid issues with multiple inheritace
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
+        self.extraEvents.append(self.settingEvent)
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem
             self.parentItem.addChild(self) # has to be added to parent before widgets can be added!
             self.setData(0, Qt.ItemDataRole.DisplayRole, self.name)
             self.setToolTip(0, self.toolTip)
-            self.extendedEvent = self.settingEvent # assign before applyWidget()
             self.applyWidget()
+        self.loading = True
         if self.internal:
             if self.widget is not None:
-                self.extendedEvent = self.settingEvent # assign before applyWidget()
                 if self._items is not None:
                     self._items = qSet.value(self.fullName+self.ITEMS).split(',') if qSet.value(self.fullName+self.ITEMS) is not None else self._items
                 self.applyWidget()
             self.value = qSet.value(self.fullName, self.default) # trigger assignment to widget
         else:
             self.value = value # use setter to distinguish data types based on other fields
+        self.loading = False
 
     def setWidget(self, widget):
         """Allows to change to custom widget after initialization. E.g. to move a setting to a more logical position outside the Settings tree."""
         v = self.value
         self.widget = widget
         self.applyWidget() # will overwrite ToolTip -> restore if value specific
-        self._parent.loading = True # only change widget, do not trigger event when value is restored
+        self.loading = True # only change widget, do not trigger event when value is restored
         self.value = v
-        self._parent.loading = False
+        self.loading = False
         self.parentItem.removeChild(self) # remove old entry from tree
 
     def resetWidget(self):
@@ -1300,32 +1299,29 @@ class Setting(QTreeWidgetItem, Parameter):
         self.widget = None
         self.parentItem.addChild(self)
         self.applyWidget()
-        self._parent.loading = True # only change widget, do not trigger event when value is restored
+        self.loading = True # only change widget, do not trigger event when value is restored
         self.value = v
-        self._parent.loading = False
+        self.loading = False
 
     def settingEvent(self):
         """Executes internal validation based on setting type.
         Saves parameters to file or qSet to make sure they can be restored even after a crash.
         Finally executes setting specific event if applicable."""
-        if not self._parent.loading:
-            if self.widgetType == self.TYPE.PATH:
-                path, changed = validatePath(self.value, self.default)
-                if changed:
-                    self.value = path
-            elif not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
-                if self._valueChanged:
-                    self._valueChanged = False # reset and continue event loop
-                else:
-                    return # ignore editingFinished if content has not changed
-            if self.internal:
-                qSet.setValue(self.fullName, self.value)
-                if self._items is not None:
-                    qSet.setValue(self.fullName+self.ITEMS, ','.join(self.items))
-            else: # save non internal parameters to file
-                self._parent.saveSettings(default=True)
-            if self.event is not None: # call explicitly assigned event if applicable without causing recursion issue
-                self.event()
+        if self.widgetType == self.TYPE.PATH:
+            path, changed = validatePath(self.value, self.default)
+            if changed:
+                self.value = path
+        elif not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
+            if self._valueChanged:
+                self._valueChanged = False # reset and continue event loop
+            else:
+                return # ignore editingFinished if content has not changed
+        if self.internal:
+            qSet.setValue(self.fullName, self.value)
+            if self._items is not None:
+                qSet.setValue(self.fullName+self.ITEMS, ','.join(self.items))
+        else: # save non internal parameters to file
+            self._parent.saveSettings(default=True)
 
 ########################## Generic channel ########################################################
 
@@ -1402,15 +1398,12 @@ class Channel(QTreeWidgetItem):
        Use :meth:`~esibd.core.Channel.getValues` to get a plain numpy.array."""
     backgrounds : DynamicNp
     """List of backgrounds. Only defined if corresponding device uses backgrounds."""
-    relay : bool
-    """If True, this channel is merely a relay to another channel, e.g. used to display or control parameters from another area in the GUI."""
 
-    def __init__(self, device, tree, relay=False):
+    def __init__(self, device, tree):
         super().__init__() # need to init without tree, otherwise channels will always appended to the end when trying to change order using insertTopLevelItem
         self.device = device
         self.print = device.print
         self.tree = tree # may be None for internal default channels
-        self.inout = device.inout
         self.plotCurve = None
         self.signalComm = self.SignalCommunicate()
         self.signalComm.updateValueSignal.connect(self.updateValueParallel)
@@ -1418,9 +1411,9 @@ class Channel(QTreeWidgetItem):
         self.parameters = []
         self.displayedParameters = []
         self.values = DynamicNp(max_size=self.device.maxDataPoints)
-        self.relay = relay
-        if self.device.useBackgrounds:
-            self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
+        self.inout = device.inout
+        if self.inout != INOUT.NONE and self.device.useBackgrounds:
+                self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
 
         # self.value = None # will be replaced by wrapper
         # generate property for direct access of parameter values
@@ -1474,8 +1467,7 @@ class Channel(QTreeWidgetItem):
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=self.enabledChanged, attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name')
-        channel[self.VALUE   ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    header='Unit', attr='value')
+        channel[self.VALUE   ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='Unit', attr='value')
         if self.inout == INOUT.IN:
             channel[self.VALUE][Parameter.EVENT] = lambda : self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
         channel[self.EQUATION] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='equation',
@@ -1496,7 +1488,7 @@ class Channel(QTreeWidgetItem):
                                         toolTip='Smooth using running average with selected window.')
         channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
-        # NOTE: avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
+        # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
                                     event=self.updateColor, attr='color')
@@ -1507,7 +1499,7 @@ class Channel(QTreeWidgetItem):
                                     event= self.updateMax, attr='max', header='Max       ')
             channel[self.OPTIMIZE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                     header='O', toolTip='Selected channels will be optimized using GA.', attr='optimize')
-        else:
+        elif self.inout == INOUT.OUT:
             channel[self.VALUE][Parameter.INDICATOR] = True
             channel[self.NAME][Parameter.EVENT] = self.updateDisplay
             # channel[self.ENABLED][Parameter.EVENT] = self.enabledChanged
@@ -1539,7 +1531,7 @@ class Channel(QTreeWidgetItem):
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
             self.insertDisplayedParameter(self.OPTIMIZE, before=self.DISPLAY)
-        if self.device.useBackgrounds:
+        if self.inout != INOUT.NONE and self.device.useBackgrounds:
             self.insertDisplayedParameter(self.BACKGROUND, before=self.DISPLAY)
 
     def tempParameters(self):
@@ -1663,15 +1655,15 @@ class Channel(QTreeWidgetItem):
             p.applyWidget()
         for name, default in self.getSortedDefaultChannel().items():
             # add default value if not found in file. Will be saved to file later.
-            if name in item and not name in self.tempParameters():
+            if name in item and name not in self.tempParameters():
                 self.getParameterByName(name).value = item[name]
             else:
                 self.getParameterByName(name).value = default[self.VALUE]
-                if not name in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
+                if name not in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.device.channelsChanged = True
 
-        if not self.relay:
+        if self.inout != INOUT.NONE:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)
             f = line.font()
@@ -1697,7 +1689,7 @@ class Channel(QTreeWidgetItem):
         collapse.value = v
         collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
 
-        if not self.relay:
+        if self.inout != INOUT.NONE:
             self.updateColor()
             self.realChanged()
             if self.inout == INOUT.IN:
@@ -1741,7 +1733,7 @@ class QLabviewSpinBox(QSpinBox):
         text=self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
         pos = len(text)-cur
-        if cur==0 and not '-' in text: # left of number
+        if cur==0 and '-' not in text: # left of number
             pos= len(text)-1
         if cur<=1 and '-' in text: # left of number
             pos= len(text)-2
@@ -1750,7 +1742,7 @@ class QLabviewSpinBox(QSpinBox):
         # keep cursor position fixed relative to .
         newText = self.lineEdit().text()
         if len(newText) > len(text):
-            if cur == 0 and not '-' in text:
+            if cur == 0 and '-' not in text:
                 self.lineEdit().setCursorPosition(2)
             elif cur <= 1 and '-' in text:
                 self.lineEdit().setCursorPosition(3)
@@ -1798,15 +1790,15 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         if cur <= 1 or cur <= 2 and '-' in text:
             pos = dig - 1
         # digits before decimal
-        elif cur < dig and not '-' in text:
+        elif cur < dig and '-' not in text:
             pos = dig - cur
         elif cur < dig + 1 and '-' in text:
             pos = dig - cur + 1
         # last digit before decimal
-        elif cur == dig and not '-' in text or cur == dig + 1 and '-' in text:
+        elif cur == dig and '-' not in text or cur == dig + 1 and '-' in text:
             pos = 0
         # first digit after decimal
-        elif cur == dig + 1 and not '-' in text or cur == dig + 2 and '-' in text:
+        elif cur == dig + 1 and '-' not in text or cur == dig + 2 and '-' in text:
             pos = -1
         # remaining digits after decimal
         else:
@@ -1816,7 +1808,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         # keep cursor position fixed relative to .
         newText = self.lineEdit().text()
         if len(newText) > len(text):
-            if cur == 0 and not '-' in text:
+            if cur == 0 and '-' not in text:
                 self.lineEdit().setCursorPosition(2)
             elif cur <= 1 and '-' in text:
                 self.lineEdit().setCursorPosition(3)
@@ -1874,7 +1866,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         sign = '-' if p[0] == '-' else ''
         pot = ''.join([pp for pp in p[1:].lstrip('0')])
         pot = '0' if pot == '' else pot
-        if cur <= 2 and not '-' in v or cur <= 3 and '-' in v:
+        if cur <= 2 and '-' not in v or cur <= 3 and '-' in v:
             pos = 0
         else: # right of dot
             pos = 3-cur if '-' in v else 2-cur
@@ -1882,7 +1874,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         # keep cursor position fixed relative to .
         newText = self.lineEdit().text()
         if len(newText) > len(text):
-            if cur == 0 and not '-' in v:
+            if cur == 0 and '-' not in v:
                 self.lineEdit().setCursorPosition(2)
             elif cur <= 1 and '-' in v:
                 self.lineEdit().setCursorPosition(3)
@@ -2139,7 +2131,7 @@ class BetterDockWidget(QDockWidget):
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # - some of these are possibe with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
-    # TODO option to use plugin icons instead of text in tabs not currently possible?!
+    # TODO option to use plugin icons instead of text in tabs not currently possible
 
     class SignalCommunicate(QObject):
         dockClosingSignal = pyqtSignal()

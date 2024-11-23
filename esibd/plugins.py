@@ -21,6 +21,7 @@ import subprocess
 from datetime import datetime
 import configparser
 import h5py
+import simple_pid
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 import pyperclip
@@ -42,8 +43,8 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6 import QtCore
 import esibd.core as EsibdCore
 import esibd.const as EsibdConst
-from esibd.core import INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel
-from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import
+from esibd.core import INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel, ToolButton
+from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
@@ -299,7 +300,7 @@ class Plugin(QWidget):
                     if len(liveDisplays) == 1:
                         QApplication.processEvents()
                         liveDisplays[0].dock.toggleTitleBar() # tabstate changing for fist one when second one added
-            elif self.pluginType in [PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE, PluginManager.TYPE.CONTROL, PluginManager.TYPE.SCAN]:
+            elif self.pluginType in [PluginManager.TYPE.CHANNELMANAGER, PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE, PluginManager.TYPE.CONTROL, PluginManager.TYPE.SCAN]:
                 if self.pluginManager.firstControl is None:
                     self.pluginManager.firstControl = self
                     mw.splitDockWidget(self.pluginManager.DeviceManager.dock, self.dock, Qt.Orientation.Vertical) # below DeviceManager
@@ -889,7 +890,7 @@ class StaticDisplay(Plugin):
     def loadDataInternal(self, file):
         """Load data in standard format. Overwrite in derived classes to add support for old file formats."""
         with h5py.File(file,'r') as f:
-            if not self.name in f:
+            if self.name not in f:
                 return False
             g=f[self.name]
             if not (Scan.INPUTCHANNELS in g and Scan.OUTPUTCHANNELS in g):
@@ -1173,15 +1174,16 @@ class LiveDisplay(Plugin):
                         # however, cant exclude that one data point added between definition of timeAx and y
                         y = self.device.convertDataDisplay(channel.getValues(subtractBackground=self.subtractLiveBackground if self.backgroundAction is not None else False,
                                               _min=i_min, _max=i_max, n=n)) # ignore last data point, possibly added after definition of timeAx #, _callSync='off'
+                        if y.shape[0] == 0:
+                            return
                         if any(np.isnan([y[0], y[-1]])):
-                            # y.shape[0] == 0 # should never happen as y is nan padded to timeAx.shape[0] which is > 1. It was reported only once and did not reoccur after a simple restart.
                             # cannot draw if only np.nan (e.g. when zooming into old data where a channel did not exist or was not enabled and data was padded with np.nan)
                             channel.plotCurve.clear()
                         else:
-                            l = min(timeAx.shape[0], y.shape[0]) # make sure x any y have same shape
+                            length = min(timeAx.shape[0], y.shape[0]) # make sure x any y have same shape
                             if channel.smooth != 0:
                                 y = uniform_filter1d(y, channel.smooth)
-                            channel.plotCurve.setData(timeAx[:l], y[:l])
+                            channel.plotCurve.setData(timeAx[:length], y[:length])
                     else:
                         channel.plotCurve.clear()
                 if apply:
@@ -1194,7 +1196,7 @@ class LiveDisplay(Plugin):
                     channel.plotCurve = None
         if self.recording:
             # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
-            # NOTE: when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
+            # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
             self.device.interval_meas = int((time.time()*1000-self.lastPlotTime)) if self.lastPlotTime is not None else self.device.interval
             self.device.interval_tolerance = max(50, self.device.interval/10) # larger margin for error if interval is large.
             if abs(self.device.interval_meas - self.device.interval) < self.device.interval_tolerance:
@@ -1491,7 +1493,7 @@ class ChannelManager(Plugin):
             if item[Parameter.ADVANCED]:
                 self.tree.setColumnHidden(i, not self.advanced)
         for c in self.channels:
-            if c.relay:
+            if self.inout == INOUT.NONE:
                 c.setHidden(False)
             else:
                 if c.inout == INOUT.IN:
@@ -1606,7 +1608,7 @@ class ChannelManager(Plugin):
                 confParser = configparser.ConfigParser()
                 confParser.read(file)
                 for name, item in confParser.items():
-                    if not name in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]:
+                    if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]:
                         self.updateChannelValue(item.get(Parameter.NAME), float(item.get(Parameter.VALUE,'0')))
             else: # FILE_H5
                 with h5py.File(name=file, mode='r', track_order=True) as f:
@@ -2515,9 +2517,9 @@ class Scan(Plugin):
         ds[self.DISPLAY] = parameterDict(value='RT_Front-Plate', toolTip='Default output channel used when scanning. Other channels defined here will be recorded as well.',
                                          items='RT_Front-Plate, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture',
                                          widgetType=Parameter.TYPE.COMBO, attr='displayDefault', event=self.updateDisplayDefault)
-            # NOTE: alternatively the wait time could be determined proportional to the step.
-            # While this would be technically cleaner and more time efficient,
-            # the present implementation is easier to understand and should work well as long as the step sizes do not change too often
+        # * alternatively the wait time could be determined proportional to the step.
+        # While this would be technically cleaner and more time efficient,
+        # the present implementation is easier to understand and should work well as long as the step sizes do not change too often
         ds[self.WAIT]         = parameterDict(value=500, toolTip='Wait time between small steps in ms.', _min=10, event=self.estimateScanTime,
                                                                         widgetType=Parameter.TYPE.INT, attr='wait')
         ds[self.WAITLONG]     = parameterDict(value=2000, toolTip=f'Wait time between steps larger than {self.LARGESTEP} in ms.', _min=10,
@@ -3260,9 +3262,6 @@ class Console(Plugin):
         # self.historyFile = open(hf,'w')
         self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
         self.mainConsole.repl._lastCommandRow = 0 # not checking for None if uninitialized! -> initialize
-        self.mainConsole.repl.write(('All features implemented in the user interface and more can be accessed directly from this console.\n'
-                                 'You can select some commonly used commands directly from the combobox below.\n'
-                                 'Status messages will also be logged here. It is mainly intended for debugging. Use at your own Risk!\n'))
         self.vertLayout.addWidget(self.mainConsole, 1) # https://github.com/pyqtgraph/pyqtgraph/issues/404 # add before hintsTextEdit
         self.commonCommandsComboBox = EsibdCore.CompactComboBox()
         self.commonCommandsComboBox.wheelEvent = lambda event: None
@@ -3370,13 +3369,6 @@ class Console(Plugin):
 
 class SettingsManager(Plugin):
     """Bundles multiple :class:`settings<esibd.core.Setting>` into a single object to handle shared functionality."""
-
-    # useful Console prompts for debugging:
-    # tree = QTreeWidget()
-    # Settings.vertLayout.addWidget(tree)
-    # q = QTreeWidgetItem()
-    # tree.invisibleRootItem().addChild(q)
-    # tree.setItemWidget(q,1,QCheckBox())
 
     version = '1.0'
     pluginType = PluginManager.TYPE.INTERNAL
@@ -3492,7 +3484,7 @@ class SettingsManager(Plugin):
                 except KeyError:
                     pass
             for name, default in self.defaultSettings.items():
-                if not default[Parameter.INTERNAL] and useFile and not name in confParser:
+                if not default[Parameter.INTERNAL] and useFile and name not in confParser:
                     self.print(f'Using default value {default[Parameter.VALUE]} for setting {name}.')
                     defaults_added = True
                 items.append(EsibdCore.parameterDict(name=name,
@@ -3516,7 +3508,7 @@ class SettingsManager(Plugin):
                     g = f[self.parentPlugin.name][self.SETTINGS]
                     useFile = True
                 for name, default in self.defaultSettings.items():
-                    if useFile and not name in g:
+                    if useFile and name not in g:
                         self.print(f'Using default value {default[Parameter.VALUE]} for setting {name}.')
                         defaults_added = True
                     items.append(EsibdCore.parameterDict(name=name,
@@ -3604,8 +3596,8 @@ class SettingsManager(Plugin):
                 config.read(file)
             config[INFO] = infoDict(self.name)
             for name, default in self.defaultSettings.items():
-                if not name in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
-                    if not name in config:
+                if name not in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
+                    if name not in config:
                         config[name] = {}
                     config[name][Parameter.VALUE]     = str(self.settings[name].value)
                     config[name][Parameter.DEFAULT]   = str(self.settings[name].default)
@@ -3623,7 +3615,7 @@ class SettingsManager(Plugin):
                     p = self.requireGroup(f, self.parentPlugin.name)
                     g = self.requireGroup(p, self.SETTINGS)
                 for name, default in self.defaultSettings.items():
-                    if not name in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
+                    if name not in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
                         self.hdfSaveSettig(g, name, default)
 
     def hdfSaveSettig(self, g, name, default):
@@ -3745,8 +3737,8 @@ class Settings(SettingsManager):
     def loadSettings(self, file=None, default=False):
         if self.pluginManager.DeviceManager.recording:
             if EsibdCore.CloseDialog(title='Stop acquisition?', ok='Stop acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
+                # ! settings necessary for acquistions will temporarily be unavailable during loading
                 self.pluginManager.DeviceManager.stop()
-                # settings necessary for acquistions will temporarily be unavailable during loading
             else:
                 return
         super().loadSettings(file=file, default=default)
@@ -3758,7 +3750,7 @@ class Settings(SettingsManager):
 
     def updateConfigPath(self): # load settings from new conf path
         self.defaultFile = self.configPath / self.confINI
-        if not self.pluginManager.loading:
+        if not self.pluginManager.loading:        
             splash = EsibdCore.SplashScreen()
             splash.show()
             self.loadSettings(self.defaultFile)
@@ -3769,7 +3761,7 @@ class Settings(SettingsManager):
                 self.pluginManager.logger.open() # continue logging in new location
             splash.close()
 
-    def updatePluginPath(self):
+    def updatePluginPath(self):    
         if EsibdCore.CloseDialog(title='Restart now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
             self.pluginManager.closePlugins(reload=True)
 
@@ -3955,6 +3947,8 @@ class DeviceManager(Plugin):
     def getDevices(self, inout=INOUT.BOTH):
         if inout == INOUT.BOTH:
             return self.getInputs() + self.getOutputs()
+        if inout == INOUT.ALL:
+            return self.getInputs() + self.getOutputs() + self.getRelays()
         elif inout == INOUT.IN:
             return self.getInputs()
         else: # inout == INOUT.OUT:
@@ -3965,6 +3959,9 @@ class DeviceManager(Plugin):
 
     def getOutputs(self):
         return self.pluginManager.getPluginsByType(EsibdCore.PluginManager.TYPE.OUTPUTDEVICE)
+
+    def getRelays(self):
+        return self.pluginManager.getPluginsByType(EsibdCore.PluginManager.TYPE.CHANNELMANAGER)
 
     def getActiveLiveDisplays(self):
         return [d.liveDisplay for d in self.getDevices() if d.liveDisplayActive()]
@@ -4073,8 +4070,8 @@ class DeviceManager(Plugin):
     def store(self):
         """Regularly stores device settings and data to minimize loss in the event of a program crash.
         Make sure that no GUI elements are accessed when running from parallel thread!"""
-        # NOTE: deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
-        # NOTE: scan and plugin settings are already saved as soon as they are changing
+        # * deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
+        # * scan and plugin settings are already saved as soon as they are changing
         if self.restoreData:
             for d in self.getDevices():
                 Thread(target=d.exportOutputData, kwargs={'default':True}, name=f'{d.name} exportOutputDataThread').start()
@@ -4595,7 +4592,7 @@ class Explorer(Plugin):
                     parent_itm.path_info = path_info
                     parent_itm.setIcon(0, self.ICON_FOLDER)
                 self.load_project_structure(startpath=path_info, tree=parent_itm, _filter=_filter, recursionDepth=recursionDepth, clear=clear)
-            for element in [element for element in filelist if ((_filter is None or _filter == "" or _filter.lower() in element.name.lower()) and not element.name in children_text)]:
+            for element in [element for element in filelist if ((_filter is None or _filter == "" or _filter.lower() in element.name.lower()) and element.name not in children_text)]:
                 # don't add files that do not match _filter and only add elements that do not exist already
                 if clear: # add all items alphabetically
                     parent_itm = QTreeWidgetItem(tree,[element.name])
@@ -4609,7 +4606,7 @@ class Explorer(Plugin):
             for child in children:
                 if not (startpath / child.text(0)).exists():
                     tree.removeChild(child) # remove if does not exist anymore
-                if (startpath / child.text(0)).is_file() and _filter is not None and _filter != "" and not _filter.lower() in child.text(0).lower():
+                if (startpath / child.text(0)).is_file() and _filter is not None and _filter != "" and _filter.lower() not in child.text(0).lower():
                     tree.removeChild(child) # remove files if tehy do not match filter
         else:
             self.print(f'{startpath} is not a valid directory', PRINT.ERROR)
@@ -4655,12 +4652,11 @@ class UCM(ChannelManager):
 
     name='UCM'
     version = '1.0'
-    pluginType = PluginManager.TYPE.CONTROL
+    pluginType = PluginManager.TYPE.CHANNELMANAGER
     previewFileTypes = []
     optional = True
-    inout = None # Not applicable here as showing both input and output channels with very minimal logic
+    inout = INOUT.NONE
     maxDataPoints = 0 # UCM channels do not store data
-    useBackgrounds = False
 
     class UCMChannel(Channel):
         """Minimal UI for abstract channel."""
@@ -4668,7 +4664,7 @@ class UCM(ChannelManager):
         sourceChannel = None
 
         def __init__(self,**kwargs):
-            super().__init__(**kwargs, relay=True)
+            super().__init__(**kwargs)
 
         DEVICE   = 'Device'
         MONITOR   = 'Monitor'
@@ -4688,15 +4684,13 @@ class UCM(ChannelManager):
 
         def connectSource(self):
             self.restoreEvents() # free up previously used channel if applicable
-            sources = [c for c in self.device.pluginManager.DeviceManager.channels() if c.name.strip().lower() == self.name.strip().lower()]
+            sources = [c for c in self.device.pluginManager.DeviceManager.channels(inout=INOUT.ALL) if c not in self.device.channels and c.name.strip().lower() == self.name.strip().lower()]
             if len(sources) == 0:
                  self.sourceChannel = None
                  self.notes = f'Could not find source {self.name}'
-                 self.deviceLabel = 'Unknown'
                  self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
             else:
                 self.sourceChannel = sources[0]
-                # self.deviceLabel = self.sourceChannel.device.name
                 self.getParameterByName(self.DEVICE).getWidget().setIcon(self.sourceChannel.device.getIcon())
                 self.notes = f'Source: {self.sourceChannel.device.name}.{self.sourceChannel.name}'
                 if len(sources) > 1:
@@ -4715,11 +4709,9 @@ class UCM(ChannelManager):
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
 
                 self.getSourceChannelValue()
-                self.sourceChannel.sourceValueEvent = self.sourceChannel.getParameterByName(self.VALUE).changedEvent
-                self.sourceChannel.getParameterByName(self.VALUE).changedEvent = self.relayValueEvent
+                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
-                    self.sourceChannel.sourceMonitorEvent = self.sourceChannel.getParameterByName(self.MONITOR).changedEvent
-                    self.sourceChannel.getParameterByName(self.MONITOR).changedEvent = self.relayMonitorEvent
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
             self.updateColor()
         
         def setSourceChannelValue(self):
@@ -4733,14 +4725,10 @@ class UCM(ChannelManager):
 
         def relayValueEvent(self):
             if self.sourceChannel is not None:
-                if self.sourceChannel.sourceValueEvent is not None:
-                    self.sourceChannel.sourceValueEvent()
                 self.value = self.sourceChannel.value
 
         def relayMonitorEvent(self):
             if self.sourceChannel is not None:
-                if self.sourceChannel.sourceMonitorEvent is not None:
-                    self.sourceChannel.sourceMonitorEvent()
                 self.monitor = self.sourceChannel.monitor
                 self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.sourceChannel.getParameterByName(self.MONITOR).getWidget().styleSheet())
 
@@ -4757,9 +4745,9 @@ class UCM(ChannelManager):
         def restoreEvents(self):
             """restore original events as reference to relayValueEvent and relayMonitorEvent will become unavailable"""
             if self.sourceChannel is not None:
-                self.sourceChannel.getParameterByName(self.VALUE).changedEvent = self.sourceChannel.sourceValueEvent
+                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
-                    self.sourceChannel.getParameterByName(self.MONITOR).changedEvent = self.sourceChannel.sourceMonitorEvent
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -4770,8 +4758,8 @@ class UCM(ChannelManager):
             channel.pop(Channel.LINEWIDTH)
             channel.pop(Channel.COLOR)
             channel[self.VALUE][Parameter.HEADER] = 'Value     ' # channels can have different types of parameters and units
-            channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue # channels can have different types of parameters and units
-            channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, attr='deviceLabel',
+            channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
+            channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
             channel[self.MONITOR] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='monitor', indicator=True)
             channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
@@ -4826,4 +4814,182 @@ class UCM(ChannelManager):
         super().updateTheme()
         for channel in self.channels:
             channel.connectSource()
+    
+class PID(ChannelManager):
+    """Allows to connect an input (control) and output (feedback) channel via PID logic.
+    Whenever the output changes, the input will be adjusted to stabilize the output to its target value."""
+
+    name='PID'
+    version = '1.0'
+    pluginType = PluginManager.TYPE.CHANNELMANAGER
+    previewFileTypes = []
+    optional = True
+    inout = INOUT.NONE
+    maxDataPoints = 0 # PID channels do not store data
+
+    class PIDChannel(Channel):
+        """Minimal UI for abstract PID channel."""
+
+        inputChannel = None
+        outputChannel = None
+
+        def __init__(self,**kwargs):
+            super().__init__(**kwargs)
+            self.pid = None
+
+        OUTPUT       = 'Output'
+        OUTPUTDEVICE = 'OutputDevice'
+        INPUT        = 'Input'
+        INPUTDEVICE  = 'InputDevice'
+        PROPORTIONAL = 'Proportional' # if you’re not where you want to be, get there
+        INTEGRAL     = 'Integral'     # if you haven’t been where you want to be for a long time, get there faster
+        DERIVATIVE   = 'Derivative'   # if you’re getting close to where you want to be, slow down
+        SAMPLETIME   = 'Sampletime'
+        NOTES        = 'Notes'
+
+        def initPID(self):
+            if self.outputChannel is not None and self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:                
+                self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+            self.outputChannel, outnotes = self.findChannel(self.output, self.OUTPUTDEVICE)
+            self.inputChannel, innotes = self.findChannel(self.input, self.INPUTDEVICE)
+            self.notes = f'Output: {outnotes}, Input: {innotes}'
+            if self.outputChannel is None or self.inputChannel is None:
+                return
+            self.outputChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
+            self.pid = simple_pid.PID(self.p, self.i, self.d, setpoint=self.value, sample_time=self.sample_time,
+                                      output_limits=(self.inputChannel.min, self.inputChannel.max))
+
+        def findChannel(self, name, DEVICE):
+            channels = [c for c in self.device.pluginManager.DeviceManager.channels() if c.name.strip().lower() == name.strip().lower()]
+            selectedChannel = None
+            notes = 'Unknown'
+            if len(channels) == 0:
+                 self.notes = f'Could not find source {name}'
+                 self.getParameterByName(DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+            else:
+                selectedChannel = channels[0]
+                notes = f'{selectedChannel.device.name}.{selectedChannel.name}'
+                self.getParameterByName(DEVICE).getWidget().setIcon(selectedChannel.device.getIcon())
+                if len(channels) > 1:
+                    self.print(f'More than one channel named {name}. Using {selectedChannel.device.name}.{selectedChannel.name}. Use unique names to avoid this.', PRINT.WARNING)
+            return selectedChannel, notes
+        
+        def stepPID(self):
+            if self.active and self.device.onAction.state:
+                self.inputChannel.value = self.pid(self.outputChannel.value)
+
+        def updateSetpoint(self):
+            if self.pid is not None:
+                self.pid.setpoint = self.value
+
+        def updateSampleTime(self):
+            if self.pid is not None:
+                self.pid.sample_time = self.sample_time
+
+        def updatePID(self):
+            if self.pid is not None:
+                self.pid.tunings = self.p, self.i, self.d
+
+        def onDelete(self):
+            super().onDelete()
+            self.restoreEvents()
+
+        def restoreEvents(self):
+            """restore original events as reference to relayValueEvent and relayMonitorEvent will become unavailable"""
+            if self.outputChannel is not None and self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
+                self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+
+        def getDefaultChannel(self):
+            channel = super().getDefaultChannel()
+            channel.pop(Channel.EQUATION)
+            channel.pop(Channel.ACTIVE)
+            channel.pop(Channel.REAL)
+            channel.pop(Channel.SMOOTH)
+            channel.pop(Channel.LINEWIDTH)
+            channel[self.VALUE][Parameter.HEADER] = 'Target     ' # channels can have different types of parameters and units
+            channel[self.VALUE][Parameter.EVENT] = self.updateSetpoint
+            channel[self.OUTPUT] = parameterDict(value='Output', widgetType=Parameter.TYPE.TEXT, attr='output', event=self.initPID,
+                                                 toolTip='Output channel')
+            channel[self.OUTPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
+                                                 toolTip='Output device.', header='')
+            channel[self.INPUT ] = parameterDict(value='Input',  widgetType=Parameter.TYPE.TEXT, attr='input', event=self.initPID,
+                                                 toolTip='Input channel')
+            channel[self.INPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
+                                                 toolTip='Input device.', header='')
+            channel[self.ACTIVE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, attr='active', toolTip='Activate PID control')
+            channel[self.PROPORTIONAL] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='p', header='P     ',
+                                                       event=self.updatePID, toolTip='Proportinal')
+            channel[self.INTEGRAL    ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='i', header='I     ',
+                                                       event=self.updatePID, toolTip='Integral')
+            channel[self.DERIVATIVE  ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='d', header='D     ',
+                                                       event=self.updatePID, toolTip='Derivative')            
+            channel[self.SAMPLETIME  ] = parameterDict(value=10, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='sample_time',
+                                                       header='Time   ', event=self.updateSampleTime, toolTip='Sample time in s')            
+            channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
+            return channel
+
+        def setDisplayedParameters(self):
+            super().setDisplayedParameters()      
+            self.displayedParameters.remove(self.ENABLED)
+            self.displayedParameters.remove(self.EQUATION)
+            self.displayedParameters.remove(self.DISPLAY)
+            self.displayedParameters.remove(self.REAL)
+            self.displayedParameters.remove(self.SMOOTH)
+            self.displayedParameters.remove(self.LINEWIDTH)
+            self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
+            self.insertDisplayedParameter(self.OUTPUTDEVICE, before=self.COLOR)
+            self.insertDisplayedParameter(self.OUTPUT, before=self.COLOR)
+            self.insertDisplayedParameter(self.INPUTDEVICE, before=self.COLOR)
+            self.insertDisplayedParameter(self.INPUT, before=self.COLOR)
+            self.insertDisplayedParameter(self.PROPORTIONAL, before=self.COLOR)
+            self.insertDisplayedParameter(self.INTEGRAL, before=self.COLOR)
+            self.insertDisplayedParameter(self.DERIVATIVE, before=self.COLOR)
+            self.insertDisplayedParameter(self.SAMPLETIME, before=self.COLOR)
+            self.displayedParameters.append(self.NOTES)
+
+        def tempParameters(self):
+            return super().tempParameters() + [self.NOTES, self.OUTPUTDEVICE, self.INPUTDEVICE]
+        
+        def initGUI(self, item):
+            super().initGUI(item)
+            active = self.getParameterByName(self.ACTIVE)
+            value = active.value
+            active.widget = ToolButton() # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
+            active.applyWidget()
+            active.check.setMaximumHeight(active.rowHeight) # default too high
+            active.check.setText(self.ACTIVE.title())
+            active.check.setMinimumWidth(5)
+            active.check.setCheckable(True)
+            active.value = value
+            for DEVICE in [self.OUTPUTDEVICE,self.INPUTDEVICE]:
+                device = self.getParameterByName(DEVICE)  
+                device.widget = QPushButton()
+                device.widget.setStyleSheet('QPushButton{border:none;}')
+                device.applyWidget()
+
+    channelType = PIDChannel
+                
+    def finalizeInit(self, aboutFunc=None):
+        """:meta private:"""
+        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(toolTipFalse='PID on.', iconFalse=self.makeIcon('PID_off.png'),
+                                                                  toolTipTrue='PID off.', iconTrue=self.getIcon(),
+                                                                 before=self.pluginManager.DeviceManager.aboutAction)
+        super().finalizeInit(aboutFunc)
+        for channel in self.channels:
+            channel.initPID()
+
+    def moveChannel(self, up):
+        newChannel = super().moveChannel(up)
+        if newChannel is not None:
+            newChannel.connectOutput()
+
+    def duplicateChannel(self):
+        newChannel = super().duplicateChannel()
+        if newChannel is not None:
+            newChannel.connectOutput()
+            
+    def getIcon(self):
+        return self.makeIcon('PID.png')
+    
     

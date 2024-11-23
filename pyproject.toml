@@ -44,7 +44,7 @@ authors = [
 ]
 
 [project.urls]
-Homepage = "https://esibd-explorer.readthedocs.io/en/latest/index.html"
+Homepage = "https://esibd-explorer.readthedocs.io/en/stable/index.html"
 Source = "https://github.com/ioneater/ESIBD-Explorer"
 
 [tool.setuptools]

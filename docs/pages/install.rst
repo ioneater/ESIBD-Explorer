@@ -23,7 +23,7 @@ Run the program using::
 From source (Miniconda)
 -----------------------
 
-| Install `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_
+| Install `Miniconda <https://docs.anaconda.com/miniconda/>`_
   or another conda distribution following the instructions on the
   website. You may need to manually add the paths to the following
   folders to the PATH environment variable.

@@ -3,7 +3,7 @@ Only use to replace plugins specified below with extended versions.
 Define all other plugins in plugins_internal or a user plugin folder. 
 """
 
-from esibd.plugins import DeviceManager, Console, Browser, Explorer, Notes, Text, Tree, UCM
+from esibd.plugins import DeviceManager, Console, Browser, Explorer, Notes, Text, Tree, UCM, PID
 from esibd.extended import ESIBDSettings
 
 def providePlugins():
@@ -13,4 +13,4 @@ def providePlugins():
     :rtype: [:class:`~esibd.plugins.Plugin`]
     """
     # with current docking system first four plugins have to be of type DeviceManager, control, console, display, in this order for correct UI layout!
-    return [DeviceManager, ESIBDSettings, Console, Browser, Explorer, Notes, Text, Tree, UCM]
+    return [DeviceManager, ESIBDSettings, Console, Browser, Explorer, Notes, Text, Tree, UCM, PID]

@@ -1,10 +1,9 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
-import re
 import serial
 import numpy as np
 from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT, getTestMode, TimeoutLock
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
 
 def providePlugins():
     return [MAXIGAUGE]

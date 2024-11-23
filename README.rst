@@ -3,8 +3,8 @@ ESIBD Explorer
 
 A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond.
 
-.. image:: https://readthedocs.org/projects/esibd-explorer/badge/?version=latest
-   :target: https://esibd-explorer.readthedocs.io/en/latest/index.html
+.. image:: https://readthedocs.org/projects/esibd-explorer/badge/?version=stable
+   :target: https://esibd-explorer.readthedocs.io/en/stable/index.html
    :alt: Documentation Status
 
 .. github will cash the logo so updates may only become effective after a few days, the link will still point to the lates version
@@ -41,7 +41,7 @@ Run the program using::
 
    python -m esibd.explorer
 
-Visit the `documentation <https://esibd-explorer.readthedocs.io/en/latest/pages/install.html>`_ for alternative methods. 
+Visit the `documentation <https://esibd-explorer.readthedocs.io/en/stable/pages/install.html>`_ for alternative methods. 
 
 Source code
 -----------

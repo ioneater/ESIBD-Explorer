@@ -50,7 +50,7 @@ Links
 =====
 
 * :ref:`genindex`
-* Online Documentation: https://esibd-explorer.readthedocs.io/en/latest/index.html
+* Online Documentation: https://esibd-explorer.readthedocs.io/en/stable/index.html
 * Source code: https://github.com/ioneater/ESIBD-Explorer
 * PyPI: https://pypi.org/project/esibd-explorer
 * Contact: ioneater.dev@gmail.com
