@@ -86,8 +86,8 @@ class Voltage(Device):
         return self.controller.initialized
 
     def apply(self, apply=False):
-        for c in self.channels:
-            c.setVoltage(apply) # only actually sets voltage if configured and value has changed
+        for channel in self.channels:
+            channel.setVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
@@ -163,7 +163,7 @@ class VoltageChannel(Channel):
         super().realChanged()
 
     def appendValue(self, lenT):
-        # super().appendValue() # overwrite to use readbacks if available
+        # super().appendValue() # overwrite to use monitors
         self.values.add(self.monitor, lenT)
 
 class VoltageController(DeviceController): # no channels needed
@@ -183,7 +183,7 @@ class VoltageController(DeviceController): # no channels needed
         self.port = 0
         self.ON         = False
         self.s          = None
-        self.maxID = max([c.id if c.real else 0 for c in self.device.channels]) # used to query correct amount of monitors
+        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
 
     def init(self, IP='localhost', port=0):
@@ -249,8 +249,8 @@ class VoltageController(DeviceController): # no channels needed
             self.fakeMonitors()
 
     def voltageONFromThread(self, on=False):
-        for m in self.modules:
-            self.ISEGWriteRead(message=f":VOLT {'ON' if on else 'OFF'},(#{m}@0-{self.maxID})\r\n".encode('utf-8'))
+        for module in self.modules:
+            self.ISEGWriteRead(message=f":VOLT {'ON' if on else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
 
     def fakeMonitors(self):
         for channel in self.device.channels:
@@ -265,13 +265,13 @@ class VoltageController(DeviceController): # no channels needed
         """monitor potentials continuously"""
         while acquiring():
             if not getTestMode():
-                for m in self.modules:
-                    res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{m}@0-{self.maxID+1})\r\n'.encode('utf-8'))
+                for module in self.modules:
+                    res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'))
                     if res != '':
                         try:
-                            monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trainling '\r\n'
+                            monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
                             # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                            self.voltages[m] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
+                            self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
                         except (ValueError, TypeError) as e:
                             self.print(f'Monitor parsing error: {e} for {res}.')
             self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
@@ -281,18 +281,18 @@ class VoltageController(DeviceController): # no channels needed
         self.s.sendall(message)
 
     def ISEGRead(self):
-        # only call from thread! # make sure lock is aquired before and relased after
+        # only call from thread! # make sure lock is acquired before and released after
         if not getTestMode() and (self.initialized):
             return self.s.recv(4096).decode("utf-8")
 
     def ISEGWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
-        readback = ''
+        response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(2) as acquired:
                 if acquired:
                     self.ISEGWrite(message) # get channel name
-                    readback = self.ISEGRead()
+                    response = self.ISEGRead()
                 else:
                     self.print(f"Cannot acquire lock for ISEG communication. Query {message}.", PRINT.WARNING)
-        return readback
+        return response

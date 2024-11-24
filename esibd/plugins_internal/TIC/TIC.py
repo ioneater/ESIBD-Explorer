@@ -48,8 +48,8 @@ class TIC(Device):
         return ds
 
     def getInitializedChannels(self):
-        return [c for c in self.channels if (c.enabled and (self.controller.port is not None                                              
-                                              or self.getTestMode())) or not c.active]
+        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None                                              
+                                              or self.getTestMode())) or not channel.active]
 
     def init(self):
         super().init()
@@ -106,6 +106,7 @@ class PressureController(DeviceController):
         self.device = device
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.pressures = []
+        self.initPressures()
 
     def stop(self):
         self.device.stop()
@@ -127,7 +128,7 @@ class PressureController(DeviceController):
                 time.sleep(.1)
 
     def runInitialization(self):
-        """Initializes serial ports in paralel thread"""
+        """Initializes serial ports in parallel thread"""
         if getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
@@ -152,13 +153,16 @@ class PressureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.channels)
+        self.initPressures()
         super().initComplete()
         if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
 
+    def initPressures(self):
+        self.pressures = [np.nan]*len(self.device.channels)
+
     def startAcquisition(self):
-        # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
+        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
         if self.port is not None or getTestMode():
             super().startAcquisition()
 
@@ -174,10 +178,10 @@ class PressureController(DeviceController):
 
     def readNumbers(self):
         """read pressures for all channels"""
-        for i, c in enumerate(self.device.channels):
-            if c.enabled and c.active:
+        for i, channel in enumerate(self.device.channels):
+            if channel.enabled and channel.active:
                 if self.initialized:
-                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[c.id]}')
+                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}')
                     try:
                         self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
@@ -188,8 +192,8 @@ class PressureController(DeviceController):
                     self.pressures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, p in enumerate(self.pressures):
-            self.pressures[i] = self.rndPressure() if np.isnan(p) else p*np.random.uniform(.99, 1.01) # allow for small fluctuation
+        for i, pressure in enumerate(self.pressures):
+            self.pressures[i] = self.rndPressure() if np.isnan(pressure) else pressure*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         exp = np.random.randint(-11, 3)
@@ -197,8 +201,8 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for c, p in zip(self.device.channels, self.pressures):
-            c.value = p
+        for c, pressure in zip(self.device.channels, self.pressures):
+            c.value = pressure
 
     def TICWrite(self, _id):
         self.serialWrite(self.port, f'?V{_id}\r')
@@ -209,11 +213,11 @@ class PressureController(DeviceController):
 
     def TICWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
-        readback = ''
-        with self.TIClock.acquire_timeout(2) as acquired:
+        response = ''
+        with self.ticLock.acquire_timeout(2) as acquired:
             if acquired:
                 self.TICWrite(message)
-                readback = self.TICRead() # reads return value
+                response = self.TICRead() # reads return value
             else:
                 self.print(f'Cannot acquire lock for TIC communication. Query: {message}', PRINT.WARNING)
-        return readback
+        return response

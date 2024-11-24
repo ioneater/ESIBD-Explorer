@@ -35,9 +35,9 @@ class Current(Device):
         def loadDataInternal(self, file):
             """Extending to support legacy files"""
             if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
-                with open(file,'r', encoding=self.UTF8) as f:
-                    f.readline()
-                    headers = f.readline().split(',') # read names from second line
+                with open(file, 'r', encoding=self.UTF8) as dataFile:
+                    dataFile.readline()
+                    headers = dataFile.readline().split(',') # read names from second line
                 try:
                     data = np.loadtxt(file, skiprows=4, delimiter=',', unpack=True)
                 except ValueError as e:
@@ -46,25 +46,25 @@ class Current(Device):
                 if data.shape[0] == 0:
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
                     return
-                for d, n in zip(data, headers):
-                    self.outputs.append(MetaChannel(name=n.strip(), data=np.array(d), background=np.zeros(d.shape[0]), unit='pA', channel=self.parentPlugin.getChannelByName(n.strip())))
+                for d, header in zip(data, headers):
+                    self.outputs.append(MetaChannel(name=header.strip(), data=np.array(d), background=np.zeros(d.shape[0]), unit='pA', channel=self.parentPlugin.getChannelByName(header.strip())))
                 if len(self.outputs) > 0: # might be empty
                     # need to fake time axis as it was not implemented
                     self.inputs.append(MetaChannel(name=self.TIME, data=np.linspace(0, 120000, self.outputs[0].data.shape[0])))
             elif file.name.endswith('.cur.h5'):
-                with h5py.File(file, 'r') as f:
-                    self.inputs.append(MetaChannel(name=self.TIME, data=f[self.TIME][:]))
-                    g = f['Current']
-                    for name, item in g.items():
+                with h5py.File(file, 'r') as h5file:
+                    self.inputs.append(MetaChannel(name=self.TIME, data=h5file[self.TIME][:]))
+                    output_group = h5file['Current']
+                    for name, item in output_group.items():
                         if '_BG' in name:
                             self.outputs[-1].background = item[:]
                         else:
                             self.outputs.append(MetaChannel(name=name, data=item[:], unit='pA', channel=self.parentPlugin.getChannelByName(name)))
             elif file.name.endswith('OUT.h5'): # old Output format when EBD was the only output
-                with h5py.File(file,'r') as f:
-                    self.inputs.append(MetaChannel(name=self.TIME, data=f[Scan.INPUTCHANNELS][self.TIME][:]))
-                    g = f[Scan.OUTPUTCHANNELS]
-                    for name, item in g.items():
+                with h5py.File(file, 'r') as h5file:
+                    self.inputs.append(MetaChannel(name=self.TIME, data=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
+                    output_group = h5file[Scan.OUTPUTCHANNELS]
+                    for name, item in output_group.items():
                         if '_BG' in name:
                             self.outputs[-1].background = item[:]
                         else:
@@ -95,7 +95,7 @@ class Current(Device):
         return ds
 
     def getInitializedChannels(self):
-        return [d for d in self.channels if (d.enabled and (d.controller.port is not None or self.getTestMode())) or not d.active]
+        return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def init(self):
         super().init()
@@ -121,11 +121,11 @@ class Current(Device):
             channel.controller.close()
 
     def resetCharge(self):
-        for d in self.channels:
-            d.resetCharge()
+        for channel in self.channels:
+            channel.resetCharge()
 
     def initialized(self):
-        return any([c.controller.initialized for c in self.channels])
+        return any([channel.controller.initialized for channel in self.channels])
 
     def close(self):
         for channel in self.channels:
@@ -133,12 +133,12 @@ class Current(Device):
         super().close()
 
 class CurrentChannel(Channel):
-    """UI for picoampmeter with integrated functionality"""
+    """UI for picoammeter with integrated functionality"""
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.controller = CurrentController(channel=self)
-        self.preciceCharge = 0 # store independent of spin box precision to avoid rounding errors
+        self.preciseCharge = 0 # store independent of spin box precision to avoid rounding errors
 
     CHARGE     = 'Charge'
     COM        = 'COM'
@@ -191,20 +191,20 @@ class CurrentChannel(Channel):
 
     def enabledChanged(self): # overwrite parent method
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
-        if self.device.liveDisplayActive() and self.device.liveDisplay.recording:
+        if self.controller.initialized:
             if self.enabled:
                 self.controller.init()
             elif self.controller.acquiring:
                 self.controller.stopAcquisition()
 
     def appendValue(self, lenT):
-        # calculate deposited charge in last timestep for all channels
-        # this does not only monitor the deosition sample but also on what lenses charge is lost
+        # calculate deposited charge in last time step for all channels
+        # this does not only monitor the deposition sample but also on what lenses charge is lost
         # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT)
         chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
-        self.preciceCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
-        self.charge = self.preciceCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
+        self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
+        self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
 
     def clearHistory(self, max_size=None):
         super().clearHistory(max_size)
@@ -212,16 +212,24 @@ class CurrentChannel(Channel):
 
     def resetCharge(self):
         self.charge = 0 # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
-        self.preciceCharge = 0
+        self.preciseCharge = 0
 
     def realChanged(self):
         self.getParameterByName(self.COM).getWidget().setVisible(self.real)
+        self.getParameterByName(self.DEVICENAME).getWidget().setVisible(self.real)
         self.getParameterByName(self.RANGE).getWidget().setVisible(self.real)
         self.getParameterByName(self.AVERAGE).getWidget().setVisible(self.real)
         self.getParameterByName(self.BIAS).getWidget().setVisible(self.real)
         self.getParameterByName(self.OUTOFRANGE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)
+        self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)        
+        if self.device.recording:
+            self.controller.init()
         super().realChanged()
+
+    def activeChanged(self):
+        if self.device.recording:
+            self.controller.init()
+        return super().activeChanged()
 
     def updateAverage(self):
         if self.controller is not None and self.controller.acquiring:
@@ -259,8 +267,10 @@ class CurrentController(DeviceController):
         self.offset = np.random.rand()*10 # used in test mode
 
     def init(self):
-        if self.channel.enabled and self.channel.active:
+        if self.channel.enabled and self.channel.active and self.channel.real:
             super().init()
+        else:
+            self.stopAcquisition()
 
     def stop(self):
         self.channel.device.stop()
@@ -321,8 +331,8 @@ class CurrentController(DeviceController):
             self.print(f'{self.channel.devicename} faking values for testing!', PRINT.WARNING)
 
     def startAcquisition(self):
-        # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
-        if (self.port is not None or getTestMode()) and self.channel.active:
+        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
+        if (self.port is not None or getTestMode()) and self.channel.active and self.channel.real:
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
@@ -410,7 +420,7 @@ class CurrentController(DeviceController):
 
     def fakeSingleNum(self):
         if not self.channel.device.pluginManager.closing:
-            self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False,'')
+            self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
 
     def readSingleNum(self):
         if not self.channel.device.pluginManager.closing:
@@ -428,7 +438,7 @@ class CurrentController(DeviceController):
             elif parsed == '':
                 self.signalComm.updateValueSignal.emit(0, False, False, f'{self.channel.devicename}: got empty message')
             else:
-                self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False,'')
+                self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False, '')
 
     #Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg):
@@ -440,23 +450,24 @@ class CurrentController(DeviceController):
     def readingToNum(self, parsed):  # convert to pA
         """Converts string to float value of pA based on unit"""
         try:
-            _, _, x, u = parsed.split(',')
+            _, _, x, unit = parsed.split(',')
             x=float(x)
         except ValueError as e:
             self.print(f'{self.channel.devicename}: Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
             return self.channel.value # keep last valid value
-        if u == 'mA':
-            return x*1E9
-        if u == 'uA':
-            return x*1E6
-        if u == 'nA':
-            return x*1E3
-        if u == 'pA':
-            return x*1
-        else:
-            self.print(f'{self.channel.devicename}: Error: No handler for unit {u} implemented!', PRINT.ERROR)
-            return self.channel.value # keep last valid value
-            #raise ValueError(f'No handler for unit {u} implemented!')
+        match unit:
+            case 'mA':
+                return x*1E9
+            case 'uA':
+                return x*1E6
+            case 'nA':
+                return x*1E3
+            case 'pA':
+                return x*1
+            case _:
+                self.print(f'{self.channel.devicename}: Error: No handler for unit {unit} implemented!', PRINT.ERROR)
+                return self.channel.value # keep last valid value
+                #raise ValueError(f'No handler for unit {u} implemented!')
 
     def RBDWrite(self, message):
         self.serialWrite(self.port, f'&{message}\n')
@@ -466,12 +477,12 @@ class CurrentController(DeviceController):
 
     def RBDWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
-        readback = ''
+        response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(2) as acquired:
                 if acquired:
                     self.RBDWrite(message) # get channel name
-                    readback = self.RBDRead()
+                    response = self.RBDRead()
                 else:
                     self.print(f"Cannot acquire lock for RBD communication. Query {message}.", PRINT.WARNING)
-        return readback
+        return response

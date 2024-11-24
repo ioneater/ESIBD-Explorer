@@ -28,7 +28,7 @@ release = '0.6'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx_rtd_theme', 'sphinx.ext.coverage','sphinxcontrib.bibtex','sphinx_search.extension',
+extensions = ['sphinx_rtd_theme', 'sphinx.ext.coverage', 'sphinxcontrib.bibtex', 'sphinx_search.extension',
 # 'autoapi.extension',
 # "sphinx_rtd_dark_mode", not supported for python 3.11
 'sphinx_copybutton',

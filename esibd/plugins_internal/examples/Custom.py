@@ -1,6 +1,6 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 
-from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel,QSizePolicy
+from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel, QSizePolicy
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
@@ -33,7 +33,7 @@ class CustomControl(Plugin):
         self.btn = QPushButton()
         lay.addWidget(self.btn)
         self.btn.setText('Click Me!')
-        self.btn.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
+        self.btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.btn.clicked.connect(self.onClick)
         self.addContentLayout(lay)
 

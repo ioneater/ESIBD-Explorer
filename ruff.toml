@@ -32,7 +32,7 @@ exclude = [
     "venv",
 ]
 
-include = ["../ESIBD_Explorer_user/plugins/**/*.py"]
+include = ["esibd/**/*.py", "../ESIBD_Explorer_user/plugins/**/*.py"]
 
 # Same as Black.
 line-length = 140 # increased

@@ -47,8 +47,8 @@ class MAXIGAUGE(Device):
         return ds
 
     def getInitializedChannels(self):
-        return [c for c in self.channels if (c.enabled and (self.controller.port is not None
-                                              or self.getTestMode())) or not c.active]
+        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None
+                                              or self.getTestMode())) or not channel.active]
 
     def init(self):
         super().init()
@@ -104,6 +104,7 @@ class PressureController(DeviceController):
         super().__init__(parent=device)
         self.device = device
         self.pressures = []
+        self.initPressures()
 
     def stop(self):
         self.device.stop()
@@ -125,7 +126,7 @@ class PressureController(DeviceController):
                 time.sleep(.1)
 
     def runInitialization(self):
-        """Initializes serial ports in paralel thread"""
+        """Initializes serial ports in parallel thread"""
         if getTestMode():
             self.signalComm.initCompleteSignal.emit()
         else:
@@ -150,13 +151,16 @@ class PressureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.channels)
+        self.initPressures()
         super().initComplete()
         if getTestMode():
             self.print('Faking values for testing!', PRINT.WARNING)
+            
+    def initPressures(self):
+        self.pressures = [np.nan]*len(self.device.channels)
 
     def startAcquisition(self):
-        # only run if init succesful, or in test mode. if channel is not active it will calculate value independently
+        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
         if self.port is not None or getTestMode():
             super().startAcquisition()
 
@@ -182,17 +186,17 @@ class PressureController(DeviceController):
 
     def readNumbers(self):
         """read pressures for all channels"""
-        for i, c in enumerate(self.device.channels):
-            if c.enabled and c.active:
+        for i, channel in enumerate(self.device.channels):
+            if channel.enabled and channel.active:
                 if self.initialized:
-                    msg = self.TPGWriteRead(message=f'PR{c.id}')
+                    msg = self.TPGWriteRead(message=f'PR{channel.id}')
                     try:
-                        a, p = msg.split(',')
-                        if a == '0':
-                            self.pressures[i] = float(p) # set unit to mbar on device
-                            # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
+                        status, pressure = msg.split(',')
+                        if status == '0':
+                            self.pressures[i] = float(pressure) # set unit to mbar on device
+                            # self.print(f'Read pressure for channel {channel.name}', flag=PRINT.DEBUG)
                         else:
-                            self.print(f'Could not read pressure for {c.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
+                            self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', PRINT.WARNING)
                             self.pressures[i] = np.nan
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
@@ -201,8 +205,8 @@ class PressureController(DeviceController):
                     self.pressures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, p in enumerate(self.pressures):
-            self.pressures[i] = self.rndPressure() if np.isnan(p) else p*np.random.uniform(.99, 1.01) # allow for small fluctuation
+        for i, pressure in enumerate(self.pressures):
+            self.pressures[i] = self.rndPressure() if np.isnan(pressure) else pressure*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         exp = np.random.randint(-11, 3)
@@ -210,8 +214,8 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for c, p in zip(self.device.channels, self.pressures):
-            c.value = p
+        for channel, pressure in zip(self.device.channels, self.pressures):
+            channel.value = pressure
 
     def TPGWrite(self, message):
         # return
@@ -227,18 +231,18 @@ class PressureController(DeviceController):
         #enq = self.port.readlines() # response followed by NAK
         #self.print(f"enq: {enq}") # read acknowledgment
         #return enq[0].decode('ascii').rstrip()
-        self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry propts sending return from previously send mnemonic
+        self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
         enq =  self.serialRead(self.port, encoding='ascii') # response
         self.serialRead(self.port, encoding='ascii') # followed by NAK
         return enq
 
     def TPGWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
-        readback = ''
-        with self.TPGlock.acquire_timeout(2) as acquired:
+        response = ''
+        with self.tpgLock.acquire_timeout(2) as acquired:
             if acquired:
                 self.TPGWrite(message)
-                readback = self.TPGRead() # reads return value
+                response = self.TPGRead() # reads return value
             else:
                 self.print(f'Cannot acquire lock for Maxigauge communication. Query: {message}', PRINT.WARNING)
-        return readback
+        return response

@@ -9,7 +9,7 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCaculator, PluginManager, getDarkMode
+from esibd.core import MZCalculator, PluginManager, getDarkMode
 from esibd.plugins import Plugin
 
 #################################### General UI Classes #########################################
@@ -43,13 +43,13 @@ class MS(Plugin):
         self.file = None
         self.x = self.y = None
         self.paperAction = None
-        self.dataClipboadIcon = self.dependencyPath / 'clipboard-paste-document-text.png'
+        self.dataClipboardIcon = self.makeIcon('clipboard-paste-document-text.png')
 
     def getIcon(self):
         return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png')
 
     def initGUI(self):
-        self.mzCalc = MZCaculator(parentPlugin=self)
+        self.mzCalc = MZCalculator(parentPlugin=self)
         super().initGUI()
         self.initFig()
 
@@ -58,7 +58,7 @@ class MS(Plugin):
         self.axes.append(self.fig.add_subplot(111))
         self.mzCalc.setAxis(self.axes[0]) # update axis but reuse picked positions until reset explicitly
         self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
-        self.msline = None # self.axes[0].plot([],[])[0] # dummy plot
+        self.msLine = None # self.axes[0].plot([],[])[0] # dummy plot
 
     def provideDock(self):
         if super().provideDock():
@@ -67,12 +67,13 @@ class MS(Plugin):
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msline), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+        self.dataAction = self.addAction(lambda : self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(func=self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self):
         if self.initializedDock:
+            self.raiseDock(True)
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.dataAction, True, 1)
             self.testControl(self.paperAction, not self.usePaperStyle, 1)
@@ -82,8 +83,8 @@ class MS(Plugin):
         if super().supportsFile(file):
             first_line = ''
             try:
-                with open(file, encoding=self.UTF8) as f:
-                    first_line = f.readline()
+                with open(file, encoding=self.UTF8) as _file:
+                    first_line = _file.readline()
             except UnicodeDecodeError:
                 return False
                 # self.print(f'could not decode first line of file {file}: {e}', PRINT.ERROR)
@@ -106,15 +107,15 @@ class MS(Plugin):
         if self.usePaperStyle:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
-            self.msline = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)), color=QPalette().text().color().name())[0]
+            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)), color=QPalette().text().color().name())[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100+2])
             self.axes[0].set_yticks([1, 50, 100])
             self.axes[0].set_yticklabels(['0','%','100'])
         else:
             self.axes[0].set_ylabel('Intensity')
-            self.msline = self.axes[0].plot(self.x, self.y)[0]
-            self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared expoent for short y labels, even for smaller numbers
+            self.msLine = self.axes[0].plot(self.x, self.y)[0]
+            self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared exponent for short y labels, even for smaller numbers
 
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
@@ -123,7 +124,7 @@ class MS(Plugin):
         self.navToolBar.update() # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0],' ' if self.usePaperStyle else self.file.name)
+        self.labelPlot(self.axes[0], ' ' if self.usePaperStyle else self.file.name)
 
     def find_nearest(self, array, value):
         array = np.asarray(array)
@@ -263,6 +264,7 @@ class LINE(Plugin):
 
     def runTestParallel(self):
         if self.initializedDock:
+            self.raiseDock(True)
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.dataAction, True, 1)
         super().runTestParallel()
@@ -271,8 +273,8 @@ class LINE(Plugin):
         if super().supportsFile(file):
             first_line = '' # else text file
             try:
-                with open(file, encoding=self.UTF8) as f:
-                    first_line = f.readline()
+                with open(file, encoding=self.UTF8) as _file:
+                    first_line = _file.readline()
             except UnicodeDecodeError:
                 return False
             if 'profile' in first_line.lower(): # afm profile
@@ -304,7 +306,7 @@ class LINE(Plugin):
 
 class HOLO(Plugin):
     """The Holo plugin was designed to display 3D NumPy arrays such as
-    holograms from low energy electron holography (LEEH).\ :cite:`longchamp_imaging_2017,ochner_low-energy_2021,ochner_electrospray_2023`
+    holograms from low energy electron holography (LEEH).\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`
     Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
     documentation = """The Holo plugin was designed to display 3D NumPy arrays such as
     holograms from low energy electron holography (LEEH).

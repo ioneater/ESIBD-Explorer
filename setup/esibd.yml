@@ -30,7 +30,7 @@ dependencies:
     - pyserial
     - python-socketio
     - pyvisa
-    - pywin32 
+    - pywin32
     - pyqtgraph==0.13.7
     - scipy
     - Send2Trash
@@ -39,7 +39,7 @@ dependencies:
     - pylint
     - pyinstaller
     - sphinx
-    - sphinx_rtd_theme 
+    - sphinx_rtd_theme
     - sphinxcontrib-bibtex
     - sphinx-copybutton
     - docutils

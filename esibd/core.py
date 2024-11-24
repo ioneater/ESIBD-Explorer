@@ -1,5 +1,5 @@
 """This module contains internally used functions and classes.
-Generally all objects that are used accross multiple modules should be defined here to avoid circular imports and keep things consistent.
+Generally all objects that are used across multiple modules should be defined here to avoid circular imports and keep things consistent.
 Whenever it is possible to make definitions only locally where they are needed, this is preferred.
 For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique."""
 
@@ -165,6 +165,7 @@ class PluginManager():
 
     def __init__(self):
         self.mainWindow = QApplication.instance().mainWindow
+        self.testing = False # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath     = None
@@ -184,7 +185,6 @@ class PluginManager():
         self.firstDisplay = None
         self._loading = 0
         self.closing = False
-        self.testing = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
     @property
@@ -240,10 +240,10 @@ class PluginManager():
                 obsoletePluginNames.append(name)
         if len(obsoletePluginNames) > 0:
             self.logger.print(f"Removing obsolete plugin data: {', '.join(obsoletePluginNames)}", flag=PRINT.WARNING)
-            for o in obsoletePluginNames:
-                self.confParser.pop(o)
-        with open(self.pluginFile,'w', encoding = UTF8) as configfile:
-            self.confParser.write(configfile)
+            for obsoletePluginName in obsoletePluginNames:
+                self.confParser.pop(obsoletePluginName)
+        with open(self.pluginFile, 'w', encoding = UTF8) as configFile:
+            self.confParser.write(configFile)
 
         if hasattr(self, 'Settings'):
             self.Settings.init()  # init internal settings and settings of devices and scans which have been added in the meantime
@@ -258,24 +258,24 @@ class PluginManager():
         self.mainWindow.setUpdatesEnabled(True)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
-        self.logger.print('Ready.',flag=PRINT.EXPLORER)
+        self.logger.print('Ready.', flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path):
         for _dir in [_dir for _dir in path.iterdir() if _dir.is_dir()]:
             for file in [file for file in _dir.iterdir() if file.name.endswith('.py')]:
                 try:
                     Module = dynamicImport(file.stem, file)
-                except Exception as e: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw here
-                    # No unpredicatble Exeption in a single plugin should break the whole application
+                except Exception as e: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw here
+                    # No unpredictable Exception in a single plugin should break the whole application
                     self.logger.print(f'Could not import module {file.stem}: {e}', flag=PRINT.ERROR)
                     # Note, this will not show in the Console Plugin which is not yet fully initialized. -> show in separate dialog window:
                     self.qm.setText(f'Could not import module {file.stem}: {e}')
                     self.qm.setIcon(QMessageBox.Icon.Warning)
                     # self.qm.setWindowIcon(QMessageBox.icon)
-                    self.qm.open() # show non blocking, defined outsided cryoON so it does not get eliminated when the function completes.
+                    self.qm.open()
                     self.qm.raise_()
                 else:
-                    if hasattr(Module,'providePlugins'):
+                    if hasattr(Module, 'providePlugins'):
                         self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
                     # silently ignore dependencies which do not define providePlugins
 
@@ -297,9 +297,9 @@ class PluginManager():
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
-                p=self.loadPlugin(Plugin, dependencyPath=dependencyPath)
-                if p is not None:
-                    self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(p.getSupportedFiles()) # requires instance
+                plugin=self.loadPlugin(Plugin, dependencyPath=dependencyPath)
+                if plugin is not None:
+                    self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(plugin.getSupportedFiles()) # requires instance
 
     def loadPlugin(self, Plugin, dependencyPath=None):
         """Load a single plugin.
@@ -312,14 +312,14 @@ class PluginManager():
             # * we ignore micro (packaging.version name for patch)
             self.logger.print(f'Plugin {Plugin.name} supports {PROGRAM_NAME} {Plugin.supportedVersion}. It is not compatible with {PROGRAM_NAME} {PROGRAM_VERSION}.', flag=PRINT.WARNING)
             return
-        if Plugin.name in [p.name for p in self.plugins]:
+        if Plugin.name in [plugin.name for plugin in self.plugins]:
             self.logger.print(f'Ignoring duplicate plugin {Plugin.name}.', flag=PRINT.WARNING)
         else:
             try:
                 p=Plugin(pluginManager=self, dependencyPath=dependencyPath)
                 setattr(self.__class__, p.name, p) # use attributes to access for communication between plugins
-            except Exception as e: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw
-                # No unpredicatble Exeption in a single plugin should break the whole application
+            except Exception as e: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw
+                # No unpredictable exception in a single plugin should break the whole application
                 self.logger.print(f'Could not load plugin {Plugin.name} {Plugin.version}: {e}', flag=PRINT.ERROR)
             else:
                 self.plugins.append(p)
@@ -335,53 +335,59 @@ class PluginManager():
             self.topDock.hide()
         # * when using TopDockWidgetArea there is a superfluous separator on top of the statusbar -> use BottomDockWidgetArea
         self.mainWindow.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.topDock)
-        for p in self.plugins:
-            self.logger.print(f'provideDocks {p.name} {p.version}', flag=PRINT.DEBUG)
-            if p.pluginType not in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or p.name == 'Browser':
+        for plugin in self.plugins:
+            self.logger.print(f'provideDocks {plugin.name} {plugin.version}', flag=PRINT.DEBUG)
+            if plugin.pluginType not in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or plugin.name == 'Browser':
                 # display plugins will be initialized when needed, internal plugins do not need GUI
                 try:
-                    p.provideDock()
+                    plugin.provideDock()
                 except Exception:
-                    self.logger.print(f'Could not load GUI of plugin {p.name} {p.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
-                    self.plugins.pop(self.plugins.index(p)) # avoid any further undefined interaction
+                    self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                    self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
                 self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
         tabBars = self.mainWindow.findChildren(QTabBar)
         if tabBars: #might be null if there are no tabbed docks
-            for t in tabBars:
-                t.setElideMode(Qt.TextElideMode.ElideNone) # do not elide tab names
+            for tabBar in tabBars:
+                tabBar.setElideMode(Qt.TextElideMode.ElideNone) # do not elide tab names
 
     def finalizeInit(self):
-        """Finalize initalization after all other plugins have been initialized."""
-        for p in self.plugins:
+        """Finalize initialization after all other plugins have been initialized."""
+        for plugin in self.plugins:
             QApplication.processEvents()
-            if p.initializedDock:
+            if plugin.initializedDock:
                 try:
-                    p.finalizeInit()
+                    plugin.finalizeInit()
                 except Exception:
-                    self.logger.print(f'Could not finalize plugin {p.name} {p.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
-                    p.closeGUI()
-                    self.plugins.pop(self.plugins.index(p)) # avoid any further undefined interaction
+                    self.logger.print(f'Could not finalize plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                    plugin.closeGUI()
+                    self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
 
     def test(self):
         """ Calls :meth:`~esibd.core.PluginManager.runTestParallel` to test most features of for all plugins."""
         self.testing = True
+        self.Settings.updateSessionPath() # avoid interference with undefined files from previous test run
+        time.sleep(1)
         timer = Timer(0, self.runTestParallel)
         timer.start()
         timer.name = 'TestingThread'
         self.Console.mainConsole.input.setText('PluginManager.stopTest()') # prepare to stop
 
     def stopTest(self):
+        self.logger.print('Stopping test.')
         self.testing = False
+        for plugin in self.plugins:
+            plugin.testing = True
+
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
-        self.logger.print('Start testing all plugins.', flag=PRINT.MESSAGE)
-        for p in self.plugins:
-            self.logger.print(f'Starting testing for {p.name} {p.version}.', flag=PRINT.MESSAGE)
-            p.testing = True
-            p.runTestParallel()
-            if not p.waitForCondition(condition=lambda : p.testing, timeout=100):                
-                self.logger.print(f'Timeout reached wile testing {p.name}', flag=PRINT.MESSAGE)
+        self.logger.print('Start testing all plugins.')
+        for plugin in self.plugins:
+            self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
+            plugin.testing = True
+            plugin.runTestParallel()
+            if not plugin.waitForCondition(condition=lambda : plugin.testing, timeout=100, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
+                plugin.testing = False
             if not self.testing:
                 break
         self.testing = False
@@ -402,7 +408,7 @@ class PluginManager():
         dlg.setWindowIcon(BetterIcon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
-        tree.setHeaderLabels(['Name','Enabled','Version','Type','Preview File Types','Description'])
+        tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Type', 'Preview File Types', 'Description'])
         tree.setColumnCount(6)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -429,40 +435,40 @@ class PluginManager():
         if dlg.exec():
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             children = [root.child(i) for i in range(root.childCount())] # list of existing children
-            for name, enabled, internal in [(c.text(0),(tree.itemWidget(c, 1)).isChecked(), not (tree.itemWidget(c, 1)).isEnabled()) for c in children]:
+            for name, enabled, internal in [(child.text(0),(tree.itemWidget(child, 1)).isChecked(), not (tree.itemWidget(child, 1)).isEnabled()) for child in children]:
                 if not internal:
                     confParser[name][self.ENABLED] = str(enabled)
-            with open(self.pluginFile,'w', encoding=UTF8) as configfile:
-                confParser.write(configfile)
+            with open(self.pluginFile, 'w', encoding=UTF8) as configFile:
+                confParser.write(configFile)
             self.closePlugins(reload=True)
             QApplication.restoreOverrideCursor()
 
     def addPluginTreeWidgetItem(self, tree, name, enabled, version_, pluginType, previewFileTypes, description, optional=True):
         """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox."""
-        p = QTreeWidgetItem(tree.invisibleRootItem(),[name])
-        c = CheckBox()
-        c.setChecked(enabled)
-        c.setEnabled(optional)
-        tree.setItemWidget(p, 1, c)
+        plugin_widget = QTreeWidgetItem(tree.invisibleRootItem(),[name])
+        checkbox = CheckBox()
+        checkbox.setChecked(enabled)
+        checkbox.setEnabled(optional)
+        tree.setItemWidget(plugin_widget, 1, checkbox)
         versionLabel = QLabel()
         versionLabel.setText(version_)
-        tree.setItemWidget(p, 2, versionLabel)
+        tree.setItemWidget(plugin_widget, 2, versionLabel)
         typeLabel = QLabel()
         typeLabel.setText(pluginType)
-        tree.setItemWidget(p, 3, typeLabel)
+        tree.setItemWidget(plugin_widget, 3, typeLabel)
         previewFileTypesLabel = QLabel()
         previewFileTypesLabel.setText(previewFileTypes)
         previewFileTypesLabel.setToolTip(previewFileTypes)
-        tree.setItemWidget(p, 4, previewFileTypesLabel)
+        tree.setItemWidget(plugin_widget, 4, previewFileTypesLabel)
         descriptionLabel = QLabel()
         if description is not None:
             descriptionLabel.setText(description.splitlines()[0][:100] )
             descriptionLabel.setToolTip(description)
-        tree.setItemWidget(p, 5, descriptionLabel)
+        tree.setItemWidget(plugin_widget, 5, descriptionLabel)
 
     def closePlugins(self, reload=False):
         """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
-        self.logger.print('Closing.',flag=PRINT.EXPLORER)
+        self.logger.print('Closing.', flag=PRINT.EXPLORER)
         if reload:
             self.splash = SplashScreen()
             self.splash.show()
@@ -471,12 +477,12 @@ class PluginManager():
         self.loading = True # skip UI updates
         self.mainWindow.saveUiState()
         self.closing = not reload
-        for p in self.plugins:
+        for plugin in self.plugins:
             try:
-                p.closeGUI()
-            except Exception: # pylint: disable = broad-except # we have no control about the exeption a plugin can possibly throw
-                # No unpredicatble Exeption in a single plugin should break the whole application
-                self.logger.print(f'Could not close plugin {p.name} {p.version}: {traceback.format_exc()}',PRINT.ERROR)
+                plugin.closeGUI()
+            except Exception: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw
+                # No unpredictable exception in a single plugin should break the whole application
+                self.logger.print(f'Could not close plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', PRINT.ERROR)
         if reload:
             self.Explorer.print('Reloading Plugins')
             self.loadPlugins(reload=True) # restore fails if plugins have been added or removed
@@ -531,17 +537,17 @@ class PluginManager():
         :rtype: _type_
         """
         if isinstance(pluginTypes, list):
-            return [p for p in self.plugins if p.pluginType in pluginTypes]
+            return [plugin for plugin in self.plugins if plugin.pluginType in pluginTypes]
         else:
-            return [p for p in self.plugins if p.pluginType == pluginTypes]
+            return [plugin for plugin in self.plugins if plugin.pluginType == pluginTypes]
 
     def toggleTitleBarDelayed(self):
         QTimer.singleShot(500, self.signalComm.toggleTitleBarSignal.emit)
 
     def toggleTitleBar(self):
-        for p in self.plugins:
-            if p.initializedDock:
-                p.toggleTitleBar()
+        for plugin in self.plugins:
+            if plugin.initializedDock:
+                plugin.toggleTitleBar()
 
     def updateTheme(self):
         """Updates application theme while showing a splash screen if necessary."""
@@ -590,19 +596,19 @@ class PluginManager():
         QApplication.setPalette(pal)
         self.mainWindow.setStyleSheet(self.styleSheet)
         plt.style.use('dark_background' if getDarkMode() else 'default')
-        for p in self.plugins:
-            if p.initializedDock:
+        for plugin in self.plugins:
+            if plugin.initializedDock:
                 try:
-                    p.updateTheme()
+                    plugin.updateTheme()
                 except Exception:
-                    self.logger.print(f'Error while updating plugin {p.name} theme: {traceback.format_exc()}')
+                    self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
         if not self.loading:
             self.mainWindow.setUpdatesEnabled(True)
             # dialog.close()
             splash.close()
 
 class Logger(QObject):
-    """Redicrects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
+    """Redirects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
     Also shows messages on Status bar.
     Use :meth:`~esibd.plugins.Plugin.print` to send messages to the logger."""
 
@@ -619,6 +625,7 @@ class Logger(QObject):
         self.lock = TimeoutLock()
         self.purgeTo = 8000
         self.purgeLimit = 10000
+        self.lastCallTime = None
         self.printFromThreadSignal.connect(self.print)
         if qSet.value(LOGGING, 'true') == 'true':
             self.open()
@@ -626,7 +633,7 @@ class Logger(QObject):
     def open(self):
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
         if not self.active:
-            self.logFileName = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}',defaultConfigPath), defaultConfigPath)[0] / f'{PROGRAM_NAME.lower()}.log'
+            self.logFileName = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / f'{PROGRAM_NAME.lower()}.log'
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self # redirect all calls to stdout and stderr to the write function of our logger
@@ -645,7 +652,7 @@ class Logger(QObject):
         """Directs messages to terminal, log file, and :ref:`sec:console`.
         Called directly from stdout or stderr or indirectly via :meth:`~esibd.plugins.Plugin.print`."""
         if self.active:
-            if self.terminalOut is not None: # after packaging with pyinstaller the programm will not be connected to a terminal
+            if self.terminalOut is not None: # after packaging with pyinstaller the program will not be connected to a terminal
                 self.terminalOut.write(message) # write to original stdout
             with self.lock.acquire_timeout(2) as acquired:
                 if acquired:
@@ -659,7 +666,7 @@ class Logger(QObject):
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
 
-    def purge(self):     
+    def purge(self):
         with open(self.logFileName, 'r', encoding=UTF8) as original:
             lines = original.readlines()
         if len(lines) > self.purgeLimit:
@@ -678,21 +685,32 @@ class Logger(QObject):
         :type flag: :class:`~esibd.const.PRINT`, optional
         """
         if current_thread() is not main_thread():
-            # redirect to main thread if needed to avoid chanign GUI from parallel thread.
+            # redirect to main thread if needed to avoid changing GUI from parallel thread.
             self.printFromThreadSignal.emit(message, sender, flag)
-            return
-        if flag == PRINT.DEBUG and not getShowDebug():
-            return
-        if flag == PRINT.WARNING:
-            flagstring = '⚠️'
-        elif flag == PRINT.ERROR:
-            flagstring = '❌'
-        elif flag == PRINT.EXPLORER:
-            flagstring = ' ❖'
-        else:
-            flagstring = 'ℹ️'
+            return        
+        match flag:
+            case PRINT.DEBUG:
+                if not getShowDebug():
+                    return
+                flagString = '🐛'
+            case PRINT.WARNING:
+                flagString = '⚠️'
+            case PRINT.ERROR:
+                flagString = '❌'
+            case PRINT.EXPLORER:
+                flagString = ' ❖'
+            case _: # PRINT.MESSAGE
+                flagString = 'ℹ️'
+        timerString = ''
+        if getShowDebug():
+            if self.lastCallTime is not None:
+                timerString = f'🕐 {(datetime.now()-self.lastCallTime).total_seconds() * 1000:4.0f} ms '
+            else:
+                timerString = '🕐 Unknown '
+            self.lastCallTime = datetime.now()
+
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
-        message        = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {flagstring} {sender}: {message}"
+        message        = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {timerString}{flagString} {sender}: {message}"
         if self.active:
             print(message) # redirects to write if active
         else:
@@ -738,7 +756,7 @@ class DynamicNp():
         self.init(initialData, max_size, dtype)
 
     def init(self, initialData=None, max_size=None, dtype=np.float32):
-        self.data = np.zeros((2000,),dtype=dtype) if initialData is None or initialData.shape[0] == 0 else initialData
+        self.data = np.zeros((2000,), dtype=dtype) if initialData is None or initialData.shape[0] == 0 else initialData
         self.capacity = self.data.shape[0]
         self.size = 0 if initialData is None else initialData.shape[0]
         self.max_size = max_size
@@ -753,8 +771,8 @@ class DynamicNp():
         """
         if lenT is not None:
             if self.size < lenT:
-                # if length does not match length of time, e.g. becuase channel was enabled later then others or temporarily disabled,
-                # padd data with NaN to ensure data is alligned with time axis
+                # if length does not match length of time, e.g. because channel was enabled later then others or temporarily disabled,
+                # pad data with NaN to ensure data is aligned with time axis
                 pad = np.zeros(lenT-self.size)
                 pad[:] = np.nan
                 self.init(np.hstack([self.get(), pad, x]), max_size=self.max_size) # append padding after existing data to account for time without data collection
@@ -762,12 +780,12 @@ class DynamicNp():
                 self.init(self.get()[-lenT:], max_size=self.max_size) # remove data older than time axis
         if self.size == self.capacity:
             self.capacity *= 4
-            newdata = np.zeros((self.capacity,))
-            newdata[:self.size] = self.data
-            self.data = newdata
+            newData = np.zeros((self.capacity,))
+            newData[:self.size] = self.data
+            self.data = newData
         if self.max_size is not None and self.size >= self.max_size:
             # Tested performance via console using
-            # a = [EsibdCore.DynamicNp(initialData=np.ones(500000),max_size=90) for _ in range(1000)]
+            # a = [EsibdCore.DynamicNp(initialData=np.ones(500000), max_size=90) for _ in range(1000)]
             # a[0].get().shape
             # timeit.timeit('[d.add(1) for d in a]', number=1, globals=globals())
             # resulting time 2.5 s -> negligible for all relevant use cases
@@ -806,7 +824,7 @@ class DynamicNp():
         # perfect indices for smooth update but not very efficient
         # return self.data[np.concatenate((np.arange(x0, x0+2*n-np.remainder(x0+2*n, n)), np.arange(x0+2*n-np.remainder(x0+2*n, n), self.size-n, n), np.arange(self.size-n, self.size)))]
         # Solution B
-        # length: typically lenght of array to return, relative to end of array. E.g. lenght relative to a certain point in time.
+        # length: typically length of array to return, relative to end of array. E.g. length relative to a certain point in time.
         # n: use every nth data point
         # simple and works but causes slow update when n is large
         # display update can be jumpy when large n is combined with short time period. This is very rare and can be avoided by slightly higher number of points
@@ -816,7 +834,7 @@ class DynamicNp():
             return self.data[_min-np.remainder(_min, n):self.size][::n]
         return self.data[:self.size][::n] # returns everything
         # Solution C
-        # pyqtgraph has build in downsampling, however in automatic mode it does not save as much performance.
+        # pyqtgraph has build in down sampling, however in automatic mode it does not save as much performance.
         # if n is increased to get similar performance than the code above, the curves are flickering as the displayed points can change (roll) while new data comes in.
 
 def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, tree=None, widgetType=None, advanced=False, header=None,
@@ -1007,7 +1025,7 @@ class Parameter():
             if self._items is not None:
                 qSet.setValue(self.fullName+self.ITEMS, ','.join(self.items))
         if self.widgetType == self.TYPE.BOOL:
-            value = value if isinstance(value,(bool, np.bool_)) else value in ['True','true'] # accepts strings (from ini file or qset) and bools
+            value = value if isinstance(value,(bool, np.bool_)) else value in ['True', 'true'] # accepts strings (from ini file or qSet) and bools
             if self.check is not None:
                 self.check.setChecked(value)
             else:
@@ -1031,11 +1049,12 @@ class Parameter():
             else:
                 self.combo.setCurrentIndex(i)
         elif self.widgetType == self.TYPE.TEXT:
-            self.line.setText(str(value)) # input may be of type Path from pathlib -> needs to be converted to str for display in lineedit
+            self.line.setText(str(value)) # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
-            self.changedEvent() # emit here as it is not emitted by the label
+            if not self.indicator:
+                self.changedEvent() # emit here as it is not emitted by the label
 
     @property
     def default(self):
@@ -1059,23 +1078,32 @@ class Parameter():
             return ''
 
     def changedEvent(self):
-        if not self.loading:            
-            if self.event is not None:
-                self.event()
+        if not (self.loading or self._parent.loading):            
+            if not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
+                if self._valueChanged:
+                    self._valueChanged = False # reset and continue event loop
+                else:
+                    return # ignore editingFinished if content has not changed
+            # ! Settings event has to be triggered before main event to make sure internal parameters are updated and available right away
+            self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
             for event in self.extraEvents:
                 if event is not None:
                     event()
+            if self.event is not None:
+                self.event()
 
     def applyChangedEvent(self):
         """Assign events to the corresponding controls."""
+        if self.indicator: # indicators should never trigger events
+            return
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
-            self.safeConnect(self.line,self.line.editingFinished,self.changedEvent)
+            self.safeConnect(self.line, self.line.editingFinished, self.changedEvent)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.instantUpdate:
                 # by default trigger events on every change, not matter if through user interface or software
-                self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent) 
+                self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent)
             else:
                 self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
                 self.safeConnect(self.spin, self.spin.editingFinished, self.changedEvent)
@@ -1084,7 +1112,7 @@ class Parameter():
                 self.safeConnect(self.check, self.check.stateChanged, self.changedEvent)
             elif isinstance(self.check, QAction):
                 self.safeConnect(self.check, self.check.toggled, self.changedEvent)
-            else: #isinstance(self.check, QToolButton)
+            else: #isinstance(self.check, QToolButton, QPushButton)
                 self.safeConnect(self.check, self.check.clicked, self.changedEvent)
         elif self.widgetType == self.TYPE.COLOR:
             self.safeConnect(self.colBtn, self.colBtn.sigColorChanged, self.changedEvent)
@@ -1121,8 +1149,8 @@ class Parameter():
             if self.widget is not None: # potentially reuse widget with old data!
                 self.combo.clear()
             self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting
-            for i in [x.strip(' ') for x in self._items]:
-                self.combo.insertItem(self.combo.count(), i)
+            for item in [item.strip(' ') for item in self._items]:
+                self.combo.insertItem(self.combo.count(), item)
             self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             self.combo.customContextMenuRequested.connect(self.initComboContextMenu)
         elif self.widgetType == self.TYPE.TEXT:
@@ -1155,7 +1183,7 @@ class Parameter():
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label = QLabel() if self.widget is None else self.widget
 
-        if self.spin is not None: # apply limits # no limits by default to avoid unpredictable behaviour.
+        if self.spin is not None: # apply limits # no limits by default to avoid unpredictable behavior.
             if self.min is not None:
                 self.spin.setMinimum(self.min)
             if self.max is not None:
@@ -1181,7 +1209,7 @@ class Parameter():
         containerLayout = QGridLayout(container)
         containerLayout.setContentsMargins(0, 0, 0, 0)
         widget.setSizePolicy(QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding))
-        widget.container = container # used to have proper backgound color independent of widget visibility
+        widget.container = container # used to have proper background color independent of widget visibility
         containerLayout.addWidget(widget)
         return container
 
@@ -1245,7 +1273,7 @@ class Parameter():
         # if self.internal:
         #     return self.value == value
         if self.widgetType == self.TYPE.BOOL:
-            return self.value == value if isinstance(value,(bool, np.bool_)) else self.value == (value in ['True','true']) # accepts strings (from ini file or qset) and bools
+            return self.value == value if isinstance(value,(bool, np.bool_)) else self.value == (value in ['True', 'true']) # accepts strings (from ini file or qSet) and bools
         elif self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
             return self.value == int(value)
         elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.FLOATCOMBO]:
@@ -1255,7 +1283,7 @@ class Parameter():
         elif self.widgetType == self.TYPE.COLOR:
             return self.value == value.name() if isinstance(value, QColor) else self.value == value
         elif self.widgetType in [self.TYPE.TEXT, self.TYPE.LABEL, self.TYPE.PATH]:
-            return self.value == str(value)# input may be of type Path from pathlib -> needs to be converted to str for display in lineedit
+            return self.value == str(value) # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
         else:
             return self.value == value
 
@@ -1267,10 +1295,11 @@ class Parameter():
 class Setting(QTreeWidgetItem, Parameter):
     """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a channel."""
     def __init__(self, value=None, parentItem=None,**kwargs):
-        # use keyword arguments rather than positional to avoid issues with multiple inheritace
+        # use keyword arguments rather than positional to avoid issues with multiple inheritance
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
-        self.extraEvents.append(self.settingEvent)
+        if not self.indicator: # indicators should never need to trigger events
+            self.extraEvents.append(self.settingEvent)
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem
             self.parentItem.addChild(self) # has to be added to parent before widgets can be added!
@@ -1290,22 +1319,22 @@ class Setting(QTreeWidgetItem, Parameter):
 
     def setWidget(self, widget):
         """Allows to change to custom widget after initialization. E.g. to move a setting to a more logical position outside the Settings tree."""
-        v = self.value
+        initialValue = self.value
         self.widget = widget
         self.applyWidget() # will overwrite ToolTip -> restore if value specific
         self.loading = True # only change widget, do not trigger event when value is restored
-        self.value = v
+        self.value = initialValue
         self.loading = False
         self.parentItem.removeChild(self) # remove old entry from tree
 
     def resetWidget(self):
-        """Returns widget back to the Settigs tree."""
-        v = self.value
+        """Returns widget back to the Settings tree."""
+        initialValue = self.value
         self.widget = None
         self.parentItem.addChild(self)
         self.applyWidget()
         self.loading = True # only change widget, do not trigger event when value is restored
-        self.value = v
+        self.value = initialValue
         self.loading = False
 
     def settingEvent(self):
@@ -1316,11 +1345,6 @@ class Setting(QTreeWidgetItem, Parameter):
             path, changed = validatePath(self.value, self.default)
             if changed:
                 self.value = path
-        elif not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
-            if self._valueChanged:
-                self._valueChanged = False # reset and continue event loop
-            else:
-                return # ignore editingFinished if content has not changed
         if self.internal:
             qSet.setValue(self.fullName, self.value)
             if self._items is not None:
@@ -1335,7 +1359,7 @@ class MetaChannel():
     Allows to restore data even if corresponding channels do not exist anymore.
 
     name : str
-        The scan channel name is usualy the same as the name of the corresponding
+        The scan channel name is usually the same as the name of the corresponding
         :class:`~esibd.core.Channel`.
     data : numpy.array
         Scan data is saved and restored automatically.
@@ -1371,7 +1395,7 @@ class Channel(QTreeWidgetItem):
     outputs. In the advanced mode, channels can be duplicated, moved, or
     deleted. You may also edit channels directly in the corresponding .ini
     file in the config path.
-    
+
     Channels are accessible from any plugin using :meth:`~esibd.plugins.DeviceManager.getChannelByName`.
     This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
     Please avoid using very short names, and names that are a subset of names of other channels.
@@ -1456,6 +1480,10 @@ class Channel(QTreeWidgetItem):
     MAX         = 'Max'
     OPTIMIZE    = 'Optimize'
 
+    @property
+    def loading(self):
+        return self.device.loading
+
     def getDefaultChannel(self):
         """ Defines parameter(s) of the default channel.
         This is also use to assign widgetTypes and if settings are visible outside of advanced mode.
@@ -1467,7 +1495,7 @@ class Channel(QTreeWidgetItem):
         channel[self.COLLAPSE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
                                     toolTip='Collapses all channels of same color below.', event=lambda : self.collapseChanged(toggle=True), attr='collapse', header= '',)
         channel[self.SELECT  ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
-                                    toolTip='Plots data as a function of selected channel.', event=lambda : self.device.channelSelection(channel = self), attr='select')
+                                    toolTip='Plots data as a function of selected channel.', event=lambda : self.device.channelSelection(selectedChannel = self), attr='select')
         channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=self.enabledChanged, attr='enabled')
@@ -1489,7 +1517,7 @@ class Channel(QTreeWidgetItem):
         channel[self.SMOOTH  ] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 2, 4, 8, 16, 32', attr='smooth',
                                         # event=self.updateDisplay, # update display causes distracting rescaling ->
-                                        # should only be relevant for live data anyways, but if needed updateDisplay can be trigered by any of the other parameters like linewidth or displaytime
+                                        # should only be relevant for live data anyways, but if needed updateDisplay can be triggered by any of the other parameters like linewidth or displaytime
                                         toolTip='Smooth using running average with selected window.')
         channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
@@ -1550,22 +1578,22 @@ class Channel(QTreeWidgetItem):
             return []
 
     def getParameterByName(self, name):
-        p = next((p for p in self.parameters if p.name.strip().lower() == name.strip().lower()), None)
-        if p is None:
+        parameter = next((parameter for parameter in self.parameters if parameter.name.strip().lower() == name.strip().lower()), None)
+        if parameter is None:
             self.print(f'Could not find parameter {name}.', PRINT.WARNING)
-        return p
+        return parameter
 
     def asDict(self, temp=False):
         """Returns a dictionary containing all channel parameters and their values.
-        
+
         :param temp: If true, dict will contain temporary parameters
-        :type temp: bool, optional        
+        :type temp: bool, optional
         """
-        d = {}
-        for p in self.parameters:
-            if temp or p.name not in self.tempParameters():
-                d[p.name] = p.value
-        return d
+        _dict = {}
+        for parameter in self.parameters:
+            if temp or parameter.name not in self.tempParameters():
+                _dict[parameter.name] = parameter.value
+        return _dict
 
     def updateValueParallel(self, value): # used to update from external threads
         self.value = value # pylint: disable=[attribute-defined-outside-init] # attribute defined by makeWrapper
@@ -1597,7 +1625,7 @@ class Channel(QTreeWidgetItem):
         else:
             return self.values.get(length=length, _min=_min, _max=_max, n=n)
 
-    def clearHistory(self, max_size=None): # overwrite as needed, e.g. when keeping history of more than one parametrer
+    def clearHistory(self, max_size=None): # overwrite as needed, e.g. when keeping history of more than one parameter
         if self.device.pluginManager.DeviceManager is not None and (self.device.pluginManager.Settings is not None and not self.device.pluginManager.Settings.loading):
             self.values = DynamicNp(max_size=max_size if max_size is not None else 600000/int(self.device.interval)) # 600000 -> only keep last 10 min to save ram unless otherwise specified
         self.clearPlotCurve()
@@ -1618,19 +1646,19 @@ class Channel(QTreeWidgetItem):
         qb = QBrush(color)
         for i in range(len(self.parameters)+1): # use highest index
             self.setBackground(i, qb) # use correct color even when widgets are hidden
-        for p in self.parameters:
-            w = p.getWidget()
-            w.container.setStyleSheet(f'background-color: {color.name()};')
-            if isinstance(w, QToolButton):
-                w.setStyleSheet(f'''QToolButton {{background-color: {color.name()}}}
+        for parameter in self.parameters:
+            widget = parameter.getWidget()
+            widget.container.setStyleSheet(f'background-color: {color.name()};')
+            if isinstance(widget, QToolButton):
+                widget.setStyleSheet(f'''QToolButton {{background-color: {color.name()}}}
                                 QToolButton:checked {{background-color: {color.darker(150 if getDarkMode() else 120).name()};
                                 border-style: inset; border-width: 2px; border-color: 'gray';}}''')
-            elif isinstance(w, QComboBox):
+            elif isinstance(widget, QComboBox):
                 pass
-            elif isinstance(w, QPushButton):
-                w.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
+            elif isinstance(widget, QPushButton):
+                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
-                w.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
+                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
         self.updateDisplay()
         return color
 
@@ -1656,8 +1684,8 @@ class Channel(QTreeWidgetItem):
         """Call after item has been added to tree.
         Item needs parent for all graphics operations.
         """
-        for p in self.parameters:
-            p.applyWidget()
+        for parameter in self.parameters:
+            parameter.applyWidget()
         for name, default in self.getSortedDefaultChannel().items():
             # add default value if not found in file. Will be saved to file later.
             if name in item and name not in self.tempParameters():
@@ -1671,27 +1699,27 @@ class Channel(QTreeWidgetItem):
         if self.inout != INOUT.NONE:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)
-            f = line.font()
-            f.setPointSize(8)
-            line.setFont(f)
+            font = line.font()
+            font.setPointSize(8)
+            line.setFont(font)
 
         select = self.getParameterByName(self.SELECT)
-        v = select.value
+        initialValue= select.value
         select.widget = ToolButton() # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
         select.applyWidget()
         select.check.setMaximumHeight(select.rowHeight) # default too high
         select.check.setText(self.SELECT.title())
         select.check.setMinimumWidth(5)
         select.check.setCheckable(True)
-        select.value = v
-        
-        collapse = self.getParameterByName(self.COLLAPSE)        
-        v = collapse.value
+        select.value = initialValue
+
+        collapse = self.getParameterByName(self.COLLAPSE)
+        initialValue = collapse.value
         collapse.widget = QPushButton()
         collapse.widget.setCheckable(True)
         collapse.widget.setStyleSheet('QPushButton{border:none;}')
         collapse.applyWidget()
-        collapse.value = v
+        collapse.value = initialValue
         collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
 
         if self.inout != INOUT.NONE:
@@ -1754,7 +1782,7 @@ class QLabviewSpinBox(QSpinBox):
             else:
                 self.lineEdit().setCursorPosition(cur + 1)
         elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1,0))
+            self.lineEdit().setCursorPosition(max(cur - 1, 0))
 
 class QLabviewDoubleSpinBox(QDoubleSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
@@ -1777,7 +1805,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
     def setDisplayDecimals(self, prec):
         # decimals used for display.
         self.displayDecimals = prec
-        self.setDecimals(max(self.displayDecimals, self.decimals())) # keep internal precission higher if explicitly defined. ensure minimum precision corresponds to display
+        self.setDecimals(max(self.displayDecimals, self.decimals())) # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
         self.value = self.value
 
     def textFromValue(self, value):
@@ -1787,7 +1815,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         event.ignore()
 
     def stepBy(self, step):
-        """Handles stepping value depending con caret position. This implementation works with negative numbers and of number of digets before the dot."""
+        """Handles stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
         text = self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
         dig = len(text.strip('-').split('.')[0])
@@ -1820,7 +1848,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             else:
                 self.lineEdit().setCursorPosition(cur + 1)
         elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1,0))
+            self.lineEdit().setCursorPosition(max(cur - 1, 0))
 
 class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
     """Spinbox for scientific notation."""
@@ -1886,7 +1914,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
             else:
                 self.lineEdit().setCursorPosition(cur + 1)
         elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1,0))
+            self.lineEdit().setCursorPosition(max(cur - 1, 0))
 
 ############################ Third Party Widgets ##################################################
 
@@ -1932,9 +1960,6 @@ class RestoreFloatComboBox(QComboBox):
                                value=qSet.value(self.fullName, default), default=default,
                                 items=items, widget=self, internal=True, **kwargs)
         self.parentPlugin.pluginManager.Settings.loading = False
-        # use keyword rather than positional arguments to avoid issues with multiple inheritace!
-        # cannot assign property to istance, only class -> use control directly https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
-        # setattr(self.parentPlugin.__class__, self.attr, makeSettingWrapper(self.setting.fullName, self.parentPlugin.pluginManager.Settings)) # unconsistent results, overlap between instances
 
 class CheckBox(QCheckBox):
     """Allows to set values in a widget in a consistent way."""
@@ -1998,7 +2023,7 @@ class StateAction(Action):
         else:
             self.fullName = f'{self.parentPlugin.name}/{self.attr}'
             self.setObjectName(self.fullName)
-            setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to acces state by using attribute from parentPlugin
+            setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to access state by using attribute from parentPlugin
         if func is not None:
             self.triggered.connect(func)
         if restore and self.fullName is not None:
@@ -2063,7 +2088,7 @@ class MultiStateAction(Action):
         else:
             self.fullName = f'{self.parentPlugin.name}/{self.attr}'
             self.setObjectName(self.fullName)
-            setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to acces state by using attribute from parentPlugin
+            setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to access state by using attribute from parentPlugin
         if func is not None:
             self.triggered.connect(lambda: (self.rollState(), func()))
         if restore and self.fullName is not None:
@@ -2086,7 +2111,7 @@ class MultiStateAction(Action):
         self.updateIcon()
 
     @property
-    def state(self): # use lables for api
+    def state(self): # use labels for api
         return self.labelFromState(self._state)
 
     @state.setter
@@ -2120,9 +2145,9 @@ class CompactComboBox(QComboBox):
     def setPopupMinimumWidthForItems(self):
         # we like the popup to always show the full contents
         # under Linux/GNOME popups always do this
-        # but under Windows they get truncated/ellipsised
+        # but under Windows they get truncated
         # here we calculate the maximum width among the items
-        # and set QComboBox.view() to accomodate this
+        # and set QComboBox.view() to accommodate this
         # which makes items show full width under Windows
         view = self.view()
         fm = self.fontMetrics()
@@ -2131,10 +2156,10 @@ class CompactComboBox(QComboBox):
             view.setMinimumWidth(maxWidth)
 
 class BetterDockWidget(QDockWidget):
-    """DockWidget with custom title bar allows to intercept the close and float events triggred by user."""
+    """DockWidget with custom title bar allows to intercept the close and float events triggered by user."""
     # future desired features:
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
-    # - some of these are possibe with pyqtgraph but this introduces other limitations and bugs
+    # - some of these are possible with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
     # TODO option to use plugin icons instead of text in tabs not currently possible
 
@@ -2154,7 +2179,7 @@ class BetterDockWidget(QDockWidget):
         self.setWidget(self.plugin.mainDisplayWidget)
 
     def toggleTitleBar(self):
-        """Updates titlebar as dock is changing from floating to docked states."""
+        """Updates titleBar as dock is changing from floating to docked states."""
         if self.isFloating(): # dock is floating on its own
             # self.setWindowFlags(Qt.WindowType.Window)
             if self.plugin.titleBarLabel is not None:
@@ -2162,11 +2187,11 @@ class BetterDockWidget(QDockWidget):
             if hasattr(self.plugin, 'floatAction'):
                 self.plugin.floatAction.state = True
                 # self.plugin.floatAction.setVisible(False)
-        else: # dock is inside the mainwindow or an external window
+        else: # dock is inside the mainWindow or an external window
             if hasattr(self.plugin, 'floatAction'):
                 self.plugin.floatAction.state = False
                 # do not allow to float from external windows as this causes GUI instabilities (empty external windows, crash without error, ...)
-                # need to allow float to leave external window -> need to make safe / dragging using standard titlebar works but not using custom titlebar
+                # need to allow float to leave external window -> need to make safe / dragging using standard titleBar works but not using custom titleBar
                 # self.plugin.floatAction.setVisible(isinstance(self.parent(), QMainWindow))
             if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
                 # self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
@@ -2175,10 +2200,6 @@ class BetterDockWidget(QDockWidget):
                     self.plugin.titleBarLabel.setText('')
             if not isinstance(self.parent(), QMainWindow):
                 self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
-            #     # close button will not be functional as QDockWidget.DockWidgetFeature.DockWidgetClosable is not set -> remove superfluous button
-            #     closeButton = self.parent().findChild(QAbstractButton, "qt_dockwidget_closebutton")
-            #     if closeButton is not None:
-            #         closeButton.hide()
 
     def closeEvent(self, event):
         self.signalComm.dockClosingSignal.emit()
@@ -2395,7 +2416,7 @@ class IconStatusBar(QStatusBar):
         # add direct references to the icon functions
         self.icon = self._iconWidget.icon
         self.setIcon = self._iconWidget.setIcon
-        # force the button to always show the icon, even if the 
+        # force the button to always show the icon, even if the
         # current style default is different
         self._iconWidget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
@@ -2415,7 +2436,7 @@ class IconStatusBar(QStatusBar):
 
         # self.messageChanged.connect(self._updateStatus)
 
-    def showMessage(self, message, msecs = ...):
+    def showMessage(self, message, msecs=...):
         # ignore internal statusbar which would overlay with our custom label
         self._statusLabel.setText(message)
 
@@ -2446,7 +2467,7 @@ class NumberBar(QWidget):
     def updateTheme(self):
         self.lineBarColor = QColor(colors.bg)
 
-    def update_on_scroll(self, rect, scroll): # pylint: disable = unused-argument # keeping consitent signature
+    def update_on_scroll(self, rect, scroll): # pylint: disable = unused-argument # keeping consistent signature
         if self.isVisible():
             if scroll:
                 self.scroll(0, scroll)
@@ -2502,7 +2523,7 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.updateTheme()
 
     def updateTheme(self):
-        self.fgColor = '#ffffff' if getDarkMode() else '#000000' # foregound
+        self.fgColor = '#ffffff' if getDarkMode() else '#000000' # foreground
         self.bgColor = '#000000' if getDarkMode() else '#ffffff' # background
         self.hlColor = '#51537e' if getDarkMode() else '#ccccff' # highlight
         self.output.setStyleSheet(f'QPlainTextEdit{{background-color:{colors.bg};}}')
@@ -2550,7 +2571,7 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                 case 'Save':
                     a.setIcon(self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png'))
 
-    def save_figure(self, *args):        
+    def save_figure(self, *args):
         limits = []
         if getDarkMode() and not getClipboardTheme():
             # use default light theme for clipboard
@@ -2579,10 +2600,10 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
             self.canvas.draw_idle()
         self.parentPlugin.pluginManager.Explorer.populateTree() # show saved file in Explorer
 
-class MZCaculator():
+class MZCalculator():
     """
     Add to a class derived from Scan.
-    Allows to mark mass to charge (m/z) locations within a chargestate distrubution, calculates absolute mass, and displays it on the axis.
+    Allows to mark mass to charge (m/z) locations within a charge-state distribution, calculates absolute mass, and displays it on the axis.
     Use Ctrl + left mouse click to mark and Ctrl + right mouse click to reset."""
     def __init__(self, parentPlugin, ax=None):
         self.parentPlugin = parentPlugin
@@ -2622,7 +2643,7 @@ class MZCaculator():
 
     def determine_mass_to_charge(self):
         """Estimates charge states based on m/z values provided by user by minimizing standard deviation of absolute mass within a charge state series.
-        Provides standard deviation for neightbouring series to allow for validation of the result."""
+        Provides standard deviation for neighboring series to allow for validation of the result."""
         if len(self.mz) > 1: # not enough information for analysis
             sort_indices = self.mz.argsort()
             self.mz = self.mz[sort_indices] # increasing m/z match decreasing charge states
@@ -2642,18 +2663,18 @@ class MZCaculator():
         for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]: #[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
         if len(self.mz) > 1:
-            for x, y, c in zip(self.mz, self.intensity, self.cs):
-                self.ax.annotate(text=f'{c}', xy=(x, y), xycoords='data', ha='center')
-            self.ax.annotate(text=f"{self.mass_string(-1,'lower  ')}\n{self.mass_string( 0,'likely  ')}\n{self.mass_string(+1,'higher')}\n"
-                                    + '\n'.join([f'mz:{m:10.2f} z:{c:4}' for m, c in zip(self.mz, self.cs)]),
+            for x, y, charge in zip(self.mz, self.intensity, self.cs):
+                self.ax.annotate(text=f'{charge}', xy=(x, y), xycoords='data', ha='center')
+            self.ax.annotate(text=f"{self.mass_string(-1, 'lower  ')}\n{self.mass_string( 0, 'likely  ')}\n{self.mass_string(+1, 'higher')}\n"
+                                    + '\n'.join([f'mz:{mass:10.2f} z:{charge:4}' for mass, charge in zip(self.mz, self.cs)]),
                                 xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top')
         self.parentPlugin.labelPlot(self.ax, self.parentPlugin.file.name)
 
 class BetterPlotWidget(pg.PlotWidget):
     """PlotWidget providing xyLabel."""
 
-    def __init__(self, parent=None, background='default', plotItem=None, **kargs):
-        super().__init__(parent, background, plotItem, **kargs)
+    def __init__(self, parent=None, background='default', plotItem=None, **kwargs):
+        super().__init__(parent, background, plotItem, **kwargs)
         self.parent = parent
         self.xyLabel = pg.TextItem(anchor=(0, 0))
         self.xyLabel.setParentItem(self.getPlotItem().getViewBox())
@@ -2667,8 +2688,8 @@ class BetterPlotWidget(pg.PlotWidget):
                     self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {10**pos.y():.2e}")
                 else:
                     self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {pos.y():.2f}")
-                g = self.getPlotItem().getViewBox().geometry()
-                self.xyLabel.setPos(g.width()-self.xyLabel.boundingRect().width()-4, 2)
+                geometry = self.getPlotItem().getViewBox().geometry()
+                self.xyLabel.setPos(geometry.width()-self.xyLabel.boundingRect().width()-4, 2)
             except (OSError, ValueError, OverflowError):
                 pass # ignore label before time axis is initialized
         else:
@@ -2676,13 +2697,13 @@ class BetterPlotWidget(pg.PlotWidget):
         return super().mouseMoveEvent(ev)
 
     def mouseReleaseEvent(self, ev):
-        if self.parent is not None:# and isinstance(self.parent,PluginManager.TYPE.):
+        if self.parent is not None:# and isinstance(self.parent, PluginManager.TYPE.):
             self.parent.plot()
         return super().mouseReleaseEvent(ev)
 
 class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
     """Based on original logTickStrings.
-    Only difference to source code is 0.1g -> .0e and consistend use of 1 = 10⁰."""
+    Only difference to source code is 0.1g -> .0e and consistent use of 1 = 10⁰."""
     # based on https://pyqtgraph.readthedocs.io/en/latest/_modules/pyqtgraph/graphicsItems/AxisItem.html
 
     # no ticks when zooming in too much: https://github.com/pyqtgraph/pyqtgraph/issues/1505
@@ -2719,7 +2740,7 @@ class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
 
 class TimeoutLock(object):
     """A Lock that allows to specify a timeout inside a with statement.
-    Can be used as normal Lock or optonally using 'with self.lock.acquire_timeout(2) as acquired:'"""
+    Can be used as normal Lock or optionally using 'with self.lock.acquire_timeout(2) as acquired:'"""
     # based on https://stackoverflow.com/questions/16740104/python-lock-with-statement-and-timeout
     def __init__(self):
         self._lock = threading.Lock()
@@ -2785,7 +2806,7 @@ class DeviceController(QObject):
     initialized : bool = False
     """Indicates if communications has been initialized successfully and not yet terminated."""
     initializing : bool = False
-    """Indicates if communications is beeing initialized."""
+    """Indicates if communications is being initialized."""
 
     def __init__(self, parent):
         super().__init__()
@@ -2832,7 +2853,7 @@ class DeviceController(QObject):
         self.acquisitionThread.start()
 
     def runAcquisition(self, acquiring):
-        """Runs acquisitoin loop. Executed in acquisitionThread.
+        """Runs acquisition loop. Executed in acquisitionThread.
         Overwrite with hardware specific acquisition code."""
 
     def updateValue(self):
@@ -2913,7 +2934,7 @@ class DeviceController(QObject):
         Timer(0, self.signalComm.stopSignal.emit).start()
 
     def stop(self):
-        """Overwrite to stop recording and acquisition in case a communication error occured.
+        """Overwrite to stop recording and acquisition in case a communication error occurred.
         This should free up all resources and allow for clean reinitialization."""
         # depending on the hardware this may be self.device.stopAcquisition() or self.channel.device.stopAcquisition() or something else
 

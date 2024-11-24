@@ -1,4 +1,4 @@
-""" Defines constants used througout the package."""
+""" Defines constants used throughout the package."""
 
 from enum import Enum
 import importlib
@@ -28,7 +28,7 @@ SETTINGSWIDTH   = 'SettingsWidth'
 SETTINGSHEIGHT  = 'SettingsHeight'
 CONSOLEHEIGHT   = 'ConsoleHeight'
 
-# * default paths should not be in softwarefolder as this might not have write access after installation
+# * default paths should not be in software folder as this might not have write access after installation
 defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
 defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/'
 defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
@@ -44,7 +44,7 @@ UTF8    = 'utf-8'
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 class Colors():
-    """Provides dark mode dependent defaul colors."""
+    """Provides dark mode dependent default colors."""
 
     @property
     def fg(self):
@@ -173,9 +173,9 @@ def infoDict(name):
 
 def validatePath(path, default):
     """Returns a valid path. If the path does not exist, falling back to default. If default does not exist it will be created
-    
+
     :return: Valid path
-    :rtype: Path    
+    :rtype: Path
     :return: Indicates if path has changed during validation
     :rtype: bool
     """
