@@ -978,7 +978,7 @@ ax.set_xlabel('Time')
 for i, output in enumerate(outputs):
     length = min(inputs[0].data.shape[0], output.data.shape[0])
     x = inputs[0].data[-length:]
-    y = (output.data-output.background)[:length] if output.background is not None and subtract_backgrounds else o.data[:length]
+    y = (output.data-output.background)[:length] if output.background is not None and subtract_backgrounds else output.data[:length]
     ax.plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{{output.name}} ({{output.unit}})')
 
 ax.legend(loc = 'best', prop={{'size': 7}}, frameon=False)
@@ -1044,6 +1044,7 @@ class LiveDisplay(Plugin):
         self._recording = False
         self.lastPlotTime = time.time()*1000
         self.lagging = 0
+        self.plotting = False
         self.logX = False
         self.logY = False
         super().__init__(**kwargs)
@@ -1179,8 +1180,10 @@ class LiveDisplay(Plugin):
     def plot(self, apply=False):
         """Plots the enabled and initialized channels in the main output plot
             The x axis is either time or a selected channel"""
-        if not self.initializedDock or not hasattr(self, 'displayTimeComboBox') or self.device.pluginManager.loading or self.pluginManager.Settings.loading or self.device.time.size == 0:
+        if (not self.initializedDock or not hasattr(self, 'displayTimeComboBox') or self.device.pluginManager.loading 
+            or self.pluginManager.Settings.loading or self.device.time.size == 0 or self.plotting):
             return # values not yet available
+        self.plotting = True # protect from recursion
         # flip array to speed up search of most recent data points
         # may return None if no value is older than displaytime
         userRange = False
@@ -1259,6 +1262,7 @@ class LiveDisplay(Plugin):
                 # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
                 pass
             self.lastPlotTime = time.time()*1000
+        self.plotting = False
 
     def closeUserGUI(self):
         """:meta private:"""
@@ -1392,7 +1396,7 @@ class ChannelManager(Plugin):
             for parameter in self.channels[0].parameters:
                 if parameter.name not in [Channel.COLOR]:
                     self.testControl(parameter.getWidget(), parameter.value, .1,
-                                     label=f'Testing {self.channels[0].name}.{parameter.name} {parameter.toolTip if parameter.toolTip is not None else "No tooltip."}')
+                                     label=f'Testing {self.channels[0].name}.{parameter.name} {parameter.toolTip if parameter.toolTip is not None else "No toolTip."}')
             self.testControl(self.channels[0].getParameterByName(Channel.SELECT).getWidget(), True, .1)
             self.testControl(self.moveChannelDownAction, True, 2)
             self.testControl(self.moveChannelUpAction, True, 2)
@@ -3368,6 +3372,7 @@ class Console(Plugin):
             "[parameter.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for parameter in channel.parameters]",
             "PluginManager.showThreads() # show all active threads",
             "[plt.figure(num).get_label() for num in plt.get_fignums()] # show all active matplotlib figures",
+            "# Module=EsibdCore.dynamicImport('ModuleName','C:/path/to/module.py') # import a python module, e.g. to run generated plot files.",
             "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
             "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
         ])
@@ -3384,7 +3389,7 @@ class Console(Plugin):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
         namespace= {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'sys':sys, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
-                    'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager,
+                    'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'importlib':importlib,
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
         for plugin in self.pluginManager.plugins: # direct access to plugins
             namespace[plugin.name] = plugin
@@ -3751,7 +3756,7 @@ class Settings(SettingsManager):
         self.testControl(self.consoleAction, True)
         for setting in self.settings.values():
             if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE]:
-                self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No tooltip."}')
+                self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
         super().runTestParallel()
 
     def initGUI(self):
@@ -4451,6 +4456,7 @@ class Explorer(Plugin):
         openFileAction = None
         deleteFileAction = None
         copyFileNameAction = None
+        copyFullPathAction = None
         copyFolderNameAction = None
         copyPlotCodeAction = None
         loadValuesActions = []
@@ -4464,6 +4470,7 @@ class Explorer(Plugin):
             openContainingDirAction = explorerContextMenu.addAction('Open containing folder in file explorer.')
             openFileAction = explorerContextMenu.addAction('Open with default program.')
             copyFileNameAction = explorerContextMenu.addAction('Copy file name to clipboard.')
+            copyFullPathAction = explorerContextMenu.addAction('Copy full file path to clipboard.')
             deleteFileAction = explorerContextMenu.addAction('Move to recycle bin.')
 
             if self.activeFileFullPath.suffix == FILE_H5:
@@ -4510,6 +4517,8 @@ class Explorer(Plugin):
                 subprocess.Popen(f'explorer {self.activeFileFullPath}')
             elif explorerContextMenuAction is copyFileNameAction:
                 pyperclip.copy(self.activeFileFullPath.name)
+            elif explorerContextMenuAction is copyFullPathAction:
+                pyperclip.copy(self.activeFileFullPath.as_posix())
             elif explorerContextMenuAction is copyFolderNameAction:
                 pyperclip.copy(self.getItemFullPath(item).name)
             elif explorerContextMenuAction is deleteFileAction:
@@ -4915,6 +4924,9 @@ class UCM(ChannelManager):
 
 class PID(ChannelManager):
     """Allows to connect an input (control) and output (feedback) channel via PID logic.
+    Proportional: If you’re not where you want to be, get there.
+    Integral: If you haven’t been where you want to be for a long time, get there faster.
+    Derivative: If you’re getting close to where you want to be, slow down.
     Whenever the output changes, the input will be adjusted to stabilize the output to its target value."""
 
     name='PID'
@@ -5015,11 +5027,11 @@ class PID(ChannelManager):
             channel[self.INPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Input device.', header='')
             channel[self.ACTIVE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, attr='active', toolTip='Activate PID control.')
-            channel[self.PROPORTIONAL] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='p', header='P     ',
+            channel[self.PROPORTIONAL] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='p', header='P        ',
                                                        event=self.updatePID, toolTip='Proportional')
-            channel[self.INTEGRAL    ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='i', header='I     ',
+            channel[self.INTEGRAL    ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='i', header='I        ',
                                                        event=self.updatePID, toolTip='Integral')
-            channel[self.DERIVATIVE  ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='d', header='D     ',
+            channel[self.DERIVATIVE  ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='d', header='D        ',
                                                        event=self.updatePID, toolTip='Derivative')
             channel[self.SAMPLETIME  ] = parameterDict(value=10, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='sample_time',
                                                        header='Time   ', event=self.updateSampleTime, toolTip='Sample time in s')

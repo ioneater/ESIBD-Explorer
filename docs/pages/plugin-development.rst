@@ -62,6 +62,12 @@ UCM
 .. automodule:: esibd.plugins.UCM
    :noindex:
 
+PID
+----
+
+.. automodule:: esibd.plugins.PID
+   :noindex:
+
 Scan
 ----
 

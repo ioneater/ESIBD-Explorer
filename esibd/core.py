@@ -703,10 +703,8 @@ class Logger(QObject):
                 flagString = 'ℹ️'
         timerString = ''
         if getShowDebug():
-            if self.lastCallTime is not None:
-                timerString = f'🕐 {(datetime.now()-self.lastCallTime).total_seconds() * 1000:4.0f} ms '
-            else:
-                timerString = '🕐 Unknown '
+            ms = ((datetime.now()-self.lastCallTime).total_seconds() * 1000) if self.lastCallTime is not None else 0
+            timerString = f'🕐 {ms:4.0f} ms '
             self.lastCallTime = datetime.now()
 
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
@@ -1085,7 +1083,10 @@ class Parameter():
                 else:
                     return # ignore editingFinished if content has not changed
             # ! Settings event has to be triggered before main event to make sure internal parameters are updated and available right away
-            self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
+            # self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
+            # ! if you have 100 channels which update at 10 Hz, changedEvent can be called 1000 times per second.
+            # ! adding a print statement to the terminal, console plugin, and statusbar at that rate might make the application unresponsive.
+            # ! only uncomment for specific tests. Note that the print statement is always ignored if debug mode is not active.
             for event in self.extraEvents:
                 if event is not None:
                     event()
@@ -1093,9 +1094,8 @@ class Parameter():
                 self.event()
 
     def applyChangedEvent(self):
-        """Assign events to the corresponding controls."""
-        if self.indicator: # indicators should never trigger events
-            return
+        """Assign events to the corresponding controls.
+        Even indicators should be able to trigger events, e.g. to update dependent channels."""        
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
@@ -1298,7 +1298,7 @@ class Setting(QTreeWidgetItem, Parameter):
         # use keyword arguments rather than positional to avoid issues with multiple inheritance
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
-        if not self.indicator: # indicators should never need to trigger events
+        if not self.indicator: # setting indicators should never need to trigger events
             self.extraEvents.append(self.settingEvent)
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem

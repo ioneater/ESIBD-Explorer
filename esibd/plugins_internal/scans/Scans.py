@@ -907,7 +907,7 @@ for output in outputs:
         mean, bin_edges, _ = binned_statistic(inputs[0].data, output.data, bins=bins, range=(int(_from), int(to)))
         ax0.plot((bin_edges[:-1] + bin_edges[1:]) / 2, mean, label=f'{output.name} ({output.unit})')
     else:
-        ax0.plot(inputs[0].data, data, label=f'{output.name} ({output.unit})')
+        ax0.plot(inputs[0].data, output.data, label=f'{output.name} ({output.unit})')
 ax0.legend(loc='best', prop={'size': 7}, frameon=False)
 plt.show()
         """ # similar to staticDisplay

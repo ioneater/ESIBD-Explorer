@@ -5,7 +5,7 @@ The plugin module
 -----------------
 
 .. automodule:: esibd.plugins
-   :members: Device, DeviceManager, LiveDisplay, Plugin, Scan, SettingsManager, StaticDisplay
+   :members: ChannelManager, Device, DeviceManager, LiveDisplay, Plugin, Scan, SettingsManager, Settings, StaticDisplay, UCM, PID
     
 
 .. automodule:: esibd.providePlugins
