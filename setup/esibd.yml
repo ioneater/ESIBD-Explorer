@@ -1,43 +1,42 @@
 name: esibd
 channels:
   - conda-forge
-#  - bryanwweber
   - defaults
 dependencies:
   - python==3.11
-  - pip
-  - pip:
     - asteval
     - biopython
-    - configobj
     - configparser
-    - h5py
     - keyboard
+    - numpy
+    - pyinstaller
+    - pyperclip
+    - python-socketio
+    - pyserial
+    - pyvisa
+    - pywin32
+    - scipy
+    - Send2Trash
+  - pip
+  - pip:
+    - configobj
+    - h5py
     - matplotlib
     - contourpy==1.2.1
     - nidaqmx
-    - numpy
     - openpyxl
     - pfeiffer-vacuum-protocol
     - picosdk
     - PyOpenGL
-    - pyperclip
     - pyqt6==6.6
     - pyqt6-qt6==6.6
     - pyqt6-webengine==6.6
     - pyqt6-webengine-qt6==6.6
     - python-pptx
-    - pyserial
-    - python-socketio
-    - pyvisa
-    - pywin32
     - pyqtgraph==0.13.7
-    - scipy
-    - Send2Trash
     - simple_pid
     # packages for deployment
     - pylint
-    - pyinstaller
     - sphinx
     - sphinx_rtd_theme
     - sphinxcontrib-bibtex

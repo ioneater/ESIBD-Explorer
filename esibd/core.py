@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox)
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QEvent #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
@@ -116,6 +116,12 @@ class EsibdExplorer(QMainWindow):
             event.accept() # let the window close
         else:
             event.ignore() # keep running
+            
+    # def eventFilter(self, source, event):
+    #     if (source is self.pluginManager.Console.mainConsole.repl.input and event.type() == QEvent.Type.KeyPress and 
+    #         event.modifiers() & Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C):
+    #         self.pluginManager.Console.clear()
+    #     return super().eventFilter(source, event)
 
 class PluginManager():
     """The :class:`~esibd.core.PluginManager` is responsible for loading all internal and external
@@ -1083,7 +1089,8 @@ class Parameter():
                 else:
                     return # ignore editingFinished if content has not changed
             # ! Settings event has to be triggered before main event to make sure internal parameters are updated and available right away
-            # self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
+            # if self.event is not None or self.extraEvents:
+            #     self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
             # ! if you have 100 channels which update at 10 Hz, changedEvent can be called 1000 times per second.
             # ! adding a print statement to the terminal, console plugin, and statusbar at that rate might make the application unresponsive.
             # ! only uncomment for specific tests. Note that the print statement is always ignored if debug mode is not active.
@@ -1144,11 +1151,12 @@ class Parameter():
         """Creates UI widget depending on :attr:`~esibd.core.Parameter.widgetType`.
         Links dedicated :attr:`~esibd.core.Parameter.widget` if provided.
         """
+        # self.print(f'applyWidget {self.fullName} {self.widgetType}', flag=PRINT.DEBUG) # only uncomment for specific debugging
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.combo = QComboBox() if self.widget is None else self.widget
             if self.widget is not None: # potentially reuse widget with old data!
                 self.combo.clear()
-            self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting
+            self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting            
             for item in [item.strip(' ') for item in self._items]:
                 self.combo.insertItem(self.combo.count(), item)
             self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1475,10 +1483,13 @@ class Channel(QTreeWidgetItem):
     REAL        = 'Real'
     SMOOTH      = 'Smooth'
     LINEWIDTH   = 'Linewidth'
+    LINESTYLE   = 'Linestyle'
     COLOR       = 'Color'
     MIN         = 'Min'
     MAX         = 'Max'
     OPTIMIZE    = 'Optimize'
+    MONITOR     = 'Monitor'
+    UNIT        = 'Unit'
 
     @property
     def loading(self):
@@ -1520,7 +1531,9 @@ class Channel(QTreeWidgetItem):
                                         # should only be relevant for live data anyways, but if needed updateDisplay can be triggered by any of the other parameters like linewidth or displaytime
                                         toolTip='Smooth using running average with selected window.')
         channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Linewidth used in plots.')
+                                        items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Line width used in plots.')
+        channel[self.LINESTYLE  ] = parameterDict(value='solid', widgetType=Parameter.TYPE.COMBO, advanced=True,
+                                        items='solid, dotted, dashed, dashdot', attr='linestyle', event=self.updateDisplay, toolTip='Line style used in plots.')
         # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
@@ -1559,7 +1572,7 @@ class Channel(QTreeWidgetItem):
     def setDisplayedParameters(self):
         """Used to determine which parameters to use and in what order.
         Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
-        self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.COLOR]
+        self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY, self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.LINESTYLE, self.COLOR]
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
@@ -1636,6 +1649,17 @@ class Channel(QTreeWidgetItem):
         if self.plotCurve is not None:
             self.plotCurve.clear()
             self.plotCurve = None
+
+    def getQtLineStyle(self):
+        match self.linestyle:
+            case 'dotted':
+                return Qt.PenStyle.DotLine
+            case 'dashed':
+                return Qt.PenStyle.DashLine
+            case 'dashdot':
+                return Qt.PenStyle.DashDotLine
+            case _: # solid
+                return Qt.PenStyle.SolidLine
 
     def updateColor(self):
         """Apply new color to all controls."""

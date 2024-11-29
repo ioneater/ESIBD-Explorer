@@ -124,7 +124,6 @@ class TemperatureChannel(Channel):
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
         self.defaultStyleSheet = None # will be initialized when color is set
 
-    MONITOR   = 'Monitor'
     CONTROLLER = 'Controller'
     CRYOTEL = 'CryoTel'
 

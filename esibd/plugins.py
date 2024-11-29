@@ -874,7 +874,7 @@ class StaticDisplay(Plugin):
             self.plot()
 
     def plot(self, update=False):
-        """Plots channels from file, using real channel information (color, linewidth, ...) if available."""
+        """Plots channels from file, using real channel information (color, linewidth, linestyle, ...) if available."""
         # as this is only done once we can plot all data without thinning
         if self.plotEfficient:
             self.axes[0].clear()
@@ -905,10 +905,10 @@ class StaticDisplay(Plugin):
                     y = uniform_filter1d(y, output.channel.smooth)
                 if self.plotEfficient:
                     self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.channel.name} ({output.channel.device.getUnit()})',
-                                      color=output.channel.color, linewidth=output.channel.linewidth/2)
+                                      color=output.channel.color, linewidth=output.channel.linewidth/2, linestyle=output.channel.linestyle)
                 else:
-                    self.staticPlotWidget.plot(x, y, pen=pg.mkPen((output.channel.color), width=output.channel.linewidth), name=f'{output.channel.name} ({output.channel.device.getUnit()})')
-
+                    self.staticPlotWidget.plot(x, y, pen=pg.mkPen((output.channel.color), width=output.channel.linewidth,
+                                                                  style=output.channel.getQtLineStyle()), name=f'{output.channel.name} ({output.channel.device.getUnit()})')
         if self.plotEfficient:
             self.setLabelMargin(self.axes[0], 0.15)
             self.navToolBar.update() # reset history for zooming and home view
@@ -1145,11 +1145,18 @@ class LiveDisplay(Plugin):
         buf = io.BytesIO()
         if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
+            restoreAutoRange = False
+            if not self.recording and self.livePlotWidget.getViewBox().autoRangeEnabled()[0]:
+                # disable auto ranging to keep currently displayed limits, instead of using displayTimeComboBox.currentText() to determine which data will be plotted
+                self.livePlotWidget.getViewBox().enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
+                restoreAutoRange = True
             self.updateTheme() # use default light theme for clipboard
             QApplication.processEvents()
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
             self.updateTheme() # restore dark theme
+            if restoreAutoRange: # restore auto ranging if applicable
+                self.livePlotWidget.getViewBox().enableAutoRange(axis=pg.ViewBox.XAxis, enable=restoreAutoRange)
         else:
             QApplication.clipboard().setPixmap(self.livePlotWidget.grab())
         buf.close()
@@ -1172,7 +1179,7 @@ class LiveDisplay(Plugin):
         # otherwise toggle visibility is sufficient
         for channel in self.device.channels:
             if channel.display:
-                channel.plotCurve.setPen(pg.mkPen(QColor(channel.color), width=int(channel.linewidth)))
+                channel.plotCurve.setPen(pg.mkPen(QColor(channel.color), width=int(channel.linewidth), style=channel.getQtLineStyle()))
                 channel.plotCurve.opts['name'] = channel.name
             else:
                 channel.plotCurve.setPen(pg.mkPen(None))
@@ -1205,7 +1212,7 @@ class LiveDisplay(Plugin):
         for channel in (self.device.channels)[::-1]:
             if (channel.enabled or not channel.real) and channel.display:
                 if channel.plotCurve is None:
-                    channel.plotCurve = self.livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth),
+                    channel.plotCurve = self.livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth, style=channel.getQtLineStyle()),
                                                                                             name=f'{channel.name} ({channel.device.getUnit()})') # initialize empty plots
                 if apply or np.remainder(i_min, n) == 0 or userRange: # otherwise no update required # need at least 2 data points to plot connecting line segment
                     if timeAx.shape[0] > 1:
@@ -3384,6 +3391,7 @@ class Console(Plugin):
         self.mainConsole.exceptionBtn.deleteLater()
         self.triggerComboBoxSignal.connect(self.triggerCombo)
         self.writeSignal.connect(self.write)
+        # self.mainConsole.repl.input.installEventFilter(self.pluginManager.mainWindow) # clears input on Ctrl + C like a terminal. Not using it as it also prevents copy paste!
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -3446,10 +3454,16 @@ class Console(Plugin):
             self.pluginManager.logger.close()
 
     def inspect(self):
-        self.mainConsole.input.setText(f'Tree.inspect({self.mainConsole.input.text()})')
-        self.mainConsole.input.execCmd()
-        self.commonCommandsComboBox.setCurrentIndex(0)
-        self.mainConsole.input.setFocus()
+        if self.mainConsole.input.text() == '':
+            self.mainConsole.input.setText('Enter object to be inspected here first.')
+        else:
+            self.mainConsole.input.setText(f'Tree.inspect({self.mainConsole.input.text()})')
+            self.mainConsole.input.execCmd()
+            self.commonCommandsComboBox.setCurrentIndex(0)
+            self.mainConsole.input.setFocus()
+
+    def clear(self):
+        self.mainConsole.input.setText('')
 
     def updateTheme(self):
         """:meta private:"""
@@ -4773,7 +4787,6 @@ class UCM(ChannelManager):
             super().__init__(**kwargs)
 
         DEVICE   = 'Device'
-        MONITOR   = 'Monitor'
         NOTES   = 'Notes'
 
         @property
@@ -4789,7 +4802,7 @@ class UCM(ChannelManager):
             return self.sourceChannel.real if self.sourceChannel is not None else False
 
         def connectSource(self):
-            self.restoreEvents() # free up previously used channel if applicable
+            self.removeEvents() # free up previously used channel if applicable
             sources = [channel for channel in self.device.pluginManager.DeviceManager.channels(inout=INOUT.ALL) if channel not in self.device.channels
                        and channel.name.strip().lower() == self.name.strip().lower()]
             if len(sources) == 0:
@@ -4805,9 +4818,17 @@ class UCM(ChannelManager):
 
                 value = self.getParameterByName(self.VALUE)
                 value.widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
-                value.indicator = self.sourceChannel.inout == INOUT.OUT
+                value.indicator = self.sourceChannel.getParameterByName(self.VALUE).indicator
+                if self.MIN in self.sourceChannel.displayedParameters:
+                    value.min = self.sourceChannel.getParameterByName(self.MIN).value
+                    value.max = self.sourceChannel.getParameterByName(self.MAX).value
                 value.applyWidget()
-
+                if hasattr(self.sourceChannel.device, 'unit'):
+                    self.unit = self.sourceChannel.device.unit 
+                elif hasattr(self.sourceChannel, 'unit'):
+                    self.unit = self.sourceChannel.unit 
+                else:
+                    self.unit = ''                    
                 if self.MONITOR in self.sourceChannel.displayedParameters:
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
@@ -4818,7 +4839,7 @@ class UCM(ChannelManager):
                 self.getSourceChannelValue()
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
-                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)            
             self.updateColor()
 
         def setSourceChannelValue(self):
@@ -4847,14 +4868,15 @@ class UCM(ChannelManager):
 
         def onDelete(self):
             super().onDelete()
-            self.restoreEvents()
+            self.removeEvents()
 
-        def restoreEvents(self):
-            """restore original events as reference to relayValueEvent and relayMonitorEvent will become unavailable"""
+        def removeEvents(self):
             if self.sourceChannel is not None:
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
+        
+        DISPLAYGROUP = 'Group'
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -4863,13 +4885,17 @@ class UCM(ChannelManager):
             channel.pop(Channel.REAL)
             channel.pop(Channel.SMOOTH)
             channel.pop(Channel.LINEWIDTH)
+            channel.pop(Channel.LINESTYLE)
             channel.pop(Channel.COLOR)
             channel[self.VALUE][Parameter.HEADER] = 'Value     ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
             channel[self.MONITOR] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='monitor', indicator=True)
+            channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='unit', indicator=True)
             channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
+            channel[self.DISPLAYGROUP] = parameterDict(value='1', widgetType=Parameter.TYPE.INTCOMBO, advanced=True, attr='displayGroup',
+                                                       items='0,1,2,3,4,5', toolTip='Used to group channels in the live display.')
             channel[self.NAME][Parameter.EVENT] = self.connectSource
             return channel
 
@@ -4882,13 +4908,16 @@ class UCM(ChannelManager):
             self.displayedParameters.remove(self.REAL)
             self.displayedParameters.remove(self.SMOOTH)
             self.displayedParameters.remove(self.LINEWIDTH)
+            self.displayedParameters.remove(self.LINESTYLE)
             self.displayedParameters.remove(self.COLOR)
             self.displayedParameters.append(self.MONITOR)
             self.displayedParameters.append(self.NOTES)
-            self.displayedParameters.insert(self.displayedParameters.index(self.NAME), self.DEVICE)
+            self.insertDisplayedParameter(self.DEVICE,self.NAME)
+            self.insertDisplayedParameter(self.UNIT,self.NOTES)
+            self.insertDisplayedParameter(self.DISPLAYGROUP,self.NOTES)
 
         def tempParameters(self):
-            return super().tempParameters() + [self.VALUE, self.MONITOR, self.NOTES, self.DEVICE]
+            return super().tempParameters() + [self.VALUE, self.MONITOR, self.NOTES, self.DEVICE, self.UNIT]
 
         def initGUI(self, item):
             super().initGUI(item)
@@ -4924,10 +4953,10 @@ class UCM(ChannelManager):
 
 class PID(ChannelManager):
     """Allows to connect an input (control) and output (feedback) channel via PID logic.
-    Proportional: If you’re not where you want to be, get there.
-    Integral: If you haven’t been where you want to be for a long time, get there faster.
-    Derivative: If you’re getting close to where you want to be, slow down.
-    Whenever the output changes, the input will be adjusted to stabilize the output to its target value."""
+    Whenever the output changes, the input will be adjusted to stabilize the output to its setpoint.\n
+    Proportional: If you’re not where you want to be, get there.\n
+    Integral: If you haven’t been where you want to be for a long time, get there faster.\n
+    Derivative: If you’re getting close to where you want to be, slow down."""
 
     name='PID'
     version = '1.0'
@@ -4958,14 +4987,18 @@ class PID(ChannelManager):
         NOTES        = 'Notes'
 
         def initPID(self):
-            if self.outputChannel is not None and self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
-                self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+            self.removeEvents()
             self.outputChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
             self.notes = f'Output: {outNotes}, Input: {inNotes}'
+            if self.outputChannel is not None:
+                self.unit = self.outputChannel.device.unit
             if self.outputChannel is None or self.inputChannel is None:
                 return
-            self.outputChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
+            if self.MONITOR in self.outputChannel.displayedParameters:
+                self.outputChannel.getParameterByName(self.MONITOR).extraEvents.append(self.stepPID)
+            else:
+                self.outputChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
             self.pid = simple_pid.PID(self.p, self.i, self.d, setpoint=self.value, sample_time=self.sample_time,
                                       output_limits=(self.inputChannel.min, self.inputChannel.max))
 
@@ -5002,12 +5035,14 @@ class PID(ChannelManager):
 
         def onDelete(self):
             super().onDelete()
-            self.restoreEvents()
+            self.removeEvents()
 
-        def restoreEvents(self):
-            """restore original events as reference to relayValueEvent and relayMonitorEvent will become unavailable"""
-            if self.outputChannel is not None and self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
-                self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+        def removeEvents(self):
+            if self.outputChannel is not None:
+                if self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
+                    self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+                if self.stepPID in self.outputChannel.getParameterByName(self.MONITOR).extraEvents:
+                    self.outputChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.stepPID)
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -5016,8 +5051,10 @@ class PID(ChannelManager):
             channel.pop(Channel.REAL)
             channel.pop(Channel.SMOOTH)
             channel.pop(Channel.LINEWIDTH)
-            channel[self.VALUE][Parameter.HEADER] = 'Target     ' # channels can have different types of parameters and units
+            channel.pop(Channel.LINESTYLE)
+            channel[self.VALUE][Parameter.HEADER] = 'Setpoint   ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = self.updateSetpoint
+            channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, attr='unit', indicator=True)
             channel[self.OUTPUT] = parameterDict(value='Output', widgetType=Parameter.TYPE.TEXT, attr='output', event=self.initPID,
                                                  toolTip='Output channel')
             channel[self.OUTPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
@@ -5046,7 +5083,9 @@ class PID(ChannelManager):
             self.displayedParameters.remove(self.REAL)
             self.displayedParameters.remove(self.SMOOTH)
             self.displayedParameters.remove(self.LINEWIDTH)
+            self.displayedParameters.remove(self.LINESTYLE)
             self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
+            self.insertDisplayedParameter(self.UNIT, before=self.COLOR)
             self.insertDisplayedParameter(self.OUTPUTDEVICE, before=self.COLOR)
             self.insertDisplayedParameter(self.OUTPUT, before=self.COLOR)
             self.insertDisplayedParameter(self.INPUTDEVICE, before=self.COLOR)
