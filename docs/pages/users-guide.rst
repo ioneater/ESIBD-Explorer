@@ -9,7 +9,7 @@ Enable a few devices, scans, and other plugins in the plugin manager.
 Select which live displays should be visible.
 Activate the test mode to simulate device communication while you familiarize yourself with the user interface.
 Record a few scans and inspect the generated file structure and files.
-Make use of tool tips and integrated documentation (questionmark icons) to learn about the plugins and settings.
+Make use of tool tips and integrated documentation (question mark icons) to learn about the plugins and settings.
 
 User interface overview
 -----------------------
@@ -218,7 +218,7 @@ Background
    For output channels, background signals can be defined manually or
    using the *set current value as background* option in the
    corresponding :ref:`live display<sec:live_displays>`. Each value will be saved with a
-   corresponding background. Backgrounds can be optionally and temprarily subtracted 
+   corresponding background. Backgrounds can be optionally and temporarily subtracted 
    without loosing the raw data.
 
 Display
@@ -237,7 +237,7 @@ Real
    parameters.
 
 Linewidth
-   The linewith is used to highlight the relative importance of channels in
+   The linewidth is used to highlight the relative importance of channels in
    the :ref:`live display<sec:live_displays>`.
 
 Color

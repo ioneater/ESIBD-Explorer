@@ -84,7 +84,7 @@ class Current(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.addAction(func=self.resetCharge, toolTip='Reset accumulated charge.', icon='battery-empty.png')
+        self.addAction(event=self.resetCharge, toolTip='Reset accumulated charge.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
         """ Define device specific settings that will be added to the general settings tab.
@@ -97,15 +97,16 @@ class Current(Device):
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]
 
-    def init(self):
-        super().init()
+    def initializeCommunication(self):
+        super().initializeCommunication()
         for channel in self.channels:
             if channel.enabled:
-                channel.controller.init()
+                channel.controller.initializeCommunication()
             elif channel.controller.acquiring:
                 channel.controller.stopAcquisition()
 
     def startAcquisition(self):
+        super().startAcquisition()
         for channel in self.channels:
             if channel.enabled:
                 channel.controller.startAcquisition()
@@ -115,11 +116,6 @@ class Current(Device):
             channel.controller.stopAcquisition()
         super().stopAcquisition()
 
-    def stop(self):
-        super().stop()
-        for channel in self.channels:
-            channel.controller.close()
-
     def resetCharge(self):
         for channel in self.channels:
             channel.resetCharge()
@@ -127,10 +123,10 @@ class Current(Device):
     def initialized(self):
         return any([channel.controller.initialized for channel in self.channels])
 
-    def close(self):
+    def closeCommunication(self):
         for channel in self.channels:
-            channel.controller.close()
-        super().close()
+            channel.controller.closeCommunication()
+        super().closeCommunication()
 
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality"""
@@ -189,22 +185,24 @@ class CurrentChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() + [self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
 
-    def enabledChanged(self): # overwrite parent method
+    def enabledChanged(self):
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
+        super().enabledChanged()
         if self.controller.initialized:
             if self.enabled:
-                self.controller.init()
+                self.controller.initializeCommunication()
             elif self.controller.acquiring:
                 self.controller.stopAcquisition()
 
-    def appendValue(self, lenT):
+    def appendValue(self, lenT, nan=False):
         # calculate deposited charge in last time step for all channels
         # this does not only monitor the deposition sample but also on what lenses charge is lost
         # make sure that the data interval is the same as used in data acquisition
-        super().appendValue(lenT)
-        chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
-        self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
-        self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
+        super().appendValue(lenT, nan=nan)
+        if not nan and not self.value == np.inf:
+            chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
+            self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
+            self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
 
     def clearHistory(self, max_size=None):
         super().clearHistory(max_size)
@@ -223,12 +221,12 @@ class CurrentChannel(Channel):
         self.getParameterByName(self.OUTOFRANGE).getWidget().setVisible(self.real)
         self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)        
         if self.device.recording:
-            self.controller.init()
+            self.controller.initializeCommunication()
         super().realChanged()
 
     def activeChanged(self):
         if self.device.recording:
-            self.controller.init()
+            self.controller.initializeCommunication()
         return super().activeChanged()
 
     def updateAverage(self):
@@ -253,10 +251,10 @@ class CurrentController(DeviceController):
         updateDeviceNameSignal = pyqtSignal(str)
 
     def __init__(self, channel):
-        super().__init__(parent=channel)
+        super().__init__(_parent=channel)
         #setup port
         self.channel = channel
-        self.device = self.channel.device
+        self.device = self.channel.getDevice()
         self.port = None
         self.signalComm.updateDeviceNameSignal.connect(self.updateDeviceName)
         self.updateAverageFlag = False
@@ -266,17 +264,13 @@ class CurrentController(DeviceController):
         self.omega = np.random.rand() # used in test mode
         self.offset = np.random.rand()*10 # used in test mode
 
-    def init(self):
+    def initializeCommunication(self):
         if self.channel.enabled and self.channel.active and self.channel.real:
-            super().init()
+            super().initializeCommunication()
         else:
             self.stopAcquisition()
 
-    def stop(self):
-        self.channel.device.stop()
-
-    def close(self):
-        super().close()
+    def closeCommunication(self):
         if self.port is not None:
             if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
                 self.RBDWriteRead('I0000') # stop sampling
@@ -285,12 +279,7 @@ class CurrentController(DeviceController):
                     self.port.close()
                 else:
                     self.print(f'Cannot acquire lock to close port of {self.channel.devicename}.', PRINT.WARNING)
-        self.initialized = False
-
-    def stopAcquisition(self):
-        if super().stopAcquisition():
-            if self.channel.device.pluginManager.closing:
-                time.sleep(.1)
+        super().closeCommunication()
 
     def runInitialization(self):
         """Initializes serial port in parallel thread."""
@@ -336,16 +325,21 @@ class CurrentController(DeviceController):
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
-        if getTestMode():
-            while acquiring():
-                self.fakeSingleNum()
-                self.updateParameters()
-                time.sleep(self.channel.device.interval/1000)
-        else:
-            self.RBDWriteRead(message=f'I{self.channel.device.interval:04d}') # start sampling with given interval (implement high speed communication if available)
-            while acquiring():
-                self.readSingleNum()
-                self.updateParameters()
+        if not getTestMode():
+            self.RBDWriteRead(message=f'I{self.channel.getDevice().interval:04d}') # start sampling with given interval (implement high speed communication if available)
+        while acquiring():            
+            with self.lock.acquire_timeout(2) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeSingleNum()
+                        self.updateParameters()
+                        time.sleep(self.channel.getDevice().interval/1000)
+                    else:
+                        self.readSingleNum()
+                        self.updateParameters()
+                        # no sleep needed, timing controlled by waiting during readSingleNum
+                else:
+                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.", PRINT.WARNING)
 
     def updateDeviceName(self, name):
         self.channel.devicename = name
@@ -355,7 +349,7 @@ class CurrentController(DeviceController):
         self.channel.outOfRange = outOfRange
         self.channel.unstable = unstable
         self.channel.error = error
-        if error != '' and self.channel.device.log:
+        if error != '' and self.channel.getDevice().log:
             self.print(error)
 
     def setRange(self):
@@ -419,17 +413,13 @@ class CurrentController(DeviceController):
         # self.print(self.RBDRead()) # -> b'P, PID=TRACKSMURF\r\n'
 
     def fakeSingleNum(self):
-        if not self.channel.device.pluginManager.closing:
+        if not self.channel.getDevice().pluginManager.closing:
             self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
 
     def readSingleNum(self):
-        if not self.channel.device.pluginManager.closing:
+        if not self.channel.getDevice().pluginManager.closing:
             msg = ''
-            with self.lock.acquire_timeout(2) as acquiring:
-                if acquiring:
-                    msg=self.RBDRead()
-                else:
-                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.", PRINT.WARNING)
+            msg=self.RBDRead()
             parsed = self.parse_message_for_sample(msg)
             if any (sym in parsed for sym in ['<','>']):
                 self.signalComm.updateValueSignal.emit(0, True, False, f'{self.channel.devicename}: {parsed}')

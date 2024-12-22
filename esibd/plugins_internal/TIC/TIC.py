@@ -3,7 +3,7 @@ import time
 import re
 import serial
 import numpy as np
-from esibd.plugins import Device, LiveDisplay, StaticDisplay
+from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
 
 def providePlugins():
@@ -19,22 +19,11 @@ class TIC(Device):
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
 
-    class LiveDisplay(LiveDisplay):
-
-        def initGUI(self):
-            self.logY = True
-            super().initGUI()
-
-    class StaticDisplay(StaticDisplay):
-
-        def initGUI(self):
-            self.logY = True
-            super().initGUI()
-
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(device=self)
+        self.logY = True
 
     def getIcon(self):
         return self.makeIcon('edwards_tic.png')
@@ -51,27 +40,24 @@ class TIC(Device):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None                                              
                                               or self.getTestMode())) or not channel.active]
 
-    def init(self):
-        super().init()
-        self.controller.init()
+    def initializeCommunication(self):
+        super().initializeCommunication()
+        self.controller.initializeCommunication()
 
     def startAcquisition(self):
+        super().startAcquisition()
         self.controller.startAcquisition()
 
     def stopAcquisition(self):
         super().stopAcquisition()
         self.controller.stopAcquisition()
 
-    def stop(self):
-        super().stop()
-        self.controller.close()
-
     def initialized(self):
         return self.controller.initialized
 
-    def close(self):
-        self.controller.close()
-        super().close()
+    def closeCommunication(self):
+        self.controller.closeCommunication()
+        super().closeCommunication()
 
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""
@@ -91,10 +77,11 @@ class PressureChannel(Channel):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.ID, before=self.COLOR)
 
-    def enabledChanged(self): # overwrite parent method
+    def enabledChanged(self):
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
+        super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
-            self.device.init()
+            self.device.initializeCommunication()
 
 class PressureController(DeviceController):
     # need to inherit from QObject to allow use of signals
@@ -102,17 +89,13 @@ class PressureController(DeviceController):
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     def __init__(self, device):
-        super().__init__(parent=device)
+        super().__init__(_parent=device)
         self.device = device
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.pressures = []
         self.initPressures()
 
-    def stop(self):
-        self.device.stop()
-
-    def close(self):
-        super().close()
+    def closeCommunication(self):
         if self.port is not None:
             with self.lock.acquire_timeout(2) as acquired:
                 if acquired:
@@ -120,12 +103,7 @@ class PressureController(DeviceController):
                     self.port = None
                 else:
                     self.print('Cannot acquire lock to close port.', PRINT.WARNING)
-        self.initialized = False
-
-    def stopAcquisition(self):
-        if super().stopAcquisition():
-            if self.device.pluginManager.closing:
-                time.sleep(.1)
+        super().closeCommunication()
 
     def runInitialization(self):
         """Initializes serial ports in parallel thread"""
@@ -159,7 +137,7 @@ class PressureController(DeviceController):
             self.print('Faking values for testing!', PRINT.WARNING)
 
     def initPressures(self):
-        self.pressures = [np.nan]*len(self.device.channels)
+        self.pressures = [np.nan]*len(self.device.getChannels())
 
     def startAcquisition(self):
         # only run if init successful, or in test mode. if channel is not active it will calculate value independently
@@ -169,16 +147,17 @@ class PressureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            if getTestMode():
-                self.fakeNumbers()
-            else:
-                self.readNumbers()
-            self.signalComm.updateValueSignal.emit()
-            time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(2):
+                if getTestMode():
+                    self.fakeNumbers()
+                else:
+                    self.readNumbers()
+                self.signalComm.updateValueSignal.emit()
+                time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
         """read pressures for all channels"""
-        for i, channel in enumerate(self.device.channels):
+        for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active:
                 if self.initialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}')
@@ -201,7 +180,7 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for c, pressure in zip(self.device.channels, self.pressures):
+        for c, pressure in zip(self.device.getChannels(), self.pressures):
             c.value = pressure
 
     def TICWrite(self, _id):

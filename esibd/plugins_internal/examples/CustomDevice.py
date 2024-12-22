@@ -43,7 +43,7 @@ class CustomDevice(Device):
     def apply(self, apply=False):
         """ Executed when values have changed.
             Should only apply channels where value has changed."""
-        # for channel in self.channels:
+        # for channel in self.getChannels():
         #     pass # implement depending on hardware
 
     def getDefaultSettings(self):

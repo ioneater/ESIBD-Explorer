@@ -2,7 +2,9 @@
 
 from enum import Enum
 import importlib
+import numpy as np
 from datetime import datetime
+from scipy import signal
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QSettings
 from esibd.config import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
@@ -27,6 +29,9 @@ GEOMETRY        = 'GEOMETRY'
 SETTINGSWIDTH   = 'SettingsWidth'
 SETTINGSHEIGHT  = 'SettingsHeight'
 CONSOLEHEIGHT   = 'ConsoleHeight'
+INPUTCHANNELS   = 'Input Channels'
+OUTPUTCHANNELS  = 'Output Channels'
+UNIT            = 'Unit'
 
 # * default paths should not be in software folder as this might not have write access after installation
 defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
@@ -64,7 +69,7 @@ class Colors():
 
     @property
     def highlight(self):
-        return '#8ab4f7' if getDarkMode() else '#0063e6'
+        return '#8ab4f7' if getDarkMode() else '#8ab4f7'
 
 colors = Colors()
 
@@ -191,3 +196,15 @@ def validatePath(path, default):
         return default, True
     else:
         return path, False
+    
+def betterSmooth(array, smooth):
+    """Smooths a 1D array while keeping edges meaningful.
+    This method is robust if array contains np.nan."""
+    if len(array) < smooth:
+        return array
+    smooth = int(np.ceil(smooth / 2.) * 2) # make even
+    padding = int(smooth/2)
+    win = signal.windows.boxcar(smooth)
+    paddedArray = np.concatenate((array[:padding][::-1], array, array[-padding:][::-1])) # pad ends
+    convolvedArray = signal.convolve(paddedArray, win, mode='same') / sum(win)
+    return convolvedArray[padding:-padding]

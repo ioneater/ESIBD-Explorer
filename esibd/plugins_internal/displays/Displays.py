@@ -18,20 +18,20 @@ def providePlugins():
     return [MS, LINE, PDB, HOLO]
 
 class MS(Plugin):
-    """The MS plugin allows to display simple mass spectra. Clicking on peaks
+    """The MS plugin allows to display simple mass spectra. Left clicking on peaks
     in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states. The
     detailed results are shown in the graph, and help to evaluate the
-    quality of the estimate. In most cases you will need to create your own version of this plugin
+    quality of the estimate. Use Ctrl + right mouse click to reset. In most cases you will need to create your own version of this plugin
     that is inheriting from the built-in version and redefines how data is
     loaded for your specific data format. See :ref:`sec:plugin_system` for more information."""
-    documentation = """The MS plugin allows to display simple mass spectra. Clicking on peaks
+    documentation = """The MS plugin allows to display simple mass spectra. Left clicking on peaks
     in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states. The
     detailed results are shown in the graph, and help to evaluate the
-    quality of the estimate."""
+    quality of the estimate. Use Ctrl + right mouse click to reset."""
 
     name = 'MS'
     version = '1.0'
@@ -68,7 +68,7 @@ class MS(Plugin):
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
         self.dataAction = self.addAction(lambda : self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
-        self.paperAction = self.addStateAction(func=self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
+        self.paperAction = self.addStateAction(event=self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self):
@@ -76,7 +76,7 @@ class MS(Plugin):
             self.raiseDock(True)
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.dataAction, True, 1)
-            self.testControl(self.paperAction, not self.usePaperStyle, 1)
+            self.testControl(self.paperAction, not self.paperAction.state, 1)
         super().runTestParallel()
 
     def supportsFile(self, file):
@@ -104,7 +104,7 @@ class MS(Plugin):
         """plots MS data"""
         self.axes[0].clear()
         self.axes[0].set_xlabel('m/z (Th)')
-        if self.usePaperStyle:
+        if self.paperAction.state:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
             self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)), color=QPalette().text().color().name())[0]
@@ -124,7 +124,7 @@ class MS(Plugin):
         self.navToolBar.update() # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0], ' ' if self.usePaperStyle else self.file.name)
+        self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value):
         array = np.asarray(array)
@@ -149,7 +149,7 @@ class MS(Plugin):
         if self.paperAction is not None:
             self.paperAction.iconFalse = self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png')
             self.paperAction.iconTrue = self.getIcon()
-            self.paperAction.updateIcon(self.usePaperStyle)
+            self.paperAction.updateIcon(self.paperAction.state)
 
 class PDB(Plugin):
     """The PDB plugin allows to display atoms defined in the .pdb and .pdb1

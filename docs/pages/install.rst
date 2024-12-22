@@ -30,7 +30,7 @@ From source (Miniconda)
 | The installation path may vary on your system. Also give the user
   account full write access in the Miniconda3 folder.
 
-Download the source from guthub, go to the setup folder, and run create_env.bat
+Download the source from github, go to the setup folder, and run create_env.bat
 to install all dependencies. Later, update_env.bat can be used to update
 dependencies. Start the program using *start.bat*. If desired, you can add
 a shortcut to start.bat to the start menu.

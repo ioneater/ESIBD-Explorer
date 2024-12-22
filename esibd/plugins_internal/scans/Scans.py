@@ -58,12 +58,12 @@ class Beam(Scan):
             super().finalizeInit(aboutFunc)
             self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'), toolTipTrue='Interpolation off.',
                                                          iconTrue=self.scan.makeIcon('interpolate_off.png'), before=self.copyAction,
-                                                         func=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
+                                                         event=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
             self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.',
                                                         toolTipTrue='Fixed axes aspect ratio.',
                                                         iconFalse=self.scan.getIcon(), iconTrue=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction,
-                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
+                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
             self.updateTheme() # set icons for axesAspectActions
             self.initFig()
 
@@ -74,7 +74,7 @@ class Beam(Scan):
             engine = self.fig.get_layout_engine()
             engine.set(rect=(0.05, 0.0, 0.8, 0.9)) # constrained_layout ignores labels on colorbar
             self.axes.append(self.fig.add_subplot(111))
-            if not self.varAxesAspect: # use qSet directly in case control is not yet initialized
+            if not self.axesAspectAction.state: # use qSet directly in case control is not yet initialized
                 self.axes[0].set_aspect('equal', adjustable='box')
             self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
             self.canvas.mpl_connect('button_press_event', self.mouseEvent)
@@ -88,8 +88,8 @@ class Beam(Scan):
         def runTestParallel(self):
             if self.initializedDock:
                 self.raiseDock(True)
-                self.testControl(self.interpolateAction, not self.interpolate, 1)
-                self.testControl(self.axesAspectAction, not self.varAxesAspect, 1)
+                self.testControl(self.interpolateAction, not self.interpolateAction.state, 1)
+                self.testControl(self.axesAspectAction, not self.axesAspectAction.state, 1)
             # super().runTestParallel() # handled by scan
 
         def updateTheme(self):
@@ -113,7 +113,7 @@ class Beam(Scan):
         self.coupleAction = self.addStateAction(toolTipFalse='Coupled step size.', iconFalse=self.makeIcon('lock-unlock.png'), toolTipTrue='Independent step size.',
                                                      iconTrue=self.makeIcon('lock.png'), before=self.copyAction, attr='coupleStepSize')
         self.limitAction = self.addAction(self.useLimits, 'Adopts limits from display', icon='ruler.png')
-        self.centerAction = self.addAction(func=self.centerLimits, toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
+        self.centerAction = self.addAction(event=self.centerLimits, toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
 
     def runTestParallel(self):
         self.raiseDock(True)
@@ -240,7 +240,7 @@ class Beam(Scan):
             if len(self.outputs) > 0:
                 self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
                 self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
-                if done and self.display.interpolate:
+                if done and self.display.interpolateAction.state:
                     rbf = interpolate.Rbf(x.ravel(), y.ravel(), self.outputs[self.getOutputIndex()].data.ravel())
                     xi, yi = self.getMeshgrid(2) # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
                     zi = rbf(xi, yi)
@@ -323,7 +323,7 @@ class Spectra(Beam):
 
     class Display(Beam.Display):
         """Displays data for Spectra scan."""
-        modeAction = None
+        plotModeAction = None
         averageAction = None
 
         def __init__(self, scan, **kwargs):
@@ -337,24 +337,24 @@ class Spectra(Beam):
                                                         toolTipTrue='Hide average.',
                                                         iconFalse=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction,
-                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
-            self.modeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
-                                                                   MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
-                                                                   MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
-                                                        func=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
+                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
+            self.plotModeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
+                                                               MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
+                                                               MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
+                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
             self.updateTheme() # set icons
             self.initFig() # call after finalizeInit completed
 
         def initFig(self):
-            if self.modeAction is None:
+            if self.plotModeAction is None:
                 return
             self.lines = None
-            if self.plotMode == self.modeAction.labels.contour:
+            if self.plotModeAction.state == self.plotModeAction.labels.contour:
                 super().initFig()
                 return
             super(Beam.Display, self).initFig()
             self.axes.append(self.fig.add_subplot(111))
-            if not self.varAxesAspect: # use qSet directly in case control is not yet initialized
+            if not self.axesAspectAction.state: # use qSet directly in case control is not yet initialized
                 self.axes[0].set_aspect('equal', adjustable='box')
 
         def updateTheme(self):
@@ -397,29 +397,28 @@ class Spectra(Beam):
         """Plots 2D scan data"""
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
 
-        if self.display.plotMode == self.display.modeAction.labels.contour:
+        if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
             super().plot(update=update, done=done, **kwargs)
             return
         if self.loading or len(self.outputs) == 0:
             return
 
-        # self.display.axes[0].clear()
         x = np.linspace(self.inputs[0].data[0], self.inputs[0].data[-1], len(self.inputs[0].data))
         y = np.linspace(self.inputs[1].data[0], self.inputs[1].data[-1], len(self.inputs[1].data))
         if self.display.lines is None:
             self.display.axes[0].clear()
             self.display.lines = [] # dummy plots
             for i, z in enumerate(self.outputs[self.getOutputIndex()].data):
-                if self.display.plotMode == self.display.modeAction.labels.stacked:
+                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [])[0])
-                else: # self.display.modeAction.labels.overlay
+                else: # self.display.plotModeAction.labels.overlay
                     self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
             if self.display.average:
-                if self.display.plotMode == self.display.modeAction.labels.stacked:
+                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
-                else: # self.display.modeAction.labels.overlay
+                else: # self.display.plotModeAction.labels.overlay
                     self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
-            if self.display.plotMode == self.display.modeAction.labels.overlay:
+            if self.display.plotModeAction.state == self.display.plotModeAction.labels.overlay:
                 leg = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
                 leg.set_in_layout(False)
 
@@ -427,19 +426,19 @@ class Spectra(Beam):
             self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
             self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
         for i, z in enumerate(self.outputs[self.getOutputIndex()].data):
-            if self.display.plotMode == self.display.modeAction.labels.stacked:
+            if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                 if np.abs(z.max()-z.min()) != 0:
                     z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
                 self.display.lines[i].set_data(x, z + y[i] - z[0])
-            else: # self.display.modeAction.labels.overlay
+            else: # self.display.plotModeAction.labels.overlay
                 self.display.lines[i].set_data(x, z)
         if self.display.average:
             z = np.mean(self.outputs[self.getOutputIndex()].data, 0)
-            if self.display.plotMode == self.display.modeAction.labels.stacked:
+            if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                 if np.abs(z.max()-z.min()) != 0:
                     z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
                 self.display.lines[-1].set_data(x, z + y[-1] + y[1]-y[0] - z[0])
-            else: # self.display.modeAction.labels.overlay
+            else: # self.display.plotModeAction.labels.overlay
                 self.display.lines[-1].set_data(x, z)
 
         self.display.axes[0].relim() # adjust to data
@@ -467,7 +466,7 @@ class Spectra(Beam):
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
                 output.data[i//len(self.inputs[0].data), i%len(self.inputs[0].data)] = np.mean(output.channel.getValues(
-                    subtractBackground=output.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
+                    subtractBackground=output.channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
 
             if i == len(steps)-1 or not recording(): # last step
                 for j, _input in enumerate(self.inputs):
@@ -918,12 +917,12 @@ plt.show()
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
                 time.sleep((self.wait+self.average)/1000) # if step is larger than threshold use longer wait time
-                if self.inputs[0].channel.device.liveDisplay.recording: # get average
-                    self.inputs[0].data.add(np.mean(self.inputs[0].channel.getValues(subtractBackground=self.inputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
+                if self.inputs[0].channel.getDevice().recording: # get average
+                    self.inputs[0].data.add(np.mean(self.inputs[0].channel.getValues(subtractBackground=self.inputs[0].channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)))
                 else: # use last value
                     self.inputs[0].data.add(self.inputs[0].channel.value)
                 for j, output in enumerate(self.outputs):
-                    self.outputs[j].data.add(np.mean(output.channel.getValues(subtractBackground=output.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
+                    self.outputs[j].data.add(np.mean(output.channel.getValues(subtractBackground=output.channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)))
                 if not recording(): # last step
                     self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
                     self.signalComm.updateRecordingSignal.emit(False)
@@ -939,7 +938,7 @@ plt.show()
                 self.inputs[0].channel.signalComm.updateValueSignal.emit(step)
                 time.sleep(((self.waitLong if waitLong else self.wait)+self.average)/1000) # if step is larger than threshold use longer wait time
                 for j, output in enumerate(self.outputs):
-                    output.data[i] = np.mean(output.channel.getValues(subtractBackground=output.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
+                    output.data[i] = np.mean(output.channel.getValues(subtractBackground=output.channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
                 if i == len(steps)-1 or not recording(): # last step
                     self.inputs[0].channel.signalComm.updateValueSignal.emit(self.inputs[0].initial)
                     time.sleep(.5) # allow time to reset to initial value before saving
@@ -1060,14 +1059,14 @@ class Depo(Scan):
             channel = self.getChannelByName(name, inout=INOUT.OUT)
             if channel is None:
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
-            elif not channel.device.initialized():
-                self.print(f'{channel.device.name} is not initialized.', PRINT.WARNING)
-            elif not channel.device.liveDisplay.recording:
-                self.print(f'{channel.device.name} is not recording.', PRINT.WARNING)
+            elif not channel.getDevice().initialized():
+                self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
+            elif not channel.getDevice().recording:
+                self.print(f'{channel.getDevice().name} is not recording.', PRINT.WARNING)
             elif not channel.enabled and channel.real:
                 self.print(f'{channel.name} is not enabled.', PRINT.WARNING)
             else:
-                self.outputs.append(MetaChannel(name=f'{channel.name}', data=DynamicNp(), unit=channel.device.unit, channel=channel))
+                self.outputs.append(MetaChannel(name=f'{channel.name}', data=DynamicNp(), unit=channel.getDevice().unit, channel=channel))
                 if hasattr(channel, 'resetCharge'):
                     channel.resetCharge()
                     self.outputs.append(MetaChannel(name=f'{channel.name}_{self.CHARGE}', data=DynamicNp(), unit='pAh', channel=channel))
@@ -1208,7 +1207,7 @@ plt.show()
             self.inputs[0].data.add(time.time())
             for i, output in enumerate(self.outputs):
                 if i%2 == 0:
-                    self.outputs[i].data.add(np.mean(output.channel.getValues(subtractBackground=output.channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
+                    self.outputs[i].data.add(np.mean(output.channel.getValues(subtractBackground=output.channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)))
                 else:
                     self.outputs[i].data.add(output.channel.charge)
             if self.warn and winsound is not None: # Sound only supported for windows
@@ -1278,7 +1277,7 @@ class GA(Scan):
     def initGUI(self):
         super().initGUI()
         self.recordingAction.setToolTip('Toggle optimization.')
-        self.initialAction = self.addStateAction(func=self.toggleInitial, toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
+        self.initialAction = self.addStateAction(event=self.toggleInitial, toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
                                                  toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
     def runTestParallel(self):
         self.raiseDock(True)
@@ -1313,13 +1312,13 @@ class GA(Scan):
         if gaChannel is None:
             self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
             return False
-        elif not gaChannel.device.liveDisplay.recording:
+        elif not gaChannel.getDevice().recording:
             self.print(f'Channel {self.displayDefault} not recording. Cannot start optimization.', PRINT.WARNING)
             return False
         else:
             self.inputs.append(MetaChannel(name=self.TIME, data=DynamicNp(dtype=np.float64)))
-            self.outputs.append(MetaChannel(name=f'{gaChannel.name}'    , data=DynamicNp(), unit=gaChannel.device.unit, channel=gaChannel))
-            self.outputs.append(MetaChannel(name=f'{gaChannel.name}_Avg', data=DynamicNp(), unit=gaChannel.device.unit, channel=gaChannel))
+            self.outputs.append(MetaChannel(name=f'{gaChannel.name}'    , data=DynamicNp(), unit=gaChannel.getDevice().unit, channel=gaChannel))
+            self.outputs.append(MetaChannel(name=f'{gaChannel.name}_Avg', data=DynamicNp(), unit=gaChannel.getDevice().unit, channel=gaChannel))
             self.toggleDisplay(True)
             self.display.axes[0].set_ylabel(gaChannel.name)
         for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
@@ -1328,7 +1327,7 @@ class GA(Scan):
             else:
                 self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max-channel.min)/10, channel.name) # add entry but set rate to 0 to prevent value change. Can be activated later.
         self.ga.genesis()
-        self.measurementsPerStep = max(int((self.average/self.outputs[0].channel.device.interval))-1, 1)
+        self.measurementsPerStep = max(int((self.average/self.outputs[0].channel.getDevice().interval))-1, 1)
         self.updateFile()
         self.ga.file_path(self.file.parent.as_posix())
         self.ga.file_name(self.file.name)
@@ -1377,13 +1376,13 @@ plt.show()
         """Run GA optimization."""
         #first datapoint before optimization
         self.inputs[0].data.add(time.time())
-        fitnessStart = np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep))
+        fitnessStart = np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
         self.outputs[0].data.add(fitnessStart)
         self.outputs[1].data.add(fitnessStart)
         while recording():
             self.gaSignalComm.updateValuesSignal.emit(-1, False)
             time.sleep((self.wait+self.average)/1000)
-            self.ga.fitness(np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.device.subtractBackgroundActive(), length=self.measurementsPerStep)))
+            self.ga.fitness(np.mean(self.outputs[0].channel.getValues(subtractBackground=self.outputs[0].channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
                 self.print(self.ga.step_string().replace('GA: ',''))
             _, session_saved = self.ga.check_restart()
@@ -1420,9 +1419,10 @@ plt.show()
 
 class MassSpec(Scan):
     """Records mass spectra by recording an output channel as a function of a (calibrated) input channel.
-    Clicking on peaks in a charge state series while holding down the Ctrl key provides a
+    Left clicking on peaks in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states.
+    Use Ctrl + right mouse click to reset.
     This can be used as a template or a parent class for a simple one dimensional scan of other properties."""
     documentation = None # use __doc__
 

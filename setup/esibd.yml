@@ -4,19 +4,19 @@ channels:
   - defaults
 dependencies:
   - python==3.11
-    - asteval
-    - biopython
-    - configparser
-    - keyboard
-    - numpy
-    - pyinstaller
-    - pyperclip
-    - python-socketio
-    - pyserial
-    - pyvisa
-    - pywin32
-    - scipy
-    - Send2Trash
+  - asteval
+  - biopython
+  - configparser
+  - keyboard
+  - numpy
+  - pyinstaller
+  - pyperclip
+  - python-socketio
+  - pyserial
+  - pyvisa
+  - pywin32
+  - scipy
+  - Send2Trash
   - pip
   - pip:
     - configobj
