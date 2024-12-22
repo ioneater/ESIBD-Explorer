@@ -9,7 +9,7 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCalculator, PluginManager, getDarkMode
+from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
 from esibd.plugins import Plugin
 
 #################################### General UI Classes #########################################
@@ -151,6 +151,51 @@ class MS(Plugin):
             self.paperAction.iconTrue = self.getIcon()
             self.paperAction.updateIcon(self.paperAction.state)
 
+    def generatePythonPlotCode(self):
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+            plotFile.write(f"""import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+                           
+def map_percent(x, x_min, x_max, y):
+    x_min_i=np.where(x == find_nearest(x, x_min))[0]
+    x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
+    x_max_i=np.where(x == find_nearest(x, x_max))[0]
+    x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
+    y_sub=y[x_min_i:x_max_i]
+    return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
+def smooth(y, box_pts):
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth
+    
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return array[idx]
+                           
+paperStyle = False
+                           
+x, y = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
+
+with mpl.style.context('default'):
+    fig = plt.figure(constrained_layout=True)
+    ax = fig.add_subplot(111)
+    ax.set_xlabel('m/z (Th)')
+    if paperStyle:
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.plot(x, map_percent(x, min(x), max(x), smooth(y, 10)), color='k')[0]
+        ax.set_ylabel('')
+        ax.set_ylim([1, 100+2])
+        ax.set_yticks([1, 50, 100])
+        ax.set_yticklabels(['0','%','100'])
+    else:
+        ax.set_ylabel('Intensity')
+        ax.plot(x, y)[0]
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared exponent for short y labels, even for smaller numbers
+    plt.show()""")
+
 class PDB(Plugin):
     """The PDB plugin allows to display atoms defined in the .pdb and .pdb1
     file formats used by the protein data bank. While the visualization is
@@ -224,6 +269,50 @@ class PDB(Plugin):
         ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
         ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
         ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
+    def generatePythonPlotCode(self):
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+            plotFile.write(f"""import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from Bio.PDB import PDBParser
+                           
+def get_structure(pdb_file): # read PDB file
+        structure = PDBParser(QUIET=True).get_structure('', pdb_file)
+        XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
+        return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]                       
+
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+    Input
+    ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+                           
+_, _, x, y, z = get_structure('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
+
+with mpl.style.context('default'):
+    fig = plt.figure(constrained_layout=True)
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, marker='.', s=2)
+    set_axes_equal(ax)
+    plt.show()""")
 
 class LINE(Plugin):
     """The Line plugin allows to display simple 2D data. It is made to work
@@ -304,6 +393,22 @@ class LINE(Plugin):
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
         self.labelPlot(self.axes[0], self.file.name)
 
+    def generatePythonPlotCode(self):
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+            plotFile.write(f"""import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+                           
+profile = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=3)
+
+with mpl.style.context('default'):
+    fig = plt.figure(constrained_layout=True)
+    ax = fig.add_subplot(111)
+    ax.plot(profile[:, 0], profile[:, 1])[0]
+    ax.set_xlabel('width (m)')
+    ax.set_ylabel('height (m)')
+    plt.show()""")
+
 class HOLO(Plugin):
     """The Holo plugin was designed to display 3D NumPy arrays such as
     holograms from low energy electron holography (LEEH).\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`
@@ -332,9 +437,9 @@ class HOLO(Plugin):
         self.addContentLayout(hor)
 
         self.angleSlider = QSlider(Qt.Orientation.Horizontal)
-        self.angleSlider.sliderReleased.connect(lambda : self.value_changed(angle=True))
+        self.angleSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=True))
         self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
-        self.amplitudeSlider.sliderReleased.connect(lambda : self.value_changed(angle=False))
+        self.amplitudeSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=False))
         self.titleBar.addWidget(self.angleSlider)
         self.titleBar.addWidget(self.amplitudeSlider)
         self.angle = None
@@ -343,9 +448,6 @@ class HOLO(Plugin):
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
-
-    def value_changed(self, angle=True):
-        self.drawSurface(angle=angle)
 
     def supportsFile(self, file):
         if super().supportsFile(file):
@@ -369,10 +471,10 @@ class HOLO(Plugin):
     def mapSliderToData(self, slider, data):
         return data.min() + slider.value()/100*(data.max() - data.min())
 
-    def drawSurface(self, angle=True):
+    def drawSurface(self, plotAngle):
         """Draws an isosurface at a value defined by the sliders."""
         if self.angle is not None:
-            if angle:
+            if plotAngle:
                 self.glAngleView.clear()
                 verts, faces = pg.isosurface(self.angle, self.mapSliderToData(self.angleSlider, self.angle))
             else:
@@ -389,7 +491,83 @@ class HOLO(Plugin):
             m1.setGLOptions('additive')
             m1.translate(-self.angle.shape[0]/2, -self.angle.shape[1]/2, -self.angle.shape[2]/2)
 
-            if angle:
+            if plotAngle:
                 self.glAngleView.addItem(m1)
             else:
                 self.glAmplitudeView.addItem(m1)
+
+    def generatePythonPlotCode(self):
+        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+            plotFile.write(f"""import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+import numpy as np
+import sys
+from PyQt6.QtCore import Qt
+from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
+from PyQt6.QtWidgets import QApplication, QWidget, QGridLayout, QMainWindow, QSlider
+
+class Foo(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+        self.lay = QGridLayout(self)   
+        self.angleSlider = QSlider(Qt.Orientation.Horizontal)
+        self.angleSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=True))
+        self.lay.addWidget(self.angleSlider, 0, 0)
+        self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
+        self.amplitudeSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=False))
+        self.lay.addWidget(self.amplitudeSlider, 0, 1)
+        self.glAngleView = gl.GLViewWidget()
+        self.lay.addWidget(self.glAngleView, 1, 0)
+        self.glAmplitudeView = gl.GLViewWidget()
+        self.lay.addWidget(self.glAmplitudeView, 1, 1)
+        self.init()
+
+    def init(self):
+        data = np.load('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
+        self.angle = np.ascontiguousarray(np.angle(data)) # make c contiguous
+        self.amplitude = np.ascontiguousarray(np.abs(data)) # make c contiguous
+        self.glAngleView.setCameraPosition(distance=max(self.angle.shape)*2)
+        self.glAmplitudeView.setCameraPosition(distance=max(self.amplitude.shape)*2)
+        self.angleSlider.setValue(10)
+        self.amplitudeSlider.setValue(10)
+        self.drawSurface(plotAngle=True )
+        self.drawSurface(plotAngle=False)
+
+    def mapSliderToData(self, slider, data):
+        return data.min() + slider.value()/100*(data.max() - data.min())
+
+    def value_changed(self, plotAngle=True):
+        self.drawSurface(plotAngle=plotAngle)
+
+    def drawSurface(self, plotAngle):
+        '''Draws an isosurface at a value defined by the sliders.'''
+        if plotAngle:
+            self.glAngleView.clear()
+            verts, faces = pg.isosurface(self.angle, self.mapSliderToData(self.angleSlider, self.angle))
+        else:
+            self.glAmplitudeView.clear()
+            verts, faces = pg.isosurface(self.amplitude, self.mapSliderToData(self.amplitudeSlider, self.amplitude))
+
+        md = gl.MeshData(vertexes=verts, faces=faces)
+        colors = np.ones((md.faceCount(), 4), dtype=float)
+        colors[:, 3] = 0.2
+        colors[:, 2] = np.linspace(0, 1, colors.shape[0])
+        md.setFaceColors(colors)
+
+        m1 = gl.GLMeshItem(meshdata=md, smooth=True, shader='balloon')
+        m1.setGLOptions('additive')
+        m1.translate(-self.angle.shape[0]/2, -self.angle.shape[1]/2, -self.angle.shape[2]/2)
+
+        if plotAngle:
+            self.glAngleView.addItem(m1)
+        else:
+            self.glAmplitudeView.addItem(m1)
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL) # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
+    mainWindow = Foo()
+    mainWindow.show()
+    sys.exit(app.exec())
+""")

@@ -173,14 +173,14 @@ class CurrentChannel(Channel):
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.CHARGE, before=self.DISPLAY)
-        self.insertDisplayedParameter(self.COM, before=self.COLOR)
-        self.insertDisplayedParameter(self.DEVICENAME, before=self.COLOR)
-        self.insertDisplayedParameter(self.RANGE, before=self.COLOR)
-        self.insertDisplayedParameter(self.AVERAGE, before=self.COLOR)
-        self.insertDisplayedParameter(self.BIAS, before=self.COLOR)
-        self.insertDisplayedParameter(self.OUTOFRANGE, before=self.COLOR)
-        self.insertDisplayedParameter(self.UNSTABLE, before=self.COLOR)
-        self.insertDisplayedParameter(self.ERROR, before=self.COLOR)
+        self.displayedParameters.append(self.COM)
+        self.displayedParameters.append(self.DEVICENAME)
+        self.displayedParameters.append(self.RANGE)
+        self.displayedParameters.append(self.AVERAGE)
+        self.displayedParameters.append(self.BIAS)
+        self.displayedParameters.append(self.OUTOFRANGE)
+        self.displayedParameters.append(self.UNSTABLE)
+        self.displayedParameters.append(self.ERROR)
 
     def tempParameters(self):
         return super().tempParameters() + [self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]

@@ -109,7 +109,7 @@ class VoltageChannel(Channel):
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         # self.insertDisplayedParameter(self.MONITOR, before=self.MIN) TODO show when monitors are fixed
-        self.insertDisplayedParameter(self.ADDRESS, before=self.COLOR)
+        self.displayedParameters.append(self.ADDRESS)
 
     def tempParameters(self):
         return super().tempParameters() + [self.MONITOR]

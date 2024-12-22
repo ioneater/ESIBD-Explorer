@@ -124,7 +124,7 @@ class CurrentChannel(Channel):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.CHARGE, before=self.DISPLAY)
         self.insertDisplayedParameter(self.VOLTAGE, before=self.DISPLAY)
-        self.insertDisplayedParameter(self.ADDRESS, before=self.COLOR)
+        self.displayedParameters.append(self.ADDRESS)
 
     def tempParameters(self):
         return super().tempParameters() + [self.CHARGE]

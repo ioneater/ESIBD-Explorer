@@ -1742,24 +1742,24 @@ class ChannelManager(Plugin):
     def toggleAdvanced(self, advanced=None):
         self.print('toggleAdvanced', flag=PRINT.DEBUG)
         if advanced is not None:
-            self.advanced = advanced
-        self.importAction.setVisible(self.advanced)
-        self.exportAction.setVisible(self.advanced)
-        self.duplicateChannelAction.setVisible(self.advanced)
-        self.deleteChannelAction.setVisible(self.advanced)
-        self.moveChannelUpAction.setVisible(self.advanced)
-        self.moveChannelDownAction.setVisible(self.advanced)
+            self.advancedAction.state = advanced
+        self.importAction.setVisible(self.advancedAction.state)
+        self.exportAction.setVisible(self.advancedAction.state)
+        self.duplicateChannelAction.setVisible(self.advancedAction.state)
+        self.deleteChannelAction.setVisible(self.advancedAction.state)
+        self.moveChannelUpAction.setVisible(self.advancedAction.state)
+        self.moveChannelDownAction.setVisible(self.advancedAction.state)
         for i, item in enumerate(self.channels[0].getSortedDefaultChannel().values()):
             if item[Parameter.ADVANCED]:
-                self.tree.setColumnHidden(i, not self.advanced)
+                self.tree.setColumnHidden(i, not self.advancedAction.state)
         for channel in self.channels:
             if self.inout == INOUT.NONE:
                 channel.setHidden(False)
             else:
                 if channel.inout == INOUT.IN:
-                    channel.setHidden(not (self.advanced or channel.active))
+                    channel.setHidden(not (self.advancedAction.state or channel.active))
                 else: # INOUT.OUT:
-                    channel.setHidden(not (self.advanced or channel.active or channel.display))
+                    channel.setHidden(not (self.advancedAction.state or channel.active or channel.display))
         # Collapses all channels of same color below selected channels.
         for channel in self.channels:
             index = self.channels.index(channel)
@@ -1774,7 +1774,7 @@ class ChannelManager(Plugin):
                     break
                 index = index-1
         if self.liveDisplayActive() and hasattr(self.liveDisplay, 'clearHistoryAction'):
-            self.liveDisplay.clearHistoryAction.setVisible(self.advanced)
+            self.liveDisplay.clearHistoryAction.setVisible(self.advancedAction.state)
 
     def intervalChanged(self):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
@@ -4661,6 +4661,7 @@ class Explorer(Plugin):
                 for device in self.pluginManager.DeviceManager.getDevices():
                     if device.liveDisplay.supportsFile(self.activeFileFullPath):
                         copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {device.name} plot file.')
+                        break # only use first match
                 for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                     if scan.supportsFile(self.activeFileFullPath):
                         copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {scan.name} plot file.')
@@ -4679,6 +4680,11 @@ class Explorer(Plugin):
                         for device in self.pluginManager.DeviceManager.getDevices(inout = INOUT.IN):
                             if device.name == fileType:
                                 loadValuesActions.append(explorerContextMenu.addAction(device.LOADVALUES))
+            else:
+                for display in self.pluginManager.getPluginsByType(PluginManager.TYPE.DISPLAY):
+                    if display.supportsFile(self.activeFileFullPath) and hasattr(display, 'generatePythonPlotCode'):
+                        copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {display.name} plot file.')
+                        break # only use first match
 
         explorerContextMenuAction = explorerContextMenu.exec(self.tree.mapToGlobal(pos))
         if explorerContextMenuAction is not None:
@@ -4702,9 +4708,15 @@ class Explorer(Plugin):
                     if device.liveDisplay.supportsFile(self.activeFileFullPath):
                         device.staticDisplay.generatePythonPlotCode()
                         self.populateTree(clear=False)
+                        break # only use first match
                 for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                     if scan.supportsFile(self.activeFileFullPath):
                         scan.generatePythonPlotCode()
+                        self.populateTree(clear=False)
+                        break # only use first match
+                for display in self.pluginManager.getPluginsByType(PluginManager.TYPE.DISPLAY):
+                    if display.supportsFile(self.activeFileFullPath) and hasattr(display, 'generatePythonPlotCode'):
+                        display.generatePythonPlotCode()
                         self.populateTree(clear=False)
                         break # only use first match
             elif explorerContextMenuAction in loadSettingsActions:

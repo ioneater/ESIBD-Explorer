@@ -114,9 +114,9 @@ class TemperatureChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.CHANNEL, before=self.COLOR)
-        self.insertDisplayedParameter(self.DATATYPE, before=self.COLOR)
-        self.insertDisplayedParameter(self.NOOFWIRES, before=self.COLOR)
+        self.displayedParameters.append(self.CHANNEL)
+        self.displayedParameters.append(self.DATATYPE)
+        self.displayedParameters.append(self.NOOFWIRES)
 
     def enabledChanged(self): # overwrite parent method
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""

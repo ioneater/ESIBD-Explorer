@@ -70,7 +70,8 @@ class CustomChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.ID, before=self.COLOR)
+        # self.insertDisplayedParameter(self.ID, before=self.SMOOTH)
+        self.displayedParameters.append(self.ID)
 
     def finalizeInit(self, item):
         super().finalizeInit(item)

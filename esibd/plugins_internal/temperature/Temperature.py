@@ -139,7 +139,7 @@ class TemperatureChannel(Channel):
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
-        self.insertDisplayedParameter(self.CONTROLLER, before=self.COLOR)
+        self.displayedParameters.append(self.CONTROLLER)
 
     def enabledChanged(self):
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""

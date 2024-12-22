@@ -85,8 +85,8 @@ class PressureChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.CONTROLLER, before=self.COLOR)
-        self.insertDisplayedParameter(self.ID, before=self.COLOR)
+        self.displayedParameters.append(self.CONTROLLER)
+        self.displayedParameters.append(self.ID)
 
     def enabledChanged(self):
         """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""

@@ -110,8 +110,8 @@ class VoltageChannel(Channel):
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
-        self.insertDisplayedParameter(self.COM, before=self.COLOR)
-        self.insertDisplayedParameter(self.ID, before=self.COLOR)
+        self.displayedParameters.append(self.COM)
+        self.displayedParameters.append(self.ID)
 
     def tempParameters(self):
         return super().tempParameters() + [self.MONITOR]
