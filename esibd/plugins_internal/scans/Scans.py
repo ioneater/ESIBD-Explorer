@@ -671,7 +671,7 @@ class Energy(Scan):
                                 #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm]) # can screw up x range if fit fails
                             else:
                                 self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
-                        except RuntimeError as e:
+                        except (RuntimeError, ValueError) as e:
                             self.print(f'Fit failed with error: {e}')
                     self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False) # has to be initialized last, otherwise axis limits may be affected
                 else: # no data
