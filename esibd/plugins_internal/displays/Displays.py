@@ -510,7 +510,10 @@ class Foo(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.lay = QGridLayout(self)   
+        self.setGeometry(100, 100, 800, 400)
+        self.setCentralWidget(QWidget())
+        self.lay = QGridLayout()    
+        self.centralWidget().setLayout(self.lay);
         self.angleSlider = QSlider(Qt.Orientation.Horizontal)
         self.angleSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=True))
         self.lay.addWidget(self.angleSlider, 0, 0)
@@ -520,7 +523,7 @@ class Foo(QMainWindow):
         self.glAngleView = gl.GLViewWidget()
         self.lay.addWidget(self.glAngleView, 1, 0)
         self.glAmplitudeView = gl.GLViewWidget()
-        self.lay.addWidget(self.glAmplitudeView, 1, 1)
+        self.lay.addWidget(self.glAmplitudeView, 1, 1)    
         self.init()
 
     def init(self):

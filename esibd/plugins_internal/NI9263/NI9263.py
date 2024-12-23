@@ -1,5 +1,4 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
-import serial
 from threading import Thread
 import time
 from random import choices
@@ -9,8 +8,8 @@ from PyQt6.QtCore import pyqtSignal
 # conda activate esibd
 # pip install nidaqmx
 import nidaqmx
-from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
+from esibd.plugins import Device
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 ########################## Voltage user interface #################################################
 
@@ -18,7 +17,8 @@ def providePlugins():
     return [NI9263]
 
 class NI9263(Device):
-    """Device that contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each."""
+    """Device that contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each.
+    There are no monitors to verify the applied voltages."""
     documentation = None # use __doc__
 
     name = 'NI9263'
@@ -55,9 +55,8 @@ class NI9263(Device):
         
     def initializeCommunication(self):
         """:meta private:"""
-        super().initializeCommunication()
         self.onAction.state = self.controller.ON
-        self.controller.initializeCommunication()
+        super().initializeCommunication()
 
     def stopAcquisition(self):
         """:meta private:"""
@@ -68,9 +67,6 @@ class NI9263(Device):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
     
-    def initialized(self):
-        return self.controller.initialized
-
     def apply(self, apply=False):
         for c in self.channels:
             c.setVoltage(apply) # only actually sets voltage if configured and value has changed
@@ -92,7 +88,6 @@ class VoltageChannel(Channel):
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
         self.defaultStyleSheet = None # will be initialized when color is set
 
-    MONITOR   = 'Monitor'
     ADDRESS   = 'Address'
 
     def getDefaultChannel(self):
@@ -100,19 +95,13 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
         channel[self.MIN ][Parameter.VALUE] = 0
         channel[self.MAX ][Parameter.VALUE] = 1 # start with safe limits
-        channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.ADDRESS] = parameterDict(value='cDAQ1Mod1/ao0', toolTip='Address of analog output',
                                           widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return channel
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        # self.insertDisplayedParameter(self.MONITOR, before=self.MIN) TODO show when monitors are fixed
         self.displayedParameters.append(self.ADDRESS)
-
-    def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR]
 
     def setVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
@@ -123,47 +112,23 @@ class VoltageChannel(Channel):
         color = super().updateColor()
         self.defaultStyleSheet = f'background-color: {color.name()}'
 
-    def monitorChanged(self):
-        if self.enabled and self.device.controller.acquiring and ((self.device.controller.ON and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.controller.ON and abs(self.monitor - 0) > 1)):
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
-        else:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
-
     def realChanged(self):
-        # self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
-
-    def appendValue(self, lenT, nan=False):
-        # super().appendValue() # overwrite to use monitors if available        
-        # if nan:
-        #     self.monitor=np.nan
-        # if self.enabled and self.real:
-        #     self.values.add(self.monitor, lenT)
-        # else:
-        #     self.values.add(self.value, lenT)
-        pass # TODO fix monitors
 
 class VoltageController(DeviceController): # no channels needed
     # need to inherit from QObject to allow use of signals
     """Implements Serial communication with MIPS.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        applyMonitorsSignal= pyqtSignal()
-
     def __init__(self, device):
         super().__init__(_parent=device)
         self.device     = device
-        self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.ON         = False
-        self.voltages   = [np.nan]*len(self.device.channels)
 
     def runInitialization(self):
         """initializes socket for SCPI communication"""
         if getTestMode():
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
             self.initialized = True
             self.signalComm.initCompleteSignal.emit()
         else:
@@ -181,7 +146,6 @@ class VoltageController(DeviceController): # no channels needed
                 self.initializing = False
 
     def initComplete(self):
-        # super().startAcquisition() TODO fix monitors
         if self.ON:
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)
@@ -199,14 +163,6 @@ class VoltageController(DeviceController): # no channels needed
             else:
                 self.print(f'Cannot acquire lock to set voltage of {channel.name}.', PRINT.WARNING)
 
-    def applyMonitors(self):
-        if getTestMode():
-            self.fakeMonitors()
-        else:
-            for i, channel in enumerate(self.device.channels):
-                if channel.real:
-                    channel.monitor = self.voltages[i]
-
     def voltageON(self, on=False, parallel=True): # this can run in main thread
         self.ON = on
         if not getTestMode() and self.initialized:
@@ -214,33 +170,11 @@ class VoltageController(DeviceController): # no channels needed
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
                 self.voltageONFromThread(on=on)
-        elif getTestMode():
-            self.fakeMonitors()
 
     def voltageONFromThread(self, on=False):
         for channel in self.device.channels:
             if channel.real:
                 self.setVoltageFromThread(channel)
 
-    def fakeMonitors(self):
-        for channel in self.device.channels:
-            if channel.real:
-                if self.device.controller.ON and channel.enabled:
-                    # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
-                else:
-                    channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
-
     def runAcquisition(self, acquiring):
-        """monitor potentials continuously"""
-        while acquiring():
-            with self.lock.acquire_timeout(2):
-                if not getTestMode():
-                    for i, channel in enumerate(self.device.channels):
-                        # with nidaqmx.Task() as task: TODO
-                        #     task.ao_channels.add_ao_voltage_chan(channel.address)
-                        #     self.voltages[i] = task.write(str.encode('0.0'))
-                        self.voltages[i] = np.nan 
-                            
-                self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
-                time.sleep(self.device.interval/1000)
+        pass # nothing to acquire, no read backs 

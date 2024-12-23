@@ -8,8 +8,8 @@ from PyQt6.QtCore import pyqtSignal
 # conda activate esibd
 # pip install pyvisa
 import pyvisa
-from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
+from esibd.plugins import Device
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 ########################## Voltage user interface #################################################
 
@@ -58,9 +58,8 @@ class RSPD3303C(Device):
         
     def initializeCommunication(self):
         """:meta private:"""
-        super().initializeCommunication()
         self.onAction.state = self.controller.ON
-        self.controller.initializeCommunication()
+        super().initializeCommunication()
 
     def stopAcquisition(self):
         """:meta private:"""
@@ -71,9 +70,6 @@ class RSPD3303C(Device):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
-
-    def initialized(self):
-        return self.controller.initialized
 
     def apply(self, apply=False):
         for c in self.channels:

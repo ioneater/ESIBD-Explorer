@@ -5,8 +5,8 @@ import time
 from random import choices
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
+from esibd.plugins import Device
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 ########################## Voltage user interface #################################################
 
@@ -55,9 +55,8 @@ class MIPS(Device):
         
     def initializeCommunication(self):
         """:meta private:"""
-        super().initializeCommunication()
         self.onAction.state = self.controller.ON
-        self.controller.initializeCommunication()
+        super().initializeCommunication()
 
     def stopAcquisition(self):
         """:meta private:"""
@@ -67,9 +66,6 @@ class MIPS(Device):
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()     
-
-    def initialized(self):
-        return self.controller.initialized
 
     def apply(self, apply=False):
         for c in self.channels:

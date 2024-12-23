@@ -44,7 +44,7 @@ from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6 import QtCore
 import esibd.core as EsibdCore
 import esibd.const as EsibdConst
-from esibd.core import (INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel,
+from esibd.core import (INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel, # DeviceController,
                         ToolButton, QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox, MultiState, BetterPlotWidget, BetterPlotItem)
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 if sys.platform == 'win32':
@@ -1251,7 +1251,7 @@ class LiveDisplay(Plugin):
         if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
             restoreAutoRange = False
-            viewRange = self.livePlotWidgets[0].viewRange() # TODO for all widgets
+            viewRange = self.livePlotWidgets[0].viewRange()
             self.updateTheme() # use default light theme for clipboard
             QApplication.processEvents()
             self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1])
@@ -1368,15 +1368,19 @@ class LiveDisplay(Plugin):
                         if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)):
                             channel.plotCurve = livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
                                                     style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})') # initialize empty plots
+                            if self.stackAction.state != self.stackAction.labels.horizontal:
+                                livePlotWidget.legend.columnCount = 2 # required to trigger update
+                                livePlotWidget.legend.setColumnCount(3) # update legend
                         else: # pg.ViewBox
                             channel.plotCurve = pg.PlotDataItem(pen=pg.mkPen((channel.color), width=channel.linewidth,
                                                     style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})') # initialize empty plots
                             channel.plotCurve.setLogMode(xState=False, yState=channel.logY) # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
                             livePlotWidget.addItem(channel.plotCurve) # works for plotWidgets as well as viewBoxes
-                        channel.plotCurve._parent = livePlotWidget # allows to remove from _parent before deleting, preventing _parent from trying to access deleted object
-                        if isinstance(livePlotWidget, pg.ViewBox):
                             channel.plotCurve._legend = self.livePlotWidgets[0].legend # have to explicitly remove from legend before deleting!
                             self.livePlotWidgets[0].legend.addItem(channel.plotCurve, f'{channel.name} ({channel.unit})')
+                            self.livePlotWidgets[0].legend.columnCount = 2 # required to trigger update
+                            self.livePlotWidgets[0].legend.setColumnCount(3) # update legend
+                        channel.plotCurve._parent = livePlotWidget # allows to remove from _parent before deleting, preventing _parent from trying to access deleted object
                     # plotting is very expensive, array manipulation is negligible even with 50000 data points per channel
                     # channel should at any point have as many data points as timeAxis (missing bits will be filled with nan as soon as new data comes in)
                     # however, cant exclude that one data point added between definition of timeAxis and y
@@ -1546,9 +1550,7 @@ class ChannelManager(Plugin):
             self.raiseDock(True)
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
             if hasattr(self, 'plotAction') and self.plotAction is not None:
-                self.testControl(self.plotAction, True, 1)
-            if self.channelPlotActive():
-                self.channelPlot.runTestParallel()
+                self.testControl(self.plotAction, True, 1) # may need time.sleep to make sure this is executed before further test?
             self.testControl(self.advancedAction, True, 1) # keep history, test manually for dummy devices if applicable
             self.testControl(self.saveAction, True, 1)
             for parameter in self.channels[0].parameters:
@@ -1560,6 +1562,8 @@ class ChannelManager(Plugin):
             self.testControl(self.moveChannelUpAction, True, 2)
             self.testControl(self.duplicateChannelAction, True, 2)
             self.testControl(self.deleteChannelAction, True, 2)
+            if self.channelPlotActive():
+                self.channelPlot.runTestParallel()
             if hasattr(self, 'onAction'): # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
                 self.testControl(self.onAction, True, 2)
             if self.toggleLiveDisplayAction is not None:
@@ -2179,6 +2183,8 @@ class Device(ChannelManager):
         self.time = DynamicNp(dtype=np.float64)
         self.interval_tolerance = None # how much the acquisition interval is allowed to deviate
         self.signalComm.appendDataSignal.connect(self.appendData)
+        # implement a controller based on DeviceController(device=self). In some cases there is no controller for the device, but for every channel. Adjust 
+        self.controller = None 
 
     def initGUI(self):
         """:meta private:"""
@@ -2224,13 +2230,27 @@ class Device(ChannelManager):
     def startAcquisition(self):
         """Extend to start all device related communication."""
         self.appendData(nan=True) # prevent interpolation to old data
+        if self.controller is None:
+            for channel in self.channels:
+                if channel.enabled:
+                    channel.controller.startAcquisition()
+        else:
+            self.controller.startAcquisition()
 
     def stopAcquisition(self):
-        """Extend to stop device acquisition. Communication stays initialized!"""
+        """Extend or overwrite to stop device acquisition. Communication stays initialized!"""
+        if self.controller is None:            
+            for channel in self.channels:
+                channel.controller.stopAcquisition()
+        else:
+            self.controller.stopAcquisition()
 
     def initialized(self):
         """Extend to indicate when the device is initialized."""
-        return False
+        if self.controller is None:            
+            return any([channel.controller.initialized for channel in self.channels]) 
+        else:
+            return self.controller.initialized
 
     def supportsFile(self, file):
         return any(file.name.endswith(suffix) for suffix in (self.getSupportedFiles())) # does not support any files for preview, only when explicitly loading
@@ -2342,6 +2362,12 @@ class Device(ChannelManager):
 
     def initializeCommunication(self):
         self.appendData(nan=True) # prevent interpolation to old data
+        if self.controller is None:            
+            for channel in self.channels:
+                if channel.enabled:
+                    channel.controller.initializeCommunication()
+        else:
+            self.controller.initializeCommunication()
         super().initializeCommunication()
     
     def closeCommunication(self):
@@ -2349,6 +2375,11 @@ class Device(ChannelManager):
         Make sure that final calls to device are send from main thread or use a delay 
         so they are not send after connection has terminated!"""
         self.stopAcquisition() # stop acquisition before terminating communication
+        if self.controller is None:
+            for channel in self.channels:
+                channel.controller.closeCommunication()
+        else:
+            self.controller.closeCommunication()
         super().closeCommunication()
 
     def close(self):

@@ -2897,6 +2897,10 @@ class BetterPlotWidget(pg.PlotWidget):
         self.setMinimumHeight(50) # can fit more plots on top of each other
         self.setBackground(colors.bg)
 
+    @property
+    def legend(self):
+        return self.plotItem.legend
+
 class BetterLabelItem(pg.LabelItem):
 
     def setColor(self, color):

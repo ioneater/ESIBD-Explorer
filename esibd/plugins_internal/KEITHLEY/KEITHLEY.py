@@ -7,8 +7,8 @@ from PyQt6.QtCore import pyqtSignal
 # conda activate esibd
 # pip install pyvisa
 import pyvisa
-from esibd.plugins import Device, StaticDisplay, LiveDisplay
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel, getTestMode
+from esibd.plugins import Device
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
     return [Current]
@@ -54,36 +54,13 @@ class Current(Device):
     def getInitializedChannels(self):
         return [d for d in self.channels if (d.enabled and (d.controller.port is not None or self.getTestMode())) or not d.active]
 
-    def initializeCommunication(self):
-        super().initializeCommunication()
-        for channel in self.channels:
-            if channel.enabled:
-                channel.controller.initializeCommunication()
-            elif channel.controller.acquiring:
-                channel.controller.stopAcquisition()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        for channel in self.channels:
-            if channel.enabled:
-                channel.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        for channel in self.channels:
-            channel.controller.stopAcquisition()
-        super().stopAcquisition()
-
     def resetCharge(self):
         for channel in self.channels:
             channel.resetCharge()
 
-    def initialized(self):
-        return any([c.controller.initialized for c in self.channels])
-
     def closeCommunication(self):
         for channel in self.channels:
             channel.controller.voltageON(on=False, parallel=False)
-            channel.controller.closeCommunication()
         super().closeCommunication()
         
     def voltageON(self):
@@ -206,7 +183,7 @@ class CurrentController(DeviceController):
                 self.port.write("CURR:NPLC 6")
                 self.port.write("SOUR:VOLT:RANG 50")                
                 self.signalComm.initCompleteSignal.emit()
-            except Exception as e:
+            except Exception:
                 self.signalComm.updateValueSignal.emit(np.nan)
             finally:
                 self.initializing = False

@@ -1,6 +1,5 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
-import re
 import serial
 import numpy as np
 # install pfeiffer-vacuum-protocol in esibd environment
@@ -8,7 +7,7 @@ import numpy as np
 # pip install pfeiffer-vacuum-protocol
 import pfeiffer_vacuum_protocol as pvp
 from esibd.plugins import Device, LiveDisplay, StaticDisplay
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT, getTestMode, TimeoutLock
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
 
 def providePlugins():
     return [OMNICONTROL]
@@ -53,25 +52,6 @@ class OMNICONTROL(Device):
 
     def getInitializedChannels(self):
         return [c for c in self.channels if (c.enabled and (self.controller.port is not None) or self.getTestMode()) or not c.active]
-
-    def initializeCommunication(self):
-        super().initializeCommunication()
-        self.controller.initializeCommunication()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        self.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
-    def initialized(self):
-        return self.controller.initialized
-
-    def closeCommunication(self):
-        self.controller.closeCommunication()
-        super().closeCommunication()
 
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""

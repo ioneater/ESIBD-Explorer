@@ -64,19 +64,11 @@ class Voltage(Device):
         super().initializeCommunication()
         self.onAction.state = self.controller.ON
         self.controller.initializeCommunication(IP=self.ip, port=int(self.port))
-
-    def stopAcquisition(self):
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
         
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
-        self.controller.closeCommunication()
-
-    def initialized(self):
-        return self.controller.initialized
 
     def apply(self, apply=False):
         for channel in self.getChannels():

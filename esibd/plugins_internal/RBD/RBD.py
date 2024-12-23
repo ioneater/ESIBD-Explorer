@@ -97,36 +97,9 @@ class Current(Device):
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]
 
-    def initializeCommunication(self):
-        super().initializeCommunication()
-        for channel in self.channels:
-            if channel.enabled:
-                channel.controller.initializeCommunication()
-            elif channel.controller.acquiring:
-                channel.controller.stopAcquisition()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        for channel in self.channels:
-            if channel.enabled:
-                channel.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        for channel in self.channels:
-            channel.controller.stopAcquisition()
-        super().stopAcquisition()
-
     def resetCharge(self):
         for channel in self.channels:
             channel.resetCharge()
-
-    def initialized(self):
-        return any([channel.controller.initialized for channel in self.channels])
-
-    def closeCommunication(self):
-        for channel in self.channels:
-            channel.controller.closeCommunication()
-        super().closeCommunication()
 
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality"""

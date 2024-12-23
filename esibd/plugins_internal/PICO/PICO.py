@@ -1,8 +1,6 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
-from threading import Thread
 import numpy as np
-from PyQt6.QtWidgets import QMessageBox, QApplication
 import ctypes
 # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
 # If needed, add SDK installation path to PATH
@@ -11,7 +9,7 @@ import ctypes
 # pip install picosdk
 from picosdk.usbPT104 import usbPt104 as pt104
 from picosdk.functions import assert_pico_ok
-from esibd.plugins import Device, LiveDisplay, StaticDisplay
+from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
 def providePlugins():
@@ -56,25 +54,6 @@ class PICO(Device):
 
     def getInitializedChannels(self):
         return [d for d in self.channels if (d.enabled and (self.controller.port is not None or self.getTestMode())) or not d.active]
-
-    def initializeCommunication(self):
-        super().initializeCommunication()
-        self.controller.initializeCommunication()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        self.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
-    def initialized(self):
-        return self.controller.initialized
-
-    def closeCommunication(self):
-        self.controller.closeCommunication()
-        super().closeCommunication()
 
     def convertDataDisplay(self, data):
         if self.unitAction.state:
@@ -140,7 +119,7 @@ class TemperatureController(DeviceController):
                 if acquired:
                     pt104.UsbPt104CloseUnit(self.chandle)
                 else:
-                    self.print('Cannot acquire lock to close Pt104.', PRINT.WARNING)
+                    self.print('Cannot acquire lock to close PT-104.', PRINT.WARNING)
         super().closeCommunication()
 
     def runInitialization(self):

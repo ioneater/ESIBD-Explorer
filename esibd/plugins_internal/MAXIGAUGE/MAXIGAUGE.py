@@ -39,25 +39,6 @@ class MAXIGAUGE(Device):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None
                                               or self.getTestMode())) or not channel.active]
 
-    def initializeCommunication(self):
-        super().initializeCommunication()
-        self.controller.initializeCommunication()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        self.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
-    def initialized(self):
-        return self.controller.initialized
-
-    def closeCommunication(self):
-        self.controller.closeCommunication()
-        super().closeCommunication()
-
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""
 

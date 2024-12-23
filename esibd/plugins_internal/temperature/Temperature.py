@@ -41,7 +41,6 @@ class Temperature(Device):
         return self.makeIcon('temperature_dark.png') if getDarkMode() else self.makeIcon('temperature_light.png')
 
     def runTestParallel(self):
-        self.raiseDock(True)
         self.testControl(self.unitAction, self.unitAction.state)
         super().runTestParallel()
 
@@ -66,26 +65,13 @@ class Temperature(Device):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def initializeCommunication(self):
-        super().initializeCommunication()
         self.controller.restart = self.onAction.state
-        self.controller.initializeCommunication()
-
-    def startAcquisition(self):
-        super().startAcquisition()
-        self.controller.startAcquisition()
-
-    def stopAcquisition(self):
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
-    def initialized(self):
-        return self.controller.initialized
+        super().initializeCommunication()
 
     def closeCommunication(self):
         """:meta private:"""
         self.controller.cryoON(on=False)
         super().closeCommunication()
-        self.controller.closeCommunication()
 
     def convertDataDisplay(self, data):
         if self.unitAction.state:
