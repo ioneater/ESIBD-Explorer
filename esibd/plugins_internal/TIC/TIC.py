@@ -65,7 +65,6 @@ class PressureChannel(Channel):
             self.device.initializeCommunication()
 
 class PressureController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements serial communication with RBD 9103.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -78,12 +77,9 @@ class PressureController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                    self.port = None
-                else:
-                    self.print('Cannot acquire lock to close port.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -128,13 +124,14 @@ class PressureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
         """read pressures for all channels"""
@@ -174,8 +171,8 @@ class PressureController(DeviceController):
     def TICWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.ticLock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.ticLock.acquire_timeout(2) as lock_acquired:
+            if lock_acquired:
                 self.TICWrite(message)
                 response = self.TICRead() # reads return value
             else:

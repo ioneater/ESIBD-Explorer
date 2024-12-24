@@ -32,7 +32,6 @@ class Temperature(Device):
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
     def finalizeInit(self, aboutFunc=None):
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.cryoON, toolTipFalse='Cryo on.', iconFalse=self.getIcon(), toolTipTrue='Cryo off.',
                                                                   iconTrue=self.makeIcon('temperature_on.png'), before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
@@ -89,14 +88,14 @@ class Temperature(Device):
         else:
             self.initializeCommunication()
 
-    def apply(self, apply=False): # pylint: disable = unused-argument # keep default signature
+    def applyValues(self, apply=False): # pylint: disable = unused-argument # keep default signature
         for channel in self.getChannels():
-            channel.setTemperature() # only actually sets temperature if configured and value has changed
+            channel.applyTemperature() # only actually sets temperature if configured and value has changed
 
     def updateTheme(self):
         super().updateTheme()
         self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state) # self.on not available on start
+        self.onAction.updateIcon(self.onAction.state)
         self.unitAction.iconFalse = self.makeIcon('tempC_dark.png' if getDarkMode() else 'tempC_light.png')
         self.unitAction.iconTrue = self.makeIcon('tempK_dark.png' if getDarkMode() else 'tempK_light.png')
         self.unitAction.updateIcon(self.unitAction.state)
@@ -133,9 +132,9 @@ class TemperatureChannel(Channel):
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.initializeCommunication()
 
-    def setTemperature(self): # this actually sets the temperature on the controller!
+    def applyTemperature(self): # this actually sets the temperature on the controller!
         if self.real:
-            self.device.controller.setTemperature(self)
+            self.device.controller.applyTemperature(self)
 
     def updateColor(self):
         color = super().updateColor()
@@ -150,37 +149,30 @@ class TemperatureChannel(Channel):
     def appendValue(self, lenT, nan=False):
         # super().appendValue() # overwrite to use monitors
         if nan:
-            self.monitor=np.nan
+            self.monitor = np.nan
         if self.enabled and self.real:
             self.values.add(self.monitor, lenT)
         else:
             self.values.add(self.value, lenT)
 
 class TemperatureController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements serial communication.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     def __init__(self, device):
         super().__init__(_parent=device)
-        #setup port
         self.device = device
         self.ON = False
-        # self.init() only init once explicitly called
         self.restart=False
         self.temperatures = []
         self.initTemperatures()
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self):
-        if self.ON:
-            self.cryoON(on=False)
         if self.port is not None:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                else:
-                    self.print('Cannot acquire lock to close port.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -229,13 +221,14 @@ class TemperatureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     toggleCounter = 0
     def readNumbers(self):
@@ -291,12 +284,12 @@ class TemperatureController(DeviceController):
             self.qm.raise_()
         QApplication.processEvents()
 
-    def setTemperature(self, channel):
+    def applyTemperature(self, channel):
         if not getTestMode() and self.initialized:
             if channel.controller == channel.CRYOTEL:
-                Thread(target=self.setTemperatureFromThread, args=(channel,), name=f'{self.device.name} setTemperatureFromThreadThread').start()
+                Thread(target=self.applyTemperatureFromThread, args=(channel,), name=f'{self.device.name} applyTemperatureFromThreadThread').start()
 
-    def setTemperatureFromThread(self, channel):
+    def applyTemperatureFromThread(self, channel):
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}') # used to be SET TTARGET=
 
     # use following from internal console for testing
@@ -305,12 +298,10 @@ class TemperatureController(DeviceController):
     def CryoTelWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.lock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for CryoTel communication. Query: {message}') as lock_acquired:
+            if lock_acquired:
                 self.CryoTelWrite(message)
                 response = self.CryoTelRead() # reads return value
-            else:
-                self.print(f'Cannot acquire lock for CryoTel communication. Query: {message}', PRINT.WARNING)
         return response
 
     def CryoTelWrite(self, message):

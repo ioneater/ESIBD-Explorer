@@ -40,7 +40,7 @@ class CustomDevice(Device):
         dlg.setLayout(lay)
         dlg.exec()
 
-    def apply(self, apply=False):
+    def applyValues(self, apply=False):
         """ Executed when values have changed.
             Should only apply channels where value has changed."""
         # for channel in self.getChannels():

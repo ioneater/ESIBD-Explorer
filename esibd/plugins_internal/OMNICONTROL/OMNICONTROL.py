@@ -2,9 +2,6 @@
 import time
 import serial
 import numpy as np
-# install pfeiffer-vacuum-protocol in esibd environment
-# conda activate esibd
-# pip install pfeiffer-vacuum-protocol
 import pfeiffer_vacuum_protocol as pvp
 from esibd.plugins import Device, LiveDisplay, StaticDisplay
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
@@ -22,22 +19,11 @@ class OMNICONTROL(Device):
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
 
-    class LiveDisplay(LiveDisplay):
-
-        def initGUI(self):
-            self.logY = True
-            super().initGUI()
-
-    class StaticDisplay(StaticDisplay):
-
-        def initGUI(self):
-            self.logY = True
-            super().initGUI()
-
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(device=self)
+        self.logY = True
 
     def getIcon(self):
         return self.makeIcon('pfeiffer_omni.png')
@@ -79,7 +65,6 @@ class PressureChannel(Channel):
             self.device.init() 
 
 class PressureController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements serial communication with RBD 9103.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -90,12 +75,9 @@ class PressureController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                    self.port = None
-                else:
-                    self.print('Cannot acquire lock to close port.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -127,13 +109,14 @@ class PressureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
         """read pressures for all channels"""
@@ -141,7 +124,7 @@ class PressureController(DeviceController):
             if c.enabled and c.active:
                 try:
                     p = pvp.read_pressure(self.port, c.id)
-                    self.pressures[i] = p*1000
+                    self.pressures[i] = np.nan if p == 0 else p*1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')
                     self.pressures[i] = np.nan

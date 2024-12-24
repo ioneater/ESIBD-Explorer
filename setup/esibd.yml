@@ -23,6 +23,7 @@ dependencies:
     - h5py
     - matplotlib
     - contourpy==1.2.1
+    - lakeshore
     - nidaqmx
     - openpyxl
     - pfeiffer-vacuum-protocol

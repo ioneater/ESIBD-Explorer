@@ -212,8 +212,9 @@ class Plugin(QWidget):
         Extend and add call to super().runTestParallel() to the end to make sure testing flag is set to False after all test completed!
         """
         # ... add sequence of spaced events to trigger and test all functionality
-        self.raiseDock(True)
-        self.testControl(self.aboutAction, True)
+        if self.initializedDock:
+            self.raiseDock(True)
+            self.testControl(self.aboutAction, True)
         self.testing = False
 
     def waitForCondition(self, condition, interval=0.1, timeout=10, timeoutMessage =''):
@@ -734,8 +735,6 @@ class Plugin(QWidget):
         self.initializedGUI = False
         self.initializedDock = False
 
-########################## pyqtgraph Displays #########################################
-
 class StaticDisplay(Plugin):
     """Displays :class:`~esibd.plugins.Device` data from file."""
     pluginType=PluginManager.TYPE.DISPLAY
@@ -1159,12 +1158,12 @@ class LiveDisplay(Plugin):
                 livePlotWidget.setLogMode(False, logY)
                 self.livePlotWidgets.append(livePlotWidget)            
                 if self.stackAction.state == self.stackAction.labels.vertical:                    
-                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.1, labelTextSize='8pt') # before adding plots
+                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.15, labelTextSize='8pt') # before adding plots
                     self.plotSplitter.setOrientation(Qt.Orientation.Vertical)
                     if i < len(self.channelGroups)-1: # only label bottom x axis
                         livePlotWidget.hideAxis('bottom')
                 else: # self.stackAction.state == self.stackAction.labels.horizontal:  
-                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=1, offset=0.1, labelTextSize='8pt') # before adding plots
+                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=1, offset=0.15, labelTextSize='8pt') # before adding plots
                     self.plotSplitter.setOrientation(Qt.Orientation.Horizontal)                    
                 if i > 0: # link to previous
                     livePlotWidget.setXLink(self.livePlotWidgets[0])
@@ -1196,7 +1195,7 @@ class LiveDisplay(Plugin):
                         livePlotWidget.dummyAx.setHeight(38) # empirical constant
                         self.stackedGraphicsLayoutWidget.addItem(livePlotWidget.dummyAx, 1, 0)
                     livePlotWidget.vb.sigResized.connect(self.updateStackedViews)
-                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.1, labelTextSize='8pt')
+                    livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.15, labelTextSize='8pt')
                     livePlotWidget.setLogMode(y=logY) # set for PlotItem 
                     livePlotWidget.finalizeInit()
                 else:
@@ -1384,7 +1383,7 @@ class LiveDisplay(Plugin):
                     # plotting is very expensive, array manipulation is negligible even with 50000 data points per channel
                     # channel should at any point have as many data points as timeAxis (missing bits will be filled with nan as soon as new data comes in)
                     # however, cant exclude that one data point added between definition of timeAxis and y
-                    y = channel.convertDataDisplay(channel.getValues(subtractBackground=self.subtractBackgroundAction.state if self.subtractBackgroundAction is not None else False,
+                    y = channel.convertDataDisplay(channel.getValues(subtractBackground=channel.getDevice().subtractBackgroundActive(),
                                           _min=i_min, _max=i_max, n=n)) # ignore last data point, possibly added after definition of timeAx #, _callSync='off'
                     if y.shape[0] == 0 or all(np.isnan(y)):
                         # cannot draw if only np.nan (e.g. when zooming into old data where a channel did not exist or was not enabled and data was padded with np.nan)
@@ -2268,7 +2267,8 @@ class Device(ChannelManager):
                 channel.background = np.mean(channel.getValues(subtractBackground=False)[-length:])
 
     def subtractBackgroundActive(self):
-        return self.useBackgrounds and self.liveDisplay is not None and self.liveDisplay.subtractBackgroundAction.state
+        # independent of GUI as liveDisplay may not be initialized
+        return self.useBackgrounds and qSet.value(f'{self.name} LiveDisplay/subtractLiveBackground', 'false') == 'true'
 
     def estimateStorage(self):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
@@ -2279,7 +2279,7 @@ class Device(ChannelManager):
         f'a history of {totalDays:.2f} days or {self.maxDataPoints} data points for {len(self.channels)} channels.\n'+
         'After this time, data thinning will allow to retain even older data, but at lower resolution.')
 
-    def apply(self, apply=False):
+    def applyValues(self, apply=False):
         """Applies :class:`~esibd.core.Channel` values to physical devices. Only used by input :class:`devices<esibd.plugins.Device>`.
 
         :param apply: If false, only values that have changed since last apply will be updated, defaults to False
@@ -2431,10 +2431,8 @@ class Device(ChannelManager):
                         self.print(f'Error evaluating equation of {channel.name}')
                         channel.value = np.nan
         if self.inout == INOUT.IN:
-            self.apply(apply)
+            self.applyValues(apply)
         self.updating = False
-
-    ######################################## Acquisition ###############################################
 
     def appendData(self, nan=False):
         if self.initialized() or nan:
@@ -3117,8 +3115,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         super().updateTheme()
         if self.display is not None and self.display.initializedDock:
             self.display.updateTheme()
-
-#################################### General UI Classes #########################################
 
 class Browser(Plugin):
     """The Browser is used to display various file formats. In addition, it
@@ -4235,8 +4231,6 @@ class DeviceManager(Plugin):
         for device in self.getDevices():
             device.loadData(file, _show)
 
-    ########################## Inout Output Access #################################################
-
     def channels(self, inout=INOUT.BOTH): # flat list of all channels
         # 15% slower than using cached channels but avoids need to maintain cashed lists when removing and adding channels
         return [y for x in [device.getChannels() for device in self.getDevices(inout)] for y in x]
@@ -4325,9 +4319,9 @@ class DeviceManager(Plugin):
         """
         if not manual or self.pluginManager.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
             self.recording = False
+            self.stopScans()
             for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
                 plugin.closeCommunication()
-            self.stopScans()
 
     def stopScans(self):
         for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
@@ -5068,8 +5062,9 @@ class UCM(ChannelManager):
 
                 self.getSourceChannelValue()
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
-                self.sourceChannel.getParameterByName(self.LINEWIDTH).extraEvents.append(self.updateDisplay)
-                self.sourceChannel.getParameterByName(self.LINESTYLE).extraEvents.append(self.updateDisplay)
+                for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
+                    if parameterName in self.sourceChannel.displayedParameters:
+                        self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
             self.updateColor()
@@ -5111,8 +5106,9 @@ class UCM(ChannelManager):
         def removeEvents(self):
             if self.sourceChannel is not None:
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
-                self.sourceChannel.getParameterByName(self.LINEWIDTH).extraEvents.remove(self.updateDisplay)
-                self.sourceChannel.getParameterByName(self.LINESTYLE).extraEvents.remove(self.updateDisplay)
+                for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
+                    if parameterName in self.sourceChannel.displayedParameters:
+                        self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
                 if self.MONITOR in self.sourceChannel.displayedParameters:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
 
@@ -5392,7 +5388,7 @@ class PID(ChannelManager):
             super().initGUI(item)
             active = self.getParameterByName(self.ACTIVE)
             value = active.value
-            active.widget = ToolButton() # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
+            active.widget = ToolButton()
             active.applyWidget()
             active.check.setMaximumHeight(active.rowHeight) # default too high
             active.check.setText(self.ACTIVE.title())
@@ -5409,7 +5405,6 @@ class PID(ChannelManager):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(toolTipFalse='PID on.', iconFalse=self.makeIcon('PID_off.png'),
                                                                   toolTipTrue='PID off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
@@ -5441,7 +5436,3 @@ class PID(ChannelManager):
         super().updateTheme()
         for channel in self.channels:
             channel.initPID()
-
-    def closeCommunication(self):
-        self.onAction.state = False
-        super().closeCommunication()

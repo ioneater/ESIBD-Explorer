@@ -12,8 +12,6 @@ from PyQt6.QtCore import Qt
 from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
 from esibd.plugins import Plugin
 
-#################################### General UI Classes #########################################
-
 def providePlugins():
     return [MS, LINE, PDB, HOLO]
 

@@ -4,14 +4,9 @@ import time
 from random import choices
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-# install nidaqmx in esibd environment
-# conda activate esibd
-# pip install nidaqmx
 import nidaqmx
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
-
-########################## Voltage user interface #################################################
 
 def providePlugins():
     return [NI9263]
@@ -37,7 +32,6 @@ class NI9263(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='NI9263 on.', iconFalse=self.makeIcon('NI9263_off.png'),
                                                                   toolTipTrue='NI9263 off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
@@ -58,18 +52,13 @@ class NI9263(Device):
         self.onAction.state = self.controller.ON
         super().initializeCommunication()
 
-    def stopAcquisition(self):
-        """:meta private:"""
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
     
-    def apply(self, apply=False):
+    def applyValues(self, apply=False):
         for c in self.channels:
-            c.setVoltage(apply) # only actually sets voltage if configured and value has changed
+            c.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
@@ -77,7 +66,7 @@ class NI9263(Device):
             self.controller.voltageON(self.onAction.state)
         elif self.onAction.state is True:
             self.controller.ON = self.onAction.state
-            self.init()
+            self.initializeCommunication()
 
 class VoltageChannel(Channel):
     """UI for single voltage channel with integrated functionality"""
@@ -103,9 +92,9 @@ class VoltageChannel(Channel):
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ADDRESS)
 
-    def setVoltage(self, apply): # this actually sets the voltage on the power supply!
+    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.setVoltage(self)
+            self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
     def updateColor(self):
@@ -116,8 +105,7 @@ class VoltageChannel(Channel):
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
 
-class VoltageController(DeviceController): # no channels needed
-    # need to inherit from QObject to allow use of signals
+class VoltageController(DeviceController):    
     """Implements Serial communication with MIPS.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -134,12 +122,10 @@ class VoltageController(DeviceController): # no channels needed
         else:
             self.initializing = True
             try:
-                # no initialization needed, just try to address channels
                 with nidaqmx.Task() as task:
                     task.ao_channels # will raise exception if connection failed
                 self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
-                # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
             finally:
@@ -150,18 +136,16 @@ class VoltageController(DeviceController): # no channels needed
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)
                     
-    def setVoltage(self, channel):
+    def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
-            Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.device.name} setVoltageFromThreadThread').start()
+            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
-    def setVoltageFromThread(self, channel):
-        with self.lock.acquire_timeout(2) as acquired:
-            if acquired:
+    def applyVoltageFromThread(self, channel):
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to set voltage of {channel.name}.') as lock_acquired:
+            if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
                     task.write(channel.value if (channel.enabled and self.ON) else 0)
-            else:
-                self.print(f'Cannot acquire lock to set voltage of {channel.name}.', PRINT.WARNING)
 
     def voltageON(self, on=False, parallel=True): # this can run in main thread
         self.ON = on
@@ -174,7 +158,7 @@ class VoltageController(DeviceController): # no channels needed
     def voltageONFromThread(self, on=False):
         for channel in self.device.channels:
             if channel.real:
-                self.setVoltageFromThread(channel)
+                self.applyVoltageFromThread(channel)
 
     def runAcquisition(self, acquiring):
         pass # nothing to acquire, no read backs 

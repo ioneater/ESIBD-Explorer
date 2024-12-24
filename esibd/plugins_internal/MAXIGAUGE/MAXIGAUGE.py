@@ -64,7 +64,6 @@ class PressureChannel(Channel):
             self.device.initializeCommunication()
 
 class PressureController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements serial communication with RBD 9103.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -76,12 +75,9 @@ class PressureController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                    self.port = None
-                else:
-                    self.print('Cannot acquire lock to close port.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -126,13 +122,14 @@ class PressureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     PRESSURE_READING_STATUS = {
       0: 'Measurement data okay',
@@ -178,19 +175,10 @@ class PressureController(DeviceController):
             channel.value = pressure
 
     def TPGWrite(self, message):
-        # return
-        #self.port.write(bytes(f'{message}\r','ascii'))
-        #ack = self.port.readline()
-        #self.print(f"ACK: {ack}") # b'\x06\r\n' means ACK or acknowledgment b'\x15\r\n' means NAK or not acknowledgment
         self.serialWrite(self.port, f'{message}\r', encoding='ascii')
         self.serialRead(self.port, encoding='ascii') # read acknowledgment
 
     def TPGRead(self):
-        # return 'none'
-        #self.port.write(bytes('\x05\r','ascii')) # \x05 is equivalent to ENQ or enquiry
-        #enq = self.port.readlines() # response followed by NAK
-        #self.print(f"enq: {enq}") # read acknowledgment
-        #return enq[0].decode('ascii').rstrip()
         self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
         enq =  self.serialRead(self.port, encoding='ascii') # response
         self.serialRead(self.port, encoding='ascii') # followed by NAK
@@ -199,8 +187,8 @@ class PressureController(DeviceController):
     def TPGWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.tpgLock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.tpgLock.acquire_timeout(2) as lock_acquired:
+            if lock_acquired:
                 self.TPGWrite(message)
                 response = self.TPGRead() # reads return value
             else:

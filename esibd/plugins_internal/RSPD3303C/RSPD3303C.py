@@ -4,14 +4,9 @@ import time
 from random import choices
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-# install pyvisa in esibd environment
-# conda activate esibd
-# pip install pyvisa
 import pyvisa
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
-
-########################## Voltage user interface #################################################
 
 def providePlugins():
     return [RSPD3303C]
@@ -37,7 +32,6 @@ class RSPD3303C(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='RSPD3303C on.', iconFalse=self.makeIcon('RSPD3303C_off.png'),
                                                                   toolTipTrue='RSPD3303C off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
@@ -61,19 +55,14 @@ class RSPD3303C(Device):
         self.onAction.state = self.controller.ON
         super().initializeCommunication()
 
-    def stopAcquisition(self):
-        """:meta private:"""
-        super().stopAcquisition()
-        self.controller.stopAcquisition()
-
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
 
-    def apply(self, apply=False):
+    def applyValues(self, apply=False):
         for c in self.channels:
-            c.setVoltage(apply) # only actually sets voltage if configured and value has changed
+            c.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
@@ -81,7 +70,7 @@ class RSPD3303C(Device):
             self.controller.voltageON(self.onAction.state)
         elif self.onAction.state is True:
             self.controller.ON = self.onAction.state
-            self.init()
+            self.initializeCommunication()
 
 class VoltageChannel(Channel):
     """UI for single voltage channel with integrated functionality"""
@@ -122,9 +111,9 @@ class VoltageChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() + [self.MONITOR,self.POWER,self.CURRENT]
 
-    def setVoltage(self, apply): # this actually sets the voltage on the power supply!
+    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.setVoltage(self)
+            self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
     def updateColor(self):
@@ -154,8 +143,7 @@ class VoltageChannel(Channel):
         else:
             self.values.add(self.value, lenT)
 
-class VoltageController(DeviceController): # no channels needed
-    # need to inherit from QObject to allow use of signals
+class VoltageController(DeviceController):
     """Implements Serial communication with MIPS.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -190,7 +178,6 @@ class VoltageController(DeviceController): # no channels needed
                 self.device.print(self.port.query('*IDN?'))
                 self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
-                # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
             finally:
@@ -202,11 +189,11 @@ class VoltageController(DeviceController): # no channels needed
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)
             
-    def setVoltage(self, channel):
+    def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
-            Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.device.name} setVoltageFromThreadThread').start()
+            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
-    def setVoltageFromThread(self, channel):
+    def applyVoltageFromThread(self, channel):
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value}')
 
     def applyMonitors(self):
@@ -247,26 +234,26 @@ class VoltageController(DeviceController): # no channels needed
     def runAcquisition(self, acquiring):
         """monitor potentials continuously"""
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if not getTestMode():
-                    for i, channel in enumerate(self.device.channels):
-                        self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}')
-                        self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}')
-                self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if not getTestMode():
+                        for i, channel in enumerate(self.device.channels):
+                            self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=True)
+                            self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=True)
+                    self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
+            time.sleep(self.device.interval/1000)
 
     def RSWrite(self, message):        
-        with self.lock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for communication. Query {message}.') as lock_acquired:
+            if lock_acquired:
                 self.port.write(message)
-            else:
-                self.print(f"Cannot acquire lock for communication. Query {message}.", PRINT.WARNING)
 
-    def RSQuery(self, message):        
+    def RSQuery(self, message, lock_acquired=False):        
         response = ''
-        with self.lock.acquire_timeout(2) as acquired:
-            if acquired:
-                response = self.port.query(message)
-            else:
-                self.print(f"Cannot acquire lock for communication. Query {message}.", PRINT.WARNING)
+        if lock_acquired:
+            response = self.port.query(message)
+        else:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for communication. Query {message}.') as lock_acquired:
+                if lock_acquired:
+                    response = self.port.query(message)
         return response

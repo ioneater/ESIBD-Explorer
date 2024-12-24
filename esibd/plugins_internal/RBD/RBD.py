@@ -214,8 +214,7 @@ class CurrentChannel(Channel):
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
-class CurrentController(DeviceController):
-    # need to inherit from QObject to allow use of signals
+class CurrentController(DeviceController):    
     """Implements serial communication with RBD 9103.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -245,13 +244,11 @@ class CurrentController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
-                self.RBDWriteRead('I0000') # stop sampling
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                else:
-                    self.print(f'Cannot acquire lock to close port of {self.channel.devicename}.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.channel.devicename}.') as lock_acquired:
+                if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
+                    self.RBDWriteRead('I0000', lock_acquired=True) # stop sampling
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -301,18 +298,15 @@ class CurrentController(DeviceController):
         if not getTestMode():
             self.RBDWriteRead(message=f'I{self.channel.getDevice().interval:04d}') # start sampling with given interval (implement high speed communication if available)
         while acquiring():            
-            with self.lock.acquire_timeout(2) as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.channel.devicename}.') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
                         self.fakeSingleNum()
-                        self.updateParameters()
-                        time.sleep(self.channel.getDevice().interval/1000)
                     else:
-                        self.readSingleNum()
-                        self.updateParameters()
-                        # no sleep needed, timing controlled by waiting during readSingleNum
-                else:
-                    self.print(f"Cannot acquire lock to read current from {self.channel.devicename}.", PRINT.WARNING)
+                        self.readSingleNum() # no sleep needed, timing controlled by waiting during readSingleNum
+                    self.updateParameters()
+            if getTestMode():
+                time.sleep(self.channel.getDevice().interval/1000)
 
     def updateDeviceName(self, name):
         self.channel.devicename = name
@@ -393,6 +387,8 @@ class CurrentController(DeviceController):
         if not self.channel.getDevice().pluginManager.closing:
             msg = ''
             msg=self.RBDRead()
+            if not self.acquiring: # may have changed while waiting on message
+                return
             parsed = self.parse_message_for_sample(msg)
             if any (sym in parsed for sym in ['<','>']):
                 self.signalComm.updateValueSignal.emit(0, True, False, f'{self.channel.devicename}: {parsed}')
@@ -438,14 +434,16 @@ class CurrentController(DeviceController):
     def RBDRead(self):
         return self.serialRead(self.port)
 
-    def RBDWriteRead(self, message):
+    def RBDWriteRead(self, message, lock_acquired=False):
         """Allows to write and read while using lock with timeout."""
         response = ''
         if not getTestMode():
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.RBDWrite(message) # get channel name
-                    response = self.RBDRead()
-                else:
-                    self.print(f"Cannot acquire lock for RBD communication. Query {message}.", PRINT.WARNING)
+            if lock_acquired: # already acquired -> safe to use
+                self.RBDWrite(message) # get channel name
+                response = self.RBDRead()
+            else:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for RBD communication. Query {message}.') as lock_acquired:
+                    if lock_acquired:
+                        self.RBDWrite(message) # get channel name
+                        response = self.RBDRead()
         return response

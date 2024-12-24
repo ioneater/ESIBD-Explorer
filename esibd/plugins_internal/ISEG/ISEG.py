@@ -8,8 +8,6 @@ from PyQt6.QtCore import pyqtSignal
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
 
-########################## Voltage user interface #################################################
-
 def providePlugins():
     return [Voltage]
 
@@ -36,7 +34,6 @@ class Voltage(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='ISEG on.', iconFalse=self.getIcon(),
                                                                   toolTipTrue='ISEG off.', iconTrue=self.makeIcon('ISEG_on.png'),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
@@ -63,16 +60,15 @@ class Voltage(Device):
         """:meta private:"""
         super().initializeCommunication()
         self.onAction.state = self.controller.ON
-        self.controller.initializeCommunication(IP=self.ip, port=int(self.port))
         
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
 
-    def apply(self, apply=False):
+    def applyValues(self, apply=False):
         for channel in self.getChannels():
-            channel.setVoltage(apply) # only actually sets voltage if configured and value has changed
+            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
@@ -86,7 +82,7 @@ class Voltage(Device):
         """:meta private:"""
         super().updateTheme()
         self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state) # self.on not available on start
+        self.onAction.updateIcon(self.onAction.state)
 
 class VoltageChannel(Channel):
     """UI for single voltage channel with integrated functionality"""
@@ -120,9 +116,9 @@ class VoltageChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() + [self.MONITOR]
 
-    def setVoltage(self, apply): # this actually sets the voltage on the power supply!
+    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.setVoltage(self)
+            self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
     def updateColor(self):
@@ -151,8 +147,7 @@ class VoltageChannel(Channel):
         else:
             self.values.add(self.value, lenT)
 
-class VoltageController(DeviceController): # no channels needed
-    # need to inherit from QObject to allow use of signals
+class VoltageController(DeviceController):
     """Implements SCPI communication with ISEG ECH244.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -171,9 +166,9 @@ class VoltageController(DeviceController): # no channels needed
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
 
-    def initializeCommunication(self, IP='localhost', port=0):
-        self.IP = IP
-        self.port = port
+    def initializeCommunication(self):
+        self.IP = self.device.ip
+        self.port = int(self.device.port)
         super().initializeCommunication()
 
     def runInitialization(self):
@@ -185,12 +180,10 @@ class VoltageController(DeviceController): # no channels needed
         else:
             self.initializing = True
             try:
-                # self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
                 self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
                 self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
-                # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish SCPI connection to {self.IP} on port {self.port}. Exception: {e}', PRINT.WARNING)
             finally:
@@ -202,11 +195,11 @@ class VoltageController(DeviceController): # no channels needed
             self.device.updateValues(apply=True) # apply voltages before turning modules on or off
         self.voltageON(self.ON)
 
-    def setVoltage(self, channel):
+    def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
-            Thread(target=self.setVoltageFromThread, args=(channel,), name=f'{self.device.name} setVoltageFromThreadThread').start()
+            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
-    def setVoltageFromThread(self, channel):
+    def applyVoltageFromThread(self, channel):
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
     def applyMonitors(self):
@@ -243,36 +236,39 @@ class VoltageController(DeviceController): # no channels needed
     def runAcquisition(self, acquiring):
         """monitor potentials continuously"""
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if not getTestMode():
-                    for module in self.modules:
-                        res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'))
-                        if res != '':
-                            try:
-                                monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
-                                # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                                self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
-                            except (ValueError, TypeError) as e:
-                                self.print(f'Monitor parsing error: {e} for {res}.')
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if not getTestMode():
+                        for module in self.modules:
+                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'), lock_acquired=True)
+                            if res != '':
+                                try:
+                                    monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
+                                    # fill up to self.maxID to handle all modules the same independent of the number of channels.
+                                    self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
+                                except (ValueError, TypeError) as e:
+                                    self.print(f'Monitor parsing error: {e} for {res}.')
                 self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
-                time.sleep(self.device.interval/1000)
+            time.sleep(self.device.interval/1000)
 
     def ISEGWrite(self, message):
         self.s.sendall(message)
 
     def ISEGRead(self):
         # only call from thread! # make sure lock is acquired before and released after
-        if not getTestMode() and (self.initialized):
+        if not getTestMode() and self.initialized:
             return self.s.recv(4096).decode("utf-8")
 
-    def ISEGWriteRead(self, message):
+    def ISEGWriteRead(self, message, lock_acquired=False):
         """Allows to write and read while using lock with timeout."""
         response = ''
         if not getTestMode():
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.ISEGWrite(message) # get channel name
-                    response = self.ISEGRead()
-                else:
-                    self.print(f"Cannot acquire lock for ISEG communication. Query {message}.", PRINT.WARNING)
+            if lock_acquired: # already acquired -> safe to use
+                self.ISEGWrite(message) # get channel name
+                return self.ISEGRead()
+            else:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for ISEG communication. Query {message}.') as lock_acquired:
+                    if lock_acquired:
+                        self.ISEGWrite(message) # get channel name
+                        response = self.ISEGRead()
         return response

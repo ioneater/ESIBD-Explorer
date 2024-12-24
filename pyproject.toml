@@ -18,6 +18,7 @@ dependencies = [
 	'keyboard', # ==0.13.5
 	'matplotlib', # ==3.8.2
 	'contourpy==1.2.1',
+	'lakeshore',
 	'nidaqmx',
 	'numpy', # ==1.26.2
     'pfeiffer-vacuum-protocol',

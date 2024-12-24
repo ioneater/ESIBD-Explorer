@@ -4,9 +4,6 @@ import numpy as np
 import ctypes
 # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
 # If needed, add SDK installation path to PATH
-# Install picosdk in esibd environment
-# conda activate esibd
-# pip install picosdk
 from picosdk.usbPT104 import usbPt104 as pt104
 from picosdk.functions import assert_pico_ok
 from esibd.plugins import Device
@@ -115,11 +112,8 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self):
         if self.initialized:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    pt104.UsbPt104CloseUnit(self.chandle)
-                else:
-                    self.print('Cannot acquire lock to close PT-104.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.') as lock_acquired:
+                pt104.UsbPt104CloseUnit(self.chandle)
         super().closeCommunication()
 
     def runInitialization(self):
@@ -153,13 +147,14 @@ class TemperatureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     toggleCounter = 0
     def readNumbers(self):

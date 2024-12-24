@@ -76,7 +76,6 @@ class PressureChannel(Channel):
             self.device.initializeCommunication()
 
 class PressureController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements serial communication with RBD 9103.
     While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
@@ -84,9 +83,9 @@ class PressureController(DeviceController):
         super().__init__(_parent=device)
         self.device = device
         self.ticPort = None
-        self.ticLock = TimeoutLock()
+        self.ticLock = TimeoutLock(_parent=device)
         self.tpgPort = None
-        self.tpgLock = TimeoutLock()
+        self.tpgLock = TimeoutLock(_parent=device)
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.ticInitialized = False
         self.tpgInitialized = False
@@ -95,19 +94,13 @@ class PressureController(DeviceController):
 
     def closeCommunication(self):
         if self.ticPort is not None:
-            with self.ticLock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.ticPort.close()
-                    self.ticPort = None
-                else:
-                    self.print('Cannot acquire lock to close ticPort.', PRINT.WARNING)
+            with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.') as lock_acquired:
+                self.ticPort.close()
+                self.ticPort = None
         if self.tpgPort is not None:
-            with self.tpgLock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.tpgPort.close()
-                    self.tpgPort = None
-                else:
-                    self.print('Cannot acquire lock to close tpgPort.', PRINT.WARNING)
+            with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.') as lock_acquired:
+                self.tpgPort.close()
+                self.tpgPort = None
         self.ticInitialized = False
         self.tpgInitialized = False
         super().closeCommunication()
@@ -171,13 +164,14 @@ class PressureController(DeviceController):
     def runAcquisition(self, acquiring):
         # runs in parallel thread
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeNumbers()
-                else:
-                    self.readNumbers()
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
+                        self.readNumbers()
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000)
 
     PRESSURE_READING_STATUS = {
       0: 'Measurement data okay',
@@ -240,8 +234,8 @@ class PressureController(DeviceController):
     def TICWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.ticLock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.ticLock.acquire_timeout(2) as lock_acquired:
+            if lock_acquired:
                 self.TICWrite(message)
                 response = self.TICRead() # reads return value
             else:
@@ -249,19 +243,10 @@ class PressureController(DeviceController):
         return response
 
     def TPGWrite(self, message):
-        # return
-        #self.tpgPort.write(bytes(f'{message}\r','ascii'))
-        #ack = self.tpgPort.readline()
-        #self.print(f"ACK: {ack}") # b'\x06\r\n' means ACK or acknowledgment b'\x15\r\n' means NAK or not acknowledgment
         self.serialWrite(self.tpgPort, f'{message}\r', encoding='ascii')
         self.serialRead(self.tpgPort, encoding='ascii') # read acknowledgment
 
     def TPGRead(self):
-        # return 'none'
-        #self.tpgPort.write(bytes('\x05\r','ascii')) # \x05 is equivalent to ENQ or enquiry
-        #enq = self.tpgPort.readlines() # response followed by NAK
-        #self.print(f"enq: {enq}") # read acknowledgment
-        #return enq[0].decode('ascii').rstrip()
         self.serialWrite(self.tpgPort, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
         enq =  self.serialRead(self.tpgPort, encoding='ascii') # response
         self.serialRead(self.tpgPort, encoding='ascii') # followed by NAK
@@ -270,8 +255,8 @@ class PressureController(DeviceController):
     def TPGWriteRead(self, message):
         """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.tpgLock.acquire_timeout(2) as acquired:
-            if acquired:
+        with self.tpgLock.acquire_timeout(2) as lock_acquired:
+            if lock_acquired:
                 self.TPGWrite(message)
                 response = self.TPGRead() # reads return value
             else:

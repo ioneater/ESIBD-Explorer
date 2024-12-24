@@ -641,7 +641,7 @@ class Logger(QObject):
         super().__init__()
         self.pluginManager = pluginManager
         self.active = False
-        self.lock = TimeoutLock()
+        self.lock = TimeoutLock(_parent=self)
         self.purgeTo = 8000
         self.purgeLimit = 10000
         self.lastCallTime = None
@@ -673,8 +673,8 @@ class Logger(QObject):
         if self.active:
             if self.terminalOut is not None: # after packaging with pyinstaller the program will not be connected to a terminal
                 self.terminalOut.write(message) # write to original stdout
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
                     self.purge()
                     self.log.write(message) # write to log file
                     self.log.flush()
@@ -1320,8 +1320,6 @@ class Parameter():
     def initContextMenu(self, pos):
         self._parent.initSettingsContextMenuBase(self, self.getWidget().mapToGlobal(pos))
 
-#################################### Settings Item ################################################
-
 class Setting(QTreeWidgetItem, Parameter):
     """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a channel."""
     def __init__(self, value=None, parentItem=None,**kwargs):
@@ -1380,8 +1378,6 @@ class Setting(QTreeWidgetItem, Parameter):
                     qSet.setValue(self.fullName+self.ITEMS, ','.join(self.items))
             else: # save non internal parameters to file
                 self._parent.saveSettings(default=True)
-
-########################## Generic channel ########################################################
 
 class MetaChannel():
     """Manages metadata associated with a channel by a :class:`~esibd.plugins.Scan` or :class:`~esibd.plugins.LiveDisplay`.
@@ -1700,7 +1696,7 @@ class Channel(QTreeWidgetItem):
 
     def clearPlotCurve(self):
         if self.plotCurve is not None:
-            #if hasattr(self.plotCurve, '_parent'):  # all plotcurves need to have a _parent so they can be removed gracefully
+            #if hasattr(self.plotCurve, '_parent'):  # all plot curves need to have a _parent so they can be removed gracefully
             self.plotCurve._parent.removeItem(self.plotCurve) # plotWidget still tries to access this even if deleted -> need to explicitly remove!
             if isinstance(self.plotCurve._parent, pg.ViewBox):
                 self.plotCurve._legend.removeItem(self.plotCurve)
@@ -1871,8 +1867,6 @@ class Channel(QTreeWidgetItem):
         #     elif settingsContextMenuAction is removeItemAction:
         #         parameter.removeCurrentItem()
 
-#################################### Other Custom Widgets #########################################
-
 class QLabviewSpinBox(QSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False):
@@ -1924,6 +1918,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf) # limit explicitly if needed, this seems more useful than the [0, 100] default range
         self.displayDecimals = 2
+        self.NAN = 'NaN'
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
@@ -1940,8 +1935,17 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.setDecimals(max(self.displayDecimals, self.decimals())) # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
         self.value = self.value
 
+    def valueFromText(self, text):
+        if text == self.NAN:
+            return np.nan
+        else:
+            return float(text)
+        
     def textFromValue(self, value):
-        return f'{value:.{self.displayDecimals}f}'
+        if value in [np.nan, np.inf]:
+            return self.NAN 
+        else:
+            return f'{value:.{self.displayDecimals}f}'
 
     def wheelEvent(self, event):
         event.ignore()
@@ -2018,11 +2022,11 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
     def fixup(self, text):
         return self.validator.fixup(text)
 
-    def valueFromText(self, text):
-        return float(text)
-
     def textFromValue(self, value):
-        return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
+        if value in [np.nan, np.inf]:
+            return self.NAN 
+        else:
+            return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
 
     def stepBy(self, step):
         text = self.lineEdit().text()
@@ -2047,8 +2051,6 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
                 self.lineEdit().setCursorPosition(cur + 1)
         elif len(newText) < len(text):
             self.lineEdit().setCursorPosition(max(cur - 1, 0))
-
-############################ Third Party Widgets ##################################################
 
 class ControlCursor(Cursor):
     """Extending internal implementation to get draggable cursor."""
@@ -2949,16 +2951,17 @@ class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
 
 class TimeoutLock(object):
     """A Lock that allows to specify a timeout inside a with statement.
-    Can be used as normal Lock or optionally using 'with self.lock.acquire_timeout(2) as lock_acquired:'"""
+    Can be used as normal Lock or optionally using 'with self.lock.acquire_timeout(1) as lock_acquired:'"""
     # based on https://stackoverflow.com/questions/16740104/python-lock-with-statement-and-timeout
-    def __init__(self):
+    def __init__(self, _parent):
         self._lock = threading.Lock()
+        self.print = _parent.print
 
     def acquire(self, blocking=True, timeout=-1):
         return self._lock.acquire(blocking, timeout)
 
     @contextmanager
-    def acquire_timeout(self, timeout):
+    def acquire_timeout(self, timeout, timeoutMessage=None):
         """
         :param timeout: timeout in seconds
         :type timeout: float, optional        
@@ -2967,6 +2970,8 @@ class TimeoutLock(object):
         yield result
         if result:
             self._lock.release()
+        elif timeoutMessage is not None:
+            self.print(timeoutMessage, flag=PRINT.WARNING)
 
     def release(self):
         self._lock.release()
@@ -3025,7 +3030,7 @@ class DeviceController(QObject):
         super().__init__()
         self.channel = None # overwrite with parent if applicable
         self.device = _parent # overwrite with channel.getDevice() if applicable
-        self.lock = TimeoutLock() # init here so each instance gets its own lock
+        self.lock = TimeoutLock(_parent=_parent) # init here so each instance gets its own lock
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
@@ -3041,7 +3046,6 @@ class DeviceController(QObject):
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
             self.closeCommunication() # terminate old thread before starting new one
-        # threads cannot be restarted -> make new thread every time. possibly there are cleaner solutions
         self.initThread = Thread(target=self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
@@ -3074,13 +3078,14 @@ class DeviceController(QObject):
         """Runs acquisition loop. Executed in acquisitionThread.
         Overwrite with hardware specific acquisition code."""
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    pass # implement fake feedback
-                else:
-                    pass # implement real feedback
-                self.signalComm.updateValueSignal.emit()
-                time.sleep(self.device.interval/1000)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        pass # implement fake feedback
+                    else:
+                        pass # implement real feedback
+                    self.signalComm.updateValueSignal.emit()
+            time.sleep(self.device.interval/1000) # release lock before waiting!
 
     def updateValue(self):
         """Called from acquisitionThread to update the
@@ -3094,17 +3099,24 @@ class DeviceController(QObject):
         Make sure acquisition is stopped before communication is closed.
         """
         self.print('closeCommunication', PRINT.DEBUG)
-        # self.stopAcquisition() avoid calling this here to prevent multiple calls, already called from device
+        if self.acquiring:
+            self.stopAcquisition() # only call if not already called by device
+            
+        # use the next 4 lines as a template
+        # if self.port is not None:
+        #     with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+        #         # replace with device and communication protocol specific code to close communication
+        #         # try to close port even if lock could not be acquired! resulting errors should be excepted
+        #         self.port.close()
+        #         self.port = None
         self.initialized = False
 
     def stopAcquisition(self):
         """Terminates acquisition but leaves communication initialized."""
         self.print('stopAcquisition', PRINT.DEBUG)
         if self.acquisitionThread is not None:
-            with self.lock.acquire_timeout(2) as lock_acquired: # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.') as lock_acquired: # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
                 self.acquiring = False
-                if not lock_acquired:
-                    self.print('Could not acquire lock to stop acquisition.')
             return True
         return False
     

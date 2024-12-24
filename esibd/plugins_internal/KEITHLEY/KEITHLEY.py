@@ -3,9 +3,6 @@ import time
 from threading import Thread
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-# install pyvisa in esibd environment
-# conda activate esibd
-# pip install pyvisa
 import pyvisa
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
@@ -30,7 +27,6 @@ class Current(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        # use stateAction.state instead of attribute as attribute would be added to DeviceManager rather than self
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='KEITHLEY on.', iconFalse=self.makeIcon('keithley_off.png'),
                                                                   toolTipTrue='KEITHLEY off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
@@ -68,13 +64,13 @@ class Current(Device):
             for channel in self.channels:
                 channel.controller.voltageON(self.onAction.state)
         elif self.onAction.state is True:
-            self.init()
+            self.initializeCommunication()
 
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
         self.onAction.iconTrue = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state) # self.on not available on start
+        self.onAction.updateIcon(self.onAction.state)
 
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality"""
@@ -94,7 +90,7 @@ class CurrentChannel(Channel):
         channel[self.VALUE][Parameter.HEADER ] = 'I (pA)' # overwrite existing parameter to change header
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
         channel[self.ADDRESS    ] = parameterDict(value='GPIB0::22::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
-        channel[self.VOLTAGE    ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda : self.controller.setVoltage())
+        channel[self.VOLTAGE    ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda : self.controller.applyVoltage())
         return channel
 
     def setDisplayedParameters(self):
@@ -138,7 +134,6 @@ class CurrentChannel(Channel):
         super().realChanged()
 
 class CurrentController(DeviceController):
-    # need to inherit from QObject to allow use of signals
     """Implements visa communication with KEITHLEY 6487."""
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
@@ -153,6 +148,7 @@ class CurrentController(DeviceController):
         self.phase = np.random.rand()*10 # used in test mode
         self.omega = np.random.rand() # used in test mode
         self.offset = np.random.rand()*10 # used in test mode
+        self.rm = pyvisa.ResourceManager()
 
     def initializeCommunication(self):
         if self.channel.enabled and self.channel.active:
@@ -160,11 +156,9 @@ class CurrentController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(2) as acquired:
-                if acquired:
-                    self.port.close()
-                else:
-                    self.print(f'Cannot acquire lock to close port of {self.channel.name}.', PRINT.WARNING)
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                self.port.close()
+                self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
@@ -173,10 +167,9 @@ class CurrentController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         else:
             self.initializing = True
-            try:                
-                rm = pyvisa.ResourceManager()
+            try:                  
                 # name = rm.list_resources()
-                self.port = rm.open_resource(self.channel.address)
+                self.port = self.rm.open_resource(self.channel.address)
                 self.port.write("*RST")
                 self.device.print(self.port.query('*IDN?'))
                 self.port.write("SYST:ZCH OFF")
@@ -202,24 +195,26 @@ class CurrentController(DeviceController):
 
     def runAcquisition(self, acquiring):
         while acquiring():
-            with self.lock.acquire_timeout(2):
-                if getTestMode():
-                    self.fakeSingleNum()
-                    time.sleep(self.channel.device.interval/1000)
-                else:
-                    self.readSingleNum()
-                    # no sleep needed, timing controlled by waiting during readSingleNum
+            with self.lock.acquire_timeout(1) as lock_acquired:
+                if lock_acquired:
+                    if getTestMode():
+                        self.fakeSingleNum()
+                    else:
+                        self.readSingleNum()
+                        # no sleep needed, timing controlled by waiting during readSingleNum
+            if getTestMode():
+                time.sleep(self.channel.device.interval/1000)
 
     def updateValue(self, value):
         self.channel.value = value
 
-    def setVoltage(self):
+    def applyVoltage(self):
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
     
     def voltageON(self, on=False, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
-            self.setVoltage() # apply voltages before turning power supply on or off
+            self.applyVoltage() # apply voltages before turning power supply on or off
             if parallel:
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
@@ -237,7 +232,7 @@ class CurrentController(DeviceController):
             try:                
                 self.port.write("INIT")
                 self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
-            except (pyvisa.errors.VisaIOError,pyvisa.errors.InvalidSession) as e:
+            except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}')
                 self.signalComm.updateValueSignal.emit(np.nan)
 
