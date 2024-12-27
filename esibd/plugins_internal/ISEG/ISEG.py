@@ -56,10 +56,6 @@ class Voltage(Device):
     def getModules(self): # get list of used modules
         return set([channel.module for channel in self.channels])
 
-    def initializeCommunication(self):
-        """:meta private:"""
-        super().initializeCommunication()
-        self.onAction.state = self.controller.ON
         
     def closeCommunication(self):
         """:meta private:"""
@@ -73,24 +69,17 @@ class Voltage(Device):
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning modules on or off
-            self.controller.voltageON(self.onAction.state)
-        elif self.onAction.state is True:
-            self.controller.ON = self.onAction.state
+            self.controller.voltageON(self.isOn())
+        elif self.isOn():
             self.initializeCommunication()
 
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
         self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state)
+        self.onAction.updateIcon(self.isOn())
 
 class VoltageChannel(Channel):
-
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-        self.lastAppliedValue = None # keep track of last value to identify what has changed
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
-        self.defaultStyleSheet = None # will be initialized when color is set
 
     MODULE    = 'Module'
     ID        = 'ID'
@@ -122,14 +111,6 @@ class VoltageChannel(Channel):
 
     def updateColor(self):
         color = super().updateColor()
-        self.defaultStyleSheet = f'background-color: {color.name()}'
-
-    def monitorChanged(self):
-        if self.enabled and self.device.controller.acquiring and ((self.device.controller.ON and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.controller.ON and abs(self.monitor - 0) > 1)):
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
-        else:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
 
     def realChanged(self):
         self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
@@ -155,17 +136,9 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         self.modules    = modules or [0]
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
-        self.IP = 'localhost'
-        self.port = 0
-        self.ON         = False
-        self.s          = None
+        self.socket     = None
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
-
-    def initializeCommunication(self):
-        self.IP = self.device.ip
-        self.port = int(self.device.port)
-        super().initializeCommunication()
 
     def runInitialization(self):
         if getTestMode():
@@ -175,19 +148,19 @@ class VoltageController(DeviceController):
         else:
             self.initializing = True
             try:
-                self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
+                self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
                 self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
-                self.print(f'Could not establish SCPI connection to {self.IP} on port {self.port}. Exception: {e}', PRINT.WARNING)
+                self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
             finally:
                 self.initializing = False
 
     def initComplete(self):
         super().initComplete()
-        if self.ON:
+        if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning modules on or off
-        self.voltageON(self.ON)
+        self.voltageON(self.device.isOn())
 
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -205,7 +178,6 @@ class VoltageController(DeviceController):
                     channel.monitor = self.voltages[channel.module][channel.id]
 
     def voltageON(self, on=False, parallel=True): # this can run in main thread
-        self.ON = on
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -221,7 +193,7 @@ class VoltageController(DeviceController):
     def fakeMonitors(self):
         for channel in self.device.getChannels():
             if channel.real:
-                if self.device.controller.ON and channel.enabled:
+                if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
                 else:
@@ -245,12 +217,12 @@ class VoltageController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def ISEGWrite(self, message):
-        self.s.sendall(message)
+        self.socket.sendall(message)
 
     def ISEGRead(self):
         # only call from thread! # make sure lock is acquired before and released after
         if not getTestMode() and self.initialized:
-            return self.s.recv(4096).decode("utf-8")
+            return self.socket.recv(4096).decode("utf-8")
 
     def ISEGWriteRead(self, message, lock_acquired=False):
         response = ''

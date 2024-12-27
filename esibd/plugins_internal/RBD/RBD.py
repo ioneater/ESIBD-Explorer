@@ -19,7 +19,6 @@ class Current(Device):
 
     name = 'RBD'
     version = '1.0'
-    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'pA'
 
@@ -282,8 +281,7 @@ class CurrentController(DeviceController):
                 self.initializing = False
 
     def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if (self.port is not None or getTestMode()) and self.channel.active and self.channel.real:
+        if self.channel.active and self.channel.real:
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):

@@ -160,6 +160,7 @@ class PluginManager():
         """A plugin without user interface."""
 
     VERSION             = 'Version'
+    SUPPORTEDVERSION    = 'Supported Version'
     ENABLED             = 'Enabled'
     PREVIEWFILETYPES    = 'PREVIEWFILETYPES'
     DESCRIPTION         = 'DESCRIPTION'
@@ -295,11 +296,12 @@ class PluginManager():
             # might consider different import mechanism which does not require import unless plugins are enabled.
             self.pluginNames.append(Plugin.name)
             if Plugin.name not in self.confParser: #add
-                self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.PLUGINTYPE : str(Plugin.pluginType.value),
+                self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.SUPPORTEDVERSION : Plugin.supportedVersion, self.PLUGINTYPE : str(Plugin.pluginType.value),
                                             self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes),
                                             self.DESCRIPTION : Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL : str(Plugin.optional)}
             else: # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
+                self.confParser[Plugin.name][self.SUPPORTEDVERSION] = Plugin.supportedVersion
                 self.confParser[Plugin.name][self.PLUGINTYPE] = str(Plugin.pluginType.value)
                 self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(Plugin.previewFileTypes)
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
@@ -415,14 +417,15 @@ class PluginManager():
         dlg.setWindowIcon(BetterIcon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
-        tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Type', 'Preview File Types', 'Description'])
+        tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
         tree.setColumnCount(6)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         tree.header().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         tree.setColumnWidth(1, 50)
         tree.setColumnWidth(2, 50)
-        tree.setColumnWidth(4, 150)
+        tree.setColumnWidth(3, 50)
+        tree.setColumnWidth(5, 150)
         root = tree.invisibleRootItem()
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -435,7 +438,7 @@ class PluginManager():
             confParser.read(self.pluginFile)
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper():
-                self.addPluginTreeWidgetItem(tree=tree, name=name, enabled=item[self.ENABLED] == 'True', version_=item[self.VERSION],
+                self.addPluginTreeWidgetItem(tree=tree, name=name, enabled=item[self.ENABLED] == 'True', version_=item[self.VERSION], supportedVersion=item[self.SUPPORTEDVERSION],
                                                 pluginType=item[self.PLUGINTYPE], previewFileTypes=item[self.PREVIEWFILETYPES],
                                                 description=item[self.DESCRIPTION], optional=item[self.OPTIONAL] == 'True')
         dlg.setLayout(lay)
@@ -450,7 +453,7 @@ class PluginManager():
             self.closePlugins(reload=True)
             QApplication.restoreOverrideCursor()
 
-    def addPluginTreeWidgetItem(self, tree, name, enabled, version_, pluginType, previewFileTypes, description, optional=True):
+    def addPluginTreeWidgetItem(self, tree, name, enabled, version_, supportedVersion, pluginType, previewFileTypes, description, optional=True):
         """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox."""
         plugin_widget = QTreeWidgetItem(tree.invisibleRootItem(),[name])
         checkbox = CheckBox()
@@ -460,18 +463,21 @@ class PluginManager():
         versionLabel = QLabel()
         versionLabel.setText(version_)
         tree.setItemWidget(plugin_widget, 2, versionLabel)
+        supportedVersionLabel = QLabel()
+        supportedVersionLabel.setText(supportedVersion)
+        tree.setItemWidget(plugin_widget, 3, supportedVersionLabel)
         typeLabel = QLabel()
         typeLabel.setText(pluginType)
-        tree.setItemWidget(plugin_widget, 3, typeLabel)
+        tree.setItemWidget(plugin_widget, 4, typeLabel)
         previewFileTypesLabel = QLabel()
         previewFileTypesLabel.setText(previewFileTypes)
         previewFileTypesLabel.setToolTip(previewFileTypes)
-        tree.setItemWidget(plugin_widget, 4, previewFileTypesLabel)
+        tree.setItemWidget(plugin_widget, 5, previewFileTypesLabel)
         descriptionLabel = QLabel()
         if description is not None:
             descriptionLabel.setText(description.splitlines()[0][:100] )
             descriptionLabel.setToolTip(description)
-        tree.setItemWidget(plugin_widget, 5, descriptionLabel)
+        tree.setItemWidget(plugin_widget, 6, descriptionLabel)
 
     def closePlugins(self, reload=False):
         """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
@@ -1473,6 +1479,9 @@ class Channel(QTreeWidgetItem):
         self.values = DynamicNp(max_size=self.device.maxDataPoints)
         self.inout = device.inout
         self.controller = None 
+        self.defaultStyleSheet = None # will be initialized when color is set
+        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
+
         if self.inout != INOUT.NONE and self.device.useBackgrounds:
                 self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
 
@@ -1589,7 +1598,6 @@ class Channel(QTreeWidgetItem):
         elif self.inout == INOUT.OUT:
             channel[self.VALUE][Parameter.INDICATOR] = True
             channel[self.NAME][Parameter.EVENT] = self.updateDisplay
-            # channel[self.ENABLED][Parameter.EVENT] = self.enabledChanged
             if self.device.useBackgrounds:
                 channel[self.BACKGROUND] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     header='BG    ', attr='background')
@@ -1749,7 +1757,8 @@ class Channel(QTreeWidgetItem):
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
-        self.updateDisplay()
+        self.updateDisplay()        
+        self.defaultStyleSheet = f'background-color: {color.name()}'
         return color
 
     def realChanged(self):
@@ -1773,6 +1782,13 @@ class Channel(QTreeWidgetItem):
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
             self.device.pluginManager.DeviceManager.updateStaticPlot()
+            
+    def monitorChanged(self):
+        """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
+        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)):
+            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
+        else:
+            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
 
     def initGUI(self, item):
         """Call after item has been added to tree.
@@ -3059,9 +3075,10 @@ class DeviceController(QObject):
 
     def __init__(self, _parent):
         super().__init__()
-        self.channel = None # overwrite with parent if applicable
+        self.channel = None # overwrite with parent if applicable        
         self.device = _parent # overwrite with channel.getDevice() if applicable
         self.lock = TimeoutLock(_parent=self) # init here so each instance gets its own lock
+        self.port = None
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
@@ -3092,6 +3109,9 @@ class DeviceController(QObject):
     def startAcquisition(self):
         """Starts data acquisition from physical device."""
         self.print('startAcquisition', PRINT.DEBUG)
+        if not self.initialized:
+            self.print('Cannot start acquisition. Not initialized', PRINT.DEBUG)
+            return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
             if self.device.log:
                 self.device.print('Wait for data reading thread to complete before restarting acquisition.', PRINT.WARNING)
@@ -3132,14 +3152,6 @@ class DeviceController(QObject):
         self.print('closeCommunication', PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition() # only call if not already called by device
-            
-        # use the next 4 lines as a template
-        # if self.port is not None:
-        #     with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
-        #         # replace with device and communication protocol specific code to close communication
-        #         # try to close port even if lock could not be acquired! resulting errors should be excepted
-        #         self.port.close()
-        #         self.port = None
         self.initialized = False
 
     def stopAcquisition(self):

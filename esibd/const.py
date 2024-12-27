@@ -208,3 +208,15 @@ def betterSmooth(array, smooth):
     paddedArray = np.concatenate((array[:padding][::-1], array, array[-padding:][::-1])) # pad ends
     convolvedArray = signal.convolve(paddedArray, win, mode='same') / sum(win)
     return convolvedArray[padding:-padding]
+
+# Decorator to add thread-safety using a lock from the instance
+def synchronized(func):
+    # avoid calling QApplication.processEvents() inside func as it may cause deadlocks
+    def wrapper(self, *args, **kwargs):
+        self.print(f'Acquiring lock for {func.__name__}', flag=PRINT.DEBUG)
+        with self.lock:
+            self.print(f'Lock acquired for {func.__name__}', flag=PRINT.DEBUG)
+            result = func(self, *args, **kwargs)
+            self.print(f'Releasing lock for {func.__name__}', flag=PRINT.DEBUG)
+            return result
+    return wrapper

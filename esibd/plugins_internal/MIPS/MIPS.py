@@ -18,6 +18,7 @@ class MIPS(Device):
 
     name = 'MIPS'
     version = '1.0'
+    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
 
@@ -50,36 +51,23 @@ class MIPS(Device):
     def getCOMs(self): # get list of unique used COMs
         return list(set([channel.com for channel in self.channels]))
         
-    def initializeCommunication(self):
-        """:meta private:"""
-        self.onAction.state = self.controller.ON
-        super().initializeCommunication()
-
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()     
 
     def applyValues(self, apply=False):
-        for c in self.channels:
-            c.applyVoltage(apply) # only actually sets voltage if configured and value has changed
+        for channel in self.channels:
+            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.onAction.state)
-        elif self.onAction.state is True:
-            self.controller.ON = self.onAction.state
+            self.controller.voltageON(self.isOn())
+        elif self.isOn():
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
 
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-        self.lastAppliedValue = None # keep track of last value to identify what has changed
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
-        self.defaultStyleSheet = None # will be initialized when color is set
-
-    MONITOR   = 'Monitor'
     COM        = 'COM'
     ID        = 'ID'
 
@@ -108,13 +96,9 @@ class VoltageChannel(Channel):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
-    def updateColor(self):
-        color = super().updateColor()
-        self.defaultStyleSheet = f'background-color: {color.name()}'
-
     def monitorChanged(self):
-        if self.enabled and self.device.controller.acquiring and ((self.device.controller.ON and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.controller.ON and abs(self.monitor - 0) > 1)):
+        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
         else:
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
@@ -143,9 +127,8 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         self.COMs       = COMs or ['COM1']
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
-        self.ON         = False
-        self.s          = [None]*len(self.COMs)
-        self.maxID = max([c.id if c.real else 0 for c in self.device.channels]) # used to query correct amount of monitors
+        self.ports          = [None]*len(self.COMs)
+        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
@@ -156,7 +139,7 @@ class VoltageController(DeviceController):
         else:
             self.initializing = True
             try:                
-                self.s = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
+                self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
                 # TODO test communication and throw exception. serial connection may initialize even though mips turned off!
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
@@ -166,16 +149,16 @@ class VoltageController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        if self.ON:
+        if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.ON)
+        self.voltageON(self.device.isOn())
     
     def closeCommunication(self):
         for i, COM in enumerate(self.COMs):
-            if self.s[i] is not None:
+            if self.ports[i] is not None:
                 with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {COM}.'):
-                    self.s[i].close()
-                    self.s[i] = None
+                    self.ports[i].close()
+                    self.ports[i] = None
         super().closeCommunication()
         
     def applyVoltage(self, channel):
@@ -184,7 +167,7 @@ class VoltageController(DeviceController):
 
     def applyVoltageFromThread(self, channel):
         if not getTestMode() and self.initialized:
-            self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.ON) else 0}\r\n')
+            self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
 
     def applyMonitors(self):
         if getTestMode():
@@ -195,7 +178,6 @@ class VoltageController(DeviceController):
                     channel.monitor = self.voltages[self.COMs.index(channel.com)][channel.id-1]
 
     def voltageON(self, on=False, parallel=True): # this can run in main thread
-        self.ON = on
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -211,7 +193,7 @@ class VoltageController(DeviceController):
     def fakeMonitors(self):
         for channel in self.device.channels:
             if channel.real:
-                if self.device.controller.ON and channel.enabled:
+                if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
                 else:
@@ -220,7 +202,7 @@ class VoltageController(DeviceController):
     def runAcquisition(self, acquiring):
         while acquiring():
             pass
-            with self.lock.acquire_timeout(1, timeoutMessage='MIPS acquisition timeout Test') as lock_acquired: # TODO remove message
+            with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
                         for i in range(len(self.COMs)):
@@ -234,13 +216,13 @@ class VoltageController(DeviceController):
 
     def MIPSWrite(self, COM, message):
         m = self.COMs.index(COM)        
-        self.serialWrite(self.s[m], message)
+        self.serialWrite(self.ports[m], message)
 
     def MIPSRead(self, COM):
         # only call from thread! # make sure lock is acquired before and released after
         m = self.COMs.index(COM)     
         if not getTestMode() and self.initialized:
-            return self.serialRead(self.s[m], EOL='\r', strip='b\x06')
+            return self.serialRead(self.ports[m], EOL='\r', strip='b\x06')
 
     def MIPSWriteRead(self, COM, message, lock_acquired=False):
         response = ''

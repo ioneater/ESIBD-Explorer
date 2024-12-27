@@ -17,7 +17,6 @@ class Temperature(Device):
 
     name = 'Temperature'
     version = '1.0'
-    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'K'
 
@@ -64,7 +63,7 @@ class Temperature(Device):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def initializeCommunication(self):
-        self.controller.restart = self.onAction.state
+        self.controller.restart = self.isOn()
         super().initializeCommunication()
 
     def closeCommunication(self):
@@ -84,7 +83,7 @@ class Temperature(Device):
 
     def cryoON(self):
         if self.initialized():
-            self.controller.cryoON(self.onAction.state)
+            self.controller.cryoON(self.isOn())
         else:
             self.initializeCommunication()
 
@@ -95,18 +94,13 @@ class Temperature(Device):
     def updateTheme(self):
         super().updateTheme()
         self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state)
+        self.onAction.updateIcon(self.isOn())
         self.unitAction.iconFalse = self.makeIcon('tempC_dark.png' if getDarkMode() else 'tempC_light.png')
         self.unitAction.iconTrue = self.makeIcon('tempK_dark.png' if getDarkMode() else 'tempK_light.png')
         self.unitAction.updateIcon(self.unitAction.state)
 
 class TemperatureChannel(Channel):
     """UI for pressure with integrated functionality"""
-
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
-        self.defaultStyleSheet = None # will be initialized when color is set
 
     CRYOTEL = 'CryoTel'
 
@@ -121,24 +115,9 @@ class TemperatureChannel(Channel):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
 
-    def enabledChanged(self):
-        super().enabledChanged()
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
-            self.device.initializeCommunication()
-
     def applyTemperature(self): # this actually sets the temperature on the controller!
         if self.real:
             self.device.controller.applyTemperature(self)
-
-    def updateColor(self):
-        color = super().updateColor()
-        self.defaultStyleSheet = f'background-color: {color.name()}'
-
-    def monitorChanged(self):
-        if self.enabled and self.device.controller.initialized and ((self.device.controller.ON and abs(self.monitor - self.value) > 1)):
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
-        else:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
 
     def appendValue(self, lenT, nan=False):
         # super().appendValue() # overwrite to use monitors
@@ -153,11 +132,10 @@ class TemperatureController(DeviceController):
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        self.ON = False
         self.restart=False
         self.temperatures = []
         self.initTemperatures()
-        self.qm = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
+        self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self):
         if self.port is not None:
@@ -203,13 +181,7 @@ class TemperatureController(DeviceController):
     def initTemperatures(self):
         self.temperatures = [channel.value for channel in self.device.getChannels()]
 
-    def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if self.port is not None or getTestMode():
-            super().startAcquisition()
-
     def runAcquisition(self, acquiring):
-        # runs in parallel thread
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
@@ -235,7 +207,7 @@ class TemperatureController(DeviceController):
         # only test once a minute as cooler takes 30 s to turn on or off
         # in case of over current error the cooler won't turn on and there is no need for additional safety check
         self.toggleCounter += 1
-        if self.ON and np.mod(self.toggleCounter, int(60000/self.device.interval)) == 0 and self.device.getChannels()[0].monitor != 0 and self.device.getChannels()[0].monitor != np.nan:
+        if self.device.isOn() and np.mod(self.toggleCounter, int(60000/self.device.interval)) == 0 and self.device.getChannels()[0].monitor != 0 and self.device.getChannels()[0].monitor != np.nan:
             if self.device.getChannels()[0].monitor < self.device.getChannels()[0].value - self.device.toggleThreshold:
                 self.print(f'Toggle cooler off. {self.device.getChannels()[0].monitor} K is under lower threshold of {self.device.getChannels()[0].value - self.device.toggleThreshold} K.')
                 self.CryoTelWriteRead(message='COOLER=OFF')
@@ -247,7 +219,7 @@ class TemperatureController(DeviceController):
     def fakeNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
             # exponentially approach target or room temp + small fluctuation
-            self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.onAction.state else 300)-self.temperatures[i]), 0)
+            self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.temperatures[i]), 0)
 
     def rndTemperature(self):
         return np.random.uniform(0, 400)
@@ -257,19 +229,18 @@ class TemperatureController(DeviceController):
             c.monitor = temperature
 
     def cryoON(self, on=False):
-        if not self.ON and not on:
+        if not self.device.isOn() and not on:
             return # already off
-        self.ON = on
         if not getTestMode() and self.initialized:
             if on:
                 self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
             else:
                 self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
-        self.qm.setText(f"Remember to turn water cooling {'on' if on else 'off'} and gas ballast {'off' if on else 'on'}!")
-        self.qm.setWindowIcon(self.device.getIcon())
-        if not self.device.pluginManager.testing:
-            self.qm.open() # show non blocking, defined outside cryoON so it does not get eliminated when the function completes.
-            self.qm.raise_()
+        self.messageBox.setText(f"Remember to turn water cooling {'on' if on else 'off'} and gas ballast {'off' if on else 'on'}!")
+        self.messageBox.setWindowIcon(self.device.getIcon())
+        if not self.device.testing:
+            self.messageBox.open() # show non blocking, defined outside cryoON so it does not get eliminated when the function completes.
+            self.messageBox.raise_()
         QApplication.processEvents()
 
     def applyTemperature(self, channel):

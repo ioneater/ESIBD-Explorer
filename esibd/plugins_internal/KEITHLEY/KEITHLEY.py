@@ -62,15 +62,15 @@ class Current(Device):
     def voltageON(self):
         if self.initialized():
             for channel in self.channels:
-                channel.controller.voltageON(self.onAction.state)
-        elif self.onAction.state is True:
+                channel.controller.voltageON(self.isOn())
+        elif self.isOn():
             self.initializeCommunication()
 
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
         self.onAction.iconTrue = self.getIcon()
-        self.onAction.updateIcon(self.onAction.state)
+        self.onAction.updateIcon(self.isOn())
 
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality"""
@@ -141,7 +141,7 @@ class CurrentController(DeviceController):
         super().__init__(_parent=_parent)
         #setup port
         self.channel = _parent
-        self.device = self.channel.device
+        self.device = self.channel.getDevice()
         self.port = None
         self.phase = np.random.rand()*10 # used in test mode
         self.omega = np.random.rand() # used in test mode
@@ -184,11 +184,10 @@ class CurrentController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        self.voltageON(self.device.onAction.state)
+        self.voltageON(self.device.isOn())
 
     def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if (self.port is not None or getTestMode()) and self.channel.active:
+        if self.channel.active:
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):

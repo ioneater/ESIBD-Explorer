@@ -37,7 +37,7 @@ class OMNICONTROL(Device):
         return ds
 
     def getInitializedChannels(self):
-        return [c for c in self.channels if (c.enabled and (self.controller.port is not None) or self.getTestMode()) or not c.active]
+        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None) or self.getTestMode()) or not channel.active]
 
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""
@@ -56,11 +56,6 @@ class PressureChannel(Channel):
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ID)
-
-    def enabledChanged(self):
-        super().enabledChanged()
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
-            self.device.init() 
 
 class PressureController(DeviceController):
 
@@ -94,13 +89,7 @@ class PressureController(DeviceController):
         self.pressures = [np.nan]*len(self.device.channels)
         super().initComplete()
 
-    def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if self.port is not None or getTestMode():
-            super().startAcquisition()
-
     def runAcquisition(self, acquiring):
-        # runs in parallel thread
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
@@ -112,10 +101,10 @@ class PressureController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
-        for i, c in enumerate(self.device.channels):
-            if c.enabled and c.active:
+        for i, channel in enumerate(self.device.channels):
+            if channel.enabled and channel.active:
                 try:
-                    p = pvp.read_pressure(self.port, c.id)
+                    p = pvp.read_pressure(self.port, channel.id)
                     self.pressures[i] = np.nan if p == 0 else p*1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')

@@ -57,11 +57,6 @@ class PressureChannel(Channel):
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ID)
 
-    def enabledChanged(self):
-        super().enabledChanged()
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
-            self.device.initializeCommunication()
-
 class PressureController(DeviceController):
 
     def __init__(self, _parent):
@@ -109,13 +104,7 @@ class PressureController(DeviceController):
     def initPressures(self):
         self.pressures = [np.nan]*len(self.device.getChannels())
 
-    def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if self.port is not None or getTestMode():
-            super().startAcquisition()
-
     def runAcquisition(self, acquiring):
-        # runs in parallel thread
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:

@@ -18,6 +18,7 @@ class RSPD3303C(Device):
 
     name = 'RSPD3303C'
     version = '1.0'
+    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
 
@@ -50,37 +51,24 @@ class RSPD3303C(Device):
         ds[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return ds
         
-    def initializeCommunication(self):
-        """:meta private:"""
-        self.onAction.state = self.controller.ON
-        super().initializeCommunication()
-
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
 
     def applyValues(self, apply=False):
-        for c in self.channels:
-            c.applyVoltage(apply) # only actually sets voltage if configured and value has changed
+        for channel in self.channels:
+            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.onAction.state)
-        elif self.onAction.state is True:
-            self.controller.ON = self.onAction.state
+            self.controller.voltageON(self.isOn())
+        elif self.isOn():
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
 
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-        self.lastAppliedValue = None # keep track of last value to identify what has changed
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
-        self.defaultStyleSheet = None # will be initialized when color is set
-
-    MONITOR   = 'Monitor'
     CURRENT   = 'Current'
     POWER     = 'Power'
     ID        = 'ID'
@@ -115,13 +103,10 @@ class VoltageChannel(Channel):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
-    def updateColor(self):
-        color = super().updateColor()
-        self.defaultStyleSheet = f'background-color: {color.name()}'
-
     def monitorChanged(self):
-        if self.enabled and self.device.controller.acquiring and ((self.device.controller.ON and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.controller.ON and abs(self.monitor - 0) > 1)):
+        # overwriting super().monitorChanged()
+        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
         else:
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
@@ -150,7 +135,6 @@ class VoltageController(DeviceController):
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
-        self.ON         = False
         self.voltages   = [np.nan]*len(self.device.channels)
         self.currents   = [np.nan]*len(self.device.channels)
 
@@ -174,9 +158,9 @@ class VoltageController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        if self.ON:
+        if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.ON)
+        self.voltageON(self.device.isOn())
             
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -196,7 +180,6 @@ class VoltageController(DeviceController):
                     channel.power = channel.monitor*channel.current
 
     def voltageON(self, on=False, parallel=True): # this can run in main thread
-        self.ON = on
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -212,7 +195,7 @@ class VoltageController(DeviceController):
     def fakeMonitors(self):
         for channel in self.device.channels:
             if channel.real:
-                if self.device.controller.ON and channel.enabled:
+                if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
                 else:

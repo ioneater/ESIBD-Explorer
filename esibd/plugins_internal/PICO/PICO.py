@@ -93,11 +93,6 @@ class TemperatureChannel(Channel):
         self.displayedParameters.append(self.DATATYPE)
         self.displayedParameters.append(self.NOOFWIRES)
 
-    def enabledChanged(self):
-        super().enabledChanged()
-        if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
-            self.device.init()
-
 class TemperatureController(DeviceController):
 
     def __init__(self, _parent):
@@ -120,9 +115,9 @@ class TemperatureController(DeviceController):
             self.initializing = True
             try:
                 pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle),0)
-                for c in self.device.channels:
-                    assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[c.channel],
-                                                            pt104.PT104_DATA_TYPE[c.datatype], ctypes.c_int16(int(c.noOfWires))))
+                for channel in self.device.channels:
+                    assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[channel.channel],
+                                                            pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -133,13 +128,7 @@ class TemperatureController(DeviceController):
         self.temperatures = [np.nan]*len(self.device.channels)
         super().initComplete()
 
-    def startAcquisition(self):
-        # only run if init successful, or in test mode. if channel is not active it will calculate value independently
-        if self.initialized:
-            super().startAcquisition()
-
     def runAcquisition(self, acquiring):
-        # runs in parallel thread
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
@@ -150,12 +139,11 @@ class TemperatureController(DeviceController):
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 
-    toggleCounter = 0
     def readNumbers(self):
-        for i, c in enumerate(self.device.channels):
+        for i, channel in enumerate(self.device.channels):
             try:                
                 meas = ctypes.c_int32()
-                pt104.UsbPt104GetValue(self.chandle, pt104.PT104_CHANNELS[c.channel], ctypes.byref(meas), 1)
+                pt104.UsbPt104GetValue(self.chandle, pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
                 if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
                     self.temperatures[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
                 else:

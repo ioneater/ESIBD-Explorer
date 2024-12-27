@@ -15,6 +15,7 @@ class NI9263(Device):
 
     name = 'NI9263'
     version = '1.0'
+    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
 
@@ -37,34 +38,22 @@ class NI9263(Device):
     def getIcon(self):
         return self.makeIcon('NI9263.png')
         
-    def initializeCommunication(self):
-        """:meta private:"""
-        self.onAction.state = self.controller.ON
-        super().initializeCommunication()
-
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
     
     def applyValues(self, apply=False):
-        for c in self.channels:
-            c.applyVoltage(apply) # only actually sets voltage if configured and value has changed
+        for channel in self.channels:
+            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.onAction.state)
-        elif self.onAction.state is True:
-            self.controller.ON = self.onAction.state
+            self.controller.voltageON(self.isOn())
+        elif self.isOn():
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
-
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-        self.lastAppliedValue = None # keep track of last value to identify what has changed
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
-        self.defaultStyleSheet = None # will be initialized when color is set
 
     ADDRESS = 'Address'
 
@@ -92,10 +81,6 @@ class VoltageChannel(Channel):
 
 class VoltageController(DeviceController): 
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        self.ON         = False
-
     def runInitialization(self):
         if getTestMode():
             time.sleep(2)
@@ -113,9 +98,9 @@ class VoltageController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        if self.ON:
+        if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.ON)
+        self.voltageON(self.device.isOn())
                     
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -126,10 +111,9 @@ class VoltageController(DeviceController):
             if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
-                    task.write(channel.value if (channel.enabled and self.ON) else 0)
+                    task.write(channel.value if (channel.enabled and self.device.isOn()) else 0)
 
     def voltageON(self, on=False, parallel=True): # this can run in main thread
-        self.ON = on
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
