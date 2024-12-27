@@ -1,9 +1,6 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
-from threading import Thread
 import time
-from random import choices
-import numpy as np
-from PyQt6.QtCore import pyqtSignal
+from threading import Thread
 import nidaqmx
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
@@ -28,7 +25,7 @@ class NI9263(Device):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.controller = VoltageController(device=self) # after all channels loaded
+        self.controller = VoltageController(_parent=self) # after all channels loaded
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -39,13 +36,6 @@ class NI9263(Device):
 
     def getIcon(self):
         return self.makeIcon('NI9263.png')
-
-    def getDefaultSettings(self):
-        """:meta private:"""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
-        return ds
         
     def initializeCommunication(self):
         """:meta private:"""
@@ -69,7 +59,6 @@ class NI9263(Device):
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
-    """UI for single voltage channel with integrated functionality"""
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -77,7 +66,7 @@ class VoltageChannel(Channel):
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
         self.defaultStyleSheet = None # will be initialized when color is set
 
-    ADDRESS   = 'Address'
+    ADDRESS = 'Address'
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
@@ -97,34 +86,25 @@ class VoltageChannel(Channel):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
-    def updateColor(self):
-        color = super().updateColor()
-        self.defaultStyleSheet = f'background-color: {color.name()}'
-
     def realChanged(self):
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
 
-class VoltageController(DeviceController):    
-    """Implements Serial communication with MIPS.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
+class VoltageController(DeviceController): 
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device     = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.ON         = False
 
     def runInitialization(self):
-        """initializes socket for SCPI communication"""
         if getTestMode():
-            self.initialized = True
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
         else:
             self.initializing = True
             try:
                 with nidaqmx.Task() as task:
                     task.ao_channels # will raise exception if connection failed
-                self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
@@ -132,6 +112,7 @@ class VoltageController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
+        super().initComplete()
         if self.ON:
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)

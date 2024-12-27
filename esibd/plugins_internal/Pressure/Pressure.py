@@ -23,7 +23,7 @@ class Pressure(Device):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
-        self.controller = PressureController(device=self)
+        self.controller = PressureController(_parent=self)
         self.logY = True
 
     def getIcon(self):
@@ -41,8 +41,8 @@ class Pressure(Device):
 
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and
-                                             ((channel.controller == channel.TIC and self.controller.ticPort is not None)
-                                              or (channel.controller == channel.TPG and self.controller.tpgPort is not None)
+                                             ((channel._controller == channel.TIC and self.controller.ticPort is not None)
+                                              or (channel._controller == channel.TPG and self.controller.tpgPort is not None)
                                               or self.getTestMode())) or not channel.active]
 
 class PressureChannel(Channel):
@@ -54,12 +54,11 @@ class PressureChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.WIDGETTYPE] = Parameter.TYPE.EXP # overwrite existing parameter to change to use exponent notation
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                        items=f'{self.TIC},{self.TPG}', attr='controller', toolTip='Controller used for communication.')
+                                        items=f'{self.TIC},{self.TPG}', attr='_controller', toolTip='Controller used for communication.')
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id', toolTip='ID of channel on device.')
         return channel
@@ -70,22 +69,18 @@ class PressureChannel(Channel):
         self.displayedParameters.append(self.ID)
 
     def enabledChanged(self):
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.initializeCommunication()
 
 class PressureController(DeviceController):
-    """Implements serial communication with RBD 9103.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.ticPort = None
-        self.ticLock = TimeoutLock(_parent=device)
+        self.ticLock = TimeoutLock(_parent=self)
         self.tpgPort = None
-        self.tpgLock = TimeoutLock(_parent=device)
+        self.tpgLock = TimeoutLock(_parent=self)
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.ticInitialized = False
         self.tpgInitialized = False
@@ -94,11 +89,11 @@ class PressureController(DeviceController):
 
     def closeCommunication(self):
         if self.ticPort is not None:
-            with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.') as lock_acquired:
+            with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.'):
                 self.ticPort.close()
                 self.ticPort = None
         if self.tpgPort is not None:
-            with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.') as lock_acquired:
+            with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.'):
                 self.tpgPort.close()
                 self.tpgPort = None
         self.ticInitialized = False
@@ -106,9 +101,10 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial ports in parallel thread"""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -150,8 +146,6 @@ class PressureController(DeviceController):
     def initComplete(self):
         self.initPressures()
         super().initComplete()
-        if getTestMode():
-            self.print('Faking values for testing!', PRINT.WARNING)
 
     def initPressures(self):
         self.pressures = [np.nan]*len(self.device.getChannels())
@@ -184,19 +178,18 @@ class PressureController(DeviceController):
     }
 
     def readNumbers(self):
-        """read pressures for all channels"""
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active:
-                if channel.controller == channel.TIC and self.ticInitialized:
-                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}')
+                if channel._controller == channel.TIC and self.ticInitialized:
+                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
                         self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.pressures[i] = np.nan
-                elif channel.controller == channel.TPG and self.tpgInitialized:
-                    msg = self.TPGWriteRead(message=f'PR{channel.id}')
+                elif channel._controller == channel.TPG and self.tpgInitialized:
+                    msg = self.TPGWriteRead(message=f'PR{channel.id}', lock_acquired=True)
                     try:
                         a, pressure = msg.split(',')
                         if a == '0':
@@ -231,15 +224,16 @@ class PressureController(DeviceController):
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
         return self.serialRead(self.ticPort, EOL='\r')
 
-    def TICWriteRead(self, message):
-        """Allows to write and read while using lock with timeout."""
+    def TICWriteRead(self, message, lock_acquired=False):
         response = ''
-        with self.ticLock.acquire_timeout(2) as lock_acquired:
-            if lock_acquired:
-                self.TICWrite(message)
-                response = self.TICRead() # reads return value
-            else:
-                self.print(f'Cannot acquire lock for TIC communication. Query: {message}', PRINT.WARNING)
+        if lock_acquired:
+            self.TICWrite(message)
+            response = self.TICRead() # reads return value
+        else:
+            with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
+                if lock_acquired:
+                    self.TICWrite(message)
+                    response = self.TICRead() # reads return value
         return response
 
     def TPGWrite(self, message):
@@ -252,13 +246,14 @@ class PressureController(DeviceController):
         self.serialRead(self.tpgPort, encoding='ascii') # followed by NAK
         return enq
 
-    def TPGWriteRead(self, message):
-        """Allows to write and read while using lock with timeout."""
+    def TPGWriteRead(self, message, lock_acquired=False):
         response = ''
-        with self.tpgLock.acquire_timeout(2) as lock_acquired:
-            if lock_acquired:
-                self.TPGWrite(message)
-                response = self.TPGRead() # reads return value
-            else:
-                self.print(f'Cannot acquire lock for Maxigauge communication. Query: {message}', PRINT.WARNING)
+        if lock_acquired:
+            self.TPGWrite(message)
+            response = self.TPGRead() # reads return value
+        else:
+            with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
+                if lock_acquired:
+                    self.TPGWrite(message)
+                    response = self.TPGRead() # reads return value
         return response

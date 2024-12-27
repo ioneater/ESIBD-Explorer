@@ -1297,9 +1297,9 @@ class GA(Scan):
 
     def toggleInitial(self):
         if len(self.outputs) > 0:
-            self.gaSignalComm.updateValuesSignal.emit(0, self.applyInitialParameters)
+            self.gaSignalComm.updateValuesSignal.emit(0, self.initialAction.state)
         else:
-            self.applyInitialParameters = False
+            self.initialAction.state = False
             self.print('GA not initialized.')
 
     def initScan(self):
@@ -1331,7 +1331,7 @@ class GA(Scan):
         self.updateFile()
         self.ga.file_path(self.file.parent.as_posix())
         self.ga.file_name(self.file.name)
-        self.applyInitialParameters = False
+        self.initialAction.state = False
         return True
 
     def plot(self, update=False, **kwargs): # pylint:disable=unused-argument

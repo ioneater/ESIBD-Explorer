@@ -30,7 +30,7 @@ class Voltage(Device):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.controller = VoltageController(device=self, modules = self.getModules()) # after all channels loaded
+        self.controller = VoltageController(_parent=self, modules = self.getModules()) # after all channels loaded
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -85,7 +85,6 @@ class Voltage(Device):
         self.onAction.updateIcon(self.onAction.state)
 
 class VoltageChannel(Channel):
-    """UI for single voltage channel with integrated functionality"""
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -148,15 +147,12 @@ class VoltageChannel(Channel):
             self.values.add(self.value, lenT)
 
 class VoltageController(DeviceController):
-    """Implements SCPI communication with ISEG ECH244.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
         applyMonitorsSignal= pyqtSignal()
 
-    def __init__(self, device, modules):
-        super().__init__(_parent=device)
-        self.device     = device
+    def __init__(self, _parent, modules):
+        super().__init__(_parent=_parent)
         self.modules    = modules or [0]
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.IP = 'localhost'
@@ -172,17 +168,15 @@ class VoltageController(DeviceController):
         super().initializeCommunication()
 
     def runInitialization(self):
-        """initializes socket for SCPI communication"""
         if getTestMode():
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-            self.initialized = True
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking monitor values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
                 self.s = socket.create_connection(address=(self.IP, self.port), timeout=3)
                 self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
-                self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish SCPI connection to {self.IP} on port {self.port}. Exception: {e}', PRINT.WARNING)
@@ -190,7 +184,7 @@ class VoltageController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
-        super().startAcquisition()
+        super().initComplete()
         if self.ON:
             self.device.updateValues(apply=True) # apply voltages before turning modules on or off
         self.voltageON(self.ON)
@@ -234,13 +228,12 @@ class VoltageController(DeviceController):
                     channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
 
     def runAcquisition(self, acquiring):
-        """monitor potentials continuously"""
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
                         for module in self.modules:
-                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'), lock_acquired=True)
+                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'), lock_acquired=lock_acquired)
                             if res != '':
                                 try:
                                     monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
@@ -260,14 +253,13 @@ class VoltageController(DeviceController):
             return self.s.recv(4096).decode("utf-8")
 
     def ISEGWriteRead(self, message, lock_acquired=False):
-        """Allows to write and read while using lock with timeout."""
         response = ''
         if not getTestMode():
             if lock_acquired: # already acquired -> safe to use
                 self.ISEGWrite(message) # get channel name
                 return self.ISEGRead()
             else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for ISEG communication. Query {message}.') as lock_acquired:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
                     if lock_acquired:
                         self.ISEGWrite(message) # get channel name
                         response = self.ISEGRead()

@@ -77,7 +77,7 @@ class CurrentChannel(Channel):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        self.controller = CurrentController(channel=self)
+        self.controller = CurrentController(_parent=self)
         self.preciseCharge = 0 # store independent of spin box precision to avoid rounding errors
 
     CHARGE     = 'Charge'
@@ -85,7 +85,6 @@ class CurrentChannel(Channel):
     VOLTAGE    = 'Voltage'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'I (pA)' # overwrite existing parameter to change header
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
@@ -102,8 +101,7 @@ class CurrentChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() + [self.CHARGE]
 
-    def enabledChanged(self): # overwrite parent method
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
+    def enabledChanged(self):
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.recording:
             if self.enabled:
@@ -139,36 +137,39 @@ class CurrentController(DeviceController):
     class SignalCommunicate(DeviceController.SignalCommunicate):
         updateValueSignal = pyqtSignal(float)
 
-    def __init__(self, channel):
-        super().__init__(_parent=channel)
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         #setup port
-        self.channel = channel
+        self.channel = _parent
         self.device = self.channel.device
         self.port = None
         self.phase = np.random.rand()*10 # used in test mode
         self.omega = np.random.rand() # used in test mode
         self.offset = np.random.rand()*10 # used in test mode
-        self.rm = pyvisa.ResourceManager()
 
     def initializeCommunication(self):
-        if self.channel.enabled and self.channel.active:
+        if self.channel.enabled and self.channel.active and self.channel.real:
             super().initializeCommunication()
+        else:
+            self.stopAcquisition()
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial port in parallel thread."""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print(f'{self.channel.name} faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:                  
                 # name = rm.list_resources()
+                self.rm = pyvisa.ResourceManager()
                 self.port = self.rm.open_resource(self.channel.address)
                 self.port.write("*RST")
                 self.device.print(self.port.query('*IDN?'))
@@ -183,10 +184,7 @@ class CurrentController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        if getTestMode():
-            self.print(f'{self.channel.name} faking values for testing!', PRINT.WARNING)
-        else:            
-            self.voltageON(self.device.onAction.state)
+        self.voltageON(self.device.onAction.state)
 
     def startAcquisition(self):
         # only run if init successful, or in test mode. if channel is not active it will calculate value independently

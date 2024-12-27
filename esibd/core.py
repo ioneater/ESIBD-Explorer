@@ -261,6 +261,8 @@ class PluginManager():
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Text))) # move Text to end to have lowest priority to handle files
         self.loading = False
         self.finalizeInit()
+        if hasattr(self, 'UCM'):
+            self.UCM.connectAllSources()
         self.mainWindow.setUpdatesEnabled(True)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
@@ -324,9 +326,9 @@ class PluginManager():
             try:
                 p=Plugin(pluginManager=self, dependencyPath=dependencyPath)
                 setattr(self.__class__, p.name, p) # use attributes to access for communication between plugins
-            except Exception as e: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw
+            except Exception: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw
                 # No unpredictable exception in a single plugin should break the whole application
-                self.logger.print(f'Could not load plugin {Plugin.name} {Plugin.version}: {e}', flag=PRINT.ERROR)
+                self.logger.print(f'Could not load plugin {Plugin.name} {Plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
             else:
                 self.plugins.append(p)
                 return p
@@ -694,7 +696,7 @@ class Logger(QObject):
                     purged.write(line)
 
     def print(self, message, sender=f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag=PRINT.MESSAGE): # only used for program messages
-        """Augments messages and redirects to log file, console, statusbar, and console.
+        """Augments messages and redirects to log file, statusbar, and console.
 
         :param message: A short and descriptive message.
         :type message: str
@@ -1126,7 +1128,7 @@ class Parameter():
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
-            self.safeConnect(self.line, self.line.editingFinished, self.changedEvent)
+            self.safeConnect(self.line, self.line.userEditingFinished , self.changedEvent)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.instantUpdate:
                 # by default trigger events on every change, not matter if through user interface or software
@@ -1182,7 +1184,7 @@ class Parameter():
             # self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             # self.combo.customContextMenuRequested.connect(self.initComboContextMenu)
         elif self.widgetType == self.TYPE.TEXT:
-            self.line = self.widget if self.widget is not None else QLineEdit()
+            self.line = self.widget if self.widget is not None else BetterLineEdit()
             self.line.setFrame(False)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.widget is None:
@@ -1458,6 +1460,7 @@ class Channel(QTreeWidgetItem):
         self.device = device
         self.print = device.print
         self.convertDataDisplay = self.device.convertDataDisplay
+        self.useDisplays = self.device.useDisplays
         if hasattr(self.device, 'logY'):
             self.logY = self.device.logY
         self.tree = tree # may be None for internal default channels
@@ -1469,6 +1472,7 @@ class Channel(QTreeWidgetItem):
         self.displayedParameters = []
         self.values = DynamicNp(max_size=self.device.maxDataPoints)
         self.inout = device.inout
+        self.controller = None 
         if self.inout != INOUT.NONE and self.device.useBackgrounds:
                 self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
 
@@ -1550,26 +1554,27 @@ class Channel(QTreeWidgetItem):
             channel[self.VALUE][Parameter.EVENT] = lambda : self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
         channel[self.EQUATION] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='equation',
                                     event=self.equationChanged)
-        channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
-                                    header='D', toolTip='Display channel history.',
-                                    event=self.updateDisplay, attr='display')
         channel[self.ACTIVE  ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='A', toolTip='If not active, value will be determined from equation.',
                                     event=self.activeChanged, attr='active')
         channel[self.REAL    ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='R', toolTip='Set to real for physically exiting channels.',
                                     event=self.realChanged, attr='real')
-        channel[self.SMOOTH  ] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='0, 2, 4, 8, 16, 32', attr='smooth',
-                                        # event=self.updateDisplay, # update display causes distracting rescaling ->
-                                        # should only be relevant for live data anyways, but if needed updateDisplay can be triggered by any of the other parameters like linewidth or displaytime
-                                        toolTip='Smooth using running average with selected window.')
-        channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Line width used in plots.')
-        channel[self.LINESTYLE  ] = parameterDict(value='solid', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                        items='solid, dotted, dashed, dashdot', attr='linestyle', event=self.updateDisplay, toolTip='Line style used in plots.')
-        channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=self.updateDisplay,
-                                                       items='0,1,2,3,4,5', toolTip='Used to group channels in the live display.')
+        if self.useDisplays:
+            channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+                                        header='D', toolTip='Display channel history.',
+                                        event=self.updateDisplay, attr='display')
+            channel[self.SMOOTH  ] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+                                            items='0, 2, 4, 8, 16, 32', attr='smooth',
+                                            # event=self.updateDisplay, # update display causes distracting rescaling ->
+                                            # should only be relevant for live data anyways, but if needed updateDisplay can be triggered by any of the other parameters like linewidth or displaytime
+                                            toolTip='Smooth using running average with selected window.')
+            channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+                                            items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Line width used in plots.')
+            channel[self.LINESTYLE  ] = parameterDict(value='solid', widgetType=Parameter.TYPE.COMBO, advanced=True,
+                                            items='solid, dotted, dashed, dashdot', attr='linestyle', event=self.updateDisplay, toolTip='Line style used in plots.')
+            channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=self.updateDisplay,
+                                                           items='0,1,2,3,4,5', toolTip='Used to group channels in the live display.')
         # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
@@ -1608,8 +1613,12 @@ class Channel(QTreeWidgetItem):
     def setDisplayedParameters(self):
         """Used to determine which parameters to use and in what order.
         Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
-        self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY,
+        if self.useDisplays:
+            self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY,
                                     self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.LINESTYLE, self.DISPLAYGROUP, self.COLOR]
+        else:
+            self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION,
+                                    self.ACTIVE, self.REAL, self.COLOR]
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
@@ -1781,7 +1790,7 @@ class Channel(QTreeWidgetItem):
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.device.channelsChanged = True
 
-        if self.inout != INOUT.NONE:
+        if self.inout != INOUT.NONE and self.EQUATION in self.displayedParameters:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)
             font = line.font()
@@ -1928,6 +1937,9 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             event.ignore()
         else:
             return super().contextMenuEvent(event)
+
+    # def validate(self, input, pos):
+    #     return QValidator.State.Acceptable, input, pos#super().validate(input, pos)
 
     def setDisplayDecimals(self, prec):
         # decimals used for display.
@@ -2460,6 +2472,24 @@ class LedIndicator(QAbstractButton):
     def offColor2(self, color):
         self.off_color_2 = color
 
+class BetterLineEdit(QLineEdit):
+    # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
+    userEditingFinished = pyqtSignal(str)
+
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self._edited = False
+        self.editingFinished.connect(self.onEditingFinished)
+        self.textEdited.connect(self.onTextEdited)
+
+    def onTextEdited(self):
+        self._edited = True
+
+    def onEditingFinished(self):
+        if self._edited:
+            self._edited = False
+            self.userEditingFinished.emit(self.text())
+
 class TextEdit(QPlainTextEdit):
     """Editor that is compatible with :class:`~esibd.core.NumberBar`"""
     # based on https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2
@@ -2886,7 +2916,8 @@ class BetterPlotItem(pg.PlotItem):
             super().mouseMoveEvent(ev)
     
     def parentPlot(self):
-        if self._parent is not None:# and isinstance(self.parent, PluginManager.TYPE.):
+        """Plot if Xrange changed by user."""
+        if self._parent is not None and self.getViewBox().mouseEnabled()[0]:
             self._parent.plot()
 
 class BetterPlotWidget(pg.PlotWidget):
@@ -3030,7 +3061,7 @@ class DeviceController(QObject):
         super().__init__()
         self.channel = None # overwrite with parent if applicable
         self.device = _parent # overwrite with channel.getDevice() if applicable
-        self.lock = TimeoutLock(_parent=_parent) # init here so each instance gets its own lock
+        self.lock = TimeoutLock(_parent=self) # init here so each instance gets its own lock
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
@@ -3115,7 +3146,9 @@ class DeviceController(QObject):
         """Terminates acquisition but leaves communication initialized."""
         self.print('stopAcquisition', PRINT.DEBUG)
         if self.acquisitionThread is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.') as lock_acquired: # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
+                # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
+                # set acquiring flag anyways if timeout expired. Possible errors have to be handled
                 self.acquiring = False
             return True
         return False

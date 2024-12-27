@@ -28,7 +28,7 @@ class RSPD3303C(Device):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.controller = VoltageController(device=self) # after all channels loaded
+        self.controller = VoltageController(_parent=self) # after all channels loaded
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -40,7 +40,7 @@ class RSPD3303C(Device):
     def getIcon(self):
         return self.makeIcon('RSPD3303C.png')
 
-    ADDRESS    = 'Address'
+    ADDRESS = 'Address'
 
     def getDefaultSettings(self):
         """:meta private:"""
@@ -73,7 +73,6 @@ class RSPD3303C(Device):
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
-    """UI for single voltage channel with integrated functionality"""
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -144,31 +143,22 @@ class VoltageChannel(Channel):
             self.values.add(self.value, lenT)
 
 class VoltageController(DeviceController):
-    """Implements Serial communication with MIPS.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
         applyMonitorsSignal= pyqtSignal()
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device     = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.ON         = False
         self.voltages   = [np.nan]*len(self.device.channels)
         self.currents   = [np.nan]*len(self.device.channels)
 
-    def initializeCommunication(self, IP='localhost', port=0):
-        self.IP = IP
-        self.port = port
-        super().initializeCommunication()
-
     def runInitialization(self):
-        """initializes socket for SCPI communication"""
         if getTestMode():
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-            self.initialized = True
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking monitor values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -176,7 +166,6 @@ class VoltageController(DeviceController):
                 # name = rm.list_resources()
                 self.port = rm.open_resource(self.device.address, open_timeout=500)
                 self.device.print(self.port.query('*IDN?'))
-                self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
@@ -184,7 +173,7 @@ class VoltageController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
-        super().startAcquisition()
+        super().initComplete()
         if self.ON:
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)
@@ -232,19 +221,18 @@ class VoltageController(DeviceController):
                 channel.power = channel.monitor*channel.current
 
     def runAcquisition(self, acquiring):
-        """monitor potentials continuously"""
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
                         for i, channel in enumerate(self.device.channels):
-                            self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=True)
-                            self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=True)
+                            self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
+                            self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=lock_acquired)
                     self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def RSWrite(self, message):        
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for communication. Query {message}.') as lock_acquired:
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
             if lock_acquired:
                 self.port.write(message)
 
@@ -253,7 +241,7 @@ class VoltageController(DeviceController):
         if lock_acquired:
             response = self.port.query(message)
         else:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for communication. Query {message}.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {message}.') as lock_acquired:
                 if lock_acquired:
                     response = self.port.query(message)
         return response

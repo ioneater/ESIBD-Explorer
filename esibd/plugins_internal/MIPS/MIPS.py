@@ -28,7 +28,7 @@ class MIPS(Device):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.controller = VoltageController(device=self, COMs = self.getCOMs()) # after all channels loaded
+        self.controller = VoltageController(_parent=self, COMs = self.getCOMs()) # after all channels loaded
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -72,7 +72,6 @@ class MIPS(Device):
             self.initializeCommunication()
 
 class VoltageChannel(Channel):
-    """UI for single voltage channel with integrated functionality"""
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -136,15 +135,12 @@ class VoltageChannel(Channel):
             self.values.add(self.value, lenT)
 
 class VoltageController(DeviceController):
-    """Implements Serial communication with MIPS.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
         applyMonitorsSignal= pyqtSignal()
 
-    def __init__(self, device, COMs):
-        super().__init__(_parent=device)
-        self.device     = device
+    def __init__(self, _parent, COMs):
+        super().__init__(_parent=_parent)
         self.COMs       = COMs or ['COM1']
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.ON         = False
@@ -153,16 +149,15 @@ class VoltageController(DeviceController):
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
-        """initializes socket for SCPI communication"""
         if getTestMode():
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-            self.initialized = True
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking monitor values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:                
                 self.s = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
-                self.initialized = True
+                # TODO test communication and throw exception. serial connection may initialize even though mips turned off!
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
@@ -170,7 +165,7 @@ class VoltageController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
-        super().startAcquisition()
+        super().initComplete()
         if self.ON:
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.ON)
@@ -178,7 +173,7 @@ class VoltageController(DeviceController):
     def closeCommunication(self):
         for i, COM in enumerate(self.COMs):
             if self.s[i] is not None:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {COM}.') as lock_acquired:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {COM}.'):
                     self.s[i].close()
                     self.s[i] = None
         super().closeCommunication()
@@ -223,7 +218,6 @@ class VoltageController(DeviceController):
                     channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
 
     def runAcquisition(self, acquiring):
-        """monitor potentials continuously"""
         while acquiring():
             pass
             with self.lock.acquire_timeout(1, timeoutMessage='MIPS acquisition timeout Test') as lock_acquired: # TODO remove message
@@ -232,7 +226,7 @@ class VoltageController(DeviceController):
                         for i in range(len(self.COMs)):
                             for ID in range(8):
                                 try:
-                                    self.voltages[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=True))
+                                    self.voltages[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=lock_acquired))
                                 except ValueError:
                                     self.voltages[i][ID] = np.nan
                     self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
@@ -249,14 +243,13 @@ class VoltageController(DeviceController):
             return self.serialRead(self.s[m], EOL='\r', strip='b\x06')
 
     def MIPSWriteRead(self, COM, message, lock_acquired=False):
-        """Allows to write and read while using lock with timeout."""
         response = ''
         if not getTestMode():
             if lock_acquired: # already acquired -> save to use
                 self.MIPSWrite(COM, message) # get channel name
                 response = self.MIPSRead(COM)
             else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for MIPS communication. Query {message}.') as lock_acquired:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
                     if lock_acquired:
                         self.MIPSWrite(COM, message) # get channel name
                         response = self.MIPSRead(COM)

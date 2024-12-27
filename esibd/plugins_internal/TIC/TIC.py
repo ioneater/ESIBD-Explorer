@@ -22,7 +22,7 @@ class TIC(Device):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
-        self.controller = PressureController(device=self)
+        self.controller = PressureController(_parent=self)
         self.logY = True
 
     def getIcon(self):
@@ -46,7 +46,6 @@ class PressureChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.WIDGETTYPE] = Parameter.TYPE.EXP # overwrite existing parameter to change to use exponent notation
@@ -59,33 +58,30 @@ class PressureChannel(Channel):
         self.displayedParameters.append(self.ID)
 
     def enabledChanged(self):
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.initializeCommunication()
 
 class PressureController(DeviceController):
-    """Implements serial communication with RBD 9103.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.pressures = []
         self.initPressures()
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial ports in parallel thread"""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -101,7 +97,6 @@ class PressureController(DeviceController):
                 self.print(f"TIC Status: {TICStatus}") # query status
                 if TICStatus == '':
                     raise ValueError('TIC did not return status.')
-                self.initialized = True
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
@@ -110,8 +105,6 @@ class PressureController(DeviceController):
     def initComplete(self):
         self.initPressures()
         super().initComplete()
-        if getTestMode():
-            self.print('Faking values for testing!', PRINT.WARNING)
 
     def initPressures(self):
         self.pressures = [np.nan]*len(self.device.getChannels())
@@ -134,11 +127,10 @@ class PressureController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
-        """read pressures for all channels"""
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active:
                 if self.initialized:
-                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}')
+                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
                         self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
@@ -168,13 +160,14 @@ class PressureController(DeviceController):
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
         return self.serialRead(self.port, EOL='\r')
 
-    def TICWriteRead(self, message):
-        """Allows to write and read while using lock with timeout."""
+    def TICWriteRead(self, message, lock_acquired=False):
         response = ''
-        with self.ticLock.acquire_timeout(2) as lock_acquired:
-            if lock_acquired:
-                self.TICWrite(message)
-                response = self.TICRead() # reads return value
-            else:
-                self.print(f'Cannot acquire lock for TIC communication. Query: {message}', PRINT.WARNING)
+        if lock_acquired:
+            self.TICWrite(message)
+            response = self.TICRead() # reads return value
+        else:
+            with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
+                if lock_acquired:
+                    self.TICWrite(message)
+                    response = self.TICRead() # reads return value
         return response

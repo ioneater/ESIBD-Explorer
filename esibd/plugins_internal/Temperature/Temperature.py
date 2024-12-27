@@ -24,7 +24,7 @@ class Temperature(Device):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = TemperatureChannel
-        self.controller = TemperatureController(device=self)
+        self.controller = TemperatureController(_parent=self)
 
     def initGUI(self):
         super().initGUI()
@@ -108,26 +108,20 @@ class TemperatureChannel(Channel):
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
         self.defaultStyleSheet = None # will be initialized when color is set
 
-    CONTROLLER = 'Controller'
     CRYOTEL = 'CryoTel'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
         channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     event=self.monitorChanged, indicator=True, attr='monitor')
-        channel[self.CONTROLLER] = parameterDict(value='None', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                        items=f'{self.CRYOTEL}, None', attr='controller')
         return channel
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
-        self.displayedParameters.append(self.CONTROLLER)
 
     def enabledChanged(self):
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.initializeCommunication()
@@ -156,12 +150,9 @@ class TemperatureChannel(Channel):
             self.values.add(self.value, lenT)
 
 class TemperatureController(DeviceController):
-    """Implements serial communication.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.ON = False
         self.restart=False
         self.temperatures = []
@@ -170,15 +161,16 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self):
         if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial port in parallel thread"""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -204,8 +196,6 @@ class TemperatureController(DeviceController):
     def initComplete(self):
         self.initTemperatures()
         super().initComplete()
-        if getTestMode():
-            self.print('Faking values for testing!', PRINT.WARNING)
         if self.restart:
             self.cryoON(True)
             self.restart = False
@@ -232,16 +222,12 @@ class TemperatureController(DeviceController):
 
     toggleCounter = 0
     def readNumbers(self):
-        """Reads the temperature."""
         for i, channel in enumerate(self.device.getChannels()):
-            if channel.controller == channel.CRYOTEL:
-                value = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
-                try:
-                    self.temperatures[i] = float(value)
-                except ValueError as e:
-                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
-                    self.temperatures[i] = np.nan
-            else:
+            value = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
+            try:
+                self.temperatures[i] = float(value)
+            except ValueError as e:
+                self.print(f'Error while reading temp: {e}', PRINT.ERROR)
                 self.temperatures[i] = np.nan
 
         # toggle cryo on off to stabilize at temperatures above what is possible with minimal power
@@ -271,6 +257,8 @@ class TemperatureController(DeviceController):
             c.monitor = temperature
 
     def cryoON(self, on=False):
+        if not self.ON and not on:
+            return # already off
         self.ON = on
         if not getTestMode() and self.initialized:
             if on:
@@ -286,19 +274,14 @@ class TemperatureController(DeviceController):
 
     def applyTemperature(self, channel):
         if not getTestMode() and self.initialized:
-            if channel.controller == channel.CRYOTEL:
-                Thread(target=self.applyTemperatureFromThread, args=(channel,), name=f'{self.device.name} applyTemperatureFromThreadThread').start()
+            Thread(target=self.applyTemperatureFromThread, args=(channel,), name=f'{self.device.name} applyTemperatureFromThreadThread').start()
 
     def applyTemperatureFromThread(self, channel):
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}') # used to be SET TTARGET=
 
-    # use following from internal console for testing
-    # Temperature.controller.lock.CryoTelWriteRead('TC')
-
     def CryoTelWriteRead(self, message):
-        """Allows to write and read while using lock with timeout."""
         response = ''
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for CryoTel communication. Query: {message}') as lock_acquired:
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
             if lock_acquired:
                 self.CryoTelWrite(message)
                 response = self.CryoTelRead() # reads return value

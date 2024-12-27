@@ -106,7 +106,7 @@ class CurrentChannel(Channel):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        self.controller = CurrentController(channel=self)
+        self.controller = CurrentController(_parent=self)
         self.preciseCharge = 0 # store independent of spin box precision to avoid rounding errors
 
     CHARGE     = 'Charge'
@@ -120,7 +120,6 @@ class CurrentChannel(Channel):
     ERROR      = 'Error'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'I (pA)' # overwrite existing parameter to change header
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
@@ -159,7 +158,6 @@ class CurrentChannel(Channel):
         return super().tempParameters() + [self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
 
     def enabledChanged(self):
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
         super().enabledChanged()
         if self.controller.initialized:
             if self.enabled:
@@ -214,18 +212,16 @@ class CurrentChannel(Channel):
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
-class CurrentController(DeviceController):    
-    """Implements serial communication with RBD 9103.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
+class CurrentController(DeviceController):
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
         updateValueSignal = pyqtSignal(float, bool, bool, str)
         updateDeviceNameSignal = pyqtSignal(str)
 
-    def __init__(self, channel):
-        super().__init__(_parent=channel)
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         #setup port
-        self.channel = channel
+        self.channel = _parent
         self.device = self.channel.getDevice()
         self.port = None
         self.signalComm.updateDeviceNameSignal.connect(self.updateDeviceName)
@@ -245,16 +241,17 @@ class CurrentController(DeviceController):
     def closeCommunication(self):
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.channel.devicename}.') as lock_acquired:
-                if self.initialized:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
-                    self.RBDWriteRead('I0000', lock_acquired=True) # stop sampling
+                if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition] # defined in DeviceController class
+                    self.RBDWriteRead('I0000', lock_acquired=lock_acquired) # stop sampling
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial port in parallel thread."""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print(f'{self.channel.devicename} faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -283,11 +280,6 @@ class CurrentController(DeviceController):
                 self.signalComm.updateValueSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
             finally:
                 self.initializing = False
-
-    def initComplete(self):
-        super().initComplete()
-        if getTestMode():
-            self.print(f'{self.channel.devicename} faking values for testing!', PRINT.WARNING)
 
     def startAcquisition(self):
         # only run if init successful, or in test mode. if channel is not active it will calculate value independently
@@ -435,14 +427,13 @@ class CurrentController(DeviceController):
         return self.serialRead(self.port)
 
     def RBDWriteRead(self, message, lock_acquired=False):
-        """Allows to write and read while using lock with timeout."""
         response = ''
         if not getTestMode():
             if lock_acquired: # already acquired -> safe to use
                 self.RBDWrite(message) # get channel name
                 response = self.RBDRead()
             else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for RBD communication. Query {message}.') as lock_acquired:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
                     if lock_acquired:
                         self.RBDWrite(message) # get channel name
                         response = self.RBDRead()

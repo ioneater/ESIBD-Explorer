@@ -26,7 +26,7 @@ class PICO(Device):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = TemperatureChannel
-        self.controller = TemperatureController(device=self)
+        self.controller = TemperatureController(_parent=self)
 
     def initGUI(self):
         super().initGUI()
@@ -76,7 +76,6 @@ class TemperatureChannel(Channel):
     NOOFWIRES = 'noOfWires'
 
     def getDefaultChannel(self):
-        """Gets default settings and values."""
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.VALUE ] = np.nan # undefined until communication established
@@ -94,32 +93,29 @@ class TemperatureChannel(Channel):
         self.displayedParameters.append(self.DATATYPE)
         self.displayedParameters.append(self.NOOFWIRES)
 
-    def enabledChanged(self): # overwrite parent method
-        """Handle changes while acquisition is running. All other changes will be handled when acquisition starts."""
+    def enabledChanged(self):
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.pluginManager.DeviceManager.recording:
             self.device.init()
 
 class TemperatureController(DeviceController):
-    """Implements USB communication.
-    While this is kept as general as possible, some access to the management and UI parts are required for proper integration."""
 
-    def __init__(self, device):
-        super().__init__(_parent=device)
-        self.device = device
+    def __init__(self, _parent):
+        super().__init__(_parent=_parent)
         self.temperatures = []
         self.chandle = ctypes.c_int16()
 
     def closeCommunication(self):
         if self.initialized:
-            with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
                 pt104.UsbPt104CloseUnit(self.chandle)
         super().closeCommunication()
 
     def runInitialization(self):
-        """Initializes serial port in parallel thread"""
         if getTestMode():
+            time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -136,8 +132,6 @@ class TemperatureController(DeviceController):
     def initComplete(self):
         self.temperatures = [np.nan]*len(self.device.channels)
         super().initComplete()
-        if getTestMode():
-            self.print('Faking values for testing!', PRINT.WARNING)
 
     def startAcquisition(self):
         # only run if init successful, or in test mode. if channel is not active it will calculate value independently
@@ -158,7 +152,6 @@ class TemperatureController(DeviceController):
 
     toggleCounter = 0
     def readNumbers(self):
-        """Reads the temperature."""
         for i, c in enumerate(self.device.channels):
             try:                
                 meas = ctypes.c_int32()

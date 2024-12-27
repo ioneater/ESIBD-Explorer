@@ -1156,15 +1156,15 @@ class LiveDisplay(Plugin):
                 self.plotSplitter.addWidget(livePlotWidget)
                 livePlotWidget.init()
                 livePlotWidget.setLogMode(False, logY)
-                self.livePlotWidgets.append(livePlotWidget)            
-                if self.stackAction.state == self.stackAction.labels.vertical:                    
+                self.livePlotWidgets.append(livePlotWidget)
+                if self.stackAction.state == self.stackAction.labels.vertical:
                     livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.15, labelTextSize='8pt') # before adding plots
                     self.plotSplitter.setOrientation(Qt.Orientation.Vertical)
                     if i < len(self.channelGroups)-1: # only label bottom x axis
                         livePlotWidget.hideAxis('bottom')
-                else: # self.stackAction.state == self.stackAction.labels.horizontal:  
+                else: # self.stackAction.state == self.stackAction.labels.horizontal:
                     livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=1, offset=0.15, labelTextSize='8pt') # before adding plots
-                    self.plotSplitter.setOrientation(Qt.Orientation.Horizontal)                    
+                    self.plotSplitter.setOrientation(Qt.Orientation.Horizontal)
                 if i > 0: # link to previous
                     livePlotWidget.setXLink(self.livePlotWidgets[0])
                 livePlotWidget.finalizeInit()
@@ -1179,11 +1179,11 @@ class LiveDisplay(Plugin):
                     self.stackedGraphicsLayoutWidget.setBackground(colors.bg)
                     self.plotSplitter.addWidget(self.stackedGraphicsLayoutWidget)
                     livePlotWidget = BetterPlotItem(showXY=False) # pg.PlotItem()
-                    self.stackedGraphicsLayoutWidget.addItem(livePlotWidget, 0, plotColumn, rowspan=2) 
+                    self.stackedGraphicsLayoutWidget.addItem(livePlotWidget, 0, plotColumn, rowspan=2)
                     livePlotWidget.init()
                     livePlotWidget.showGrid(False, False)
                     if len(self.channelGroups) == 1:
-                        livePlotWidget.showAxis('right') 
+                        livePlotWidget.showAxis('right')
                         livePlotWidget.showLabel('right', show=False)
                         livePlotWidget.getAxis('right').setStyle(showValues=False)
                     livePlotWidget.axis_leftright = livePlotWidget.getAxis('left')
@@ -1196,7 +1196,7 @@ class LiveDisplay(Plugin):
                         self.stackedGraphicsLayoutWidget.addItem(livePlotWidget.dummyAx, 1, 0)
                     livePlotWidget.vb.sigResized.connect(self.updateStackedViews)
                     livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.15, labelTextSize='8pt')
-                    livePlotWidget.setLogMode(y=logY) # set for PlotItem 
+                    livePlotWidget.setLogMode(y=logY) # set for PlotItem
                     livePlotWidget.finalizeInit()
                 else:
                     livePlotWidget = pg.ViewBox()
@@ -1368,7 +1368,7 @@ class LiveDisplay(Plugin):
                             channel.plotCurve = livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
                                                     style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})') # initialize empty plots
                             if self.stackAction.state != self.stackAction.labels.horizontal:
-                                livePlotWidget.legend.columnCount = 2 # required to trigger update
+                                livePlotWidget.legend.columnCount = 2 # required to trigger update TODO https://github.com/pyqtgraph/pyqtgraph/issues/3207
                                 livePlotWidget.legend.setColumnCount(3) # update legend
                         else: # pg.ViewBox
                             channel.plotCurve = pg.PlotDataItem(pen=pg.mkPen((channel.color), width=channel.linewidth,
@@ -1425,6 +1425,7 @@ class ChannelManager(Plugin):
     pluginType = PluginManager.TYPE.CONTROL  # overwrite after inheriting
     previewFileTypes = []
     optional = False
+    useDisplays = True
 
     class SignalCommunicate(QObject): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
@@ -1513,10 +1514,11 @@ class ChannelManager(Plugin):
         self.previewFileTypes = [self.confINI, self.confh5]
         self.changeLog = []
         self._recording = False
-        self.staticDisplay = self.StaticDisplay(parentPlugin=self, **kwargs) # need to initialize to access previewFileTypes
-        self.liveDisplay = self.LiveDisplay(parentPlugin=self, **kwargs)
+        self.staticDisplay = self.StaticDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None # need to initialize to access previewFileTypes
+        self.liveDisplay = self.LiveDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None
         self.signalComm = self.SignalCommunicate()
-        self.signalComm.plotSignal.connect(self.liveDisplay.plot)
+        if self.useDisplays:
+            self.signalComm.plotSignal.connect(self.liveDisplay.plot)
         self.dataThread = None
 
     def initGUI(self):
@@ -1530,13 +1532,14 @@ class ChannelManager(Plugin):
         self.deleteChannelAction    = self.addAction(event=self.deleteChannel, toolTip='Delete selected channel.', icon=self.makeCoreIcon('table-delete-row.png'))
         self.moveChannelUpAction    = self.addAction(event=lambda : self.moveChannel(up=True), toolTip='Move selected channel up.', icon=self.makeCoreIcon('table-up.png'))
         self.moveChannelDownAction  = self.addAction(event=lambda : self.moveChannel(up=False), toolTip='Move selected channel down.', icon=self.makeCoreIcon('table-down.png'))
-        self.plotAction = self.addAction(self.showChannelPlot, 'Plot values.', icon=self.makeCoreIcon('chart.png'))
+        if self.useDisplays:
+            self.channelPlotAction = self.addAction(self.showChannelPlot, 'Plot values.', icon=self.makeCoreIcon('chart.png'))
+            self.toggleLiveDisplayAction = self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
+                                              toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
+                                              attr='showLiveDisplay', event=self.toggleLiveDisplay, default='true')
         self.tree = QTreeWidget()
         self.addContentWidget(self.tree)
         self.loadConfiguration(default=True)
-        self.toggleLiveDisplayAction = self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
-                                              toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
-                                              attr='showLiveDisplay', event=self.toggleLiveDisplay, default='true')
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
@@ -1548,8 +1551,10 @@ class ChannelManager(Plugin):
         if self.initializedDock:
             self.raiseDock(True)
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
-            if hasattr(self, 'plotAction') and self.plotAction is not None:
-                self.testControl(self.plotAction, True, 1) # may need time.sleep to make sure this is executed before further test?
+            if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
+                self.testControl(self.channelPlotAction, True, 1)
+                # time.sleep(.1) TODO delete
+                self.channelPlot.runTestParallel()
             self.testControl(self.advancedAction, True, 1) # keep history, test manually for dummy devices if applicable
             self.testControl(self.saveAction, True, 1)
             for parameter in self.channels[0].parameters:
@@ -1561,18 +1566,17 @@ class ChannelManager(Plugin):
             self.testControl(self.moveChannelUpAction, True, 2)
             self.testControl(self.duplicateChannelAction, True, 2)
             self.testControl(self.deleteChannelAction, True, 2)
-            if self.channelPlotActive():
-                self.channelPlot.runTestParallel()
             if hasattr(self, 'onAction'): # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
                 self.testControl(self.onAction, True, 2)
-            if self.toggleLiveDisplayAction is not None:
-                self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
-                self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
-            if self.initializedDock:
-                if self.staticDisplayActive():
-                    self.staticDisplay.runTestParallel()
-                if self.liveDisplayActive():
-                    self.liveDisplay.runTestParallel()
+            if self.useDisplays:
+                if self.toggleLiveDisplayAction is not None:
+                    self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
+                    self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
+                if self.initializedDock:
+                    if self.staticDisplayActive():
+                        self.staticDisplay.runTestParallel()
+                    if self.liveDisplayActive():
+                        self.liveDisplay.runTestParallel()
                 # init, start, pause, stop acquisition will be tested by DeviceManager
         super().runTestParallel()
 
@@ -1601,11 +1605,11 @@ class ChannelManager(Plugin):
     def getChannels(self):
         # allows to replace list of internal channels with corresponding source channels if applicable.
         return self.channels
-    
+
     def getActiveChannels(self):
         # allows to replace list of internal channels with corresponding source channels if applicable.
         return [channel for channel in self.getChannels() if (channel.enabled or not channel.real)]
-    
+
     def getDataChannels(self):
         return [channel for channel in self.channels if channel.getValues().shape[0] != 0]
 
@@ -1652,6 +1656,8 @@ class ChannelManager(Plugin):
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             self.channels[min(index, len(self.channels)-1)].select = True
+            if hasattr(self.pluginManager, 'UCM'):
+                self.pluginManager.UCM.connectAllSources()
 
     def moveChannel(self, up):
         """Moves the channel up or down in the list of channels.
@@ -1679,6 +1685,8 @@ class ChannelManager(Plugin):
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
                 newChannel.value = oldValues[-1]
             self.loading = False
+            if hasattr(self.pluginManager, 'UCM'):
+                self.pluginManager.UCM.connectAllSources()
             return newChannel
 
     def clearPlot(self):
@@ -2006,8 +2014,8 @@ class ChannelManager(Plugin):
 
     def toggleRecording(self, on=None, manual=True):
         """Toggle plotting of data in :class:`~esibd.plugins.LiveDisplay`.
-        Extend to add recoding logic for devices.        
-        
+        Extend to add recoding logic for devices.
+
         :param on: If true recording will be turned on, if false it will be turned off. If already on or off nothing happens. If None, recording is toggled.
         :type on: bool, optional
         :param manual: If true, signal was send directly from corresponding live display. Otherwise might be send from device manager
@@ -2030,7 +2038,7 @@ class ChannelManager(Plugin):
         while recording():
             self.signalComm.plotSignal.emit()
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
-        
+
     @property
     def recording(self):
         return self._recording
@@ -2040,7 +2048,7 @@ class ChannelManager(Plugin):
         # allow output widgets to react to change if acquisition state
         if self.liveDisplayActive():
             self.liveDisplay.recordingAction.state = self.recording
-    
+
     def closeCommunication(self):
         """Stops recording and also closes all device communication.
         Extend to add custom code to close device communication."""
@@ -2165,6 +2173,7 @@ class Device(ChannelManager):
     """Unit used in user interface."""
     inout : INOUT
     """Flag specifying if this is an input or output device."""
+    useBackgrounds = False
 
     class SignalCommunicate(ChannelManager.SignalCommunicate):
         appendDataSignal    = pyqtSignal()
@@ -2176,14 +2185,13 @@ class Device(ChannelManager):
             self.inout = INOUT.IN
         else:
             self.inout = INOUT.OUT
-        self.useBackgrounds = False
         self.logY = False
         self.updating = False # Suppress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
         self.interval_tolerance = None # how much the acquisition interval is allowed to deviate
         self.signalComm.appendDataSignal.connect(self.appendData)
-        # implement a controller based on DeviceController(device=self). In some cases there is no controller for the device, but for every channel. Adjust 
-        self.controller = None 
+        # implement a controller based on DeviceController(_parent=self). In some cases there is no controller for the device, but for every channel. Adjust
+        self.controller = None
 
     def initGUI(self):
         """:meta private:"""
@@ -2230,32 +2238,64 @@ class Device(ChannelManager):
         """Extend to start all device related communication."""
         self.appendData(nan=True) # prevent interpolation to old data
         if self.controller is None:
-            for channel in self.channels:
-                if channel.enabled:
-                    channel.controller.startAcquisition()
+            if self.channels[0].controller is not None:
+                for channel in self.channels:
+                    if channel.enabled:
+                        channel.controller.startAcquisition()
         else:
             self.controller.startAcquisition()
 
     def stopAcquisition(self):
         """Extend or overwrite to stop device acquisition. Communication stays initialized!"""
-        if self.controller is None:            
-            for channel in self.channels:
-                channel.controller.stopAcquisition()
+        if self.controller is None:
+            if self.channels[0].controller is not None:
+                for channel in self.channels:
+                    channel.controller.stopAcquisition()
         else:
             self.controller.stopAcquisition()
 
     def initialized(self):
         """Extend to indicate when the device is initialized."""
-        if self.controller is None:            
-            return any([channel.controller.initialized for channel in self.channels]) 
+        if self.controller is None:
+            if self.channels[0].controller is None:
+                return False
+            else:
+                return any([channel.controller.initialized for channel in self.channels])
         else:
             return self.controller.initialized
+
+    def initializeCommunication(self):
+        self.appendData(nan=True) # prevent interpolation to old data
+        if self.controller is None:
+            if self.channels[0].controller is not None:
+                for channel in self.channels:
+                    if channel.enabled:
+                        channel.controller.initializeCommunication()
+        else:
+            self.controller.initializeCommunication()
+        super().initializeCommunication()
+
+    def closeCommunication(self):
+        """Stops all communication.
+        Make sure that final calls to device are send from main thread or use a delay
+        so they are not send after connection has terminated!"""
+        self.stopAcquisition() # stop acquisition before terminating communication
+        if self.controller is None:
+            if self.channels[0].controller is not None:
+                for channel in self.channels:
+                    channel.controller.closeCommunication()
+        else:
+            self.controller.closeCommunication()
+        super().closeCommunication()
 
     def supportsFile(self, file):
         return any(file.name.endswith(suffix) for suffix in (self.getSupportedFiles())) # does not support any files for preview, only when explicitly loading
 
     def getSupportedFiles(self):
-        return self.previewFileTypes+self.staticDisplay.previewFileTypes+self.liveDisplay.previewFileTypes
+        if self.useDisplays:
+            return self.previewFileTypes+self.staticDisplay.previewFileTypes+self.liveDisplay.previewFileTypes
+        else:
+            return self.previewFileTypes
 
     def setBackground(self):
         """Sets the background based on current channel values.
@@ -2360,27 +2400,6 @@ class Device(ChannelManager):
                         else:
                             channel.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
 
-    def initializeCommunication(self):
-        self.appendData(nan=True) # prevent interpolation to old data
-        if self.controller is None:            
-            for channel in self.channels:
-                if channel.enabled:
-                    channel.controller.initializeCommunication()
-        else:
-            self.controller.initializeCommunication()
-        super().initializeCommunication()
-    
-    def closeCommunication(self):
-        """Stops all communication. 
-        Make sure that final calls to device are send from main thread or use a delay 
-        so they are not send after connection has terminated!"""
-        self.stopAcquisition() # stop acquisition before terminating communication
-        if self.controller is None:
-            for channel in self.channels:
-                channel.controller.closeCommunication()
-        else:
-            self.controller.closeCommunication()
-        super().closeCommunication()
 
     def close(self):
         self.closeCommunication()
@@ -2436,7 +2455,7 @@ class Device(ChannelManager):
 
     def appendData(self, nan=False):
         if self.initialized() or nan:
-            self.updateValues() # this makes equations work for output devices. 
+            self.updateValues() # this makes equations work for output devices.
             # Equations for output devices are evaluated only when plotting. Calling them for every value change event would cause a massive computational load.
             for channel in self.getChannels():
                 channel.appendValue(lenT=self.time.size, nan=nan) # add time after values to make sure value arrays stay aligned with time array
@@ -2445,7 +2464,7 @@ class Device(ChannelManager):
                 self.signalComm.plotSignal.emit()
 
     def toggleRecording(self, on=None, manual=False):
-        """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""        
+        """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""
         if (on is not None and not on) or (on is None and self.recording):
             if self.recording:
                 self.recording = False
@@ -2477,20 +2496,20 @@ class Device(ChannelManager):
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     def duplicateChannel(self):
-        if self.modifyChannel() is not None and self.modifyChannel().device.initialized():
-            self.print(f"Stop communication for {self.modifyChannel().device.name} to duplicate channel.")
+        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to duplicate channel.")
             return
         super().duplicateChannel()
 
     def deleteChannel(self):
-        if self.modifyChannel() is not None and self.modifyChannel().device.initialized():
-            self.print(f"Stop communication for {self.modifyChannel().device.name} to delete channel.")
+        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to delete channel.")
             return
         super().deleteChannel()
 
     def moveChannel(self, up):
-        if self.modifyChannel() is not None and self.modifyChannel().device.initialized():
-            self.print(f"Stop communication for {self.modifyChannel().device.name} to move channel.")
+        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to move channel.")
             return
         super().moveChannel(up)
 
@@ -3153,7 +3172,8 @@ class Browser(Plugin):
         super().initGUI()
         self.webEngineView = QWebEngineView(parent=QApplication.instance().mainWindow)
         # self.webEngineView.page().settings().setUnknownUrlSchemePolicy(QWebEngineSettings.UnknownUrlSchemePolicy.AllowAllUnknownUrlSchemes)
-        # self.webEngineView.page().settings().setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        # self.webEngineView.page().settings().setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)        
+        self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True) # required to open local PDFs
         self.webEngineView.loadFinished.connect(self.adjustLocation)
 
@@ -3412,6 +3432,7 @@ class Tree(Plugin):
         self.ICON_FUNCTIONMETHOD = str(self.dependencyPath / 'block-small.png')
         self.ICON_CLASS =   str(self.dependencyPath / 'application-block.png')
         self.ICON_GROUP =   str(self.dependencyPath / 'folder.png')
+        self._inspect = False
 
     def getIcon(self):
         """:meta private:"""
@@ -3421,8 +3442,8 @@ class Tree(Plugin):
         """:meta private:"""
         super().initGUI()
         self.tree = QTreeWidget()
-        self.tree.setHeaderHidden(True)
         self.addContentWidget(self.tree)
+        self.tree.itemExpanded.connect(self.expandObjet)
 
     def provideDock(self):
         """:meta private:"""
@@ -3433,6 +3454,8 @@ class Tree(Plugin):
         """:meta private:"""
         self.provideDock()
         self.tree.clear()
+        self.tree.setHeaderHidden(True)
+        self._inspect = False
         if any(file.name.endswith(fileType) for fileType in self.h5PreviewFileTypes):
             with h5py.File(file, 'r', track_order=True) as dataFile:
                 self.hdfShow(dataFile, self.tree.invisibleRootItem(), 0)
@@ -3485,17 +3508,87 @@ class Tree(Plugin):
 
     def inspect(self, obj, _filter=None):
         self.provideDock()
-        self.tree.clear()
-        for object_name in [object_name for object_name in dir(obj) if not object_name.startswith('_') and (_filter is None or _filter.lower() in object_name.lower())]:
-            attr = getattr(obj, object_name)
-            if callable(attr):
-                method_widget = QTreeWidgetItem(self.tree,[object_name])
-                method_widget.setIcon(0, QIcon(self.ICON_FUNCTIONMETHOD))
-                method_widget.setToolTip(0, attr.__doc__)
-            else:
-                variable_widget = QTreeWidgetItem(self.tree,[f'{object_name}: {attr}'])
-                variable_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
-                variable_widget.setToolTip(0, repr(attr))
+        self._inspect = True
+        self.tree.clear()        
+        self.tree.setHeaderHidden(False)  
+        self.tree.setHeaderLabels(['Object','Value'])
+        self.tree.setColumnCount(2)
+        self.tree.setColumnWidth(0, 200)
+        self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.tree.setUpdatesEnabled(False)
+        self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj, _filter=_filter)
+        self.tree.setUpdatesEnabled(True)
+
+    def expandObjet(self, element):
+        if self._inspect:
+            self.tree.setUpdatesEnabled(False)
+            self.inspect_recursive(tree=element, obj=element.obj)
+            self.tree.setUpdatesEnabled(True)
+            element.setExpanded(True)
+
+    def inspect_recursive(self, tree, obj, _filter=None, recursionDepth=2):  
+        """Recursively populates the object tree. 
+        Will also be called as user expands items.
+        Similar logic is used for Explorer, but here we do not need to worry about changing filters or items that have been removed."""      
+        if recursionDepth == 0:
+            return
+        recursionDepth = recursionDepth - 1
+        children_text = [tree.child(i).text(0) for i in range(tree.childCount())] # list of existing children
+        if isinstance(obj, List):
+            list_preview_number = 5 # only show subset of list
+            for i, element in enumerate(obj[:list_preview_number]):
+                element_name = f'[{i}]'
+                if element_name in children_text: # reuse existing
+                    element_widget = tree.child(children_text.index(element_name))
+                else: # add new
+                    element_widget = QTreeWidgetItem(tree, [element_name])
+                    element_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
+                    element_widget.setText(1, f'{element}')
+                    element_widget.obj = element
+                if not isinstance(element, (bool, float, int, str, Enum)):
+                    self.inspect_recursive(tree=element_widget, obj=element, recursionDepth=recursionDepth)
+            if len(obj) > list_preview_number and '...' not in children_text:
+                dummy = QTreeWidgetItem(tree, ['...'])
+                dummy.setIcon(0, QIcon(self.ICON_ATTRIBUTE))        
+        else:
+            object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_') and (_filter is None or _filter.lower() in object_name.lower())]
+            variable_names = []
+            callable_names = []
+            for object_name in object_names:
+                try:
+                    attr = getattr(obj, object_name)
+                    if callable(attr):
+                        callable_names.append(object_name)
+                    else:
+                        variable_names.append(object_name)
+                except AttributeError:
+                    pass # apparently some libraries keep deprecated attributes, just to throw deprecation AttributeError if they are accessed. 
+                except (ValueError, RuntimeError) as e:
+                    self.print(f'Problem with object {object_name}: {e}', flag=PRINT.WARNING)         
+            for object_name in variable_names:
+                attr = getattr(obj, object_name)
+                variable_name = object_name if isinstance(attr, List) else f'{object_name}'
+                if variable_name in children_text:
+                    variable_widget = tree.child(children_text.index(variable_name))
+                else:
+                    variable_widget = QTreeWidgetItem(tree, [variable_name])
+                    variable_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
+                    if not isinstance(attr, List):
+                        variable_widget.setText(1, repr(attr))
+                    variable_widget.obj = attr
+                if not isinstance(attr, (bool, float, int, str, Enum)):
+                    self.inspect_recursive(tree=variable_widget, obj=attr, recursionDepth=recursionDepth)         
+            for object_name in callable_names:
+                if object_name in children_text:
+                    class_method_widget = tree.child(children_text.index(object_name))
+                else:
+                    attr = getattr(obj, object_name)
+                    class_method_widget = QTreeWidgetItem(tree, [object_name])
+                    class_method_widget.setIcon(0, QIcon(self.ICON_CLASS if inspect.isclass(attr) else self.ICON_FUNCTIONMETHOD))
+                    if attr.__doc__ is not None:
+                        class_method_widget.setText(1, attr.__doc__.split('\n')[0])
+                        class_method_widget.setToolTip(1, attr.__doc__)
         self.raiseDock(True)
 
 class Console(Plugin):
@@ -4199,7 +4292,7 @@ class DeviceManager(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.testControl(self.recordingAction, True, 1)
+            self.testControl(self.recordingAction, True, 3) # even in test mode initialization time of up to 2 seconds is simulated
             self.testControl(self.exportAction, True, 2)
             for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                 if not self.testing:
@@ -4513,7 +4606,7 @@ class Explorer(Plugin):
     experimental data. For example, if you organize the documentation of the
     experimental setup in folders following the hierarchy of components and sub
     components, it allows you to quickly find the corresponding manuals and
-    order numbers. In combination with the :ref:`sec:notes` plugin, you can add comments to
+    order numbers. In combination with the Notes plugin, you can add comments to
     each component that will be displayed automatically as soon as you
     enter the corresponding folder."""
 
@@ -5186,11 +5279,14 @@ class UCM(ChannelManager):
                 device.toggleRecording(on=self.recording, manual=manual)
 
     def updateTheme(self):
+        self.connectAllSources()
+        super().updateTheme()
+
+    def connectAllSources(self):
         self.loading = True
         for channel in self.channels:
             channel.connectSource()
         self.loading = False
-        super().updateTheme()
 
 class PID(ChannelManager):
     """Allows to connect an input (controlling) and output (controlled) channel via PID logic.
@@ -5333,9 +5429,6 @@ class PID(ChannelManager):
             channel.pop(Channel.EQUATION)
             channel.pop(Channel.ACTIVE)
             channel.pop(Channel.REAL)
-            channel.pop(Channel.SMOOTH)
-            channel.pop(Channel.LINEWIDTH)
-            channel.pop(Channel.LINESTYLE)
             channel.pop(Channel.COLOR)
             channel[self.VALUE][Parameter.HEADER] = 'Setpoint   ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = self.updateSetpoint
@@ -5365,9 +5458,6 @@ class PID(ChannelManager):
             self.displayedParameters.remove(self.ENABLED)
             self.displayedParameters.remove(self.EQUATION)
             self.displayedParameters.remove(self.REAL)
-            self.displayedParameters.remove(self.SMOOTH)
-            self.displayedParameters.remove(self.LINEWIDTH)
-            self.displayedParameters.remove(self.LINESTYLE)
             self.displayedParameters.remove(self.COLOR)
             self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
             self.displayedParameters.append(self.UNIT)
@@ -5403,17 +5493,15 @@ class PID(ChannelManager):
 
     channelType = PIDChannel
 
+    def __init__(self, **kwargs):
+        self.useDisplays = False
+        super().__init__(**kwargs)
+
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         self.onAction = self.pluginManager.DeviceManager.addStateAction(toolTipFalse='PID on.', iconFalse=self.makeIcon('PID_off.png'),
                                                                   toolTipTrue='PID off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
-        self.toggleLiveDisplayAction.deleteLater() # not used
-        self.toggleLiveDisplayAction = None
-        self.plotAction.deleteLater() # not used
-        self.plotAction = None
-        self.liveDisplay = None # not used
-        self.staticDisplay = None # not used
         super().finalizeInit(aboutFunc)
 
     def getChannels(self):
