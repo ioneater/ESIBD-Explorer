@@ -3,8 +3,10 @@
 from enum import Enum
 import importlib
 import numpy as np
+import traceback
 from datetime import datetime
 from scipy import signal
+from functools import wraps
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import QSettings
 from esibd.config import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
@@ -25,6 +27,7 @@ DARKMODE        = 'Dark mode'
 CLIPBOARDTHEME  = 'Clipboard theme'
 DPI             = 'DPI'
 TESTMODE        = 'Test mode'
+ICONMODE        = 'Icon mode'
 GEOMETRY        = 'GEOMETRY'
 SETTINGSWIDTH   = 'SettingsWidth'
 SETTINGSHEIGHT  = 'SettingsHeight'
@@ -163,7 +166,15 @@ def getDPI():
     :return: DPI
     :rtype: int
     """
-    return int(qSet.value(f'{GENERAL}/{DPI}', 100))# need explicit conversion as stored as string
+    return int(qSet.value(f'{GENERAL}/{DPI}', 100)) # need explicit conversion as stored as string
+
+def getIconMode():
+    """Gets the icon mode from :ref:`sec:settings`.
+
+    :return: Icon mode
+    :rtype: str
+    """
+    return qSet.value(f'{GENERAL}/{ICONMODE}', 'Icons')
 
 def getTestMode():
     """Gets the test mode from :ref:`sec:settings`.
@@ -196,7 +207,7 @@ def validatePath(path, default):
         return default, True
     else:
         return path, False
-    
+
 def betterSmooth(array, smooth):
     """Smooths a 1D array while keeping edges meaningful.
     This method is robust if array contains np.nan."""
@@ -210,13 +221,19 @@ def betterSmooth(array, smooth):
     return convolvedArray[padding:-padding]
 
 # Decorator to add thread-safety using a lock from the instance
-def synchronized(func):
+# use with @synchronized() or @synchronized(timeout=5)
+def synchronized(timeout=5):
     # avoid calling QApplication.processEvents() inside func as it may cause deadlocks
-    def wrapper(self, *args, **kwargs):
-        self.print(f'Acquiring lock for {func.__name__}', flag=PRINT.DEBUG)
-        with self.lock:
-            self.print(f'Lock acquired for {func.__name__}', flag=PRINT.DEBUG)
-            result = func(self, *args, **kwargs)
-            self.print(f'Releasing lock for {func.__name__}', flag=PRINT.DEBUG)
-            return result
-    return wrapper
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # self.print(f'Acquiring lock for {func.__name__}', flag=PRINT.DEBUG)
+            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
+                if lock_acquired:
+                    # self.print(f'Lock acquired for {func.__name__}', flag=PRINT.DEBUG)
+                    result = func(self, *args, **kwargs)
+                # self.print(f'Releasing lock for {func.__name__}', flag=PRINT.DEBUG)
+                    return result
+                return None
+        return wrapper
+    return decorator

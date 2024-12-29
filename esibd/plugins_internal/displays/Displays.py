@@ -9,7 +9,7 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
+from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, synchronized
 from esibd.plugins import Plugin
 
 def providePlugins():
@@ -64,17 +64,17 @@ class MS(Plugin):
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda : self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
-        self.paperAction = self.addStateAction(event=self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+        self.paperAction = self.addStateAction(event=lambda: self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self):
         if self.initializedDock:
             self.raiseDock(True)
-            self.testControl(self.copyAction, True, 1)
-            self.testControl(self.dataAction, True, 1)
-            self.testControl(self.paperAction, not self.paperAction.state, 1)
+            self.testControl(self.copyAction, True)
+            self.testControl(self.dataAction, True)
+            self.testControl(self.paperAction, not self.paperAction.state)
         super().runTestParallel()
 
     def supportsFile(self, file):
@@ -154,7 +154,7 @@ class MS(Plugin):
             plotFile.write(f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-                           
+
 def map_percent(x, x_min, x_max, y):
     x_min_i=np.where(x == find_nearest(x, x_min))[0]
     x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
@@ -166,14 +166,14 @@ def smooth(y, box_pts):
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
     return y_smooth
-    
+
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx]
-                           
+
 paperStyle = False
-                           
+
 x, y = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
 
 with mpl.style.context('default'):
@@ -274,11 +274,11 @@ class PDB(Plugin):
 import matplotlib.pyplot as plt
 import numpy as np
 from Bio.PDB import PDBParser
-                           
+
 def get_structure(pdb_file): # read PDB file
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
         XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
-        return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]                       
+        return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
@@ -302,7 +302,7 @@ def set_axes_equal(ax):
     ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
     ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
-                           
+
 _, _, x, y, z = get_structure('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
 
 with mpl.style.context('default'):
@@ -346,14 +346,14 @@ class LINE(Plugin):
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(self.copyClipboard, 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
         self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.line), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
     def runTestParallel(self):
         if self.initializedDock:
             self.raiseDock(True)
-            self.testControl(self.copyAction, True, 1)
-            self.testControl(self.dataAction, True, 1)
+            self.testControl(self.copyAction, True)
+            self.testControl(self.dataAction, True)
         super().runTestParallel()
 
     def supportsFile(self, file):
@@ -396,7 +396,7 @@ class LINE(Plugin):
             plotFile.write(f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-                           
+
 profile = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=3)
 
 with mpl.style.context('default'):
@@ -435,9 +435,9 @@ class HOLO(Plugin):
         self.addContentLayout(hor)
 
         self.angleSlider = QSlider(Qt.Orientation.Horizontal)
-        self.angleSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=True))
+        self.angleSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=True))
         self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
-        self.amplitudeSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=False))
+        self.amplitudeSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=False))
         self.titleBar.addWidget(self.angleSlider)
         self.titleBar.addWidget(self.amplitudeSlider)
         self.angle = None
@@ -510,18 +510,18 @@ class Foo(QMainWindow):
         super().__init__()
         self.setGeometry(100, 100, 800, 400)
         self.setCentralWidget(QWidget())
-        self.lay = QGridLayout()    
+        self.lay = QGridLayout()
         self.centralWidget().setLayout(self.lay);
         self.angleSlider = QSlider(Qt.Orientation.Horizontal)
-        self.angleSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=True))
+        self.angleSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=True))
         self.lay.addWidget(self.angleSlider, 0, 0)
         self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
-        self.amplitudeSlider.sliderReleased.connect(lambda : self.value_changed(plotAngle=False))
+        self.amplitudeSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=False))
         self.lay.addWidget(self.amplitudeSlider, 0, 1)
         self.glAngleView = gl.GLViewWidget()
         self.lay.addWidget(self.glAngleView, 1, 0)
         self.glAmplitudeView = gl.GLViewWidget()
-        self.lay.addWidget(self.glAmplitudeView, 1, 1)    
+        self.lay.addWidget(self.glAmplitudeView, 1, 1)
         self.init()
 
     def init(self):

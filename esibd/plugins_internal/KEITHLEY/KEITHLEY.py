@@ -37,7 +37,7 @@ class Current(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.addAction(event=self.resetCharge, toolTip='Reset accumulated charge.', icon='battery-empty.png')
+        self.addAction(event=lambda: self.resetCharge(), toolTip='Reset accumulated charge.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
         """ Define device specific settings that will be added to the general settings tab.
@@ -58,7 +58,7 @@ class Current(Device):
         for channel in self.channels:
             channel.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
-        
+
     def voltageON(self):
         if self.initialized():
             for channel in self.channels:
@@ -89,7 +89,7 @@ class CurrentChannel(Channel):
         channel[self.VALUE][Parameter.HEADER ] = 'I (pA)' # overwrite existing parameter to change header
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
         channel[self.ADDRESS    ] = parameterDict(value='GPIB0::22::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
-        channel[self.VOLTAGE    ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda : self.controller.applyVoltage())
+        channel[self.VOLTAGE    ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda: self.controller.applyVoltage())
         return channel
 
     def setDisplayedParameters(self):
@@ -114,7 +114,7 @@ class CurrentChannel(Channel):
         # this does not only monitor the deposition sample but also on what lenses charge is lost
         # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT, nan=nan)
-        if not nan and not self.value == np.inf:
+        if not nan and not self.value == np.nan and not self.value == np.inf:
             chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
@@ -164,10 +164,10 @@ class CurrentController(DeviceController):
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
-            self.print(f'{self.channel.name} faking values for testing!', PRINT.WARNING)
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
-            try:                  
+            try:
                 # name = rm.list_resources()
                 self.rm = pyvisa.ResourceManager()
                 self.port = self.rm.open_resource(self.channel.address)
@@ -175,7 +175,7 @@ class CurrentController(DeviceController):
                 self.device.print(self.port.query('*IDN?'))
                 self.port.write("SYST:ZCH OFF")
                 self.port.write("CURR:NPLC 6")
-                self.port.write("SOUR:VOLT:RANG 50")                
+                self.port.write("SOUR:VOLT:RANG 50")
                 self.signalComm.initCompleteSignal.emit()
             except Exception:
                 self.signalComm.updateValueSignal.emit(np.nan)
@@ -208,7 +208,7 @@ class CurrentController(DeviceController):
     def applyVoltage(self):
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
-    
+
     def voltageON(self, on=False, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             self.applyVoltage() # apply voltages before turning power supply on or off
@@ -218,7 +218,7 @@ class CurrentController(DeviceController):
                 self.voltageONFromThread(on=on)
 
     def voltageONFromThread(self, on=False):
-        self.port.write(f"SOUR:VOLT:STAT {'ON' if on else 'OFF'}")   
+        self.port.write(f"SOUR:VOLT:STAT {'ON' if on else 'OFF'}")
 
     def fakeSingleNum(self):
         if not self.channel.device.pluginManager.closing:
@@ -226,11 +226,9 @@ class CurrentController(DeviceController):
 
     def readSingleNum(self):
         if not self.channel.device.pluginManager.closing:
-            try:                
+            try:
                 self.port.write("INIT")
                 self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}')
                 self.signalComm.updateValueSignal.emit(np.nan)
-
-            

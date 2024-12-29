@@ -79,8 +79,6 @@ class PressureController(DeviceController):
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.ticInitialized = False
         self.tpgInitialized = False
-        self.pressures = []
-        self.initPressures()
 
     def closeCommunication(self):
         if self.ticPort is not None:
@@ -96,6 +94,7 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
+        self.pressures = [np.nan]*len(self.device.channels)
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
@@ -137,13 +136,6 @@ class PressureController(DeviceController):
             if self.ticInitialized or self.tpgInitialized:
                 self.signalComm.initCompleteSignal.emit()
             self.initializing = False
-
-    def initComplete(self):
-        self.initPressures()
-        super().initComplete()
-
-    def initPressures(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
 
     def runAcquisition(self, acquiring):
         while acquiring():

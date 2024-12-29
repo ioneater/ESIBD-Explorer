@@ -37,7 +37,7 @@ class TIC(Device):
         return ds
 
     def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None                                              
+        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None
                                               or self.getTestMode())) or not channel.active]
 
 class PressureChannel(Channel):
@@ -62,8 +62,6 @@ class PressureController(DeviceController):
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
-        self.pressures = []
-        self.initPressures()
 
     def closeCommunication(self):
         if self.port is not None:
@@ -73,6 +71,7 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
+        self.pressures = [np.nan]*len(self.device.channels)
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
@@ -96,13 +95,6 @@ class PressureController(DeviceController):
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
             self.initializing = False
-
-    def initComplete(self):
-        self.initPressures()
-        super().initComplete()
-
-    def initPressures(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
 
     def runAcquisition(self, acquiring):
         while acquiring():
@@ -139,8 +131,8 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for c, pressure in zip(self.device.getChannels(), self.pressures):
-            c.value = pressure
+        for channel, pressure in zip(self.device.getChannels(), self.pressures):
+            channel.value = pressure
 
     def TICWrite(self, _id):
         self.serialWrite(self.port, f'?V{_id}\r')

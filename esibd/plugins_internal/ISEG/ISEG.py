@@ -34,7 +34,7 @@ class Voltage(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='ISEG on.', iconFalse=self.getIcon(),
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='ISEG on.', iconFalse=self.getIcon(),
                                                                   toolTipTrue='ISEG off.', iconTrue=self.makeIcon('ISEG_on.png'),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
@@ -56,7 +56,6 @@ class Voltage(Device):
     def getModules(self): # get list of used modules
         return set([channel.module for channel in self.channels])
 
-        
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
@@ -87,7 +86,7 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
-        channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.MODULE  ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
                                     header='Mod', _min=0, _max=99, attr='module')
@@ -108,9 +107,6 @@ class VoltageChannel(Channel):
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
-
-    def updateColor(self):
-        color = super().updateColor()
 
     def realChanged(self):
         self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)

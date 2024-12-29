@@ -11,7 +11,7 @@ def providePlugins():
 
 class OMNICONTROL(Device):
     """Device that reads pressure values form an Pfeiffer Omnicontrol using the Pfeiffer Vacuum Protocol."""
-    
+
     documentation = None # use __doc__
     name = 'OMNICONTROL'
     version = '1.0'
@@ -32,7 +32,7 @@ class OMNICONTROL(Device):
         ds = super().getDefaultSettings()
         ds[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
         ds[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port of Omnicontrol.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='com')       
+                                          widgetType=Parameter.TYPE.COMBO, attr='com')
         ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return ds
 
@@ -71,6 +71,7 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
+        self.pressures = [np.nan]*len(self.device.channels)
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
@@ -84,10 +85,6 @@ class PressureController(DeviceController):
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'Omnicontrol error while initializing: {e}', PRINT.ERROR)
             self.initializing = False
-
-    def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.channels)
-        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():
@@ -104,15 +101,15 @@ class PressureController(DeviceController):
         for i, channel in enumerate(self.device.channels):
             if channel.enabled and channel.active:
                 try:
-                    p = pvp.read_pressure(self.port, channel.id)
-                    self.pressures[i] = np.nan if p == 0 else p*1000
+                    pressure = pvp.read_pressure(self.port, channel.id)
+                    self.pressures[i] = np.nan if pressure == 0 else pressure*1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')
                     self.pressures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, p in enumerate(self.pressures):
-            self.pressures[i] = self.rndPressure() if np.isnan(p) else p*np.random.uniform(.99, 1.01) # allow for small fluctuation
+        for i, pressure in enumerate(self.pressures):
+            self.pressures[i] = self.rndPressure() if np.isnan(pressure) else pressure*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         exp = np.random.randint(-11, 3)
@@ -120,5 +117,5 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for c, p in zip(self.device.channels, self.pressures):
-            c.value = p
+        for channel, pressure in zip(self.device.channels, self.pressures):
+            channel.value = pressure

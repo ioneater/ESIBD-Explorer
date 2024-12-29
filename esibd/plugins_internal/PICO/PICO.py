@@ -61,7 +61,7 @@ class PICO(Device):
     def getUnit(self):
         """Overwrite if you want to change units dynamically."""
         return '°C' if self.unitAction.state else self.unit
-    
+
     def updateTheme(self):
         super().updateTheme()
         self.unitAction.iconFalse = self.makeIcon('tempC_dark.png' if getDarkMode() else 'tempC_light.png')
@@ -80,11 +80,11 @@ class TemperatureChannel(Channel):
         channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.VALUE ] = np.nan # undefined until communication established
         channel[self.CHANNEL ] = parameterDict(value='USBPT104_CHANNEL_1', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                    attr='channel', items='USBPT104_CHANNEL_1,USBPT104_CHANNEL_2,USBPT104_CHANNEL_3,USBPT104_CHANNEL_4')
+                                    attr='channel', items='USBPT104_CHANNEL_1, USBPT104_CHANNEL_2, USBPT104_CHANNEL_3, USBPT104_CHANNEL_4')
         channel[self.DATATYPE ] = parameterDict(value='USBPT104_PT100', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                     attr='datatype', items='USBPT104_PT100')
         channel[self.NOOFWIRES ] = parameterDict(value='4', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                    attr='noOfWires', items='2,3,4')
+                                    attr='noOfWires', items='2, 3, 4')
         return channel
 
     def setDisplayedParameters(self):
@@ -95,10 +95,7 @@ class TemperatureChannel(Channel):
 
 class TemperatureController(DeviceController):
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        self.temperatures = []
-        self.chandle = ctypes.c_int16()
+    chandle = ctypes.c_int16()
 
     def closeCommunication(self):
         if self.initialized:
@@ -107,6 +104,7 @@ class TemperatureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
+        self.temperatures = [np.nan]*len(self.device.channels)
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
@@ -114,7 +112,7 @@ class TemperatureController(DeviceController):
         else:
             self.initializing = True
             try:
-                pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle),0)
+                pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
                 for channel in self.device.channels:
                     assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[channel.channel],
                                                             pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
@@ -123,10 +121,6 @@ class TemperatureController(DeviceController):
                 self.print(f'Error while initializing: {e}', PRINT.ERROR)
             finally:
                 self.initializing = False
-
-    def initComplete(self):
-        self.temperatures = [np.nan]*len(self.device.channels)
-        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():
@@ -141,7 +135,7 @@ class TemperatureController(DeviceController):
 
     def readNumbers(self):
         for i, channel in enumerate(self.device.channels):
-            try:                
+            try:
                 meas = ctypes.c_int32()
                 pt104.UsbPt104GetValue(self.chandle, pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
                 if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
@@ -161,5 +155,5 @@ class TemperatureController(DeviceController):
         return np.random.uniform(0, 400)
 
     def updateValue(self):
-        for c, p in zip(self.device.channels, self.temperatures):
-            c.value = p
+        for channel, pressure in zip(self.device.channels, self.temperatures):
+            channel.value = pressure

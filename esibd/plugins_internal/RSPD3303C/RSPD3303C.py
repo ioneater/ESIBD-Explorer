@@ -50,7 +50,7 @@ class RSPD3303C(Device):
         ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
         ds[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return ds
-        
+
     def closeCommunication(self):
         """:meta private:"""
         self.controller.voltageON(on=False, parallel=False)
@@ -78,7 +78,7 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
         channel[self.MIN ][Parameter.VALUE] = 0
         channel[self.MAX ][Parameter.VALUE] = 1 # start with safe limits
-        channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.POWER ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                                                indicator=True, attr='power')
@@ -96,7 +96,7 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.ID)
 
     def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR,self.POWER,self.CURRENT]
+        return super().tempParameters() + [self.MONITOR, self.POWER, self.CURRENT]
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
@@ -161,7 +161,7 @@ class VoltageController(DeviceController):
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.device.isOn())
-            
+
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
@@ -200,7 +200,7 @@ class VoltageController(DeviceController):
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
                 else:
                     channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
-                channel.current = 50/channel.monitor if channel.monitor != 0 else 0 # simulate 50 W                
+                channel.current = 50/channel.monitor if channel.monitor != 0 else 0 # simulate 50 W
                 channel.power = channel.monitor*channel.current
 
     def runAcquisition(self, acquiring):
@@ -214,12 +214,12 @@ class VoltageController(DeviceController):
                     self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
-    def RSWrite(self, message):        
+    def RSWrite(self, message):
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
             if lock_acquired:
                 self.port.write(message)
 
-    def RSQuery(self, message, lock_acquired=False):        
+    def RSQuery(self, message, lock_acquired=False):
         response = ''
         if lock_acquired:
             response = self.port.query(message)

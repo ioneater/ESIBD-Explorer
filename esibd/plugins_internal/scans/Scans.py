@@ -58,12 +58,12 @@ class Beam(Scan):
             super().finalizeInit(aboutFunc)
             self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'), toolTipTrue='Interpolation off.',
                                                          iconTrue=self.scan.makeIcon('interpolate_off.png'), before=self.copyAction,
-                                                         event=lambda : self.scan.plot(update=False, done=True), attr='interpolate')
+                                                         event=lambda: self.scan.plot(update=False, done=True), attr='interpolate')
             self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.',
                                                         toolTipTrue='Fixed axes aspect ratio.',
                                                         iconFalse=self.scan.getIcon(), iconTrue=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction,
-                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
+                                                        event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
             self.updateTheme() # set icons for axesAspectActions
             self.initFig()
 
@@ -113,7 +113,7 @@ class Beam(Scan):
         self.coupleAction = self.addStateAction(toolTipFalse='Coupled step size.', iconFalse=self.makeIcon('lock-unlock.png'), toolTipTrue='Independent step size.',
                                                      iconTrue=self.makeIcon('lock.png'), before=self.copyAction, attr='coupleStepSize')
         self.limitAction = self.addAction(self.useLimits, 'Adopts limits from display', icon='ruler.png')
-        self.centerAction = self.addAction(event=self.centerLimits, toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
+        self.centerAction = self.addAction(event=lambda: self.centerLimits(), toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
 
     def runTestParallel(self):
         self.raiseDock(True)
@@ -209,14 +209,14 @@ class Beam(Scan):
         ds = super().getDefaultSettings()
         ds[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='LR_channel')
-        ds[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=self.estimateScanTime)
-        ds[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=self.estimateScanTime)
-        ds[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda : self.updateStep(self.LR_step))
+        ds[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
+        ds[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=lambda: self.estimateScanTime())
+        ds[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda: self.updateStep(self.LR_step))
         ds[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='UD_channel')
-        ds[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=self.estimateScanTime)
-        ds[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=self.estimateScanTime)
-        ds[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda : self.updateStep(self.UD_step))
+        ds[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
+        ds[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=lambda: self.estimateScanTime())
+        ds[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda: self.updateStep(self.UD_step))
         return ds
 
     def useLimits(self):
@@ -337,11 +337,11 @@ class Spectra(Beam):
                                                         toolTipTrue='Hide average.',
                                                         iconFalse=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction,
-                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
+                                                        event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
             self.plotModeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
                                                                MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
                                                                MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
-                                                        event=lambda : (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
+                                                        event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
             self.updateTheme() # set icons
             self.initFig() # call after finalizeInit completed
 
@@ -540,7 +540,6 @@ else:
 plt.show()
         """
 
-
 class Energy(Scan):
     """Scan that records the current on one electrode, typically a detector plate, as a
     function of one potential, typically a retarding grid. The display
@@ -623,9 +622,9 @@ class Energy(Scan):
         ds[self.WAIT][Parameter.VALUE] = 2000
         ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
-        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
-        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         return ds
 
     def initScan(self):
@@ -808,15 +807,15 @@ class Omni(Scan):
         ds[self.WAIT][Parameter.VALUE] = 2000
         ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
-        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
-        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         self.BINS = 'Bins'
         ds[self.BINS]    = parameterDict(value=20, widgetType=Parameter.TYPE.INT, _min=10, _max=200, attr='bins')
         self.INTERACTIVE = 'Interactive'
         ds[self.INTERACTIVE]    = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
         toolTip='Use the slider to define channel value in interactive mode.\nUse short wait and average when possible to get fast feedback.\nStop scan when done.',
-                                                attr='interactive', event=self.updateInteractive)
+                                                attr='interactive', event=lambda: self.updateInteractive())
         return ds
 
     def updateInteractive(self):
@@ -1031,8 +1030,8 @@ class Depo(Scan):
         ds[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
                                                                 _min=1000, _max=60000, attr='interval')
         ds['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
-                                                                widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=self.updateDepoTarget)
-        ds['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=self.updateWarnLevel,
+                                                                widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
+        ds['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
                                                             items='20, 15, 10, 0, -10, -15, -20', widgetType=Parameter.TYPE.INTCOMBO, attr='warnLevel')
         ds['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
                                                             widgetType=Parameter.TYPE.BOOL, attr='warn')
@@ -1277,7 +1276,7 @@ class GA(Scan):
     def initGUI(self):
         super().initGUI()
         self.recordingAction.setToolTip('Toggle optimization.')
-        self.initialAction = self.addStateAction(event=self.toggleInitial, toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
+        self.initialAction = self.addStateAction(event=lambda: self.toggleInitial(), toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
                                                  toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
     def runTestParallel(self):
         self.raiseDock(True)
@@ -1460,9 +1459,9 @@ class MassSpec(Scan):
         ds[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
         ds[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=50 , widgetType=Parameter.TYPE.FLOAT, attr='_from', event=self.estimateScanTime)
-        ds[self.TO]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='to', event=self.estimateScanTime)
-        ds[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=self.estimateScanTime)
+        ds[self.FROM]    = parameterDict(value=50 , widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        ds[self.TO]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        ds[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         return ds
 
     def initScan(self):
@@ -1518,4 +1517,3 @@ plt.show()
                     self.outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT], channel=self.getChannelByName(name, inout=INOUT.OUT)))
         else:
             super().loadDataInternal()
-            

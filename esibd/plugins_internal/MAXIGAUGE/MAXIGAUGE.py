@@ -58,11 +58,6 @@ class PressureChannel(Channel):
 
 class PressureController(DeviceController):
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        self.pressures = []
-        self.initPressures()
-
     def closeCommunication(self):
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
@@ -71,6 +66,7 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
+        self.pressures = [np.nan]*len(self.device.channels)
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
@@ -93,14 +89,7 @@ class PressureController(DeviceController):
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
-            self.initializing = False
-
-    def initComplete(self):
-        self.initPressures()
-        super().initComplete()
-            
-    def initPressures(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
+            self.initializing = False 
 
     def runAcquisition(self, acquiring):
         while acquiring():

@@ -30,18 +30,18 @@ class NI9263(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='NI9263 on.', iconFalse=self.makeIcon('NI9263_off.png'),
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='NI9263 on.', iconFalse=self.makeIcon('NI9263_off.png'),
                                                                   toolTipTrue='NI9263 off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
 
     def getIcon(self):
         return self.makeIcon('NI9263.png')
-        
+
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
         super().closeCommunication()
-    
+
     def applyValues(self, apply=False):
         for channel in self.channels:
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
@@ -79,7 +79,7 @@ class VoltageChannel(Channel):
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
 
-class VoltageController(DeviceController): 
+class VoltageController(DeviceController):
 
     def runInitialization(self):
         if getTestMode():
@@ -101,7 +101,7 @@ class VoltageController(DeviceController):
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.device.isOn())
-                    
+
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
@@ -126,4 +126,4 @@ class VoltageController(DeviceController):
                 self.applyVoltageFromThread(channel)
 
     def runAcquisition(self, acquiring):
-        pass # nothing to acquire, no read backs 
+        pass # nothing to acquire, no read backs

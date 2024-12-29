@@ -116,9 +116,9 @@ class EsibdExplorer(QMainWindow):
             event.accept() # let the window close
         else:
             event.ignore() # keep running
-            
+
     # def eventFilter(self, source, event):
-    #     if (source is self.pluginManager.Console.mainConsole.repl.input and event.type() == QEvent.Type.KeyPress and 
+    #     if (source is self.pluginManager.Console.mainConsole.repl.input and event.type() == QEvent.Type.KeyPress and
     #         event.modifiers() & Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C):
     #         self.pluginManager.Console.clear()
     #     return super().eventFilter(source, event)
@@ -134,7 +134,6 @@ class PluginManager():
 
     class SignalCommunicate(QObject):
         finalizeSignal = pyqtSignal()
-        toggleTitleBarSignal = pyqtSignal()
 
     class TYPE(Enum):
         """Each plugin must be of one of the following types to define its location and behavior."""
@@ -185,7 +184,6 @@ class PluginManager():
                                      | QMainWindow.DockOption.GroupedDragging | QMainWindow.DockOption.AnimatedDocks)
         self.signalComm = self.SignalCommunicate()
         self.signalComm.finalizeSignal.connect(self.finalizeUiState)
-        self.signalComm.toggleTitleBarSignal.connect(self.toggleTitleBar)
         self.plugins = []
         self.pluginNames = []
         self.firstControl = None
@@ -213,7 +211,6 @@ class PluginManager():
         if not reload:
             self.splash = SplashScreen()
             self.splash.show()
-            QApplication.processEvents()
 
         self.mainWindow.setUpdatesEnabled(False)
         self.loading = True # some events should not be triggered until after the UI is completely initialized
@@ -355,10 +352,10 @@ class PluginManager():
                     self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                     self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
                 self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
-        tabBars = self.mainWindow.findChildren(QTabBar)
-        if tabBars: #might be null if there are no tabbed docks
-            for tabBar in tabBars:
-                tabBar.setElideMode(Qt.TextElideMode.ElideNone) # do not elide tab names
+        # tabBars = self.mainWindow.findChildren(QTabBar)
+        # if tabBars: #might be null if there are no tabbed docks
+        #     for tabBar in tabBars:
+        #         tabBar.setElideMode(Qt.TextElideMode.ElideNone) # do not elide tab names
 
     def finalizeInit(self):
         """Finalize initialization after all other plugins have been initialized."""
@@ -386,7 +383,7 @@ class PluginManager():
         self.logger.print('Stopping test.')
         self.testing = False
         for plugin in self.plugins:
-            plugin.testing = True
+            plugin.testing = False
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
@@ -395,7 +392,7 @@ class PluginManager():
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
             plugin.runTestParallel()
-            if not plugin.waitForCondition(condition=lambda : plugin.testing, timeout=100, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
+            if not plugin.waitForCondition(condition=lambda: plugin.testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
                 plugin.testing = False
             if not self.testing:
                 break
@@ -485,7 +482,6 @@ class PluginManager():
             self.logger.print('Reloading Plugins.', flag=PRINT.EXPLORER)
             self.splash = SplashScreen()
             self.splash.show()
-            QApplication.processEvents()
         else:
             self.logger.print('Closing Plugins.', flag=PRINT.EXPLORER)
         qSet.sync()
@@ -557,7 +553,7 @@ class PluginManager():
             return [plugin for plugin in self.plugins if plugin.pluginType in pluginTypes]
         else:
             return [plugin for plugin in self.plugins if plugin.pluginType == pluginTypes]
-        
+
     def getPluginsByClass(self, parentClasses):
         """Returns all plugins of the specified type.
 
@@ -569,19 +565,16 @@ class PluginManager():
         return [plugin for plugin in self.plugins if isinstance(plugin, parentClasses)]
 
     def toggleTitleBarDelayed(self):
-        QTimer.singleShot(500, self.signalComm.toggleTitleBarSignal.emit)
-
-    def toggleTitleBar(self):
-        for plugin in self.plugins:
-            if plugin.initializedDock:
-                plugin.toggleTitleBar()
+        if not self.loading:
+            for plugin in self.plugins:
+                if plugin.initializedDock:
+                    plugin.toggleTitleBarDelayed()
 
     def updateTheme(self):
         """Updates application theme while showing a splash screen if necessary."""
         if not self.loading:
             splash = SplashScreen()
             splash.show()
-            QApplication.processEvents()
             self.mainWindow.setUpdatesEnabled(False)
         pal = QApplication.style().standardPalette()
         pal.setColor(QPalette.ColorRole.Base, QColor(colors.bg))
@@ -604,7 +597,7 @@ class PluginManager():
         QDoubleSpinBox{{background-color:{colors.bgAlt2}; color:{colors.fg}; border-style:none;}}
         QMainWindow::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
         QMainWindow::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
-        QWidget::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
+        QWidget::separator          {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
         QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
         QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix()
                                                  if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
@@ -631,7 +624,6 @@ class PluginManager():
                     self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
         if not self.loading:
             self.mainWindow.setUpdatesEnabled(True)
-            # dialog.close()
             splash.close()
 
 class Logger(QObject):
@@ -714,12 +706,12 @@ class Logger(QObject):
         if current_thread() is not main_thread():
             # redirect to main thread if needed to avoid changing GUI from parallel thread.
             self.printFromThreadSignal.emit(message, sender, flag)
-            return        
+            return
         match flag:
             case PRINT.DEBUG:
                 if not getShowDebug():
                     return
-                flagString = '🐛'
+                flagString = '🪲'
                 # message = message + ' Stack: ' + ', '.join([trace.split('\n')[1].strip() for trace in traceback.format_stack(limit=8)[:-3] if trace.split('\n')[1].strip() != ''])
             case PRINT.WARNING:
                 flagString = '⚠️'
@@ -735,7 +727,7 @@ class Logger(QObject):
             timerString = f'🕐 {ms:4.0f} ms '
             self.lastCallTime = datetime.now()
 
-        message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message}"
+        message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message.split()[0]}"
         message        = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {timerString}{flagString} {sender}: {message}"
         if self.active:
             print(message) # redirects to write if active
@@ -799,10 +791,10 @@ class DynamicNp():
         if lenT is not None:
             if self.size < lenT:
                 # if length does not match length of time, e.g. because channel was enabled later then others or temporarily disabled,
-                # pad data with NaN to ensure data is aligned with time axis
+                # pad data with NaN to ensure new data is aligned with time axis
                 pad = np.zeros(lenT-self.size)
                 pad[:] = np.nan
-                self.init(np.hstack([self.get(), pad, x]), max_size=self.max_size) # append padding after existing data to account for time without data collection
+                self.init(np.hstack([self.get(), pad]), max_size=self.max_size) # append padding after existing data to account for time without data collection
             if self.size > lenT:
                 self.init(self.get()[-lenT:], max_size=self.max_size) # remove data older than time axis
         if self.size == self.capacity:
@@ -817,17 +809,14 @@ class DynamicNp():
             # timeit.timeit('[d.add(1) for d in a]', number=1, globals=globals())
             # resulting time 2.5 s -> negligible for all relevant use cases
             # thin out old data. use only every second value for first half of array to limit RAM use
-            a, b = np.array_split(self.get(), 2) # pylint: disable=[unbalanced-tuple-unpacking] # balance not relevant, as long as it is consistent
-            self.size = a[::2].shape[0]+b.shape[0]
-            self.data[:self.size] = np.hstack([a[::2], b])
-            self.data[self.size] = x
-            self.size += 1
+            a, b = np.array_split(self.get(), 2) # split array in two halves # pylint: disable=[unbalanced-tuple-unpacking] # balance not relevant, as long as it is consistent
+            self.size = a[1::2].shape[0]+b.shape[0] # only thin out older half, take every second item (starting with the second one to avoid keeping the first for every!)
+            self.data[:self.size] = np.hstack([a[1::2], b]) # recombine
             # remove old data as new data is coming in. while this implementation is simpler it limits the length of stored history
             # self.data = np.roll(self.data,-1)
             # self.data[self.size-1] = x
-        else:
-            self.data[self.size] = x
-            self.size += 1
+        self.data[self.size] = x
+        self.size += 1
 
     def get(self, length=None, _min=None, _max=None, n=1):
         """Returns actual values.
@@ -864,13 +853,13 @@ class DynamicNp():
         # pyqtgraph has build in down sampling, however in automatic mode it does not save as much performance.
         # if n is increased to get similar performance than the code above, the curves are flickering as the displayed points can change (roll) while new data comes in.
 
-def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, tree=None, widgetType=None, advanced=False, header=None,
+def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, fixedItems=False, tree=None, widgetType=None, advanced=False, header=None,
                     widget=None, event=None, internal=False, attr=None, indicator=False, instantUpdate=True):
     """Provides default values for all properties of a parameter.
     See :class:`~esibd.core.Parameter` for definitions.
     """
     return {Parameter.NAME : name, Parameter.VALUE : value, Parameter.DEFAULT : default if default is not None else value, Parameter.MIN : _min, Parameter.MAX : _max, Parameter.ADVANCED : advanced,
-            Parameter.HEADER : header, Parameter.TOOLTIP : toolTip, Parameter.ITEMS : items, Parameter.TREE : tree, Parameter.WIDGETTYPE : widgetType,
+            Parameter.HEADER : header, Parameter.TOOLTIP : toolTip, Parameter.ITEMS : items, Parameter.FIXEDITEMS : fixedItems, Parameter.TREE : tree, Parameter.WIDGETTYPE : widgetType,
             Parameter.WIDGET : widget, Parameter.EVENT : event, Parameter.INTERNAL : internal, Parameter.ATTR : attr, Parameter.INDICATOR : indicator, Parameter.INSTANTUPDATE : instantUpdate}
 
 class Parameter():
@@ -890,6 +879,7 @@ class Parameter():
     MAX         = 'Max'
     DEFAULT     = 'Default'
     ITEMS       = 'Items'
+    FIXEDITEMS  = 'FixedItems'
     TREE        = 'Tree'
     TOOLTIP     = 'Tooltip'
     EVENT       = 'Event'
@@ -937,6 +927,8 @@ class Parameter():
     """Tooltip used to describe the parameter."""
     items : List[str]
     """List of options for parameters with a combobox."""
+    fixedItems : bool
+    """Indicates if list of items can be edited by the user or should remain fixed."""
     widgetType : TYPE
     """They type determines which widget is used to represent the parameter in the user interface."""
     advanced : bool
@@ -987,7 +979,7 @@ class Parameter():
     extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 
-    def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, widget=None, internal=False,
+    def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, fixedItems=False, widget=None, internal=False,
                     tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, instantUpdate=True):
         self._parent = _parent
         self.widgetType = widgetType if widgetType is not None else self.TYPE.LABEL
@@ -997,6 +989,7 @@ class Parameter():
         self.name = Path(name).name
         self.toolTip = toolTip
         self._items = items.split(',') if items is not None else None
+        self.fixedItems = fixedItems
         self.tree = tree
         self.itemWidget = itemWidget
         self.widget = widget
@@ -1130,7 +1123,7 @@ class Parameter():
 
     def applyChangedEvent(self):
         """Assign events to the corresponding controls.
-        Even indicators should be able to trigger events, e.g. to update dependent channels."""        
+        Even indicators should be able to trigger events, e.g. to update dependent channels."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
         elif self.widgetType == self.TYPE.TEXT:
@@ -1184,7 +1177,7 @@ class Parameter():
             self.combo = QComboBox() if self.widget is None else self.widget
             if self.widget is not None: # potentially reuse widget with old data!
                 self.combo.clear()
-            self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting            
+            self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting
             for item in [item.strip(' ') for item in self._items]:
                 self.combo.insertItem(self.combo.count(), item)
             # self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1236,7 +1229,7 @@ class Parameter():
         self.getWidget().setToolTip(self.toolTip)
         self.getWidget().setMinimumHeight(self.rowHeight) # always keep entire row at consistent height
         self.getWidget().setMaximumHeight(self.rowHeight)
-        self.getWidget().setObjectName(self.fullName)        
+        self.getWidget().setObjectName(self.fullName)
         self.getWidget().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.getWidget().customContextMenuRequested.connect(self.initContextMenu)
 
@@ -1374,7 +1367,7 @@ class Setting(QTreeWidgetItem, Parameter):
     def settingEvent(self):
         """Executes internal validation based on setting type.
         Saves parameters to file or qSet to make sure they can be restored even after a crash.
-        Finally executes setting specific event if applicable."""        
+        Finally executes setting specific event if applicable."""
         if not self.indicator: # setting indicators should never need to trigger events
             if self.widgetType == self.TYPE.PATH:
                 path, changed = validatePath(self.value, self.default)
@@ -1478,7 +1471,7 @@ class Channel(QTreeWidgetItem):
         self.displayedParameters = []
         self.values = DynamicNp(max_size=self.device.maxDataPoints)
         self.inout = device.inout
-        self.controller = None 
+        self.controller = None
         self.defaultStyleSheet = None # will be initialized when color is set
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
 
@@ -1495,6 +1488,7 @@ class Channel(QTreeWidgetItem):
         for i, (name, default) in enumerate(self.getSortedDefaultChannel().items()):
             self.parameters.append(Parameter(_parent=self, name=name, widgetType=default[Parameter.WIDGETTYPE],
                                                     items=default[Parameter.ITEMS] if Parameter.ITEMS in default else None,
+                                                    fixedItems=default[Parameter.FIXEDITEMS] if Parameter.FIXEDITEMS in default else False,
                                                     _min=default[Parameter.MIN] if Parameter.MIN in default else None,
                                                     _max=default[Parameter.MAX] if Parameter.MAX in default else None,
                                                     toolTip=default[Parameter.TOOLTIP] if Parameter.TOOLTIP in default else None,
@@ -1551,48 +1545,50 @@ class Channel(QTreeWidgetItem):
         """
         channel = {}
         channel[self.COLLAPSE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
-                                    toolTip='Collapses all channels of same color below.', event=lambda : self.collapseChanged(toggle=True), attr='collapse', header= '',)
+                                    toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header= '',)
         channel[self.SELECT  ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
-                                    toolTip='Select channel for deleting, moving, or duplicating.', event=lambda : self.device.channelSelection(selectedChannel = self), attr='select')
+                                    toolTip='Select channel for deleting, moving, or duplicating.', event=lambda: self.device.channelSelection(selectedChannel = self), attr='select')
         channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
-                                    event=self.enabledChanged, attr='enabled')
+                                    event=lambda: self.enabledChanged(), attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name')
         channel[self.VALUE   ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='Unit', attr='value')
         if self.inout == INOUT.IN:
-            channel[self.VALUE][Parameter.EVENT] = lambda : self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+            channel[self.VALUE][Parameter.EVENT] = lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+        elif self.inout == INOUT.OUT:
+            channel[self.VALUE][Parameter.VALUE] = np.nan # undefined until communication started
         channel[self.EQUATION] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='equation',
-                                    event=self.equationChanged)
+                                    event=lambda: self.equationChanged())
         channel[self.ACTIVE  ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='A', toolTip='If not active, value will be determined from equation.',
-                                    event=self.activeChanged, attr='active')
+                                    event=lambda: self.activeChanged(), attr='active')
         channel[self.REAL    ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='R', toolTip='Set to real for physically exiting channels.',
-                                    event=self.realChanged, attr='real')
+                                    event=lambda: self.realChanged(), attr='real')
         if self.useDisplays:
             channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                         header='D', toolTip='Display channel history.',
-                                        event=self.updateDisplay, attr='display')
+                                        event=lambda: self.updateDisplay(), attr='display')
             channel[self.SMOOTH  ] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                             items='0, 2, 4, 8, 16, 32', attr='smooth',
-                                            # event=self.updateDisplay, # update display causes distracting rescaling ->
+                                            # event=lambda: self.updateDisplay(), # update display causes distracting rescaling ->
                                             # should only be relevant for live data anyways, but if needed updateDisplay can be triggered by any of the other parameters like linewidth or displaytime
                                             toolTip='Smooth using running average with selected window.')
             channel[self.LINEWIDTH  ] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                            items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=self.updateDisplay, toolTip='Line width used in plots.')
+                                            items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=lambda: self.updateDisplay(), toolTip='Line width used in plots.')
             channel[self.LINESTYLE  ] = parameterDict(value='solid', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                            items='solid, dotted, dashed, dashdot', attr='linestyle', event=self.updateDisplay, toolTip='Line style used in plots.')
-            channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=self.updateDisplay,
-                                                           items='0,1,2,3,4,5', toolTip='Used to group channels in the live display.')
+                                            items='solid, dotted, dashed, dashdot', attr='linestyle', event=lambda: self.updateDisplay(), toolTip='Line style used in plots.')
+            channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=lambda: self.updateDisplay(),
+                                                           items='0, 1, 2, 3, 4, 5', fixedItems=False, toolTip='Used to group channels in the live display.')
         # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
-                                    event=self.updateColor, attr='color')
+                                    event=lambda: self.updateColor(), attr='color')
         if self.inout == INOUT.IN:
             channel[self.MIN     ] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
-                                    event=self.updateMin, attr='min', header='Min       ')
+                                    event=lambda: self.updateMin(), attr='min', header='Min       ')
             channel[self.MAX     ] = parameterDict(value=+50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
-                                    event= self.updateMax, attr='max', header='Max       ')
+                                    event=lambda: self.updateMax(), attr='max', header='Max       ')
             channel[self.OPTIMIZE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                     header='O', toolTip='Selected channels will be optimized using GA.', attr='optimize')
         elif self.inout == INOUT.OUT:
@@ -1681,7 +1677,7 @@ class Channel(QTreeWidgetItem):
 
     def appendValue(self, lenT, nan=False):
         """Appends a datapoint to the recorded values.
-        
+
         :param lenT: length of corresponding time array, defaults to None
         :type lenT: int, optional
         :param nan: If true, np.nan is used instead of current value. This should mark a new collection and prevent interpolation in regions without data.
@@ -1720,6 +1716,7 @@ class Channel(QTreeWidgetItem):
             self.plotCurve.clear()
             self.plotCurve.deleteLater()
             self.plotCurve = None
+            self.getDevice().liveDisplay._updateLegend = True
 
     def getDevice(self):
         return self.device
@@ -1757,7 +1754,7 @@ class Channel(QTreeWidgetItem):
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
-        self.updateDisplay()        
+        self.updateDisplay()
         self.defaultStyleSheet = f'background-color: {color.name()}'
         return color
 
@@ -1782,7 +1779,7 @@ class Channel(QTreeWidgetItem):
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
             self.device.pluginManager.DeviceManager.updateStaticPlot()
-            
+
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
         if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)):
@@ -1863,7 +1860,7 @@ class Channel(QTreeWidgetItem):
         # removeItemAction = None
         # setToDefaultAction= None
         # if parameter.widgetType in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]:
-        #     NOTE channels do only save current value and not items -> thus editing items is currently not supported
+        #     NOTE channels do only save current value but not the items -> thus editing items is currently not supported
         #     # Channels are part of Devices which define items centrally
         #     addItemAction = settingsContextMenu.addAction(self.ADDITEM)
         #     editItemAction = settingsContextMenu.addAction(self.EDITITEM)
@@ -1872,10 +1869,10 @@ class Channel(QTreeWidgetItem):
         if not settingsContextMenu.actions():
             return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
-        if settingsContextMenuAction is not None: # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)            
+        if settingsContextMenuAction is not None: # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addParameterToConsoleAction:
                 self.device.pluginManager.Console.addToNamespace('parameter', parameter)
-                self.device.pluginManager.Console.execute('parameter')           
+                self.device.pluginManager.Console.execute('parameter')
             if settingsContextMenuAction is addChannelToConsoleAction:
                 self.device.pluginManager.Console.addToNamespace('channel', parameter._parent)
                 self.device.pluginManager.Console.execute('channel')
@@ -1964,22 +1961,27 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.value = self.value
 
     def valueFromText(self, text):
-        if text == self.NAN:
-            return np.nan
-        else:
-            return float(text)
-        
+        return float(text)
+
     def textFromValue(self, value):
+        """make sure nan and inf will be represented by NaN."""
         if value in [np.nan, np.inf]:
-            return self.NAN 
+            return self.NAN
         else:
             return f'{value:.{self.displayDecimals}f}'
+
+    def value(self):
+        if self.text() == self.NAN:
+            return np.nan
+        return super().value()
 
     def wheelEvent(self, event):
         event.ignore()
 
     def stepBy(self, step):
         """Handles stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
+        if self.text() == self.NAN:
+            return
         text = self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
         dig = len(text.strip('-').split('.')[0])
@@ -2052,11 +2054,13 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
 
     def textFromValue(self, value):
         if value in [np.nan, np.inf]:
-            return self.NAN 
+            return self.NAN
         else:
             return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
 
     def stepBy(self, step):
+        if self.text() == self.NAN:
+            return
         text = self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
         v, p = text.split('E')
@@ -2186,7 +2190,7 @@ class StateAction(Action):
             self.fullName = f'{self.parentPlugin.name}/{self.attr}'
             self.setObjectName(self.fullName)
             # setattr with property only works on the class, not the instance. Thus prone to cause conflict when multiple instances of a class use this feature
-            # This could be avoided by inheriting to create a unique copy of the class for each instance, which does not seem very clean 
+            # This could be avoided by inheriting to create a unique copy of the class for each instance, which does not seem very clean
             # setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to access state by using attribute from parentPlugin
         self.event = event
         if event is not None:
@@ -2254,7 +2258,7 @@ class MultiStateAction(Action):
             self.fullName = f'{self.parentPlugin.name}/{self.attr}'
             self.setObjectName(self.fullName)
             # setattr with property only works on the class, not the instance. Thus prone to cause conflict when multiple instances of a class use this feature
-            # This could be avoided by inheriting to create a unique copy of the class for each instance, which does not seem very clean 
+            # This could be avoided by inheriting to create a unique copy of the class for each instance, which does not seem very clean
             # setattr(self.parentPlugin.__class__, self.attr, makeStateWrapper(self)) # allows to access state by using attribute from parentPlugin
         self.event = event
         if event is not None:
@@ -2330,21 +2334,21 @@ class BetterDockWidget(QDockWidget):
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # - some of these are possible with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
-    # TODO option to use plugin icons instead of text in tabs not currently possible https://stackoverflow.com/questions/47668400/icons-for-tabified-dockwidgets
 
     class SignalCommunicate(QObject):
         dockClosingSignal = pyqtSignal()
 
     def __init__(self, plugin):
-        self.plugin = plugin        
-        self.title = self.plugin.parentPlugin.name if hasattr(self.plugin, 'parentPlugin') else self.plugin.name        
+        self.plugin = plugin
+        self.title = self.plugin.parentPlugin.name if hasattr(self.plugin, 'parentPlugin') else self.plugin.name
+        # self.title = self.title if len(self.title) <= 10 else self.title[:7] + '...'
         super().__init__(self.title, QApplication.instance().mainWindow)
         self.signalComm = self.SignalCommunicate()
         self.signalComm.dockClosingSignal.connect(self.plugin.closeGUI)
         self.setObjectName(f'{self.plugin.pluginType}_{self.plugin.name}') # essential to make restoreState work!
         self.setTitleBarWidget(plugin.titleBar)
         self.topLevelChanged.connect(self.plugin.pluginManager.toggleTitleBarDelayed)
-        QTimer.singleShot(500, self.toggleTitleBar) # not sure why needed but needed
+        self.plugin.toggleTitleBarDelayed() # not sure why needed but needed
         self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable) # | QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.setWidget(self.plugin.mainDisplayWidget)
 
@@ -2369,8 +2373,29 @@ class BetterDockWidget(QDockWidget):
                 # need to apply for proper resizing, even if set to '' next
                 if hasattr(self.parent(), 'tabifiedDockWidgets') and len(self.parent().tabifiedDockWidgets(self)) > 0:
                     self.plugin.titleBarLabel.setText('')
+                self.updateIcon()
             if not isinstance(self.parent(), QMainWindow):
                 self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
+
+    def updateIcon(self):
+        tabBars = self.plugin.pluginManager.mainWindow.findChildren(QTabBar)
+        self.setWindowTitle(self.title) # set it just for now so tabWhatsThis can always be initialized correctly
+        if tabBars: #might be null if there are no tabbed docks
+            for tabBar in tabBars:
+                for i in range(tabBar.count()):
+                    # tabWhatsThis stays unchanged when setWindowTitle('') unlike tabToolTip
+                    if (tabBar.tabWhatsThis(i) is None or tabBar.tabWhatsThis(i) == '') and tabBar.tabText(i) == self.title:
+                        tabBar.setTabWhatsThis(i, self.title) # make sure we can identify tab even if windowTitle is set to '' temporarily
+                    if tabBar.tabWhatsThis(i) is not None and tabBar.tabWhatsThis(i) == self.title:# tabBar.tabText(i) == self.title:
+                        # tabBar.setTabText(i, '' if getIconMode() == 'Icons' else self.title) # no effect
+                        # button1 = QToolButton()
+                        # button1.setIcon(self.plugin.getIcon())
+                        # tabBar.setTabButton(i, QTabBar.ButtonPosition.LeftSide, button1)
+                        tabBar.setTabIcon(i, QIcon() if getIconMode() == 'Labels' else self.plugin.getIcon())
+        # TODO ideally hide label and not just set text to '' to make sure empty label does not use space next to icon
+        # https://stackoverflow.com/questions/24851977/hide-label-text-for-qt-tabs-without-setting-text-to-empty-string
+        if getIconMode() == 'Icons':
+            self.setWindowTitle('') # hide it, knowing that tabWhatsThis has been set and can be used to restore later
 
     def closeEvent(self, event):
         self.signalComm.dockClosingSignal.emit()
@@ -2589,7 +2614,6 @@ class TextEdit(QPlainTextEdit):
         cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
         self._completer.complete(cr)
 
-
 class IconStatusBar(QStatusBar):
     iconClicked = pyqtSignal(bool)
     def __init__(self, *args, **kwargs):
@@ -2628,7 +2652,6 @@ class IconStatusBar(QStatusBar):
     def showMessage(self, message, msecs=...):
         # ignore internal statusbar which would overlay with our custom label
         self._statusLabel.setText(message)
-
 
     def setFlag(self, flag=PRINT.MESSAGE):
         match flag:
@@ -2775,7 +2798,7 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                     ax.set_xlim(limits[i][0])
                     ax.set_ylim(limits[i][1])
                 self.canvas.draw_idle()
-                QApplication.processEvents()
+                self.parentPlugin.processEvents()
                 super().save_figure(*args)
         else:
             super().save_figure(*args)
@@ -2873,13 +2896,13 @@ class BetterPlotItem(pg.PlotItem):
             self.groupLabel = BetterLabelItem(anchor=(1, 1))
             self.groupLabel.setParentItem(self.getViewBox())
             self.groupLabel.setText(groupLabel)
-            self.groupLabel.setPos(10,0)
+            self.groupLabel.setPos(10, 0)
             self.groupLabel.setColor(colors.fg)
         if showXY:
             self.xyLabel = BetterLabelItem(anchor=(1, 1))
             self.xyLabel.setParentItem(self.getViewBox())
             self.xyLabel.setColor(colors.fg)
-        
+
     def init(self):
         self.showGrid(x=True, y=True, alpha=0.1)
         self.showAxis('top')
@@ -2930,11 +2953,14 @@ class BetterPlotItem(pg.PlotItem):
                 self.xyLabel.setText('')
         if isinstance(ev, QMouseEvent):
             super().mouseMoveEvent(ev)
-    
+
     def parentPlot(self):
-        """Plot if Xrange changed by user."""
+        """Plot if Xrange changed by user.
+        When looking at larger x ranges sections might not be shown due to data thinning.
+        Make sure the number of displayed data points is appropriate for your data."""
         if self._parent is not None and self.getViewBox().mouseEnabled()[0]:
-            self._parent.plot()
+            # self._parent.print('sigXRangeChanged', flag=PRINT.DEBUG)
+            self._parent.parentPlugin.signalComm.plotSignal.emit()
 
 class BetterPlotWidget(pg.PlotWidget):
     """PlotWidget providing xyLabel."""
@@ -3011,14 +3037,18 @@ class TimeoutLock(object):
     def acquire_timeout(self, timeout, timeoutMessage=None):
         """
         :param timeout: timeout in seconds
-        :type timeout: float, optional        
+        :type timeout: float, optional
         """
         result = self._lock.acquire(timeout=timeout)
-        yield result
-        if result:
-            self._lock.release()
-        elif timeoutMessage is not None:
-            self.print(timeoutMessage, flag=PRINT.WARNING)
+        try:
+            yield result
+        except Exception as e:
+            self.print(f'Error while using lock: {e}', flag=PRINT.ERROR)
+        finally:
+            if result:
+                self._lock.release()
+        if not result and timeoutMessage is not None:
+            self.print(timeoutMessage, flag=PRINT.ERROR)
 
     def release(self):
         self._lock.release()
@@ -3075,7 +3105,7 @@ class DeviceController(QObject):
 
     def __init__(self, _parent):
         super().__init__()
-        self.channel = None # overwrite with parent if applicable        
+        self.channel = None # overwrite with parent if applicable
         self.device = _parent # overwrite with channel.getDevice() if applicable
         self.lock = TimeoutLock(_parent=self) # init here so each instance gets its own lock
         self.port = None
@@ -3085,7 +3115,8 @@ class DeviceController(QObject):
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
 
     def print(self, message, flag=PRINT.MESSAGE):
-        self.device.print(f'DeviceController {message}', flag=flag)
+        controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'
+        self.device.print(f'{controller_name}: {message}', flag=flag)
 
     def initializeCommunication(self):
         """Starts the :meth:`~esibd.core.DeviceController.initThread`."""
@@ -3099,10 +3130,10 @@ class DeviceController(QObject):
         self.initThread.start() # initialize in separate thread
 
     def runInitialization(self):
-        """Hardware specific initialization of communication. Executed in initThread."""
+        """Hardware specific initialization of communication. Executed in initThread (no access to GUI!)."""
 
     def initComplete(self):
-        """Called after successful initialization to start acquisition."""
+        """Called after successful initialization to start acquisition from main thread (access to GUI!)."""
         self.initialized = True
         self.startAcquisition()
 
@@ -3120,7 +3151,7 @@ class DeviceController(QObject):
             if self.acquisitionThread.is_alive():
                 self.print('Data reading thread did not complete. Reset connection manually.', PRINT.ERROR)
                 return
-        self.acquisitionThread = Thread(target=self.runAcquisition, args =(lambda : self.acquiring,), name=f'{self.device.name} acquisitionThread')
+        self.acquisitionThread = Thread(target=self.runAcquisition, args =(lambda: self.acquiring,), name=f'{self.device.name} acquisitionThread')
         self.acquisitionThread.daemon = True
         self.acquiring = True # terminate old thread before starting new one
         self.acquisitionThread.start()
@@ -3164,7 +3195,7 @@ class DeviceController(QObject):
                 self.acquiring = False
             return True
         return False
-    
+
     def serialWrite(self, port, message, encoding='utf-8'):
         """Writes a string to a serial port. Takes care of decoding messages to
         bytes and catches common exceptions.
@@ -3261,6 +3292,10 @@ class SplashScreen(QSplashScreen):
     def animate(self):
         self.index = np.mod(self.index + 1, len(SPLASHIMAGE))
         self.label.setPixmap(QPixmap(SPLASHIMAGE[self.index].as_posix()))
+
+    def show(self):
+        super().show()
+        QApplication.processEvents()
 
     def close(self):
         self.closed=True

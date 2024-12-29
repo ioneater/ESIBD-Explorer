@@ -50,10 +50,10 @@ class MIPS(Device):
 
     def getCOMs(self): # get list of unique used COMs
         return list(set([channel.com for channel in self.channels]))
-        
+
     def closeCommunication(self):
         self.controller.voltageON(on=False, parallel=False)
-        super().closeCommunication()     
+        super().closeCommunication()
 
     def applyValues(self, apply=False):
         for channel in self.channels:
@@ -74,7 +74,7 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
-        channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, advanced=True, attr='com')
@@ -125,6 +125,7 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent, COMs):
         super().__init__(_parent=_parent)
+        # TODO need both COMs and ports?
         self.COMs       = COMs or ['COM1']
         self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.ports          = [None]*len(self.COMs)
@@ -138,7 +139,7 @@ class VoltageController(DeviceController):
             self.print('Faking monitor values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
-            try:                
+            try:
                 self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
                 # TODO test communication and throw exception. serial connection may initialize even though mips turned off!
                 self.signalComm.initCompleteSignal.emit()
@@ -152,7 +153,7 @@ class VoltageController(DeviceController):
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
         self.voltageON(self.device.isOn())
-    
+
     def closeCommunication(self):
         for i, COM in enumerate(self.COMs):
             if self.ports[i] is not None:
@@ -160,7 +161,7 @@ class VoltageController(DeviceController):
                     self.ports[i].close()
                     self.ports[i] = None
         super().closeCommunication()
-        
+
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
@@ -215,14 +216,12 @@ class VoltageController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def MIPSWrite(self, COM, message):
-        m = self.COMs.index(COM)        
-        self.serialWrite(self.ports[m], message)
+        self.serialWrite(self.ports[self.COMs.index(COM)], message)
 
     def MIPSRead(self, COM):
         # only call from thread! # make sure lock is acquired before and released after
-        m = self.COMs.index(COM)     
         if not getTestMode() and self.initialized:
-            return self.serialRead(self.ports[m], EOL='\r', strip='b\x06')
+            return self.serialRead(self.ports[self.COMs.index(COM)], EOL='\r', strip='b\x06')
 
     def MIPSWriteRead(self, COM, message, lock_acquired=False):
         response = ''

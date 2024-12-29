@@ -1,6 +1,6 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
-from PyQt6.QtWidgets import QDialog, QLabel, QGridLayout
+import numpy as np
 # Users who add custom controls can use the build-in features at their own risk.
 # If you want your module to be more independent, implement your own replacement for the following imports.
 from PyQt6.QtWidgets import QMessageBox
@@ -26,7 +26,8 @@ class CustomDevice(Device):
         super().__init__(**kwargs)
         self.channelType = CustomChannel
         self.controller = CustomController(_parent=self)
-        self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
+        self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
+        # TODO initialize any custom variables
 
     def getIcon(self):
         return self.makeIcon('cookie.png')
@@ -36,7 +37,7 @@ class CustomDevice(Device):
         super().initGUI()
         # a base UI is provided by parent class, it can be extended like this if required
         self.addAction(self.customAction, 'Custom tooltip.', self.makeIcon('cookie.png'))
-    
+
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.customAction, toolTipFalse='Custom Device on.', iconFalse=self.makeIcon('cookie_off.png'),
@@ -45,17 +46,21 @@ class CustomDevice(Device):
         # TODO if applicable add action to DeviceManager, e.g. to quickly turn power supplies on or off
         super().finalizeInit(aboutFunc)
 
+    def runTestParallel(self):
+        # self.testControl(self.customAction, self.customAction.state)
+        # TODO add custom tests (avoid tests that require user interaction!)
+        super().runTestParallel()
+
     def customAction(self):
         """Execute your custom code"""
-        self.messageBox.setWindowTitle('Custom Dialog')
-        self.messageBox.setWindowIcon(self.getIcon())
-        self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}')
-        self.messageBox.open() # show non blocking
-        self.messageBox.raise_()
-        # dlg.setLayout(lay)
-        # dlg.exec()
+        if not self.testing:
+            self.messageBox.setWindowTitle('Custom Dialog')
+            self.messageBox.setWindowIcon(self.getIcon())
+            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}')
+            self.messageBox.open() # show non blocking
+            self.messageBox.raise_()
 
-    def intervalChanged(self):       
+    def intervalChanged(self):
         pass # TODO add code to be executed in case the interval changes if needed
 
     def applyValues(self, apply=False):
@@ -63,7 +68,7 @@ class CustomDevice(Device):
             Should only apply channels where value has changed."""
         for channel in self.getChannels():
             self.controller.applyValue(channel)
-    
+
     customSetting = 'Custom/Setting'
 
     def getDefaultSettings(self):
@@ -74,8 +79,8 @@ class CustomDevice(Device):
         settings[self.customSetting] = parameterDict(value=100, _min=100, _max=10000, toolTip='Custom Tooltip',
                                                                                     widgetType=Parameter.TYPE.INT, attr='custom')
         # TODO add additional custom settings as needed
-        return settings    
-    
+        return settings
+
     def closeCommunication(self):
         # TODO add final communication to set device into save state
         super().closeCommunication()
@@ -96,8 +101,8 @@ class CustomChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE   ][Parameter.HEADER] = 'Value (X)' # overwrite to change header
-        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, header='ID    ', attr='id')        
-        channel[self.MONITOR ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, header='ID    ', attr='id')
+        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                     event=self.monitorChanged, indicator=True, attr='monitor')
         # TODO add and modify any channel parameters as needed
         return channel
@@ -110,14 +115,14 @@ class CustomChannel(Channel):
 
     def tempParameters(self):
         return super().tempParameters() + [self.MONITOR]
-        # TODO add parameters that should not be restored from file 
-    
+        # TODO add parameters that should not be restored from file
+
     def finalizeInit(self, item):
         super().finalizeInit(item)
         # TODO make any final modifications after channels have been initialized.
         _id = self.getParameterByName(self.ID)
         print(_id.getWidget())
-        
+
     def enabledChanged(self):
         super().enabledChanged()
         # TODO add any custom code that is needed when a channel is enabled or disabled
@@ -129,7 +134,7 @@ class CustomChannel(Channel):
         super().realChanged()
 
     def updateColor(self):
-        color = super().updateColor()
+        color = super().updateColor()  # noqa: F841
         # TODO implement any custom reaction to color changes
 
     def appendValue(self, lenT, nan=False):
@@ -172,8 +177,8 @@ class CustomController(DeviceController):
                 self.initializing = False
 
     def initComplete(self):
-        # TODO any custom code here. This is the first time the comminication is established and you might want to configure the hardware, and turn power supplies on at this point.
         super().initComplete()
+        # TODO any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
 
     def startAcquisition(self):
         if True: # TODO add custom condition for acquisition

@@ -19,12 +19,15 @@ class CustomControl(Plugin):
 
     name = 'CustomControl'
     version = '1.0'
+    supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.CONTROL
-    previewFileTypes = []
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.icon = self.makeIcon('cookie.png')
+        # TODO initialize any custom variables
+
+    def getIcon(self):
+        return self.makeIcon('cookie.png')
 
     def initGUI(self):
         """Initialize your custom user interface"""

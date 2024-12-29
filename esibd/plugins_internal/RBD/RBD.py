@@ -83,7 +83,7 @@ class Current(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.addAction(event=self.resetCharge, toolTip='Reset accumulated charge.', icon='battery-empty.png')
+        self.addAction(event=lambda: self.resetCharge(), toolTip='Reset accumulated charge.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
         """ Define device specific settings that will be added to the general settings tab.
@@ -127,13 +127,12 @@ class CurrentChannel(Channel):
         channel[self.DEVICENAME ] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
         channel[self.RANGE      ] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
-                                        event=self.updateRange, toolTip='Sample range. Defines resolution.')
+                                        event=lambda: self.updateRange(), toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE    ] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
-                                        event=self.updateAverage, toolTip='Running average on hardware side.')
+                                        event=lambda: self.updateAverage(), toolTip='Running average on hardware side.')
         channel[self.BIAS       ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
-                                        toolTip='Apply internal bias.', attr='bias',
-                                        event=self.updateBias)
+                                        toolTip='Apply internal bias.', attr='bias', event=lambda: self.updateBias())
         channel[self.OUTOFRANGE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
         channel[self.UNSTABLE   ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
@@ -169,7 +168,7 @@ class CurrentChannel(Channel):
         # this does not only monitor the deposition sample but also on what lenses charge is lost
         # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT, nan=nan)
-        if not nan and not self.value == np.inf:
+        if not nan and not self.value == np.nan and not self.value == np.inf:
             chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
@@ -189,7 +188,7 @@ class CurrentChannel(Channel):
         self.getParameterByName(self.AVERAGE).getWidget().setVisible(self.real)
         self.getParameterByName(self.BIAS).getWidget().setVisible(self.real)
         self.getParameterByName(self.OUTOFRANGE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)        
+        self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)
         if self.device.recording:
             self.controller.initializeCommunication()
         super().realChanged()
@@ -250,7 +249,7 @@ class CurrentController(DeviceController):
         if getTestMode():
             time.sleep(2)
             self.signalComm.initCompleteSignal.emit()
-            self.print(f'{self.channel.devicename} faking values for testing!', PRINT.WARNING)
+            self.print('Faking values for testing!', PRINT.WARNING)
         else:
             self.initializing = True
             try:
@@ -287,7 +286,7 @@ class CurrentController(DeviceController):
     def runAcquisition(self, acquiring):
         if not getTestMode():
             self.RBDWriteRead(message=f'I{self.channel.getDevice().interval:04d}') # start sampling with given interval (implement high speed communication if available)
-        while acquiring():            
+        while acquiring():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.channel.devicename}.') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
@@ -381,11 +380,11 @@ class CurrentController(DeviceController):
                 return
             parsed = self.parse_message_for_sample(msg)
             if any (sym in parsed for sym in ['<','>']):
-                self.signalComm.updateValueSignal.emit(0, True, False, f'{self.channel.devicename}: {parsed}')
+                self.signalComm.updateValueSignal.emit(0, True, False, parsed)
             elif '*' in parsed:
-                self.signalComm.updateValueSignal.emit(0, False, True, f'{self.channel.devicename}: {parsed}')
+                self.signalComm.updateValueSignal.emit(0, False, True, parsed)
             elif parsed == '':
-                self.signalComm.updateValueSignal.emit(0, False, False, f'{self.channel.devicename}: got empty message')
+                self.signalComm.updateValueSignal.emit(0, False, False, 'got empty message')
             else:
                 self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False, '')
 
@@ -402,7 +401,7 @@ class CurrentController(DeviceController):
             _, _, x, unit = parsed.split(',')
             x=float(x)
         except ValueError as e:
-            self.print(f'{self.channel.devicename}: Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
+            self.print(f'Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
             return self.channel.value # keep last valid value
         match unit:
             case 'mA':
@@ -414,7 +413,7 @@ class CurrentController(DeviceController):
             case 'pA':
                 return x*1
             case _:
-                self.print(f'{self.channel.devicename}: Error: No handler for unit {unit} implemented!', PRINT.ERROR)
+                self.print(f'Error: No handler for unit {unit} implemented!', PRINT.ERROR)
                 return self.channel.value # keep last valid value
                 #raise ValueError(f'No handler for unit {u} implemented!')
 
