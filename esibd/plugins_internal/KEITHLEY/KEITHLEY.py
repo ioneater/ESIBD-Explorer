@@ -27,7 +27,7 @@ class Current(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='KEITHLEY on.', iconFalse=self.makeIcon('keithley_off.png'),
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='KEITHLEY on.', iconFalse=self.makeIcon('keithley_off.png'),
                                                                   toolTipTrue='KEITHLEY off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
@@ -55,14 +55,15 @@ class Current(Device):
             channel.resetCharge()
 
     def closeCommunication(self):
+        self.setOn(False)
         for channel in self.channels:
-            channel.controller.voltageON(on=False, parallel=False)
+            channel.controller.voltageON(parallel=False)
         super().closeCommunication()
 
     def voltageON(self):
         if self.initialized():
             for channel in self.channels:
-                channel.controller.voltageON(self.isOn())
+                channel.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
 
@@ -110,11 +111,8 @@ class CurrentChannel(Channel):
                 self.controller.stopAcquisition()
 
     def appendValue(self, lenT, nan=False):
-        # calculate deposited charge in last time step for all channels
-        # this does not only monitor the deposition sample but also on what lenses charge is lost
-        # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT, nan=nan)
-        if not nan and not self.value == np.nan and not self.value == np.inf:
+        if not nan and not np.isnan(self.value) and not np.isinf(self.value):
             chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
@@ -184,7 +182,7 @@ class CurrentController(DeviceController):
 
     def initComplete(self):
         super().initComplete()
-        self.voltageON(self.device.isOn())
+        self.voltageON()
 
     def startAcquisition(self):
         if self.channel.active:
@@ -209,16 +207,16 @@ class CurrentController(DeviceController):
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
 
-    def voltageON(self, on=False, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             self.applyVoltage() # apply voltages before turning power supply on or off
             if parallel:
-                Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
+                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
-                self.voltageONFromThread(on=on)
+                self.voltageONFromThread()
 
-    def voltageONFromThread(self, on=False):
-        self.port.write(f"SOUR:VOLT:STAT {'ON' if on else 'OFF'}")
+    def voltageONFromThread(self):
+        self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeSingleNum(self):
         if not self.channel.device.pluginManager.closing:

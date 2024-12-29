@@ -165,10 +165,10 @@ class CurrentChannel(Channel):
 
     def appendValue(self, lenT, nan=False):
         # calculate deposited charge in last time step for all channels
-        # this does not only monitor the deposition sample but also on what lenses charge is lost
+        # this does not only measure the deposition current but also on what lenses current is lost
         # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT, nan=nan)
-        if not nan and not self.value == np.nan and not self.value == np.inf:
+        if not nan and not np.isnan(self.value) and not np.isinf(self.value):
             chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically

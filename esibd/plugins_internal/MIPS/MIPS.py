@@ -4,7 +4,6 @@ from threading import Thread
 import time
 from random import choices
 import numpy as np
-from PyQt6.QtCore import pyqtSignal
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
@@ -21,6 +20,7 @@ class MIPS(Device):
     supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
+    useMonitors = True
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -33,7 +33,7 @@ class MIPS(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='MIPS on.', iconFalse=self.makeIcon('mips_off.png'),
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='MIPS on.', iconFalse=self.makeIcon('mips_off.png'),
                                                                   toolTipTrue='MIPS off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
@@ -52,7 +52,8 @@ class MIPS(Device):
         return list(set([channel.com for channel in self.channels]))
 
     def closeCommunication(self):
-        self.controller.voltageON(on=False, parallel=False)
+        self.setOn(False)
+        self.controller.voltageON(parallel=False)
         super().closeCommunication()
 
     def applyValues(self, apply=False):
@@ -62,7 +63,7 @@ class MIPS(Device):
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.isOn())
+            self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
 
@@ -74,8 +75,6 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
-        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, advanced=True, attr='com')
         channel[self.ID      ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
@@ -84,12 +83,8 @@ class VoltageChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
         self.displayedParameters.append(self.COM)
         self.displayedParameters.append(self.ID)
-
-    def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR]
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
@@ -97,6 +92,7 @@ class VoltageChannel(Channel):
             self.lastAppliedValue = self.value
 
     def monitorChanged(self):
+        # overwriting super().monitorChanged() to set 0 as expected value when device is off
         if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
                                                                     or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
@@ -104,30 +100,16 @@ class VoltageChannel(Channel):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
 
     def realChanged(self):
-        self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         self.getParameterByName(self.COM).getWidget().setVisible(self.real)
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
         super().realChanged()
 
-    def appendValue(self, lenT, nan=False):
-        # super().appendValue() # overwrite to use monitors if available
-        if nan:
-            self.monitor=np.nan
-        if self.enabled and self.real:
-            self.values.add(self.monitor, lenT)
-        else:
-            self.values.add(self.value, lenT)
-
 class VoltageController(DeviceController):
-
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        applyMonitorsSignal= pyqtSignal()
 
     def __init__(self, _parent, COMs):
         super().__init__(_parent=_parent)
         # TODO need both COMs and ports?
         self.COMs       = COMs or ['COM1']
-        self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.ports          = [None]*len(self.COMs)
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
@@ -152,7 +134,7 @@ class VoltageController(DeviceController):
         super().initComplete()
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.device.isOn())
+        self.voltageON()
 
     def closeCommunication(self):
         for i, COM in enumerate(self.COMs):
@@ -170,28 +152,28 @@ class VoltageController(DeviceController):
         if not getTestMode() and self.initialized:
             self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
 
-    def applyMonitors(self):
+    def updateValue(self):
         if getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
         else:
             for channel in self.device.channels:
                 if channel.real:
                     channel.monitor = self.voltages[self.COMs.index(channel.com)][channel.id-1]
 
-    def voltageON(self, on=False, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             if parallel:
-                Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
+                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
-                self.voltageONFromThread(on=on) # use to make sure this is completed before closing connection
+                self.voltageONFromThread() # use to make sure this is completed before closing connection
         elif getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
 
-    def voltageONFromThread(self, on=False):
+    def voltageONFromThread(self):
         for channel in self.device.channels:
             self.applyVoltageFromThread(channel)
 
-    def fakeMonitors(self):
+    def fakeNumbers(self):
         for channel in self.device.channels:
             if channel.real:
                 if self.device.isOn() and channel.enabled:
@@ -212,7 +194,7 @@ class VoltageController(DeviceController):
                                     self.voltages[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=lock_acquired))
                                 except ValueError:
                                     self.voltages[i][ID] = np.nan
-                    self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
+                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def MIPSWrite(self, COM, message):

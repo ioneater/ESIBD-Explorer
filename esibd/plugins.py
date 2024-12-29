@@ -1493,7 +1493,6 @@ class ChannelManager(Plugin):
     pluginType = PluginManager.TYPE.CONTROL  # overwrite after inheriting
     previewFileTypes = []
     optional = False
-    useDisplays = True
 
     class SignalCommunicate(Plugin.SignalCommunicate): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
@@ -1520,6 +1519,10 @@ class ChannelManager(Plugin):
     """Internal plugin to display data in real time."""
     useBackgrounds : bool = False
     """If True, the device implements controls to define and subtract background signals."""
+    useDisplays = True
+    """use liveDisplay, StaticDisplay, ChannelPlot, and all related functionality."""
+    useMonitors = False
+    """Use record monitors and compare them to set points."""
 
     class ChannelPlot(Plugin):
         """Simplified version of the Line plugin for plotting channels."""
@@ -2563,10 +2566,12 @@ class Device(ChannelManager):
     def toggleRecording(self, on=None, manual=False):
         """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""
         if (on is not None and not on) or (on is None and self.recording):
+            # Turn off if not already off
             if self.recording:
                 self.recording = False
                 self.pluginManager.DeviceManager.stopScans()
         else: # (on is not None and on) (on is None and not self.recording):
+            # Turn on if not already on
             if not self.recording:
                 self.clearPlot()
                 if not self.initialized():
@@ -4579,18 +4584,15 @@ class DeviceManager(Plugin):
     @synchronized()
     def toggleRecording(self):
         """Toggle recording of data."""
-        if self.recording:
-            self.stopRecording()
-        else:
-            # check for duplicate channel names before starting all devices. Note that the same name can occur once as and input and once as an output.
-            for inout, put in zip([INOUT.IN, INOUT.OUT],['input','output']):
-                seen = set()
-                dupes = [x for x in [channel.name for channel in self.channels(inout=inout)] if x in seen or seen.add(x)]
-                if len(dupes) > 0:
-                    self.print(f"The following {put} channel names have been used more than once: {', '.join(dupes)}", PRINT.WARNING)
-            for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
-                plugin.toggleRecording(on=True, manual=False)
-            self.recording = True
+        # Check for duplicate channel names before starting all devices.
+        # Note that the same name can occur once as and input and once as an output even though this is discouraged.
+        for inout, put in zip([INOUT.IN, INOUT.OUT],['input','output']):
+            seen = set()
+            dupes = [x for x in [channel.name for channel in self.channels(inout=inout)] if x in seen or seen.add(x)]
+            if len(dupes) > 0:
+                self.print(f"The following {put} channel names have been used more than once: {', '.join(dupes)}", PRINT.WARNING)
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+            plugin.toggleRecording(on=self.recordingAction.state, manual=False)
 
     def close(self):
         """:meta private:"""
@@ -5176,6 +5178,7 @@ class UCM(ChannelManager):
     optional = True
     inout = INOUT.NONE
     maxDataPoints = 0 # UCM channels do not store data
+    useMonitors = True
 
     class UCMChannel(Channel):
         """Minimal UI for abstract channel."""
@@ -5255,7 +5258,7 @@ class UCM(ChannelManager):
                     self.unit = self.sourceChannel.unit
                 else:
                     self.unit = ''
-                if self.MONITOR in self.sourceChannel.displayedParameters:
+                if self.sourceChannel.useMonitors:
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(self.sourceChannel.real)
@@ -5267,7 +5270,7 @@ class UCM(ChannelManager):
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
-                if self.MONITOR in self.sourceChannel.displayedParameters:
+                if self.sourceChannel.useMonitors:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
             self.updateColor()
 
@@ -5287,6 +5290,9 @@ class UCM(ChannelManager):
                 except RuntimeError:
                     self.removeEvents()
 
+        def monitorChanged(self):
+            pass
+
         def relayMonitorEvent(self):
             if self.sourceChannel is not None:
                 try:
@@ -5298,7 +5304,7 @@ class UCM(ChannelManager):
         def getSourceChannelValue(self):
             if self.sourceChannel is not None:
                 self.value = self.sourceChannel.value
-                if self.MONITOR in self.sourceChannel.displayedParameters:
+                if self.sourceChannel.useMonitors:
                     self.monitor = self.sourceChannel.monitor
 
         def onDelete(self):
@@ -5311,7 +5317,7 @@ class UCM(ChannelManager):
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
-                if self.MONITOR in self.sourceChannel.displayedParameters:
+                if self.sourceChannel.useMonitors:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
 
         def getDefaultChannel(self):
@@ -5327,7 +5333,6 @@ class UCM(ChannelManager):
             channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
-            channel[self.MONITOR] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='monitor', indicator=True)
             channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='unit', header='Unit   ', indicator=True)
             channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
             channel[self.NAME][Parameter.EVENT] = self.connectSource
@@ -5343,13 +5348,12 @@ class UCM(ChannelManager):
             self.displayedParameters.remove(self.LINEWIDTH)
             self.displayedParameters.remove(self.LINESTYLE)
             self.displayedParameters.remove(self.COLOR)
-            self.displayedParameters.append(self.MONITOR)
             self.displayedParameters.append(self.NOTES)
             self.insertDisplayedParameter(self.DEVICE, self.NAME)
             self.insertDisplayedParameter(self.UNIT, self.NOTES)
 
         def tempParameters(self):
-            return super().tempParameters() + [self.VALUE, self.MONITOR, self.NOTES, self.DEVICE, self.UNIT]
+            return super().tempParameters() + [self.VALUE, self.NOTES, self.DEVICE, self.UNIT]
 
         def initGUI(self, item):
             super().initGUI(item)
@@ -5483,7 +5487,7 @@ class PID(ChannelManager):
                 self.getValues = self.outputChannel.getValues
             if self.outputChannel is None or self.inputChannel is None:
                 return
-            if self.MONITOR in self.outputChannel.displayedParameters:
+            if self.outputChannel.useMonitors:
                 self.outputChannel.getParameterByName(self.MONITOR).extraEvents.append(self.stepPID)
             else:
                 self.outputChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
@@ -5530,7 +5534,7 @@ class PID(ChannelManager):
             if self.outputChannel is not None:
                 if self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
                     self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
-                if self.MONITOR in self.outputChannel.displayedParameters and self.stepPID in self.outputChannel.getParameterByName(self.MONITOR).extraEvents:
+                if self.outputChannel.useMonitors and self.stepPID in self.outputChannel.getParameterByName(self.MONITOR).extraEvents:
                     self.outputChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.stepPID)
 
         def getDefaultChannel(self):

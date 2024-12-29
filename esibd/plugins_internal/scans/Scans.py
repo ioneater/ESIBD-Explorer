@@ -911,7 +911,6 @@ plt.show()
         """ # similar to staticDisplay
 
     def run(self, recording):
-        """Monitor deposition and log data."""
         if self.interactive:
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
@@ -1200,7 +1199,6 @@ plt.show()
         return tm
 
     def run(self, recording):
-        """Monitor deposition and log data."""
         while recording():
             time.sleep(self.interval/1000)
             self.inputs[0].data.add(time.time())

@@ -4,7 +4,6 @@ from threading import Thread
 import time
 from random import choices
 import numpy as np
-from PyQt6.QtCore import pyqtSignal
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
 
@@ -22,6 +21,7 @@ class Voltage(Device):
     version = '1.1'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
+    useMonitors = True
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -58,7 +58,8 @@ class Voltage(Device):
 
     def closeCommunication(self):
         """:meta private:"""
-        self.controller.voltageON(on=False, parallel=False)
+        self.setOn(False)
+        self.controller.voltageON(parallel=False)
         super().closeCommunication()
 
     def applyValues(self, apply=False):
@@ -68,7 +69,7 @@ class Voltage(Device):
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning modules on or off
-            self.controller.voltageON(self.isOn())
+            self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
 
@@ -86,8 +87,6 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
-        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.MODULE  ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
                                     header='Mod', _min=0, _max=99, attr='module')
         channel[self.ID      ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
@@ -96,42 +95,32 @@ class VoltageChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
         self.displayedParameters.append(self.MODULE)
         self.displayedParameters.append(self.ID)
-
-    def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR]
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
 
+    def monitorChanged(self):
+        # overwriting super().monitorChanged() to set 0 as expected value when device is off
+        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
+            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
+        else:
+            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
+
     def realChanged(self):
-        self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         self.getParameterByName(self.MODULE).getWidget().setVisible(self.real)
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
         super().realChanged()
 
-    def appendValue(self, lenT, nan=False):
-        # super().appendValue() # overwrite to use monitors
-        if nan:
-            self.monitor=np.nan
-        if self.enabled and self.real:
-            self.values.add(self.monitor, lenT)
-        else:
-            self.values.add(self.value, lenT)
-
 class VoltageController(DeviceController):
-
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        applyMonitorsSignal= pyqtSignal()
 
     def __init__(self, _parent, modules):
         super().__init__(_parent=_parent)
         self.modules    = modules or [0]
-        self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.socket     = None
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
@@ -156,7 +145,7 @@ class VoltageController(DeviceController):
         super().initComplete()
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning modules on or off
-        self.voltageON(self.device.isOn())
+        self.voltageON()
 
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -165,28 +154,28 @@ class VoltageController(DeviceController):
     def applyVoltageFromThread(self, channel):
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
-    def applyMonitors(self):
+    def updateValue(self):
         if getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
         else:
             for channel in self.device.getChannels():
                 if channel.real:
                     channel.monitor = self.voltages[channel.module][channel.id]
 
-    def voltageON(self, on=False, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             if parallel:
-                Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
+                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
-                self.voltageONFromThread(on=on)
+                self.voltageONFromThread()
         elif getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
 
-    def voltageONFromThread(self, on=False):
+    def voltageONFromThread(self):
         for module in self.modules:
-            self.ISEGWriteRead(message=f":VOLT {'ON' if on else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
+            self.ISEGWriteRead(message=f":VOLT {'ON' if self.device.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
 
-    def fakeMonitors(self):
+    def fakeNumbers(self):
         for channel in self.device.getChannels():
             if channel.real:
                 if self.device.isOn() and channel.enabled:
@@ -208,8 +197,8 @@ class VoltageController(DeviceController):
                                     # fill up to self.maxID to handle all modules the same independent of the number of channels.
                                     self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
                                 except (ValueError, TypeError) as e:
-                                    self.print(f'Monitor parsing error: {e} for {res}.')
-                self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
+                                    self.print(f'Parsing error: {e} for {res}.')
+                self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def ISEGWrite(self, message):

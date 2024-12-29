@@ -80,13 +80,8 @@ class PressureController(DeviceController):
             self.initializing = True
             try:
                 self.port=serial.Serial(
-                    f'{self.device.COM}',
-                    baudrate=9600,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=True,
-                    timeout=2)
+                    f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
                 TICStatus = self.TICWriteRead(message=902)
                 self.print(f"TIC Status: {TICStatus}") # query status
                 if TICStatus == '':
@@ -100,10 +95,7 @@ class PressureController(DeviceController):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 

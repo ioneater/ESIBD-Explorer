@@ -3,7 +3,7 @@ import time
 from threading import Thread
 import serial
 import numpy as np
-from PyQt6.QtWidgets import QMessageBox, QApplication
+from PyQt6.QtWidgets import QMessageBox
 from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
@@ -19,6 +19,7 @@ class Temperature(Device):
     version = '1.0'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'K'
+    useMonitors = True
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -27,7 +28,7 @@ class Temperature(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
+        self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
     def finalizeInit(self, aboutFunc=None):
@@ -104,29 +105,11 @@ class TemperatureChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
-        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    event=self.monitorChanged, indicator=True, attr='monitor')
         return channel
-
-    def setDisplayedParameters(self):
-        super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
-
-    def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR]
 
     def applyTemperature(self): # this actually sets the temperature on the controller!
         if self.real:
             self.device.controller.applyTemperature(self)
-
-    def appendValue(self, lenT, nan=False):
-        # super().appendValue() # overwrite to use monitors
-        if nan:
-            self.monitor = np.nan
-        if self.enabled and self.real:
-            self.values.add(self.monitor, lenT)
-        else:
-            self.values.add(self.value, lenT)
 
 class TemperatureController(DeviceController):
 
@@ -176,10 +159,7 @@ class TemperatureController(DeviceController):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 

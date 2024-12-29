@@ -90,10 +90,7 @@ class PressureController(DeviceController):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 

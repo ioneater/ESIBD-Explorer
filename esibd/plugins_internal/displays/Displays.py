@@ -9,7 +9,7 @@ from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt
-from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, synchronized
+from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
 from esibd.plugins import Plugin
 
 def providePlugins():

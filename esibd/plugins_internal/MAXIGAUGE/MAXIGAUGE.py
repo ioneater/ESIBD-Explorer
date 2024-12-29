@@ -74,14 +74,8 @@ class PressureController(DeviceController):
         else:
             self.initializing = True
             try:
-                self.port=serial.Serial(
-                    f'{self.device.COM}',
-                    baudrate=9600,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=False,
-                    timeout=2)
+                self.port=serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                                        parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
                 TPGStatus = self.TPGWriteRead(message='TID')
                 self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
                 if TPGStatus == '':
@@ -89,16 +83,13 @@ class PressureController(DeviceController):
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except]
                 self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
-            self.initializing = False 
+            self.initializing = False
 
     def runAcquisition(self, acquiring):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 

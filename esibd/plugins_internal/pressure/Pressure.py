@@ -103,13 +103,8 @@ class PressureController(DeviceController):
             self.initializing = True
             try:
                 self.ticPort=serial.Serial(
-                    f'{self.device.TICCOM}',
-                    baudrate=9600,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=True,
-                    timeout=2)
+                    f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
                 TICStatus = self.TICWriteRead(message=902)
                 self.print(f"TIC Status: {TICStatus}") # query status
                 if TICStatus == '':
@@ -119,13 +114,8 @@ class PressureController(DeviceController):
                 self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
             try:
                 self.tpgPort=serial.Serial(
-                    f'{self.device.TPGCOM}',
-                    baudrate=9600,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=False,
-                    timeout=2)
+                    f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
                 TPGStatus = self.TPGWriteRead(message='TID')
                 self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
                 if TPGStatus == '':
@@ -141,10 +131,7 @@ class PressureController(DeviceController):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000)
 

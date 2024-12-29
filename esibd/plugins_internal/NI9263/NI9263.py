@@ -9,8 +9,7 @@ def providePlugins():
     return [NI9263]
 
 class NI9263(Device):
-    """Device that contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each.
-    There are no monitors to verify the applied voltages."""
+    """Device that contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each."""
     documentation = None # use __doc__
 
     name = 'NI9263'
@@ -39,7 +38,8 @@ class NI9263(Device):
         return self.makeIcon('NI9263.png')
 
     def closeCommunication(self):
-        self.controller.voltageON(on=False, parallel=False)
+        self.setOn(False)
+        self.controller.voltageON(parallel=False)
         super().closeCommunication()
 
     def applyValues(self, apply=False):
@@ -49,7 +49,7 @@ class NI9263(Device):
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.isOn())
+            self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
 
@@ -100,7 +100,7 @@ class VoltageController(DeviceController):
         super().initComplete()
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.device.isOn())
+        self.voltageON()
 
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -113,14 +113,14 @@ class VoltageController(DeviceController):
                     task.ao_channels.add_ao_voltage_chan(channel.address)
                     task.write(channel.value if (channel.enabled and self.device.isOn()) else 0)
 
-    def voltageON(self, on=False, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             if parallel:
-                Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
+                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
-                self.voltageONFromThread(on=on)
+                self.voltageONFromThread()
 
-    def voltageONFromThread(self, on=False):
+    def voltageONFromThread(self):
         for channel in self.device.channels:
             if channel.real:
                 self.applyVoltageFromThread(channel)

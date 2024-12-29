@@ -3,7 +3,6 @@ from threading import Thread
 import time
 from random import choices
 import numpy as np
-from PyQt6.QtCore import pyqtSignal
 import pyvisa
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
@@ -21,6 +20,7 @@ class RSPD3303C(Device):
     supportedVersion = '0.6'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
+    useMonitors = True
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -33,7 +33,7 @@ class RSPD3303C(Device):
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=self.voltageON, toolTipFalse='RSPD3303C on.', iconFalse=self.makeIcon('RSPD3303C_off.png'),
+        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='RSPD3303C on.', iconFalse=self.makeIcon('RSPD3303C_off.png'),
                                                                   toolTipTrue='RSPD3303C off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
@@ -53,7 +53,8 @@ class RSPD3303C(Device):
 
     def closeCommunication(self):
         """:meta private:"""
-        self.controller.voltageON(on=False, parallel=False)
+        self.setOn(False)
+        self.controller.voltageON(parallel=False)
         super().closeCommunication()
 
     def applyValues(self, apply=False):
@@ -63,7 +64,7 @@ class RSPD3303C(Device):
     def voltageON(self):
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON(self.isOn())
+            self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
 
@@ -78,8 +79,6 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
         channel[self.MIN ][Parameter.VALUE] = 0
         channel[self.MAX ][Parameter.VALUE] = 1 # start with safe limits
-        channel[self.MONITOR ] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    event=self.monitorChanged, indicator=True, attr='monitor')
         channel[self.POWER ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                                                indicator=True, attr='power')
         channel[self.CURRENT ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=True,
@@ -90,13 +89,12 @@ class VoltageChannel(Channel):
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
-        self.insertDisplayedParameter(self.MONITOR, before=self.MIN)
         self.insertDisplayedParameter(self.CURRENT, before=self.MIN)
         self.insertDisplayedParameter(self.POWER, before=self.MIN)
         self.displayedParameters.append(self.ID)
 
     def tempParameters(self):
-        return super().tempParameters() + [self.MONITOR, self.POWER, self.CURRENT]
+        return super().tempParameters() + [self.POWER, self.CURRENT]
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
         if self.real and ((self.value != self.lastAppliedValue) or apply):
@@ -104,7 +102,7 @@ class VoltageChannel(Channel):
             self.lastAppliedValue = self.value
 
     def monitorChanged(self):
-        # overwriting super().monitorChanged()
+        # overwriting super().monitorChanged() to set 0 as expected value when device is off
         if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
                                                                     or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
@@ -112,29 +110,15 @@ class VoltageChannel(Channel):
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
 
     def realChanged(self):
-        self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         self.getParameterByName(self.POWER).getWidget().setVisible(self.real)
         self.getParameterByName(self.CURRENT).getWidget().setVisible(self.real)
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
         super().realChanged()
 
-    def appendValue(self, lenT, nan=False):
-        # super().appendValue() # overwrite to use monitors if available
-        if nan:
-            self.monitor=np.nan
-        if self.enabled and self.real:
-            self.values.add(self.monitor, lenT)
-        else:
-            self.values.add(self.value, lenT)
-
 class VoltageController(DeviceController):
-
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        applyMonitorsSignal= pyqtSignal()
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        self.signalComm.applyMonitorsSignal.connect(self.applyMonitors)
         self.voltages   = [np.nan]*len(self.device.channels)
         self.currents   = [np.nan]*len(self.device.channels)
 
@@ -160,7 +144,7 @@ class VoltageController(DeviceController):
         super().initComplete()
         if self.device.isOn():
             self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON(self.device.isOn())
+        self.voltageON()
 
     def applyVoltage(self, channel):
         if not getTestMode() and self.initialized:
@@ -169,9 +153,9 @@ class VoltageController(DeviceController):
     def applyVoltageFromThread(self, channel):
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value}')
 
-    def applyMonitors(self):
+    def updateValue(self):
         if getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
         else:
             for i, channel in enumerate(self.device.channels):
                 if channel.real:
@@ -179,20 +163,20 @@ class VoltageController(DeviceController):
                     channel.current = self.currents[i]
                     channel.power = channel.monitor*channel.current
 
-    def voltageON(self, on=False, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True): # this can run in main thread
         if not getTestMode() and self.initialized:
             if parallel:
-                Thread(target=self.voltageONFromThread, args=(on,), name=f'{self.device.name} voltageONFromThreadThread').start()
+                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
             else:
-                self.voltageONFromThread(on=on)
+                self.voltageONFromThread()
         elif getTestMode():
-            self.fakeMonitors()
+            self.fakeNumbers()
 
-    def voltageONFromThread(self, on=False):
+    def voltageONFromThread(self):
         for channel in self.device.channels:
-            self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if on else 'OFF'}")
+            self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
 
-    def fakeMonitors(self):
+    def fakeNumbers(self):
         for channel in self.device.channels:
             if channel.real:
                 if self.device.isOn() and channel.enabled:
@@ -211,7 +195,7 @@ class VoltageController(DeviceController):
                         for i, channel in enumerate(self.device.channels):
                             self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
                             self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=lock_acquired)
-                    self.signalComm.applyMonitorsSignal.emit() # signal main thread to update GUI
+                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def RSWrite(self, message):

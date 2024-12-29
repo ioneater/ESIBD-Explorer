@@ -1460,6 +1460,8 @@ class Channel(QTreeWidgetItem):
         self.print = device.print
         self.convertDataDisplay = self.device.convertDataDisplay
         self.useDisplays = self.device.useDisplays
+        self.useBackgrounds = self.device.useBackgrounds
+        self.useMonitors = self.device.useMonitors
         if hasattr(self.device, 'logY'):
             self.logY = self.device.logY
         self.tree = tree # may be None for internal default channels
@@ -1553,6 +1555,9 @@ class Channel(QTreeWidgetItem):
                                     event=lambda: self.enabledChanged(), attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name')
         channel[self.VALUE   ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='Unit', attr='value')
+        if self.useMonitors:
+            channel[self.MONITOR] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+                                                  event=lambda: self.monitorChanged(), attr='monitor', indicator=True)
         if self.inout == INOUT.IN:
             channel[self.VALUE][Parameter.EVENT] = lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
         elif self.inout == INOUT.OUT:
@@ -1623,6 +1628,8 @@ class Channel(QTreeWidgetItem):
         else:
             self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION,
                                     self.ACTIVE, self.REAL, self.COLOR]
+        if self.useMonitors:
+            self.displayedParameters.insert(self.displayedParameters.index(self.VALUE)+1, self.MONITOR)
         if self.inout == INOUT.IN:
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
@@ -1632,13 +1639,14 @@ class Channel(QTreeWidgetItem):
 
     def tempParameters(self):
         """List of parameters, such as live signal or status, that will not be saved and restored."""
+        tempParameters = []
         if self.inout == INOUT.OUT:
-            if self.device.useBackgrounds:
-                return [self.VALUE, self.BACKGROUND]
-            else:
-                return [self.VALUE]
-        else:
-            return []
+            tempParameters.append(self.VALUE)
+        if self.useBackgrounds:
+            tempParameters.append(self.BACKGROUND)
+        if self.useMonitors:
+            tempParameters.append(self.MONITOR)
+        return tempParameters
 
     def getParameterByName(self, name):
         parameter = next((parameter for parameter in self.parameters if parameter.name.strip().lower() == name.strip().lower()), None)
@@ -1686,11 +1694,13 @@ class Channel(QTreeWidgetItem):
         if nan:
             if self.inout == INOUT.OUT:
                 self.value=np.nan # keep user defined value for input devices, leave undefined until output device provides value
+            if self.useMonitors:
+                self.monitor = np.nan
             self.values.add(x=np.nan, lenT=lenT)
         else:
-            self.values.add(x=self.value, lenT=lenT)
+            self.values.add(x=self.monitor if (self.useMonitors and self.enabled and self.real) else self.value, lenT=lenT)
         if self.device.useBackgrounds:
-            self.backgrounds.add(self.background, lenT)
+            self.backgrounds.add(x=self.background, lenT=lenT)
 
     def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None): # pylint: disable = unused-argument # use consistent arguments for all versions of getValues
         """Returns plain Numpy array of values.
@@ -1760,6 +1770,8 @@ class Channel(QTreeWidgetItem):
 
     def realChanged(self):
         self.getParameterByName(self.ENABLED).getWidget().setVisible(self.real)
+        if self.useMonitors:
+            self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         if not self.device.loading:
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
@@ -1782,7 +1794,7 @@ class Channel(QTreeWidgetItem):
 
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
-        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)):
+        if self.enabled and self.device.controller.acquiring and self.getDevice().isOn() and abs(self.monitor - self.value) > 1:
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
         else:
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
