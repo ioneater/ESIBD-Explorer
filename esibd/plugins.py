@@ -5262,17 +5262,24 @@ class UCM(ChannelManager):
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(self.sourceChannel.real)
+                elif self.sourceChannel.inout == INOUT.OUT:
+                    self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
+                    self.getParameterByName(self.MONITOR).applyWidget()
+                    self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
                 else:
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
 
-                self.getSourceChannelValue()
+                self.getSourceChannelValues()
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
+                if self.sourceChannel.useMonitors:
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
-                if self.sourceChannel.useMonitors:
-                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
+            self.getParameterByName(self.DEVICE).setHeight()
             self.updateColor()
+
+            self.scalingChanged()
 
         def setSourceChannelValue(self):
             if self.sourceChannel is not None:
@@ -5286,12 +5293,12 @@ class UCM(ChannelManager):
         def relayValueEvent(self):
             if self.sourceChannel is not None:
                 try:
-                    self.value = self.sourceChannel.value
+                    if self.sourceChannel.inout == INOUT.OUT:
+                        self.monitor = self.sourceChannel.value
+                    else:
+                        self.value = self.sourceChannel.value
                 except RuntimeError:
                     self.removeEvents()
-
-        def monitorChanged(self):
-            pass
 
         def relayMonitorEvent(self):
             if self.sourceChannel is not None:
@@ -5301,11 +5308,17 @@ class UCM(ChannelManager):
                 except RuntimeError:
                     self.removeEvents()
 
-        def getSourceChannelValue(self):
+        def monitorChanged(self):
+            pass
+
+        def getSourceChannelValues(self):
             if self.sourceChannel is not None:
-                self.value = self.sourceChannel.value
-                if self.sourceChannel.useMonitors:
-                    self.monitor = self.sourceChannel.monitor
+                if self.sourceChannel.inout == INOUT.OUT:
+                    self.monitor = self.sourceChannel.value
+                else:
+                    self.value = self.sourceChannel.value
+                    if self.sourceChannel.useMonitors:
+                        self.monitor = self.sourceChannel.monitor
 
         def onDelete(self):
             super().onDelete()
@@ -5314,11 +5327,11 @@ class UCM(ChannelManager):
         def removeEvents(self):
             if self.sourceChannel is not None:
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
+                if self.sourceChannel.useMonitors:
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
-                if self.sourceChannel.useMonitors:
-                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -5329,8 +5342,9 @@ class UCM(ChannelManager):
             channel.pop(Channel.LINEWIDTH)
             channel.pop(Channel.LINESTYLE)
             channel.pop(Channel.COLOR)
-            channel[self.VALUE][Parameter.HEADER] = 'Value     ' # channels can have different types of parameters and units
+            channel[self.VALUE][Parameter.HEADER]   = 'SetValue ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
+            channel[self.MONITOR][Parameter.HEADER] = 'ReadValue' # channels can have different types of parameters and units
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
             channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='unit', header='Unit   ', indicator=True)
@@ -5350,7 +5364,7 @@ class UCM(ChannelManager):
             self.displayedParameters.remove(self.COLOR)
             self.displayedParameters.append(self.NOTES)
             self.insertDisplayedParameter(self.DEVICE, self.NAME)
-            self.insertDisplayedParameter(self.UNIT, self.NOTES)
+            self.insertDisplayedParameter(self.UNIT, self.DISPLAY)
 
         def tempParameters(self):
             return super().tempParameters() + [self.VALUE, self.NOTES, self.DEVICE, self.UNIT]
@@ -5511,7 +5525,7 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
-            if self.active and self.device.isOn():
+            if self.active and self.getDevice().isOn():
                 self.inputChannel.value = self.pid(self.outputChannel.value)
 
         def updateSetpoint(self):
@@ -5573,16 +5587,16 @@ class PID(ChannelManager):
             self.displayedParameters.remove(self.REAL)
             self.displayedParameters.remove(self.COLOR)
             self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
-            self.displayedParameters.append(self.UNIT)
-            self.displayedParameters.append(self.OUTPUTDEVICE)
-            self.displayedParameters.append(self.OUTPUT)
-            self.displayedParameters.append(self.INPUTDEVICE)
-            self.displayedParameters.append(self.INPUT)
-            self.displayedParameters.append(self.PROPORTIONAL)
-            self.displayedParameters.append(self.INTEGRAL)
-            self.displayedParameters.append(self.DERIVATIVE)
-            self.displayedParameters.append(self.SAMPLETIME)
-            self.displayedParameters.append(self.NOTES)
+            self.insertDisplayedParameter(self.UNIT, before=self.SCALING)
+            self.insertDisplayedParameter(self.OUTPUTDEVICE, before=self.SCALING)
+            self.insertDisplayedParameter(self.OUTPUT, before=self.SCALING)
+            self.insertDisplayedParameter(self.INPUTDEVICE, before=self.SCALING)
+            self.insertDisplayedParameter(self.INPUT, before=self.SCALING)
+            self.insertDisplayedParameter(self.PROPORTIONAL, before=self.SCALING)
+            self.insertDisplayedParameter(self.INTEGRAL, before=self.SCALING)
+            self.insertDisplayedParameter(self.DERIVATIVE, before=self.SCALING)
+            self.insertDisplayedParameter(self.SAMPLETIME, before=self.SCALING)
+            self.insertDisplayedParameter(self.NOTES, before=self.SCALING)
 
         def tempParameters(self):
             return super().tempParameters() + [self.NOTES, self.OUTPUTDEVICE, self.INPUTDEVICE]

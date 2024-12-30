@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout, QInputDialog,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QMenu)
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer #, QEvent #, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QSize #, QEvent #, QPoint
 from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction, QFont, QMouseEvent
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
@@ -999,7 +999,7 @@ class Parameter():
         self.internal = internal
         self.indicator = indicator
         self.instantUpdate = instantUpdate
-        self.rowHeight = QLineEdit().sizeHint().height() - 4
+        self.rowHeight = self._parent.rowHeight if hasattr(self._parent, 'rowHeight') else QLineEdit().sizeHint().height() - 4
         self.check = None
         self.min = _min
         self.max = _max
@@ -1174,7 +1174,8 @@ class Parameter():
         """
         # self.print(f'applyWidget {self.fullName} {self.widgetType}', flag=PRINT.DEBUG) # only uncomment for specific debugging
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
-            self.combo = QComboBox() if self.widget is None else self.widget
+            self.combo = CompactComboBox() if self.widget is None else self.widget
+            self.combo.setMaximumWidth(100)
             if self.widget is not None: # potentially reuse widget with old data!
                 self.combo.clear()
             self.combo.wheelEvent = lambda event: None # disable wheel event to avoid accidental change of setting
@@ -1243,6 +1244,37 @@ class Parameter():
         widget.container = container # used to have proper background color independent of widget visibility
         containerLayout.addWidget(widget)
         return container
+
+    def setHeight(self, height=None):
+        if self.widgetType not in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO, self.TYPE.TEXT,self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH]:
+            return
+        if height is None:
+            height = self.rowHeight
+        scaling = height / (QLineEdit().sizeHint().height() - 4)
+        self.rowHeight = height
+        self.getWidget().setMinimumHeight(self.rowHeight)
+        self.getWidget().setMaximumHeight(self.rowHeight)
+        font = self.getWidget().font()
+        font.setPointSize(int(height/2))
+        if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
+            self.combo.setFont(font)
+        elif self.widgetType == self.TYPE.TEXT:
+            self.line.setFont(font)
+        elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
+            self.spin.setMinimumWidth(int(scaling*50)+10) # empirical
+            self.spin.lineEdit().setFont(font)
+        elif self.widgetType == self.TYPE.BOOL:
+            checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height())
+            iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
+            if isinstance(self.check, QCheckBox):
+                self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
+            else: #isinstance(self.check, QToolButton, QPushButton)
+                self.check.setFont(font)
+                self.check.setIconSize(QSize(iconHeight, iconHeight))
+        # elif self.widgetType == self.TYPE.COLOR:
+        #     self.colBtn
+        elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
+            self.label.setFont(font)
 
     def getWidget(self):
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
@@ -1466,6 +1498,7 @@ class Channel(QTreeWidgetItem):
             self.logY = self.device.logY
         self.tree = tree # may be None for internal default channels
         self.plotCurve = None
+        self.rowHeight = QLineEdit().sizeHint().height() - 4
         self.signalComm = self.SignalCommunicate()
         self.signalComm.updateValueSignal.connect(self.updateValueParallel)
         self.lastAppliedValue = None # keep track of last value to identify what has changed
@@ -1514,6 +1547,7 @@ class Channel(QTreeWidgetItem):
     LINEWIDTH   = 'Linewidth'
     LINESTYLE   = 'Linestyle'
     DISPLAYGROUP= 'Group'
+    SCALING     = 'Scaling'
     COLOR       = 'Color'
     MIN         = 'Min'
     MAX         = 'Max'
@@ -1585,6 +1619,8 @@ class Channel(QTreeWidgetItem):
                                             items='solid, dotted, dashed, dashdot', attr='linestyle', event=lambda: self.updateDisplay(), toolTip='Line style used in plots.')
             channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=lambda: self.updateDisplay(),
                                                            items='0, 1, 2, 3, 4, 5', fixedItems=False, toolTip='Used to group channels in the live display.')
+        channel[self.SCALING] = parameterDict(value='normal', default='normal', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
+                                                       items='small, normal, large, larger, huge', toolTip='Scaling used to display channels.')
         # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
         channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
@@ -1601,7 +1637,7 @@ class Channel(QTreeWidgetItem):
             channel[self.NAME][Parameter.EVENT] = self.updateDisplay
             if self.device.useBackgrounds:
                 channel[self.BACKGROUND] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    header='BG    ', attr='background')
+                                    header='BG      ', attr='background')
         return channel
 
     def getSortedDefaultChannel(self):
@@ -1624,10 +1660,10 @@ class Channel(QTreeWidgetItem):
         Extend using :meth:`~esibd.core.Channel.insertDisplayedParameter` to add more parameters."""
         if self.useDisplays:
             self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION, self.DISPLAY,
-                                    self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.LINESTYLE, self.DISPLAYGROUP, self.COLOR]
+                                    self.ACTIVE, self.REAL, self.SMOOTH, self.LINEWIDTH, self.LINESTYLE, self.DISPLAYGROUP, self.SCALING, self.COLOR]
         else:
             self.displayedParameters = [self.COLLAPSE, self.SELECT, self.ENABLED, self.NAME, self.VALUE, self.EQUATION,
-                                    self.ACTIVE, self.REAL, self.COLOR]
+                                    self.ACTIVE, self.REAL, self.SCALING, self.COLOR]
         if self.useMonitors:
             self.displayedParameters.insert(self.displayedParameters.index(self.VALUE)+1, self.MONITOR)
         if self.inout == INOUT.IN:
@@ -1760,6 +1796,9 @@ class Channel(QTreeWidgetItem):
                                 border-style: inset; border-width: 2px; border-color: 'gray';}}''')
             elif isinstance(widget, QComboBox):
                 pass
+            elif isinstance(widget, QCheckBox):
+                checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height())
+                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
             elif isinstance(widget, QPushButton):
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
@@ -1767,6 +1806,28 @@ class Channel(QTreeWidgetItem):
         self.updateDisplay()
         self.defaultStyleSheet = f'background-color: {color.name()}'
         return color
+
+    def scalingChanged(self):
+        normalHeight = QLineEdit().sizeHint().height() - 4
+        match self.scaling:
+            case 'small':
+                self.rowHeight = int(normalHeight*.6)
+            case 'normal':
+                self.rowHeight = normalHeight
+            case 'large':
+                self.rowHeight = normalHeight*2
+            case 'larger':
+                self.rowHeight = normalHeight*4
+            case 'huge':
+                self.rowHeight = normalHeight*6
+        for parameter in self.parameters:
+            parameter.setHeight(self.rowHeight)
+        self.tree.scheduleDelayedItemsLayout()
+
+    def sizeHint(self, option, index):
+        # Provide a custom size hint based on the item's content
+        return QSize(100, self.rowHeight)  # Width is not relevant; height is set to 50
+        # return super().sizeHint(option, index)
 
     def realChanged(self):
         self.getParameterByName(self.ENABLED).getWidget().setVisible(self.real)
@@ -1848,6 +1909,9 @@ class Channel(QTreeWidgetItem):
                 self.updateMin()
                 self.updateMax()
 
+        if self.scaling != 'normal':
+            self.scalingChanged() # after changing color
+
     def updateMin(self):
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
 
@@ -1907,6 +1971,7 @@ class QLabviewSpinBox(QSpinBox):
         super().__init__(parent)
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.setMinimumWidth(50)
         self.setRange(np.iinfo(np.int32).min, np.iinfo(np.int32).max) # limit explicitly if needed, this seems more useful than the [0, 100] default range
         if indicator:
             self.setReadOnly(True)
