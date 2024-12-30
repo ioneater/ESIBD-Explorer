@@ -3723,7 +3723,10 @@ class Console(Plugin):
     optional = False
     triggerComboBoxSignal = pyqtSignal(int)
 
-    writeSignal = pyqtSignal(str)
+
+    class SignalCommunicate(Plugin.SignalCommunicate):
+        writeSignal = pyqtSignal(str)
+        executeSignal = pyqtSignal(str)
 
     def getIcon(self):
         """:meta private:"""
@@ -3747,18 +3750,16 @@ class Console(Plugin):
             "ISEG.controller # get device specific hardware manager",
             "RBD.channels # get channels of a device",
             "Energy.display.fig # get specific figure",
-            "Tree.inspect(Energy) # show methods and attributes of any object in Tree plugin",
-            "Tree.inspect(Energy, _filter='plot') # show methods and attributes of any object in Tree plugin",
-            "Text.inspect(Energy) # more detailed methods and attributes",
+            "Tree.inspect(Settings) # show methods and attributes of any object in Tree plugin",
+            "Tree.inspect(Settings, _filter='session') # show methods and attributes of any object in Tree plugin",
             "timeit.timeit('Beam.plot(update=True, done=False)', number=100, globals=globals()) # time execution of plotting",
-            "channel = DeviceManager.getChannelByName('RT_Frontplate', inout=INOUT.IN) # get specific input channel",
+            "channel = DeviceManager.getChannelByName('RT_Front-Plate', inout=INOUT.IN) # get specific input channel",
             "channel.asDict(temp=True) # Returns list of channel parameters and their value.",
-            "channel = DeviceManager.getChannelByName('RT_Detector', inout=INOUT.OUT) # get specific output channel",
             "channel.getParameterByName(channel.ENABLED).getWidget().height() # get property of specific channel",
             "parameter = channel.getParameterByName(channel.ENABLED) # get specific channel parameter",
             "print(parameter.widgetType, parameter.value, parameter.getWidget()) # print parameter properties",
             "channel.getParameterByName(channel.VALUE).getWidget().setStyleSheet('background-color:red;') # test widget styling",
-            "[parameter.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for parameter in channel.parameters]",
+            "_=[parameter.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for parameter in channel.parameters]",
             "PluginManager.showThreads() # show all active threads",
             "[plt.figure(num).get_label() for num in plt.get_fignums()] # show all active matplotlib figures",
             "# Module=EsibdCore.dynamicImport('ModuleName','C:/path/to/module.py') # import a python module, e.g. to run generated plot files.",
@@ -3772,7 +3773,8 @@ class Console(Plugin):
         self.mainConsole.historyBtn.deleteLater()
         self.mainConsole.exceptionBtn.deleteLater()
         self.triggerComboBoxSignal.connect(self.triggerCombo)
-        self.writeSignal.connect(self.write)
+        self.signalComm.writeSignal.connect(self.write)
+        self.signalComm.executeSignal.connect(self.execute)
         # self.mainConsole.repl.input.installEventFilter(self.pluginManager.mainWindow) # clears input on Ctrl + C like a terminal. Not using it as it also prevents copy paste!
 
     def finalizeInit(self, aboutFunc=None):
@@ -3790,7 +3792,7 @@ class Console(Plugin):
         self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
         self.inspectAction = self.addAction(toolTip='Inspect object.',
                         icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'), before=self.toggleLoggingAction, event=lambda: self.inspect())
-        # self.addAction(toolTip='dummy', icon=self.makeCoreIcon('block.png'), event=lambda: self.pluginManager.Temperature.test(), before=self.aboutAction)
+        # self.addAction(toolTip='dummy', icon=self.makeCoreIcon('block.png'), event=lambda: self.mainConsole.input.sigExecuteCmd.emit('i=1'), before=self.aboutAction)
 
     def addToNamespace(self, key, value):
         self.mainConsole.localNamespace[key] = value
@@ -3801,11 +3803,15 @@ class Console(Plugin):
             self.testControl(self.openLogAction, True)
         # TODO reactivate after fixing stdout issue
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
-        # for i in range(self.commonCommandsComboBox.count())[1:]:
-        #     if not self.testing:
-        #         break
-        #     self.triggerComboBoxSignal.emit(i) # .testControl(self.commonCommandsComboBox, i, 1)
-        #     time.sleep(1)
+        for i in range(self.commonCommandsComboBox.count())[1:]:
+            if not self.testing:
+                break
+            # self.triggerComboBoxSignal.emit(i) # ? causes logger to break: print no longer redirected to console, terminal, or file!
+            # self.mainConsole.input.sigExecuteCmd.emit(self.commonCommandsComboBox.itemText(i)) # works but does not add command to history
+            self.print(f'Testing command: {self.commonCommandsComboBox.itemText(i)}')
+            with self.lock.acquire_timeout(timeout=1, timeoutMessage=f'Could not acquire lock to test {self.commonCommandsComboBox.itemText(i)}') as lock_acquired:
+                if lock_acquired:
+                    self.signalComm.executeSignal.emit(self.commonCommandsComboBox.itemText(i))
         super().runTestParallel()
 
     def triggerCombo(self, i):
@@ -3825,7 +3831,7 @@ class Console(Plugin):
                 self.mainConsole.output.insertPlainText(message)
                 self.mainConsole.scrollToBottom()
             else:
-                self.writeSignal.emit(message)
+                self.signalComm.writeSignal.emit(message)
 
     def toggleVisible(self):
         self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state)
@@ -3843,6 +3849,7 @@ class Console(Plugin):
         else:
             self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
 
+    @synchronized(timeout=1)
     def execute(self, command):
         self.mainConsole.input.setText(command)
         self.mainConsole.input.execCmd()
