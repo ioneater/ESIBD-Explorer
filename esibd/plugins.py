@@ -32,6 +32,8 @@ import keyboard as kb
 import pyqtgraph as pg
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from PIL import Image
+from PIL.ImageQt import ImageQt
 from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
@@ -630,13 +632,10 @@ class Plugin(QWidget):
         if desaturate:
             if isinstance(iconPath, Path):
                 iconPath = iconPath.as_posix()
-            image = QImage(iconPath)
-            image = image.convertToFormat(QImage.Format.Format_Grayscale8)
-            # image = image.convertToFormat(QImage.Format.Format_ARGB32)
-            pixmap = QPixmap.fromImage(image)
-            return QIcon(pixmap)
-        # TODO transparent pixel become black
-            # return EsibdCore.Icon(iconPath, QPixmap.fromImage(QImage(iconPath).convertToFormat(QImage.Format.Format_Grayscale8)))
+            image = Image.open(iconPath).convert("RGBA")
+            r, g, b, a = image.split()
+            grayscale = Image.merge("RGB", (r, g, b)).convert("L")
+            return EsibdCore.Icon(iconPath, QPixmap.fromImage(ImageQt(Image.merge("RGBA", (grayscale, grayscale, grayscale, a)))))
         else:
             return EsibdCore.Icon(iconPath)
 
@@ -691,15 +690,17 @@ class Plugin(QWidget):
             with mpl.style.context('default'):
                 for ax in self.axes:
                     limits.append((ax.get_xlim(), ax.get_ylim()))
+                size = self.fig.get_size_inches()
                 self.initFig()
                 self.plot()
                 for i, ax in enumerate(self.axes):
                     ax.set_xlim(limits[i][0])
                     ax.set_ylim(limits[i][1])
-                # self.canvas.draw_idle()
-                self.canvas.draw()
+                self.fig.set_size_inches(size)
+                self.canvas.draw_idle()
+                # self.canvas.draw()
                 self.processEvents()
-                # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> use timers?
+                # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> pixelated
                 buf = io.BytesIO()
                 self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
                 QApplication.clipboard().setImage(QImage.fromData(buf.getvalue()))
@@ -1331,7 +1332,6 @@ class LiveDisplay(Plugin):
     def copyClipboard(self):
         self.print('copyClipboard', flag=PRINT.DEBUG)
         """Extends matplotlib based version to add support for pyqtgraph."""
-        buf = io.BytesIO()
         if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
             restoreAutoRange = False
@@ -1347,7 +1347,6 @@ class LiveDisplay(Plugin):
                 self.livePlotWidgets[0].getViewBox().enableAutoRange(x=restoreAutoRange)
         else:
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
-        buf.close()
 
     def getTimeAxes(self):
         timeAxes = {}

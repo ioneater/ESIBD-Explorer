@@ -585,7 +585,9 @@ class PluginManager():
         tabBars = self.mainWindow.findChildren(QTabBar)
         if tabBars:
             for tabBar in tabBars:
-                tabBar.setStyleSheet('QTabBar::tab {font-size: 1px; margin-right: -18px}QTabBar::tab:selected {font-size: 12px;margin-right: 0px;}' if getIconMode() == 'Icons' else '')
+                tabBar.setStyleSheet(
+        f'QTabBar::tab {{font-size: 1px; margin-right: -18px; color: transparent}}QTabBar::tab:selected {{font-size: 12px;margin-right: 0px; color: {colors.highlight}}}'
+        if getIconMode() == 'Icons' else '')
         if not self.loading:
             for plugin in self.plugins:
                 if plugin.initializedDock:
