@@ -37,19 +37,20 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
                             QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor # , QColor
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor, QPixmap # , QColor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6 import QtCore
 import esibd.core as EsibdCore
 import esibd.const as EsibdConst
-from esibd.core import (INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel, TimeoutLock, # DeviceController,
-                        ToolButton, QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox, MultiState, BetterPlotWidget, BetterPlotItem)
+from esibd.core import (INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel, TimeoutLock, ScanChannel, RelayChannel, # DeviceController,
+                        ToolButton, QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox, MultiState, PlotWidget, PlotItem, TreeWidget)
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
+
 
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
@@ -103,7 +104,7 @@ class Plugin(QWidget):
        stored next to the plugin file or in sub folders relative to its location."""
     pluginManager : EsibdCore.PluginManager
     """A reference to the central :class:`~esibd.core.PluginManager`."""
-    dock : EsibdCore.BetterDockWidget
+    dock : EsibdCore.DockWidget
     """The dockWidget that allows to float and rearrange the plugin user interface."""
     scan = None
     """A :meth:`~esibd.plugins.Scan` that provides content to display."""
@@ -241,7 +242,7 @@ class Plugin(QWidget):
         # queue this behind any other synchronized function that is still being tested
         self.testing = False
 
-    @property # TODO delete
+    @property
     def testing(self):
         return self._testing
     @testing.setter
@@ -274,7 +275,7 @@ class Plugin(QWidget):
         return True
 
     def addToolbarStretch(self):
-        self.stretchAction = QAction() # dummy to allow adding actions in front of stretch later on
+        self.stretchAction = QAction() # allows adding actions in front of stretch later on
         self.stretchAction.setVisible(False)
         self.titleBar.addAction(self.stretchAction)
         self.stretch = QWidget() # acts as spacer
@@ -325,20 +326,24 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(self.about if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large.png'))
-        self.floatAction = self.addStateAction(self.setFloat, 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
+        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large.png'))
+        self.floatAction = self.addStateAction(lambda: self.setFloat(), 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
-            self.closeAction = self.addAction(self.closeUserGUI, 'Close.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
+            self.closeAction = self.addAction(lambda: self.closeUserGUI(), 'Close.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
         self.updateTheme()
         self.loading = False
         # extend or overwrite to add code that should be executed after all other plugins have been initialized, e.g. modifications of other plugins
 
+    def afterFinalizeInit(self):
+        """Execute after all other plugins are finalized"""
+        pass
+
     def initDock(self):
-        """Initializes the :class:`~esibd.core.BetterDockWidget`."""
+        """Initializes the :class:`~esibd.core.DockWidget`."""
         if not self.initializedDock:
-            self.dock = EsibdCore.BetterDockWidget(self)
+            self.dock = EsibdCore.DockWidget(self)
 
     def provideDock(self):
         """Adds existing :attr:`~esibd.plugins.Plugin.dock` to UI at position defined by :attr:`esibd.plugins.Plugin.pluginType`."""
@@ -396,7 +401,7 @@ class Plugin(QWidget):
         :param toolTip: The toolTip of the action, defaults to ''
         :type toolTip: str, optional
         :param icon: The icon of the action, defaults to None
-        :type icon: :class:`~esibd.core.BetterIcon`, optional
+        :type icon: :class:`~esibd.core.Icon`, optional
         :param before: The existing action before which the new action will be placed, defaults to None. If None, the new action will be added to the end.
         :type before: :class:`~esibd.core.Action`, optional
         :return: The new Action
@@ -424,11 +429,11 @@ class Plugin(QWidget):
         :param toolTipFalse: The toolTip of the stateAction if state is False, defaults to ''
         :type toolTipFalse: str, optional
         :param iconFalse: The icon of the stateAction if state is False, defaults to None
-        :type iconFalse: :class:`~esibd.core.BetterIcon`, optional
+        :type iconFalse: :class:`~esibd.core.Icon`, optional
         :param toolTipTrue: The toolTip of the stateAction if state is True, defaults to ''
         :type toolTipTrue: str, optional
         :param iconTrue: The icon of the stateAction if state is True, defaults to None
-        :type iconTrue: :class:`~esibd.core.BetterIcon`, optional
+        :type iconTrue: :class:`~esibd.core.Icon`, optional
         :param before: An existing action or stateAction before which the new action will be placed, defaults to None.
             If None, the new stateAction will be added to the end.
         :type before: :class:`~esibd.core.Action`, optional
@@ -598,31 +603,42 @@ class Plugin(QWidget):
         for ann in [child for child in ax.get_children() if isinstance(child, mpl.text.Annotation)]:#[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
 
-    def getIcon(self):
+    def getIcon(self, desaturate=False):
         """Gets the plugin icon. Overwrite to introduce custom icons.
         Consider using a themed icon that works in dark and light modes.
 
         :return: Icon
-        :rtype: :class:`~esibd.core.BetterIcon`
+        :rtype: :class:`~esibd.core.Icon`
         """
         # e.g. return self.darkIcon if getDarkMode() else self.lightIcon
-        return self.makeCoreIcon('document.png')
+        return self.makeCoreIcon('document.png', desaturate=desaturate)
 
-    def makeCoreIcon(self, file):
-        return self.makeIcon(file=file, path=internalMediaPath)
+    def makeCoreIcon(self, file, desaturate=False):
+        return self.makeIcon(file=file, path=internalMediaPath, desaturate=desaturate)
 
-    def makeIcon(self, file, path=None):
+    def makeIcon(self, file, path=None, desaturate=False):
         """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
 
         :param file: Icon file name.
         :type file: str
         :return: Icon
-        :rtype: :class:`~esibd.core.BetterIcon`
+        :rtype: :class:`~esibd.core.Icon`
         """
         iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
         if not iconPath.exists():
             self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.WARNING)
-        return EsibdCore.BetterIcon(iconPath)
+        if desaturate:
+            if isinstance(iconPath, Path):
+                iconPath = iconPath.as_posix()
+            image = QImage(iconPath)
+            image = image.convertToFormat(QImage.Format.Format_Grayscale8)
+            # image = image.convertToFormat(QImage.Format.Format_ARGB32)
+            pixmap = QPixmap.fromImage(image)
+            return QIcon(pixmap)
+        # TODO transparent pixel become black
+            # return EsibdCore.Icon(iconPath, QPixmap.fromImage(QImage(iconPath).convertToFormat(QImage.Format.Format_Grayscale8)))
+        else:
+            return EsibdCore.Icon(iconPath)
 
     def updateTheme(self):
         """Changes between dark and light themes. Most
@@ -669,7 +685,6 @@ class Plugin(QWidget):
     @synchronized()
     def copyClipboard(self):
         """Copy matplotlib figure to clipboard."""
-        buf = io.BytesIO()
         limits = []
         if getDarkMode() and not getClipboardTheme():
             # use default light theme for clipboard
@@ -681,11 +696,17 @@ class Plugin(QWidget):
                 for i, ax in enumerate(self.axes):
                     ax.set_xlim(limits[i][0])
                     ax.set_ylim(limits[i][1])
-                self.canvas.draw_idle()
+                # self.canvas.draw_idle()
+                self.canvas.draw()
                 self.processEvents()
+                # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> use timers?
+                buf = io.BytesIO()
                 self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
+                QApplication.clipboard().setImage(QImage.fromData(buf.getvalue()))
+                buf.close()
         else:
-            self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
+        #     self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
+            QApplication.clipboard().setPixmap(self.canvas.grab())
         if getDarkMode() and not getClipboardTheme():
             # restore dark theme for use inside app
             self.initFig()
@@ -694,8 +715,6 @@ class Plugin(QWidget):
                 ax.set_xlim(limits[i][0])
                 ax.set_ylim(limits[i][1])
             self.canvas.draw_idle()
-        QApplication.clipboard().setImage(QImage.fromData(buf.getvalue()))
-        buf.close()
 
     @synchronized()
     def copyLineDataClipboard(self, line):
@@ -729,6 +748,8 @@ class Plugin(QWidget):
         axr = ax.twinx()
         axr.tick_params(direction="out", right=True)
         axr.sharey(ax)
+        if ax.get_yscale() == 'log':
+            axr.set_yscale('log')
 
     def tilt_xlabels(self, ax, rotation=30):
         # replaces autofmt_xdate which is currently not compatible with constrained_layout
@@ -793,7 +814,7 @@ class StaticDisplay(Plugin):
         self.outputLayout = QVBoxLayout()
         self.plotWidgetFont = QFont()
         self.plotWidgetFont.setPixelSize(15)
-        self.staticPlotWidget = EsibdCore.BetterPlotWidget(_parent=self)
+        self.staticPlotWidget = EsibdCore.PlotWidget(_parent=self)
         self.staticPlotWidget.showGrid(x=True, y=True, alpha=0.1)
         self.staticPlotWidget.showAxis('top')
         self.staticPlotWidget.getAxis('top').setStyle(showValues=False)
@@ -846,8 +867,8 @@ class StaticDisplay(Plugin):
         self.togglePlotType()
         self.staticPlotWidget.updateGrid()
 
-    def getIcon(self):
-        return self.parentPlugin.getIcon()
+    def getIcon(self, **kwargs):
+        return self.parentPlugin.getIcon(**kwargs)
 
     def runTestParallel(self):
         """:meta private:"""
@@ -930,34 +951,34 @@ class StaticDisplay(Plugin):
             self.legend = self.staticPlotWidget.addLegend(labelTextColor=colors.fg) # before adding plots
 
         for output in self.outputs:
-            length = min(self.inputs[0].data.shape[0], output.data.shape[0])
-            x = self.inputs[0].data[-length:]
-            y = self.parentPlugin.convertDataDisplay((output.data-output.background)[:length]
+            length = min(self.inputs[0].getRecordingData().shape[0], output.getRecordingData().shape[0])
+            x = self.inputs[0].getRecordingData()[-length:]
+            y = self.parentPlugin.convertDataDisplay((output.getRecordingData()-output.recordingBackground)[:length]
                                            if self.parentPlugin.useBackgrounds and (self.subtractBackgroundAction.state if self.subtractBackgroundAction is not None else False)
-                                           else output.data[:length])
+                                           else output.getRecordingData()[:length])
 
-            if output.channel is None:
+            if output.sourceChannel is None:
                 if self.plotEfficientAction.state:
                     self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.name} ({output.unit})')
                 else:
                     self.staticPlotWidget.plot(x, y, name=f'{output.name} ({output.unit})') # initialize empty plots
-            elif output.channel.display:
-                if output.channel.smooth != 0:
-                    # y = uniform_filter1d(y, output.channel.smooth) # TODO revert to this once nan_policy is available https://github.com/scipy/scipy/pull/17393
-                    y = betterSmooth(y, output.channel.smooth)
+            elif output.display:
+                if output.smooth != 0:
+                    # y = uniform_filter1d(y, output.smooth) # revert to this if nan_policy becomes https://github.com/scipy/scipy/pull/17393
+                    y = smooth(y, output.smooth)
                 if self.plotEfficientAction.state:
-                    self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.channel.name} ({output.channel.getDevice().getUnit()})',
-                                      color=output.channel.color, linewidth=output.channel.linewidth/2, linestyle=output.channel.linestyle)
+                    self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.name} ({output.unit})',
+                                      color=output.color, linewidth=output.linewidth/2, linestyle=output.linestyle)
                 else:
-                    self.staticPlotWidget.plot(x, y, pen=pg.mkPen((output.channel.color), width=output.channel.linewidth,
-                                                                  style=output.channel.getQtLineStyle()), name=f'{output.channel.name} ({output.channel.getDevice().getUnit()})')
+                    self.staticPlotWidget.plot(x, y, pen=pg.mkPen((output.color), width=output.linewidth,
+                                                                  style=output.getQtLineStyle()), name=f'{output.name} ({output.unit})')
         if self.plotEfficientAction.state:
             self.setLabelMargin(self.axes[0], 0.15)
             self.navToolBar.update() # reset history for zooming and home view
             self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
             self.labelPlot(self.axes[0], self.file.name)
-            leg = self.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
-            leg.set_in_layout(False)
+            legend = self.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
+            legend.set_in_layout(False)
         elif update:
             self.staticPlotWidget.autoRange() # required to trigger update
 
@@ -972,13 +993,13 @@ class StaticDisplay(Plugin):
             group = h5file[self.parentPlugin.name]
             if not (INPUTCHANNELS in group and OUTPUTCHANNELS in group):
                 return False
-            self.inputs.append(MetaChannel(name=self.TIME, data=group[INPUTCHANNELS][self.TIME][:]))
+            self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=group[INPUTCHANNELS][self.TIME][:]))
             output_group = group[OUTPUTCHANNELS]
             for name, item in output_group.items():
                 if name.endswith('_BG'):
-                    self.outputs[-1].background = item[:]
+                    self.outputs[-1].recordingBackground = item[:]
                 else:
-                    self.outputs.append(MetaChannel(name=name, data=item[:], unit=item.attrs[UNIT] if UNIT in item.attrs else '', channel=self.parentPlugin.getChannelByName(name)))
+                    self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs[UNIT] if UNIT in item.attrs else ''))
         return True # return True if loading was successful # make sure to follow this pattern when extending!
 
     def generatePythonPlotCode(self):
@@ -989,24 +1010,31 @@ from datetime import datetime
 
 inputs, outputs = [], []
 class MetaChannel():
-    def __init__(self, name, data, initial=None, background=None, unit=''):
+    def __init__(self, name, recordingData, initialValue=None, recordingBackground=None, unit=''):
         self.name = name
-        self.data = data
-        self.initial = initial
-        self.background = background
+        self.recordingData = recordingData
+        self.initialValue = initialValue
+        self.recordingBackground = recordingBackground
         self.unit = unit
+
+    @property
+    def logY(self):
+        if self.unit in ['mbar', 'Pa']:
+            return True
+        else:
+            return False
 
 with h5py.File('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}','r') as h5file:
     group = h5file['{self.parentPlugin.name}']
 
-    inputs.append(MetaChannel(name='Time', data=group['Input Channels']['Time'][:]))
+    inputs.append(MetaChannel(name='Time', recordingData=group['Input Channels']['Time'][:]))
 
     output_group = group['Output Channels']
     for name, data in output_group.items():
         if name.endswith('_BG'):
-            outputs[-1].background = data[:]
+            outputs[-1].recordingBackground = data[:]
         else:
-            outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs['Unit']))
+            outputs.append(MetaChannel(name=name, recordingData=data[:], unit=data.attrs['Unit']))
 
 # replace following with your custom code
 subtract_backgrounds = False # switch to True to subtract background signals if available
@@ -1017,9 +1045,9 @@ ax.set_xlabel('Time')
 {"ax.set_yscale('log')" if self.logY else ''}
 
 for i, output in enumerate(outputs):
-    length = min(inputs[0].data.shape[0], output.data.shape[0])
-    x = inputs[0].data[-length:]
-    y = (output.data-output.background)[:length] if output.background is not None and subtract_backgrounds else output.data[:length]
+    length = min(inputs[0].recordingData.shape[0], output.recordingData.shape[0])
+    x = inputs[0].recordingData[-length:]
+    y = (output.recordingData-output.recordingBackground)[:length] if output.recordingBackground is not None and subtract_backgrounds else output.recordingData[:length]
     ax.plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{{output.name}} ({{output.unit}})')
 
 ax.legend(loc = 'best', prop={{'size': 7}}, frameon=False)
@@ -1206,7 +1234,7 @@ class LiveDisplay(Plugin):
         for i, (groupLabel, group) in enumerate(self.getGroups().items()):
             logY = all([channel.logY for channel in group])
             if self.stackAction.state in [self.stackAction.labels.horizontal, self.stackAction.labels.vertical]:
-                livePlotWidget = BetterPlotWidget(_parent=self, groupLabel=groupLabel)
+                livePlotWidget = PlotWidget(_parent=self, groupLabel=groupLabel)
                 self.plotSplitter.addWidget(livePlotWidget)
                 livePlotWidget.init()
                 livePlotWidget.setLogMode(False, logY)
@@ -1232,7 +1260,7 @@ class LiveDisplay(Plugin):
                     self.stackedGraphicsLayoutWidget = pg.GraphicsLayoutWidget()
                     self.stackedGraphicsLayoutWidget.setBackground(colors.bg)
                     self.plotSplitter.addWidget(self.stackedGraphicsLayoutWidget)
-                    livePlotWidget = BetterPlotItem(showXY=False) # pg.PlotItem()
+                    livePlotWidget = PlotItem(showXY=False) # pg.PlotItem()
                     self.stackedGraphicsLayoutWidget.addItem(livePlotWidget, 0, plotColumn, rowspan=2)
                     livePlotWidget.init()
                     livePlotWidget.showGrid(False, False)
@@ -1283,8 +1311,8 @@ class LiveDisplay(Plugin):
                 livePlotWidget.setGeometry(self.livePlotWidgets[0].vb.sceneBoundingRect())
                 livePlotWidget.linkedViewChanged(self.livePlotWidgets[0].vb, livePlotWidget.XAxis)
 
-    def getIcon(self):
-        return self.parentPlugin.getIcon()
+    def getIcon(self, **kwargs):
+        return self.parentPlugin.getIcon(**kwargs)
 
     def runTestParallel(self):
         """:meta private:"""
@@ -1294,7 +1322,7 @@ class LiveDisplay(Plugin):
             self.testControl(self.copyAction, True) # ,1
             if self.parentPlugin.useBackgrounds:
                 self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
-            # self.testControl(self.clearHistoryAction, True) # keep history, test manually for dummy devices if applicable
+            # self.testControl(self.clearHistoryAction, True) # keep history, test manually if applicable
             if hasattr(self, 'exportAction'):
                 self.testControl(self.exportAction, True)
         super().runTestParallel()
@@ -1410,15 +1438,14 @@ class LiveDisplay(Plugin):
                 elif self.lagging < 20: # lagging 10 times in a row -> reduce data points
                     if self.lagging == 10:
                         self.pluginManager.DeviceManager.limit_display_size = True
-                        self.pluginManager.DeviceManager.max_display_size = 1000
+                        self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, 1000) # keep if already smaller
                         self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
                     self.lagging += 1
                 else: # lagging > 19 times in a row -> turn of acquisition
                     if self.lagging == 20:
-                        self.pluginManager.DeviceManager.closeCommunication()
                         self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
                                    ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
-                # self.print(self.lagging)
+                        self.pluginManager.DeviceManager.closeCommunication()
             else:
                 # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
                 # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
@@ -1460,7 +1487,7 @@ class LiveDisplay(Plugin):
                         length = min(timeAxis.shape[0], y.shape[0]) # make sure x any y have same shape
                         if channel.smooth != 0:
                             # y = uniform_filter1d(y, channel.smooth) # revert once nan_policy implemented
-                            y = betterSmooth(y, channel.smooth)
+                            y = smooth(y, channel.smooth)
                         channel.plotCurve.setData(timeAxis[:length], y[:length])
                 else:
                     channel.clearPlotCurve()
@@ -1523,6 +1550,8 @@ class ChannelManager(Plugin):
     """use liveDisplay, StaticDisplay, ChannelPlot, and all related functionality."""
     useMonitors = False
     """Use record monitors and compare them to set points."""
+    useOnOffLogic = False
+    """Creates an Action in the DeviceManager that handles turning key functions on and off."""
 
     class ChannelPlot(Plugin):
         """Simplified version of the Line plugin for plotting channels."""
@@ -1536,8 +1565,8 @@ class ChannelManager(Plugin):
             self.parentPlugin = parentPlugin
             self.name = self.parentPlugin.name
 
-        def getIcon(self):
-            return self.makeCoreIcon('chart.png')
+        def getIcon(self, **kwargs):
+            return self.makeCoreIcon('chart.png', **kwargs)
 
         def initGUI(self):
             super().initGUI()
@@ -1612,9 +1641,23 @@ class ChannelManager(Plugin):
         self.loadConfiguration(default=True)
 
     def finalizeInit(self, aboutFunc=None):
+        if self.useOnOffLogic:
+            self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.setOn(), toolTipFalse=f'{self.name} on.', iconFalse=self.getIcon(desaturate=True),
+                                                                  toolTipTrue=f'{self.name} off.', iconTrue=self.getIcon(),
+                                                                 before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
-        if self.pluginManager.DeviceManager.restoreData:
-            self.toggleLiveDisplay()
+        self.toggleLiveDisplay()
+
+    def isOn(self):
+        """Overwrite to signal if device output (e.g. for voltage supplies) is on."""
+        if self.useOnOffLogic:
+            return self.onAction.state
+        else:
+            return False
+
+    def setOn(self, on=None):
+        if on is not None and self.onAction.state is not on:
+            self.onAction.state = on
 
     def runTestParallel(self):
         """:meta private:"""
@@ -1623,18 +1666,18 @@ class ChannelManager(Plugin):
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
             if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
                 self.testControl(self.channelPlotAction, True)#, 1
-            self.testControl(self.advancedAction, True) # keep history, test manually for dummy devices if applicable
+            self.testControl(self.advancedAction, True)
             self.testControl(self.saveAction, True)
             for parameter in self.channels[0].parameters:
                 if parameter.name not in [Channel.COLOR]: # color requires user interaction
                     self.testControl(parameter.getWidget(), parameter.value, .1,
                                      label=f'Testing {self.channels[0].name}.{parameter.name} {parameter.toolTip if parameter.toolTip is not None else "No toolTip."}')
             self.testControl(self.channels[0].getParameterByName(Channel.SELECT).getWidget(), True, .1)
-            self.testControl(self.moveChannelDownAction, True, .5)
-            self.testControl(self.moveChannelUpAction, True, .5)
-            self.testControl(self.duplicateChannelAction, True, .5)
-            self.testControl(self.deleteChannelAction, True, .5)
-            if hasattr(self, 'onAction'): # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
+            self.testControl(self.moveChannelDownAction, True, 1)
+            self.testControl(self.moveChannelUpAction, True, 1)
+            self.testControl(self.duplicateChannelAction, True, 1)
+            self.testControl(self.deleteChannelAction, True, 1)
+            if self.useOnOffLogic: # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
                 self.testControl(self.onAction, True)
             if self.useDisplays:
                 if self.toggleLiveDisplayAction is not None:
@@ -1721,6 +1764,7 @@ class ChannelManager(Plugin):
             self.loading = False
             newChannel = self.getChannelByName(newChannelDict[selectedChannel.NAME])
             self.channelSelection(selectedChannel = newChannel) # trigger deselecting original channel
+            self.tree.scheduleDelayedItemsLayout()
             return newChannel
 
     @synchronized()
@@ -1769,6 +1813,7 @@ class ChannelManager(Plugin):
             self.loading = False
             if hasattr(self.pluginManager, 'UCM'):
                 self.pluginManager.UCM.connectAllSources()
+            self.tree.scheduleDelayedItemsLayout()
             return newChannel
 
     def clearPlot(self):
@@ -1941,6 +1986,7 @@ class ChannelManager(Plugin):
                 channel.collapseChanged(toggle=False)
             self.toggleAdvanced(False)
             self.tree.setUpdatesEnabled(True)
+            self.tree.scheduleDelayedItemsLayout()
             self.loading=False
             self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
             # if there was a history, it has been invalidated by reinitializing all channels.
@@ -2137,8 +2183,8 @@ class ChannelManager(Plugin):
     def closeCommunication(self):
         """Stops recording and also closes all device communication.
         Extend to add custom code to close device communication."""
-        if hasattr(self, 'onAction') and self.onAction.state:
-            self.onAction.state = False
+        if self.useOnOffLogic and self.onAction.state:
+            self.setOn(False)
         self.recording = False
 
     def initializeCommunication(self):
@@ -2350,19 +2396,6 @@ class Device(ChannelManager):
                 return any([channel.controller.initialized for channel in self.channels])
         else:
             return self.controller.initialized
-
-    def isOn(self):
-        """Overwrite to signal if device output (e.g. for voltage supplies) is on."""
-        if hasattr(self, 'onAction'):
-            return self.onAction.state
-        else:
-            return False
-
-    def setOn(self, on):
-        if hasattr(self, 'onAction'):
-            self.onAction.state = on
-        else:
-            self.print('Implement onAction to hold and signal on state.', flag=PRINT.WARNING)
 
     def initializeCommunication(self):
         self.appendData(nan=True) # prevent interpolation to old data
@@ -2620,6 +2653,7 @@ class Device(ChannelManager):
         return self.unit
 
 class Scan(Plugin):
+    # TODO: Running scans can make gui not responsive when running in VS Code debug mode.
     """:class:`Scans<esibd.plugins.Scan>` are all sort of measurements that record any number of outputs as a
     function of any number of inputs. The main interface consists of a list of
     scan settings. Each scan comes with a tailored display
@@ -2694,8 +2728,10 @@ class Scan(Plugin):
     """Parallel thread that updates the scan channel(s) and reads out the display channel(s)."""
     inputs : List[EsibdCore.MetaChannel]
     """List of input :class:`meta channels<esibd.core.MetaChannel>`."""
-    outputs : List[EsibdCore.MetaChannel]
-    """List of output :class:`meta channels<esibd.core.MetaChannel>`."""
+    outputs : List[EsibdCore.ScanChannel]
+    """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
+    channels : List[EsibdCore.ScanChannel]
+    """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Object that bundles pyqtSignals."""
@@ -2705,6 +2741,8 @@ class Scan(Plugin):
         """Signal that allows to stop recording from an external thread."""
         saveScanCompleteSignal  = pyqtSignal()
         """Signal that confirms that scan data has been saved and a new scan can be started."""
+
+    ScanChannel = ScanChannel # allows children to extend this
 
     class Display(Plugin):
         """Display for base scan. Extend as needed.
@@ -2727,6 +2765,7 @@ class Scan(Plugin):
             self.initFig()
 
         def initFig(self):
+            # self.print('initFig', flag=PRINT.DEBUG)
             self.provideFig()
 
         def provideDock(self):
@@ -2750,8 +2789,8 @@ class Scan(Plugin):
                 self.loading = False
                 self.scan.loading = False
 
-        def getIcon(self):
-            return self.scan.getIcon()
+        def getIcon(self, **kwargs):
+            return self.scan.getIcon(**kwargs)
 
         def runTestParallel(self):
             """:meta private:"""
@@ -2770,8 +2809,8 @@ class Scan(Plugin):
                 self.mouseMoving = True
                 if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
                     for i, _input in enumerate(self.scan.inputs):
-                        if _input.channel is not None:
-                            _input.channel.value = event.xdata if i == 0 else event.ydata # 3D not supported
+                        if _input.sourceChannel is not None:
+                            _input.value = event.xdata if i == 0 else event.ydata # 3D not supported
                         else:
                             self.print(f'Could not find channel {self.scan.inputs[i].name}.')
                     if self.axes[-1].cursor is not None:
@@ -2795,6 +2834,9 @@ class Scan(Plugin):
         self.display = None
         self.runThread = None
         self.saveThread = None
+        self.settingsTree = None
+        self.channelTree = None
+        self.channels = []
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
         self.signalComm.saveScanCompleteSignal.connect(self.saveScanComplete)
@@ -2804,27 +2846,55 @@ class Scan(Plugin):
         """:meta private:"""
         self.loading = True
         super().initGUI()
-        settingsTreeWidget = QTreeWidget()
-        settingsTreeWidget.setHeaderLabels([self.PARAMETER, self.VALUE])
-        settingsTreeWidget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.treeSplitter = QSplitter(orientation=Qt.Orientation.Vertical)
+        self.treeSplitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
+        self.settingsTree = TreeWidget()
+        self.settingsTree.setHeaderLabels([self.PARAMETER, self.VALUE])
+        self.settingsTree.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.settingsTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         # size to content prevents manual resize
-        settingsTreeWidget.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.addContentWidget(settingsTreeWidget)
-        self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=settingsTreeWidget,
+        self.settingsTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.treeSplitter.addWidget(self.settingsTree)
+        self.channelTree = TreeWidget(minimizeHeight=True)
+        self.channelTree.header().setStretchLastSection(False)
+        self.channelTree.header().setMinimumSectionSize(0)
+        self.channelTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.channelTree.setHeaderLabels(['', ScanChannel.NAME, ScanChannel.VALUE, ScanChannel.UNIT, ScanChannel.DISPLAY, ScanChannel.NOTES, ScanChannel.SCALING])
+        self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.channelTree.setRootIsDecorated(False)
+        self.treeSplitter.addWidget(self.channelTree)
+        self.addContentWidget(self.treeSplitter)
+        self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=self.settingsTree,
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
         self.settingsMgr.addDefaultSettings(plugin=self)
         self.settingsMgr.init()
         self.expandTree(self.settingsMgr.tree)
         self.notes = '' # should always have current notes or no notes
-
+        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), 'Show advanced options.', self.makeCoreIcon('toolbox.png'),
+                                                  'Hide advanced options.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
         self.addAction(lambda: self.loadSettings(file=None), 'Load settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
         self.addAction(lambda: self.saveSettings(file=None), 'Export settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
         self.recordingAction = self.addStateAction(lambda: self.toggleRecording(), 'Start.', self.makeCoreIcon('play.png'), 'Stop.', self.makeCoreIcon('stop.png'))
         self.estimateScanTime()
+        self.addOutputChannels()
         self.loading = False
 
+    def afterFinalizeInit(self):
+        self.connectAllSources()
+
+    def connectAllSources(self):
+        # self.print('connectAllSources', flag=PRINT.DEBUG)
+        # for input in self.inputs: # are connected on creation
+        #     input.connectSource()
+        for channel in self.channels:
+            channel.connectSource()
+
     def init(self):
-        self.inputs, self.outputs = [], []
+        for channel in self.channels:
+            channel.onDelete()
+        if self.channelTree is not None:
+            self.channelTree.clear()
+        self.inputs, self.outputs, self.channels = [], [], []
 
     def runTestParallel(self):
         """:meta private:"""
@@ -2880,6 +2950,9 @@ class Scan(Plugin):
                 self.display.displayComboBox.setCurrentIndex(i)
             self.loading = False
             self.updateDisplayChannel()
+        if self.finished and not self.recording and not self.loading:
+            self.init()
+            self.addOutputChannels()
 
     def populateDisplayChannel(self):
         if self.display is not None and self.useDisplayChannel:
@@ -2895,6 +2968,7 @@ class Scan(Plugin):
         self.expandTree(self.settingsMgr.tree)
         self.updateDisplayChannel()
         self.estimateScanTime()
+        # self.settingsTree.fitAllItems()
 
     def saveSettings(self, file=None, default=False):
         self.settingsMgr.saveSettings(file=file, default=default)
@@ -2938,26 +3012,22 @@ class Scan(Plugin):
         """Initializes all data and metadata.
         Returns True if initialization successful and scan is ready to start.
         Will likely need to be adapted for custom scans."""
-        lengths = [len(i.data) for i in self.inputs]
+        initializedOutputs = 0
         for name in self.settingsMgr.settings[self.DISPLAY].items:
             channel = self.getChannelByName(name, inout=INOUT.OUT)
+            if channel is None:
+                channel = self.getChannelByName(name, inout=INOUT.IN)
             if channel is None:
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
             elif not channel.getDevice().initialized():
                 self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif not channel.getDevice().recording:
-                self.print(f'{channel.getDevice().name} is not recording.', PRINT.WARNING)
-            elif not channel.enabled and channel.real:
-                self.print(f'{channel.name} is not enabled.', PRINT.WARNING)
+            elif not channel.acquiring and not channel.getDevice().recording:
+                self.print(f'{channel.name} is not acquiring.', PRINT.WARNING)
             else:
-                if len(self.inputs) == 1: # 1D scan
-                    data = np.zeros(len(self.inputs[0].data)) # cant reuse same array for all outputs as they would refer to same instance.
-                else: # 2D scan, higher dimensions not jet supported
-                    data = np.zeros(np.prod(lengths)).reshape(*lengths).transpose()
-                    # note np.zeros works better than np.full(len, np.nan) as some plots give unexpected results when given np.nan
-                self.outputs.append(MetaChannel(name=channel.name, data=data, unit=channel.getDevice().unit, channel=channel))
-        if len(self.outputs) > 0:
-            self.measurementsPerStep = max(int((self.average/self.outputs[0].channel.getDevice().interval))-1, 1)
+                initializedOutputs += 1
+        self.addOutputChannels()
+        if initializedOutputs > 0:
+            self.measurementsPerStep = max(int((self.average/self.outputs[0].getDevice().interval))-1, 1)
             self.toggleDisplay(True)
             self.updateFile()
             self.populateDisplayChannel()
@@ -2965,6 +3035,90 @@ class Scan(Plugin):
         else:
             self.print('No initialized output channel found.', PRINT.WARNING)
             return False
+
+    def addOutputChannels(self):
+        self.print('addOutputChannels', flag=PRINT.DEBUG)
+        if len(self.inputs) == 0:
+            recordingData = None
+        elif len(self.inputs) == 1: # 1D scan
+            recordingData = np.zeros(len(self.inputs[0].getRecordingData())) # cant reuse same array for all outputs as they would refer to same instance.
+        else: # 2D scan, higher dimensions not jet supported
+            lengths = [len(input.getRecordingData()) for input in self.inputs]
+            recordingData = np.zeros(np.prod(lengths)).reshape(*lengths).transpose()
+            # note np.zeros works better than np.full(len, np.nan) as some plots give unexpected results when given np.nan
+        if self.DISPLAY in self.getDefaultSettings():
+            for name in self.settingsMgr.settings[self.DISPLAY].items:
+                self.addOutputChannel(name=name, recordingData=recordingData.copy() if recordingData is not None else None)
+            self.toggleAdvanced(False)
+        else:
+            self.channelTree.hide()
+
+    def addOutputChannel(self, name, unit='', recordingData=None, initialValue=None, recordingBackground=None):
+        channel = self.ScanChannel(device=self, tree=self.channelTree)
+        if recordingData is not None:
+            channel.recordingData = recordingData
+        if initialValue is not None:
+            channel.initialValue = initialValue
+        if recordingBackground is not None:
+            channel.recordingBackground = recordingBackground
+        self.channelTree.addTopLevelItem(channel) # has to be added before populating
+        channel.initGUI(item={Parameter.NAME : name, ScanChannel.UNIT : unit})
+        if not self.loading:
+            channel.connectSource()
+        self.channels.append(channel)
+        if (self.loading and channel.recordingData is not None) or (channel.sourceChannel is not None and (channel.acquiring or channel.getDevice().recording)):
+            # virtual channels will not necessarily be acquiring but they will be populated if their device is recording
+            self.outputs.append(channel)
+        return channel
+
+    def addInputChannel(self, name, _from, to, step):
+        """Converting channel to generic input data. Returns True if channel is valid for scanning."""
+        channel = self.getChannelByName(name, inout=INOUT.IN)
+        if channel is None:
+            self.print(f'No channel found with name {name}.', PRINT.WARNING)
+            return False
+        else:
+            if _from == to:
+                self.print('Limits are equal.', PRINT.WARNING)
+                return False
+            elif not channel.getDevice().initialized():
+                self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
+                return False
+            recordingData = self.getSteps(_from, to, step)
+            if len(recordingData) < 3:
+                self.print('Not enough steps.', PRINT.WARNING)
+                return False
+            self.inputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=recordingData, inout=INOUT.IN))
+            return True
+
+    def getSteps(self, _from, to, step):
+        """Returns steps based on _from, to, and step parameters."""
+        if _from == to:
+            self.print('Limits are equal.', PRINT.WARNING)
+            return None
+        else:
+            return np.arange(_from, to+step*np.sign(to-_from), step*np.sign(to-_from))
+
+    def getData(self, i, inout):
+        """Gets the data of a scan channel based on index and type.
+
+        :param i: Index of channel.
+        :type i: int
+        :param inout: Type of channel.
+        :type inout: :attr:`~esibd.const.INOUT`
+        :return: The requested data.
+        :rtype: numpy.array
+        """
+        return self.inputs[i].getRecordingData() if inout == INOUT.IN else self.outputs[i].getRecordingData()
+
+    def toggleAdvanced(self, advanced=None):
+        self.print('toggleAdvanced', flag=PRINT.DEBUG)
+        if advanced is not None:
+            self.advancedAction.state = advanced
+        if len(self.channels) > 0:
+            for i, item in enumerate(self.channels[0].getSortedDefaultChannel().values()):
+                if item[Parameter.ADVANCED]:
+                    self.channelTree.setColumnHidden(i, not self.advancedAction.state)
 
     def estimateScanTime(self):
         """Estimates scan time. Will likely need to be adapted for custom scans."""
@@ -3016,10 +3170,13 @@ class Scan(Plugin):
                 self.toggleDisplay(True)
                 self.file = file
                 self.display.file = file # for direct access of MZCalculator or similar addons that are not aware of the scan itself
+                self.loading = True
                 self.init()
                 self.loadDataInternal()
+                self.connectAllSources()
                 if self.useDisplayChannel:
                     self.populateDisplayChannel() # select default scan channel if available
+                self.loading = False
                 self.plot(update=False, done=True) # self.populateDisplayChannel() does not trigger plot while loading
                 self.display.raiseDock(_show)
             else:
@@ -3032,12 +3189,10 @@ class Scan(Plugin):
             group = h5file[self.name]
             input_group = group[self.INPUTCHANNELS]
             for name, data in input_group.items():
-                self.inputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT],
-                                               channel=self.getChannelByName(name, inout=INOUT.IN)))
+                self.inputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT]))
             output_group = group[self.OUTPUTCHANNELS]
             for name, data in output_group.items():
-                self.outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs[self.UNIT],
-                                               channel=self.getChannelByName(name, inout=INOUT.OUT)))
+                self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
 
     def generatePythonPlotCode(self):
         """Saves minimal code to create a plot which can be customized by the user."""
@@ -3050,22 +3205,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 inputs, outputs = [], []
 class MetaChannel():
-    def __init__(self, name, data, initial=None, background=None, unit=''):
+    def __init__(self, name, recordingData, initialValue=None, recordingBackground=None, unit=''):
         self.name = name
-        self.data = data
-        self.initial = initial
-        self.background = background
+        self.recordingData = recordingData
+        self.initialValue = initialValue
+        self.recordingBackground = recordingBackground
         self.unit = unit
+
+    @property
+    def logY(self):
+        if self.unit in ['mbar', 'Pa']:
+            return True
+        else:
+            return False
 
 with h5py.File('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}','r') as h5file:
     group = h5file['{self.name}']
 
     input_group = group['Input Channels']
     for name, data in input_group.items():
-        inputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs['Unit']))
+        inputs.append(MetaChannel(name=name, recordingData=data[:], unit=data.attrs['Unit']))
     output_group = group['Output Channels']
     for name, data in output_group.items():
-        outputs.append(MetaChannel(name=name, data=data[:], unit=data.attrs['Unit']))
+        outputs.append(MetaChannel(name=name, recordingData=data[:], unit=data.attrs['Unit']))
 
 output_index = next((i for i, output in enumerate(outputs) if output.name == '{self.outputs[0].name}'), 0) # select channel to plot
 
@@ -3076,49 +3238,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         Accessible from context menu of scan files.
         Overwrite to add scan specific plot code here."""
         return """# Add your custom plot code here:"""
-
-    def addInputChannel(self, channelName, _from, to, step):
-        """Converting channel to generic input data. Returns True if channel is valid for scanning."""
-        channel = self.getChannelByName(channelName, inout=INOUT.IN)
-        if channel is None:
-            self.print(f'No channel found with name {channelName}.', PRINT.WARNING)
-            return False
-        else:
-            if _from == to:
-                self.print('Limits are equal.', PRINT.WARNING)
-                return False
-            elif not channel.getDevice().initialized():
-                self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-                return False
-            data = self.getSteps(_from, to, step)
-            if len(data) < 3:
-                self.print('Not enough steps.', PRINT.WARNING)
-                return False
-            self.inputs.append(MetaChannel(name=channelName, data=data, initial=channel.value, unit=channel.getDevice().unit, channel=channel))
-            return True
-
-    def getSteps(self, _from, to, step):
-        """Returns steps based on _from, to, and step parameters."""
-        if _from == to:
-            self.print('Limits are equal.', PRINT.WARNING)
-            return None
-        else:
-            return np.arange(_from, to+step*np.sign(to-_from), step*np.sign(to-_from))
-
-    def getData(self, i, inout):
-        """Gets the data of a scan channel based on index and type.
-
-        :param i: Index of channel.
-        :type i: int
-        :param inout: Type of channel.
-        :type inout: :attr:`~esibd.const.INOUT`
-        :return: The requested data.
-        :rtype: numpy.array
-        """
-        if inout == INOUT.IN:
-            return self.inputs[i].data.get()  if isinstance(self.inputs[i].data,  DynamicNp) else self.inputs[i].data
-        else:
-            return self.outputs[i].data.get() if isinstance(self.outputs[i].data, DynamicNp) else self.outputs[i].data
 
     def toggleRecording(self):
         """Handles start and stop of scan."""
@@ -3186,25 +3305,25 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
     def run(self, recording):
         """Steps through input values, records output values, and triggers plot update.
         Executed in runThread. Will likely need to be adapted for custom scans."""
-        steps = list(itertools.product(*[i.data for i in self.inputs]))
+        steps = list(itertools.product(*[input.getRecordingData() for input in self.inputs]))
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps): # scan over all steps
             waitLong = False
             for j, _input in enumerate(self.inputs):
-                if not waitLong and abs(_input.channel.value-step[j]) > self.largestep:
+                if not waitLong and abs(_input.value-step[j]) > self.largestep:
                     waitLong=True
-                _input.channel.signalComm.updateValueSignal.emit(step[j])
+                _input.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait)+self.average)/1000) # if step is larger than threshold use longer wait time
             for j, output in enumerate(self.outputs):
                 if len(self.inputs) == 1: # 1D scan
-                    output.data[i] = np.mean(output.channel.getValues(subtractBackground=output.channel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
+                    output.recordingData[i] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
                 else: # 2D scan, higher dimensions not jet supported
-                    output.data[i%len(self.inputs[1].data), i//len(self.inputs[1].data)] = np.mean(output.channel.getValues(subtractBackground=output.channel.getDevice().subtractBackgroundActive(),
+                    output.recordingData[i%len(self.inputs[1].getRecordingData()), i//len(self.inputs[1].getRecordingData())] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(),
                                                                                                                   length=self.measurementsPerStep))
 
             if i == len(steps)-1 or not recording(): # last step
                 for j, _input in enumerate(self.inputs):
-                    _input.channel.signalComm.updateValueSignal.emit(_input.initial)
+                    _input.updateValueSignal.emit(_input.initialValue)
                 time.sleep(.5) # allow time to reset to initial value before saving
                 self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
                 self.signalComm.updateRecordingSignal.emit(False)
@@ -3267,9 +3386,9 @@ class Browser(Plugin):
         self.html = None
         self.plugin = None
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('blue-document-text-image.png')
+        return self.makeCoreIcon('QWebEngine.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3425,9 +3544,9 @@ class Text(Plugin):
         super().__init__(**kwargs)
         self.signalComm.setTextSignal.connect(self.setText)
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('blue-document-text.png')
+        return self.makeCoreIcon('text.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3523,7 +3642,11 @@ class Text(Plugin):
 
 class Tree(Plugin):
     """The Tree plugin gives an overview of the content of .py, .hdf5, and
-    .h5 files. This includes configuration or scan files and even python source code."""
+    .h5 files. This includes configuration or scan files and even python source code.
+    It can also help developers to inspect any object using Tree.inspect() from the :ref:`sec:console`."""
+    documentation = """The Tree plugin gives an overview of the content of .py, .hdf5, and
+    .h5 files. This includes configuration or scan files and even python source code.
+    It can also help developers to inspect any object using Tree.inspect() from the Console."""
 
     name = 'Tree'
     version = '1.0'
@@ -3542,9 +3665,9 @@ class Tree(Plugin):
         self.ICON_GROUP =   str(self.dependencyPath / 'folder.png')
         self._inspect = False
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('blue-document-tree.png')
+        return self.makeCoreIcon('tree.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3657,8 +3780,8 @@ class Tree(Plugin):
                 if not isinstance(element, (bool, float, int, str, Enum)):
                     self.inspect_recursive(tree=element_widget, obj=element, recursionDepth=recursionDepth)
             if len(obj) > list_preview_number and '...' not in children_text:
-                dummy = QTreeWidgetItem(tree, ['...'])
-                dummy.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
+                _ = QTreeWidgetItem(tree, ['...'])
+                _.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
         else:
             object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_') and (_filter is None or _filter.lower() in object_name.lower())]
             variable_names = []
@@ -3723,14 +3846,13 @@ class Console(Plugin):
     optional = False
     triggerComboBoxSignal = pyqtSignal(int)
 
-
     class SignalCommunicate(Plugin.SignalCommunicate):
         writeSignal = pyqtSignal(str)
         executeSignal = pyqtSignal(str)
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('terminal.png')
+        return self.makeCoreIcon('terminal.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3763,8 +3885,7 @@ class Console(Plugin):
             "PluginManager.showThreads() # show all active threads",
             "[plt.figure(num).get_label() for num in plt.get_fignums()] # show all active matplotlib figures",
             "# Module=EsibdCore.dynamicImport('ModuleName','C:/path/to/module.py') # import a python module, e.g. to run generated plot files.",
-            "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes.",
-            "# PluginManager.closePlugins(reload=True) # resets layout by reloading all plugins"
+            "# PluginManager.test() # Automated testing of all active plugins. Can take a few minutes."
         ])
         self.commonCommandsComboBox.setMaximumWidth(150)
         self.commonCommandsComboBox.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
@@ -3794,6 +3915,8 @@ class Console(Plugin):
                         icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'), before=self.toggleLoggingAction, event=lambda: self.inspect())
         # self.addAction(toolTip='dummy', icon=self.makeCoreIcon('block.png'), event=lambda: self.mainConsole.input.sigExecuteCmd.emit('i=1'), before=self.aboutAction)
 
+        self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
+
     def addToNamespace(self, key, value):
         self.mainConsole.localNamespace[key] = value
 
@@ -3801,7 +3924,6 @@ class Console(Plugin):
         """:meta private:"""
         if self.initializedDock:
             self.testControl(self.openLogAction, True)
-        # TODO reactivate after fixing stdout issue
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
         for i in range(self.commonCommandsComboBox.count())[1:]:
             if not self.testing:
@@ -3857,6 +3979,10 @@ class Console(Plugin):
 
     def clear(self):
         self.mainConsole.input.setText('')
+
+    def hide(self):
+        self.pluginManager.Settings.showConsoleAction.state = False
+        self.pluginManager.Settings.showConsoleAction.triggered.emit(False)
 
     def updateTheme(self):
         """:meta private:"""
@@ -4161,16 +4287,16 @@ class Settings(SettingsManager):
                          defaultFile=validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('gear.png')
+        return self.makeCoreIcon('gear.png', **kwargs)
 
     def runTestParallel(self):
         # cannot test file dialogs that require user interaction
         self.raiseDock(True)
         self.testControl(self.showConsoleAction, True)
         for setting in self.settings.values():
-            if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE]:
+            if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
                 self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
         super().runTestParallel()
 
@@ -4234,14 +4360,14 @@ class Settings(SettingsManager):
                                                                 items='100, 150, 200, 300', widgetType=Parameter.TYPE.INTCOMBO)
         # access using getTestMode()
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
-                                    event=lambda: self.pluginManager.DeviceManager.initializeCommunication() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
+                                    event=lambda: self.pluginManager.DeviceManager.closeCommunication() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True)
         ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=lambda: self.pluginManager.updateTheme(),
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL)
-        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Both', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(),
+        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
@@ -4286,6 +4412,7 @@ class Settings(SettingsManager):
         """increment without triggering event"""
         self.measurementNumber += 1
         self.settings[f'{self.SESSION}/{self.MEASUREMENTNUMBER}']._valueChanged = False # prevent event
+        self.settings[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'].settingEvent() # only save new value without triggering updateSessionPath
 
     def updateSessionPath(self, mesNum=0):
         """Updates the session path based on settings. Overwrite if you want to use different fields instead.
@@ -4368,9 +4495,9 @@ class DeviceManager(Plugin):
         self.signalComm.storeSignal.connect(self.store)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('current.png')
+        return self.makeCoreIcon('current.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -4527,7 +4654,7 @@ class DeviceManager(Plugin):
         :param manual: Indicates if triggered by user, defaults to False
         :type manual: bool, optional
         """
-        if not manual or self.pluginManager.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+        if not manual or self.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
             self.recording = False
             self.stopScans()
             for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
@@ -4618,9 +4745,9 @@ class Notes(Plugin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('sticky-note--pencil.png')
+        return self.makeCoreIcon('notes.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -4758,9 +4885,9 @@ class Explorer(Plugin):
         self.populating = False
         self.loadingContent = False
 
-    def getIcon(self):
+    def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('folder.png')
+        return self.makeCoreIcon('folder.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -5187,52 +5314,11 @@ class UCM(ChannelManager):
     maxDataPoints = 0 # UCM channels do not store data
     useMonitors = True
 
-    class UCMChannel(Channel):
+    class UCMChannel(RelayChannel, Channel):
         """Minimal UI for abstract channel."""
 
         sourceChannel = None
-
         DEVICE   = 'Device'
-        NOTES   = 'Notes'
-
-        @property
-        def color(self):
-            return self.sourceChannel.color if self.sourceChannel is not None else '#ffffff'
-
-        @property
-        def active(self):
-            return self.sourceChannel.active if self.sourceChannel is not None else True
-
-        @property
-        def real(self):
-            return self.sourceChannel.real if self.sourceChannel is not None else False
-
-        @property
-        def enabled(self):
-            return self.sourceChannel.enabled if self.sourceChannel is not None else False
-
-        @property
-        def time(self):
-            return self.sourceChannel.time if self.sourceChannel is not None else None
-
-        @property
-        def linewidth(self):
-            return self.sourceChannel.linewidth if self.sourceChannel is not None else 2
-
-        @property
-        def linestyle(self):
-            return self.sourceChannel.linestyle if self.sourceChannel is not None else 'solid'
-
-        @property
-        def smooth(self):
-            return self.sourceChannel.smooth if self.sourceChannel is not None else 0
-
-        @property
-        def logY(self):
-            return self.sourceChannel.logY if self.sourceChannel is not None else False
-
-        def getDevice(self):
-            return self.sourceChannel.getDevice() if self.sourceChannel is not None else None
 
         def connectSource(self):
             self.removeEvents() # free up previously used channel if applicable
@@ -5242,8 +5328,10 @@ class UCM(ChannelManager):
             if len(sources) == 0:
                  self.sourceChannel = None
                  self.getValues = None
-                 self.notes = f'Could not find source {self.name}'
+                 self.notes = f'Could not find {self.name}'
                  self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+                 self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
+                 self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
             else:
                 self.sourceChannel = sources[0]
                 self.getParameterByName(self.DEVICE).getWidget().setIcon(self.sourceChannel.getDevice().getIcon())
@@ -5269,11 +5357,13 @@ class UCM(ChannelManager):
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(self.sourceChannel.real)
+                    self.getParameterByName(self.VALUE).getWidget().setVisible(True)
                 elif self.sourceChannel.inout == INOUT.OUT:
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
                 else:
+                    self.getParameterByName(self.VALUE).getWidget().setVisible(False)
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
 
                 self.getSourceChannelValues()
@@ -5283,9 +5373,7 @@ class UCM(ChannelManager):
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
-            self.getParameterByName(self.DEVICE).setHeight()
             self.updateColor()
-
             self.scalingChanged()
 
         def setSourceChannelValue(self):
@@ -5333,12 +5421,14 @@ class UCM(ChannelManager):
 
         def removeEvents(self):
             if self.sourceChannel is not None:
-                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
-                if self.sourceChannel.useMonitors:
+                if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
+                if self.sourceChannel.useMonitors and self.relayMonitorEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayMonitorEvent)
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
-                        self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
+                        if self.updateDisplay in self.sourceChannel.getParameterByName(parameterName).extraEvents:
+                            self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -5350,13 +5440,13 @@ class UCM(ChannelManager):
             channel.pop(Channel.LINESTYLE)
             channel.pop(Channel.COLOR)
             channel[self.VALUE][Parameter.HEADER]   = 'SetValue ' # channels can have different types of parameters and units
-            channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
+            channel[self.VALUE][Parameter.EVENT] = lambda: self.setSourceChannelValue()
             channel[self.MONITOR][Parameter.HEADER] = 'ReadValue' # channels can have different types of parameters and units
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
             channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='unit', header='Unit   ', indicator=True)
             channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
-            channel[self.NAME][Parameter.EVENT] = self.connectSource
+            channel[self.NAME][Parameter.EVENT] = lambda: self.connectSource()
             return channel
 
         def setDisplayedParameters(self):
@@ -5390,6 +5480,10 @@ class UCM(ChannelManager):
         self.importAction.setToolTip('Import channels.')
         self.exportAction.setToolTip('Export channels.')
 
+    def afterFinalizeInit(self):
+        self.connectAllSources()
+        self.liveDisplay.plot(apply=True)
+
     def getChannels(self):
         return [channel for channel in self.channels if channel.sourceChannel is not None]
 
@@ -5403,8 +5497,8 @@ class UCM(ChannelManager):
         if newChannel is not None:
             newChannel.connectSource()
 
-    def getIcon(self):
-        return self.makeIcon('UCM.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('UCM.png', **kwargs)
 
     def toggleRecording(self, on=None, manual=False):
         super().toggleRecording(on=on, manual=manual)
@@ -5412,12 +5506,12 @@ class UCM(ChannelManager):
             for device in list(set([channel.getDevice() for channel in self.getChannels()])):
                 device.toggleRecording(on=self.recording, manual=manual)
 
-    def updateTheme(self):
+    def loadConfiguration(self, file=None, default=False):
+        super().loadConfiguration(file, default)
         self.connectAllSources()
-        super().updateTheme()
 
     def connectAllSources(self):
-        self.loading = True
+        self.loading = True # suppress plot
         for channel in self.channels:
             channel.connectSource()
         self.loading = False
@@ -5437,14 +5531,13 @@ class PID(ChannelManager):
     inout = INOUT.NONE
     maxDataPoints = 0 # PID channels do not store data
 
-    class PIDChannel(Channel):
+    class PIDChannel(RelayChannel, Channel):
         """Minimal UI for abstract PID channel."""
-
-        inputChannel = None
-        outputChannel = None
 
         def __init__(self,**kwargs):
             super().__init__(**kwargs)
+            self.inputChannel = None
+            self.sourceChannel = None
             self.pid = None
 
         OUTPUT       = 'Output'
@@ -5455,63 +5548,23 @@ class PID(ChannelManager):
         INTEGRAL     = 'Integral'     # if you haven’t been where you want to be for a long time, get there faster
         DERIVATIVE   = 'Derivative'   # if you’re getting close to where you want to be, slow down
         SAMPLETIME   = 'Sampletime'
-        NOTES        = 'Notes'
-
-        @property
-        def color(self):
-            return self.outputChannel.color if self.outputChannel is not None else '#ffffff'
-
-        @property
-        def active(self):
-            return self.outputChannel.active if self.outputChannel is not None else True
-
-        @property
-        def real(self):
-            return self.outputChannel.real if self.outputChannel is not None else False
-
-        @property
-        def enabled(self):
-            return self.outputChannel.enabled if self.outputChannel is not None else False
-
-        @property
-        def time(self):
-            return self.outputChannel.time if self.outputChannel is not None else None
-
-        @property
-        def linewidth(self):
-            return self.outputChannel.linewidth if self.outputChannel is not None else 2
-
-        @property
-        def linestyle(self):
-            return self.outputChannel.linestyle if self.outputChannel is not None else 'solid'
-
-        @property
-        def smooth(self):
-            return self.outputChannel.smooth if self.outputChannel is not None else 0
-
-        @property
-        def logY(self):
-            return self.outputChannel.logY if self.outputChannel is not None else False
-
-        def getDevice(self):
-            return self.outputChannel.getDevice() if self.outputChannel is not None else None
 
         def initPID(self):
             self.removeEvents()
-            self.outputChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
+            self.sourceChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
             self.notes = f'Output: {outNotes}, Input: {inNotes}'
-            if self.outputChannel is None:
+            if self.sourceChannel is None:
                 self.getValues = None
             else:
-                self.unit = self.outputChannel.getDevice().unit
-                self.getValues = self.outputChannel.getValues
-            if self.outputChannel is None or self.inputChannel is None:
+                self.unit = self.sourceChannel.getDevice().unit
+                self.getValues = self.sourceChannel.getValues
+            if self.sourceChannel is None or self.inputChannel is None:
                 return
-            if self.outputChannel.useMonitors:
-                self.outputChannel.getParameterByName(self.MONITOR).extraEvents.append(self.stepPID)
+            if self.sourceChannel.useMonitors:
+                self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.stepPID)
             else:
-                self.outputChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
+                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.stepPID)
             self.pid = simple_pid.PID(self.p, self.i, self.d, setpoint=self.value, sample_time=self.sample_time,
                                       output_limits=(self.inputChannel.min, self.inputChannel.max))
             self.updateColor()
@@ -5519,9 +5572,9 @@ class PID(ChannelManager):
         def findChannel(self, name, DEVICE):
             channels = [channel for channel in self.device.pluginManager.DeviceManager.channels() if channel.name.strip().lower() == name.strip().lower()]
             selectedChannel = None
-            notes = 'Unknown'
+            notes = ''
             if len(channels) == 0:
-                 self.notes = f'Could not find source {name}'
+                 notes = f'Could not find {name}'
                  self.getParameterByName(DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
             else:
                 selectedChannel = channels[0]
@@ -5533,7 +5586,7 @@ class PID(ChannelManager):
 
         def stepPID(self):
             if self.active and self.getDevice().isOn():
-                self.inputChannel.value = self.pid(self.outputChannel.value)
+                self.inputChannel.value = self.pid(self.sourceChannel.value)
 
         def updateSetpoint(self):
             if self.pid is not None:
@@ -5552,11 +5605,11 @@ class PID(ChannelManager):
             self.removeEvents()
 
         def removeEvents(self):
-            if self.outputChannel is not None:
-                if self.stepPID in self.outputChannel.getParameterByName(self.VALUE).extraEvents:
-                    self.outputChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
-                if self.outputChannel.useMonitors and self.stepPID in self.outputChannel.getParameterByName(self.MONITOR).extraEvents:
-                    self.outputChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.stepPID)
+            if self.sourceChannel is not None:
+                if self.stepPID in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
+                if self.sourceChannel.useMonitors and self.stepPID in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.stepPID)
 
         def getDefaultChannel(self):
             channel = super().getDefaultChannel()
@@ -5628,18 +5681,15 @@ class PID(ChannelManager):
     channelType = PIDChannel
 
     def __init__(self, **kwargs):
+        self.useOnOffLogic = True
         self.useDisplays = False
         super().__init__(**kwargs)
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(toolTipFalse='PID on.', iconFalse=self.makeIcon('PID_off.png'),
-                                                                  toolTipTrue='PID off.', iconTrue=self.getIcon(),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
+    def afterFinalizeInit(self):
+        self.connectAllSources()
 
     def getChannels(self):
-        return [channel for channel in self.channels if channel.outputChannel is not None]
+        return [channel for channel in self.channels if channel.sourceChannel is not None]
 
     def moveChannel(self, up):
         newChannel = super().moveChannel(up)
@@ -5651,10 +5701,13 @@ class PID(ChannelManager):
         if newChannel is not None:
             newChannel.initPID()
 
-    def getIcon(self):
-        return self.makeIcon('PID.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('PID.png', **kwargs)
 
-    def updateTheme(self):
-        super().updateTheme()
+    def connectAllSources(self):
         for channel in self.channels:
             channel.initPID()
+
+    def loadConfiguration(self, file=None, default=False):
+        super().loadConfiguration(file, default)
+        self.connectAllSources()

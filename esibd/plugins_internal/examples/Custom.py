@@ -26,8 +26,8 @@ class CustomControl(Plugin):
         super().__init__(**kwargs)
         # TODO initialize any custom variables
 
-    def getIcon(self):
-        return self.makeIcon('cookie.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('cookie.png', **kwargs)
 
     def initGUI(self):
         """Initialize your custom user interface"""

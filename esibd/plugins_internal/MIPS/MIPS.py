@@ -24,6 +24,7 @@ class MIPS(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = VoltageChannel
 
     def initGUI(self):
@@ -31,15 +32,8 @@ class MIPS(Device):
         super().initGUI()
         self.controller = VoltageController(_parent=self, COMs = self.getCOMs()) # after all channels loaded
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='MIPS on.', iconFalse=self.makeIcon('mips_off.png'),
-                                                                  toolTipTrue='MIPS off.', iconTrue=self.getIcon(),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('mips.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('mips.png', **kwargs)
 
     def getDefaultSettings(self):
         """:meta private:"""
@@ -60,7 +54,8 @@ class MIPS(Device):
         for channel in self.channels:
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
-    def voltageON(self):
+    def setOn(self, on=None):
+        super().setOn(on)
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
             self.controller.voltageON()
@@ -110,7 +105,7 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         # TODO need both COMs and ports?
         self.COMs       = COMs or ['COM1']
-        self.ports          = [None]*len(self.COMs)
+        self.ports      = [None]*len(self.COMs)
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
@@ -124,6 +119,7 @@ class VoltageController(DeviceController):
             try:
                 self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
                 # TODO test communication and throw exception. serial connection may initialize even though mips turned off!
+                # self.MIPSWriteRead(self.COMs[0], f'GDCBV,{1}\r\n')
                 self.signalComm.initCompleteSignal.emit()
             except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
                 self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
@@ -137,6 +133,7 @@ class VoltageController(DeviceController):
         self.voltageON()
 
     def closeCommunication(self):
+        # TODO Use port.port instead of COMs for all below!
         for i, COM in enumerate(self.COMs):
             if self.ports[i] is not None:
                 with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {COM}.'):

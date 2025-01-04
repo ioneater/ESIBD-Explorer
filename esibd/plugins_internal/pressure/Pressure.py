@@ -26,8 +26,8 @@ class Pressure(Device):
         self.controller = PressureController(_parent=self)
         self.logY = True
 
-    def getIcon(self):
-        return self.makeIcon('pressure_dark.png') if getDarkMode() else self.makeIcon('pressure_light.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('pressure_dark.png' if getDarkMode() else 'pressure_light.png', **kwargs)
 
     def getDefaultSettings(self):
         ds = super().getDefaultSettings()

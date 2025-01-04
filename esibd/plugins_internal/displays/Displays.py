@@ -43,8 +43,8 @@ class MS(Plugin):
         self.paperAction = None
         self.dataClipboardIcon = self.makeIcon('clipboard-paste-document-text.png')
 
-    def getIcon(self):
-        return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png', **kwargs)
 
     def initGUI(self):
         self.mzCalc = MZCalculator(parentPlugin=self)
@@ -206,8 +206,8 @@ class PDB(Plugin):
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.pdb','.pdb1']
 
-    def getIcon(self):
-        return self.makeIcon('pdb.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('pdb.png', **kwargs)
 
     def initGUI(self):
         self.file = None
@@ -326,8 +326,8 @@ class LINE(Plugin):
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.txt']
 
-    def getIcon(self):
-        return self.makeIcon('chart.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('chart.png', **kwargs)
 
     def initGUI(self):
         self.profile = None
@@ -420,8 +420,8 @@ class HOLO(Plugin):
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.npy']
 
-    def getIcon(self):
-        return self.makeIcon('holo.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('holo.png', **kwargs)
 
     def initGUI(self):
         """Initialize GUI to display Holograms."""

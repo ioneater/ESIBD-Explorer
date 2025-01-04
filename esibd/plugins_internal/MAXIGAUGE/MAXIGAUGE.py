@@ -24,8 +24,8 @@ class MAXIGAUGE(Device):
         self.controller = PressureController(_parent=self)
         self.logY = True
 
-    def getIcon(self):
-        return self.makeIcon('pfeiffer_maxi.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('pfeiffer_maxi.png', **kwargs)
 
     def getDefaultSettings(self):
         ds = super().getDefaultSettings()

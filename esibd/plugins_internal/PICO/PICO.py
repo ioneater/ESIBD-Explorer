@@ -33,8 +33,8 @@ class PICO(Device):
         self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
-    def getIcon(self):
-        return self.makeIcon('pico_104.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('pico_104.png', **kwargs)
 
     def changeUnit(self):
         if self.liveDisplayActive():

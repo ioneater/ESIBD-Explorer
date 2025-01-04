@@ -24,6 +24,7 @@ class RSPD3303C(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = VoltageChannel
 
     def initGUI(self):
@@ -31,15 +32,8 @@ class RSPD3303C(Device):
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='RSPD3303C on.', iconFalse=self.makeIcon('RSPD3303C_off.png'),
-                                                                  toolTipTrue='RSPD3303C off.', iconTrue=self.getIcon(),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('RSPD3303C.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('RSPD3303C.png', **kwargs)
 
     ADDRESS = 'Address'
 
@@ -61,7 +55,8 @@ class RSPD3303C(Device):
         for channel in self.channels:
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
-    def voltageON(self):
+    def setOn(self, on=None):
+        super().setOn(on)
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
             self.controller.voltageON()

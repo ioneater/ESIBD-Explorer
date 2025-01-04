@@ -27,13 +27,14 @@ class CustomDevice(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = CustomChannel
         self.controller = CustomController(_parent=self)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
         # TODO initialize any custom variables
 
-    def getIcon(self):
-        return self.makeIcon('cookie.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('cookie.png', **kwargs)
 
     def initGUI(self):
         """Initialize your custom user interface"""
@@ -42,11 +43,7 @@ class CustomDevice(Device):
         self.addAction(self.customAction, 'Custom tooltip.', self.makeIcon('cookie.png'))
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.customAction(), toolTipFalse='Custom Device on.', iconFalse=self.makeIcon('cookie_off.png'),
-                                                                  toolTipTrue='Custom Device off.', iconTrue=self.makeIcon('cookie.png'),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        # TODO if applicable add action to DeviceManager, e.g. to quickly turn power supplies on or off
+        # TODO add code that should be executed after all other Plugins are initialized.
         super().finalizeInit(aboutFunc)
 
     def runTestParallel(self):
@@ -54,12 +51,16 @@ class CustomDevice(Device):
         # TODO add custom tests (avoid tests that require user interaction!)
         super().runTestParallel()
 
+    def setOn(self, on=None):
+        super().setOn(on)
+        self.customAction()
+
     def customAction(self):
         """Execute your custom code"""
-        if not self.testing:
+        if not self.testing or self.pluginManager.closing:
             self.messageBox.setWindowTitle('Custom Dialog')
             self.messageBox.setWindowIcon(self.getIcon())
-            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}')
+            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}.\nThe value of your custom setting is {"on" if self.isOn() else "off"}.')
             self.messageBox.open() # show non blocking
             self.messageBox.raise_()
 

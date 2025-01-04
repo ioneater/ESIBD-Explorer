@@ -259,8 +259,7 @@ class PluginManager():
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Text))) # move Text to end to have lowest priority to handle files
         self.loading = False
         self.finalizeInit()
-        if hasattr(self, 'UCM'):
-            self.UCM.connectAllSources()
+        self.afterFinalizeInit()
         self.mainWindow.setUpdatesEnabled(True)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
@@ -335,23 +334,30 @@ class PluginManager():
 
     def provideDocks(self):
         """Creates docks and positions them as defined by :attr:`~esibd.core.PluginManager.pluginType`"""
-        if not hasattr(self, 'topDock'): # reuse old
+        if not hasattr(self, 'topDock'): # else reuse old
             self.topDock = QDockWidget() # dummy to align other docks to
             self.topDock.setObjectName('topDock') # required to restore state
             QApplication.processEvents()
             self.topDock.hide()
         # * when using TopDockWidgetArea there is a superfluous separator on top of the statusbar -> use BottomDockWidgetArea
+        # first 4 plugins define layout
         self.mainWindow.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.topDock)
-        for plugin in self.plugins:
+        self.DeviceManager.provideDock()
+        self.Settings.provideDock()
+        self.Console.provideDock()
+        self.Browser.provideDock()
+        pluginTypeOrder = [self.TYPE.DEVICEMGR, self.TYPE.CONTROL, self.TYPE.CONSOLE, self.TYPE.CHANNELMANAGER, self.TYPE.INPUTDEVICE, self.TYPE.OUTPUTDEVICE, self.TYPE.SCAN]
+        for plugin in sorted((plugin for plugin in self.plugins if plugin.pluginType in pluginTypeOrder),
+            key=lambda x: pluginTypeOrder.index(x.pluginType)):
+            # Note: self.TYPE.INTERNAL, self.TYPE.DISPLAY will be loaded by their parent items later if needed
             self.logger.print(f'provideDocks {plugin.name} {plugin.version}', flag=PRINT.DEBUG)
-            if plugin.pluginType not in [self.TYPE.INTERNAL, self.TYPE.DISPLAY] or plugin.name == 'Browser':
-                # display plugins will be initialized when needed, internal plugins do not need GUI
-                try:
-                    plugin.provideDock()
-                except Exception:
-                    self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
-                    self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
-                self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
+            # display plugins will be initialized when needed, internal plugins do not need GUI
+            try:
+                plugin.provideDock()
+            except Exception:
+                self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
+            self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
         # tabBars = self.mainWindow.findChildren(QTabBar)
         # if tabBars: #might be null if there are no tabbed docks
         #     for tabBar in tabBars:
@@ -366,6 +372,18 @@ class PluginManager():
                     plugin.finalizeInit()
                 except Exception:
                     self.logger.print(f'Could not finalize plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                    plugin.closeGUI()
+                    self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
+
+    def afterFinalizeInit(self):
+        """Finalize initialization after all other plugins have been initialized."""
+        for plugin in self.plugins:
+            QApplication.processEvents()
+            if plugin.initializedDock:
+                try:
+                    plugin.afterFinalizeInit()
+                except Exception:
+                    self.logger.print(f'Could not complete finalization of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                     plugin.closeGUI()
                     self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
 
@@ -411,7 +429,7 @@ class PluginManager():
         dlg = QDialog(self.mainWindow)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
-        dlg.setWindowIcon(BetterIcon(internalMediaPath / 'block--pencil.png'))
+        dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
         tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
@@ -523,8 +541,7 @@ class PluginManager():
             self.Console.mainDisplayWidget.setMaximumHeight(height)
         QTimer.singleShot(1000, self.resetMainDisplayWidgetLimits)
         self.Explorer.raiseDock() # only works if given at least .3 ms delay after loadPlugins completed
-        if hasattr(self, 'Browser'):
-            self.Browser.raiseDock()
+        self.Browser.raiseDock()
 
     def resetMainDisplayWidgetLimits(self):
         """Resets limits to allow for user scaling if plugin sizes."""
@@ -532,9 +549,9 @@ class PluginManager():
         # QApplication.processEvents() is not sufficient
         self.Settings.mainDisplayWidget.setMinimumWidth(100)
         self.Settings.mainDisplayWidget.setMaximumWidth(10000)
-        self.Settings.mainDisplayWidget.setMinimumHeight(100)
+        self.Settings.mainDisplayWidget.setMinimumHeight(50)
         self.Settings.mainDisplayWidget.setMaximumHeight(10000)
-        self.Console.mainDisplayWidget.setMinimumHeight(100)
+        self.Console.mainDisplayWidget.setMinimumHeight(50)
         self.Console.mainDisplayWidget.setMaximumHeight(10000)
 
     def getMainPlugins(self):
@@ -565,6 +582,10 @@ class PluginManager():
         return [plugin for plugin in self.plugins if isinstance(plugin, parentClasses)]
 
     def toggleTitleBarDelayed(self):
+        tabBars = self.mainWindow.findChildren(QTabBar)
+        if tabBars:
+            for tabBar in tabBars:
+                tabBar.setStyleSheet('QTabBar::tab {font-size: 1px; margin-right: -18px}QTabBar::tab:selected {font-size: 12px;margin-right: 0px;}' if getIconMode() == 'Icons' else '')
         if not self.loading:
             for plugin in self.plugins:
                 if plugin.initializedDock:
@@ -1184,7 +1205,7 @@ class Parameter():
             # self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             # self.combo.customContextMenuRequested.connect(self.initComboContextMenu)
         elif self.widgetType == self.TYPE.TEXT:
-            self.line = self.widget if self.widget is not None else BetterLineEdit()
+            self.line = self.widget if self.widget is not None else LineEdit()
             self.line.setFrame(False)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.widget is None:
@@ -1264,11 +1285,14 @@ class Parameter():
             self.spin.setMinimumWidth(int(scaling*50)+10) # empirical
             self.spin.lineEdit().setFont(font)
         elif self.widgetType == self.TYPE.BOOL:
-            checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height())
-            iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
             if isinstance(self.check, QCheckBox):
+                checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height()-2)
+                self.check.checkBoxHeight = checkBoxHeight # remember for updateColor
+                self.check.setMinimumWidth(self.rowHeight)
+                self.check.setMinimumWidth(self.rowHeight)
                 self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
             else: #isinstance(self.check, QToolButton, QPushButton)
+                iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
                 self.check.setFont(font)
                 self.check.setIconSize(QSize(iconHeight, iconHeight))
         # elif self.widgetType == self.TYPE.COLOR:
@@ -1412,7 +1436,92 @@ class Setting(QTreeWidgetItem, Parameter):
             else: # save non internal parameters to file
                 self._parent.saveSettings(default=True)
 
-class MetaChannel():
+class RelayChannel():
+
+    def getRecordingData(self):
+        return self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
+
+    def getDevice(self):
+        return self.sourceChannel.getDevice() if self.sourceChannel is not None else self.device
+
+    def subtractBackgroundActive(self):
+        return self.sourceChannel.getDevice().subtractBackgroundActive() if self.sourceChannel is not None else False
+
+    @property
+    def recording(self):
+        return self.sourceChannel.getDevice().recording if self.sourceChannel is not None else False
+
+    def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None):
+        return self.sourceChannel.getValues(length, _min, _max, n, subtractBackground) if self.sourceChannel is not None else None
+
+    @property
+    def value(self):
+        if self.sourceChannel is not None:
+            return self.sourceChannel.value
+        # elif len(self.getRecordingData()) > 0: # no valid use case so far
+        #     return self.getRecordingData()[-1]
+        else:
+            return None
+
+    @property
+    def enabled(self):
+        return self.sourceChannel.enabled if self.sourceChannel is not None else False
+
+    @property
+    def active(self):
+        return self.sourceChannel.active if self.sourceChannel is not None else True
+
+    @property
+    def acquiring(self):
+        return self.sourceChannel.acquiring if self.sourceChannel is not None else False
+
+    @property
+    def min(self):
+        return self.sourceChannel.min if self.sourceChannel is not None else None
+
+    @property
+    def max(self):
+        return self.sourceChannel.max if self.sourceChannel is not None else None
+
+    # @property # implement channel specific, some may prefer to use their internal display!
+    # def display(self):
+    #     if hasattr(self, 'display'):
+    #         return self.display
+    #     return self.sourceChannel.display if self.sourceChannel is not None else True
+
+    @property
+    def smooth(self):
+        return self.sourceChannel.smooth if self.sourceChannel is not None else 0
+
+    # @property # implement channel specific,
+    # def unit(self):
+    #     return self.sourceChannel.unit if self.sourceChannel is not None else self._unit
+
+    @property
+    def color(self):
+        return self.sourceChannel.color if self.sourceChannel is not None else '#ffffff'
+
+    @property
+    def linewidth(self):
+        return self.sourceChannel.linewidth if self.sourceChannel is not None else 4
+
+    @property
+    def linestyle(self):
+        return self.sourceChannel.linestyle if self.sourceChannel is not None else 'solid'
+
+    def getQtLineStyle(self):
+        return self.sourceChannel.getQtLineStyle() if self.sourceChannel is not None else Qt.PenStyle.DotLine
+
+    @property
+    def logY(self):
+        if self.sourceChannel is not None:
+            return self.sourceChannel.logY
+        elif self.unit in ['mbar', 'Pa']:
+            return True
+        else:
+            return False
+
+class MetaChannel(RelayChannel):
     """Manages metadata associated with a channel by a :class:`~esibd.plugins.Scan` or :class:`~esibd.plugins.LiveDisplay`.
     Allows to restore data even if corresponding channels do not exist anymore.
 
@@ -1432,16 +1541,35 @@ class MetaChannel():
         The actual channel, if it exists.
     """
 
-    def __init__(self, name, data, initial=None, background=None, unit='', channel=None):
-        """
-
-        """
+    def __init__(self, parentPlugin=None, name=None, unit='', recordingData=None, initialValue=None, recordingBackground=None, inout=None):
+        self.parentPlugin = parentPlugin
         self.name = name
-        self.data = data
-        self.initial = initial
-        self.background = background
+        self.recordingData = recordingData
+        self.initialValue = initialValue
+        self.recordingBackground = recordingBackground
         self.unit = unit
-        self.channel = channel # use getChannelByName(name, inout=INOUT.OUT) as argument if applicable
+        self.sourceChannel = None
+        self.inout = inout
+        self.updateValueSignal = None
+        self.connectSource()
+
+    def connectSource(self):
+        # Will only be called when using MetaChannel directly. ScanChannel will implements its own version.
+        if self.name == 'Time':
+            return
+        if self.inout is None:
+            self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
+            if self.sourceChannel is None:
+                self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
+        else:
+            self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=self.inout)
+        if self.sourceChannel is not None:
+            self.initialValue = self.sourceChannel.value
+            self.unit = self.sourceChannel.unit
+            self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
+
+    def display(self):
+        return self.sourceChannel.display if self.sourceChannel is not None else True
 
 class Channel(QTreeWidgetItem):
     """A :class:`channel<esibd.core.Channel>` represents a virtual or real parameter and manages all data and
@@ -1486,14 +1614,15 @@ class Channel(QTreeWidgetItem):
     backgrounds : DynamicNp
     """List of backgrounds. Only defined if corresponding device uses backgrounds."""
 
-    def __init__(self, device, tree):
+    def __init__(self, device=None, tree=None):
         super().__init__() # need to init without tree, otherwise channels will always appended to the end when trying to change order using insertTopLevelItem
         self.device = device
-        self.print = device.print
-        self.convertDataDisplay = self.device.convertDataDisplay
-        self.useDisplays = self.device.useDisplays
-        self.useBackgrounds = self.device.useBackgrounds
-        self.useMonitors = self.device.useMonitors
+        self.parentPlugin = device # name may be more appropriate for some use cases
+        self.print = self.device.print
+        self.convertDataDisplay = self.device.convertDataDisplay if hasattr(self.device, 'convertDataDisplay') else None
+        self.useDisplays = self.device.useDisplays if hasattr(self.device, 'useDisplays') else False
+        self.useBackgrounds = self.device.useBackgrounds if hasattr(self.device, 'useBackgrounds') else False
+        self.useMonitors = self.device.useMonitors if hasattr(self.device, 'useMonitors') else False
         if hasattr(self.device, 'logY'):
             self.logY = self.device.logY
         self.tree = tree # may be None for internal default channels
@@ -1504,14 +1633,15 @@ class Channel(QTreeWidgetItem):
         self.lastAppliedValue = None # keep track of last value to identify what has changed
         self.parameters = []
         self.displayedParameters = []
-        self.values = DynamicNp(max_size=self.device.maxDataPoints)
-        self.inout = device.inout
+        self.values = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
+        self.inout = self.device.inout if hasattr(self.device, 'inout') else INOUT.NONE
         self.controller = None
         self.defaultStyleSheet = None # will be initialized when color is set
         self.warningStyleSheet = f'background: rgb({255},{0},{0})'
 
-        if self.inout != INOUT.NONE and self.device.useBackgrounds:
-                self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints) # array of background history. managed by instrument manager to keep timing synchronous
+        if self.inout != INOUT.NONE and self.useBackgrounds:
+                # array of background history. managed by instrument manager to keep timing synchronous
+                self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
 
         # self.value = None # will be replaced by wrapper
         # generate property for direct access of parameter values
@@ -1559,18 +1689,28 @@ class Channel(QTreeWidgetItem):
     REMOVEITEM  = 'Remove Item'
     ADDPARTOCONSOLE  = 'Add Parameter to Console'
     ADDCHANTOCONSOLE  = 'Add Channel to Console'
+    NOTES        = 'Notes'
 
     @property
     def loading(self):
-        return self.device.loading
+        return self.getDevice().loading
 
     @property
     def unit(self):
-        return self.device.unit
+        return self.getDevice().unit
 
     @property
     def time(self):
-        return self.device.time
+        return self.getDevice().time
+
+    @property
+    def acquiring(self):
+        if self.controller is not None:
+            return self.controller.acquiring
+        elif self.getDevice().controller is not None:
+            return self.getDevice().controller.acquiring
+        else:
+            return False
 
     def getDefaultChannel(self):
         """ Defines parameter(s) of the default channel.
@@ -1797,8 +1937,8 @@ class Channel(QTreeWidgetItem):
             elif isinstance(widget, QComboBox):
                 pass
             elif isinstance(widget, QCheckBox):
-                checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height())
-                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
+                checkBoxHeight = widget.checkBoxHeight if hasattr(widget, 'checkBoxHeight') else min(self.rowHeight-4, QCheckBox().sizeHint().height()-2)
+                widget.setStyleSheet(f'QCheckBox{{background-color: {color.name()}; color:{colors.fg}}} QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
             elif isinstance(widget, QPushButton):
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
             else:
@@ -1822,7 +1962,8 @@ class Channel(QTreeWidgetItem):
                 self.rowHeight = normalHeight*6
         for parameter in self.parameters:
             parameter.setHeight(self.rowHeight)
-        self.tree.scheduleDelayedItemsLayout()
+        if not self.loading:
+            self.tree.scheduleDelayedItemsLayout()
 
     def sizeHint(self, option, index):
         # Provide a custom size hint based on the item's content
@@ -1847,7 +1988,7 @@ class Channel(QTreeWidgetItem):
                 self.device.liveDisplay.plot(apply=True)
 
     def updateDisplay(self):
-        if not self.device.loading:
+        if not self.device.loading and self.useDisplays:
             self.clearPlotCurve()
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
@@ -1883,24 +2024,26 @@ class Channel(QTreeWidgetItem):
             font.setPointSize(8)
             line.setFont(font)
 
-        select = self.getParameterByName(self.SELECT)
-        initialValue= select.value
-        select.widget = ToolButton() # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
-        select.applyWidget()
-        select.check.setMaximumHeight(select.rowHeight) # default too high
-        select.check.setText(self.SELECT.title())
-        select.check.setMinimumWidth(5)
-        select.check.setCheckable(True)
-        select.value = initialValue
+        if self.SELECT in self.displayedParameters:
+            select = self.getParameterByName(self.SELECT)
+            initialValue= select.value
+            select.widget = ToolButton() # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
+            select.applyWidget()
+            select.check.setMaximumHeight(select.rowHeight) # default too high
+            select.check.setText(self.SELECT.title())
+            select.check.setMinimumWidth(5)
+            select.check.setCheckable(True)
+            select.value = initialValue
 
-        collapse = self.getParameterByName(self.COLLAPSE)
-        initialValue = collapse.value
-        collapse.widget = QPushButton()
-        collapse.widget.setCheckable(True)
-        collapse.widget.setStyleSheet('QPushButton{border:none;}')
-        collapse.applyWidget()
-        collapse.value = initialValue
-        collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
+        if self.COLLAPSE in self.displayedParameters:
+            collapse = self.getParameterByName(self.COLLAPSE)
+            initialValue = collapse.value
+            collapse.widget = QPushButton()
+            collapse.widget.setCheckable(True)
+            collapse.widget.setStyleSheet('QPushButton{border:none;}')
+            collapse.applyWidget()
+            collapse.value = initialValue
+            collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
 
         if self.inout != INOUT.NONE:
             self.updateColor()
@@ -1908,9 +2051,7 @@ class Channel(QTreeWidgetItem):
             if self.inout == INOUT.IN:
                 self.updateMin()
                 self.updateMax()
-
-        if self.scaling != 'normal':
-            self.scalingChanged() # after changing color
+        self.scalingChanged()
 
     def updateMin(self):
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
@@ -1965,13 +2106,120 @@ class Channel(QTreeWidgetItem):
         #     elif settingsContextMenuAction is removeItemAction:
         #         parameter.removeCurrentItem()
 
+class ScanChannel(RelayChannel, Channel):
+    """Minimal UI for abstract PID channel."""
+
+    def __init__(self, **kwargs):
+        Channel.__init__(self, **kwargs)
+        self.sourceChannel = None
+        self.recordingData = None
+
+    def onDelete(self):
+        super().onDelete()
+        self.removeEvents()
+
+    DEVICE   = 'Device'
+
+    def getDefaultChannel(self):
+        channel = super().getDefaultChannel()
+        channel.pop(Channel.SELECT)
+        channel.pop(Channel.ACTIVE)
+        channel.pop(Channel.EQUATION)
+        channel.pop(Channel.REAL)
+        channel.pop(Channel.COLOR)
+        channel.pop(Channel.COLLAPSE)
+        channel[self.VALUE][Parameter.INDICATOR] = True
+        channel[self.NAME][Parameter.INDICATOR] = True
+        channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+                                        header='D', toolTip='Display channel history.',
+                                        event=lambda: self.updateDisplay(), attr='display')
+        channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
+                                                 toolTip='Source device.', header='')
+        channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
+        channel[self.NOTES] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
+        return channel
+
+    def tempParameters(self):
+        """This channel is not restored from file, this every parameter is a tempParameter."""
+        return super().tempParameters() + [self.VALUE, self.DEVICE, self.DISPLAY, self.NOTES, self.SCALING]
+
+    def setDisplayedParameters(self):
+        super().setDisplayedParameters()
+        self.displayedParameters.remove(self.COLLAPSE)
+        self.displayedParameters.remove(self.ENABLED)
+        self.displayedParameters.remove(self.ACTIVE)
+        self.displayedParameters.remove(self.EQUATION)
+        self.displayedParameters.remove(self.REAL)
+        self.displayedParameters.remove(self.COLOR)
+        self.displayedParameters.remove(self.SELECT)
+        self.insertDisplayedParameter(self.DEVICE, self.NAME)
+        self.insertDisplayedParameter(self.UNIT, before=self.SCALING)
+        self.insertDisplayedParameter(self.DISPLAY, before=self.SCALING)
+        self.insertDisplayedParameter(self.NOTES, before=self.SCALING)
+
+    def initGUI(self, item):
+        super().initGUI(item)
+        device = self.getParameterByName(self.DEVICE)
+        device.widget = QPushButton()
+        device.widget.setStyleSheet('QPushButton{border:none;}')
+        device.applyWidget()
+        self.display = True
+
+    def connectSource(self):
+        self.sourceChannel = self.device.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
+        if self.sourceChannel is None:
+            self.sourceChannel = self.device.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
+        # if self.unit != '' and self.sourceChannel is not None and self.unit != self.sourceChannel.unit:
+        #     Found a channel that has the same name but likely belongs to another device.
+        #     In most cases the only consequence is using the wrong color.
+        #     Handle in specific scan if other channel specific properties are relevant
+        #     self.sourceChannel = None
+        if self.sourceChannel is not None:
+            self.getParameterByName(self.DEVICE).getWidget().setIcon(
+                self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
+            if self.sourceChannel.useMonitors:
+                self.getParameterByName(self.VALUE).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
+                self.getParameterByName(self.VALUE).applyWidget()
+                self.value = self.sourceChannel.monitor
+                self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayValueEvent)
+            else:
+                self.getParameterByName(self.VALUE).widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
+                self.getParameterByName(self.VALUE).applyWidget()
+                self.value = self.sourceChannel.value
+                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
+            if self.unit == '': # do not overwrite unit if set explicitly
+                self.unit = self.sourceChannel.unit
+            self.notes = f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}'
+        else:
+            self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+            self.notes = f'Could not find {self.name}'
+        self.getParameterByName(self.DEVICE).setHeight()
+        self.updateColor()
+        self.scalingChanged()
+
+    def relayValueEvent(self):
+        if self.sourceChannel is not None:
+            try:
+                self.value = self.sourceChannel.monitor if self.sourceChannel.useMonitors else self.sourceChannel.value
+            except RuntimeError:
+                self.removeEvents()
+
+    def removeEvents(self):
+        if self.sourceChannel is not None:
+            if self.sourceChannel.useMonitors:
+                if self.relayValueEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
+                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayValueEvent)
+            else:
+                if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
+
 class QLabviewSpinBox(QSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False):
         super().__init__(parent)
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.setMinimumWidth(50)
+        self.setMinimumWidth(54)
         self.setRange(np.iinfo(np.int32).min, np.iinfo(np.int32).max) # limit explicitly if needed, this seems more useful than the [0, 100] default range
         if indicator:
             self.setReadOnly(True)
@@ -2405,7 +2653,7 @@ class CompactComboBox(QComboBox):
         if maxWidth:
             view.setMinimumWidth(maxWidth)
 
-class BetterDockWidget(QDockWidget):
+class DockWidget(QDockWidget):
     """DockWidget with custom title bar allows to intercept the close and float events triggered by user."""
     # future desired features:
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
@@ -2456,36 +2704,65 @@ class BetterDockWidget(QDockWidget):
 
     def updateIcon(self):
         tabBars = self.plugin.pluginManager.mainWindow.findChildren(QTabBar)
-        self.setWindowTitle(self.title) # set it just for now so tabWhatsThis can always be initialized correctly
+        # self.setWindowTitle(self.title) # set it just for now so tabWhatsThis can always be initialized correctly
         if tabBars: #might be null if there are no tabbed docks
             for tabBar in tabBars:
                 for i in range(tabBar.count()):
                     # tabWhatsThis stays unchanged when setWindowTitle('') unlike tabToolTip
-                    if (tabBar.tabWhatsThis(i) is None or tabBar.tabWhatsThis(i) == '') and tabBar.tabText(i) == self.title:
-                        tabBar.setTabWhatsThis(i, self.title) # make sure we can identify tab even if windowTitle is set to '' temporarily
-                    if tabBar.tabWhatsThis(i) is not None and tabBar.tabWhatsThis(i) == self.title:# tabBar.tabText(i) == self.title:
+                    # if (tabBar.tabWhatsThis(i) is None or tabBar.tabWhatsThis(i) == '') and tabBar.tabText(i) == self.title:
+                    #     tabBar.setTabWhatsThis(i, self.title) # make sure we can identify tab even if windowTitle is set to '' temporarily
+                    # if tabBar.tabWhatsThis(i) is not None and tabBar.tabWhatsThis(i) == self.title:# tabBar.tabText(i) == self.title:
+                    if tabBar.tabText(i) == self.title:
                         # tabBar.setTabText(i, '' if getIconMode() == 'Icons' else self.title) # no effect
                         # button1 = QToolButton()
                         # button1.setIcon(self.plugin.getIcon())
                         # tabBar.setTabButton(i, QTabBar.ButtonPosition.LeftSide, button1)
                         tabBar.setTabIcon(i, QIcon() if getIconMode() == 'Labels' else self.plugin.getIcon())
-        # TODO ideally hide label and not just set text to '' to make sure empty label does not use space next to icon
         # https://stackoverflow.com/questions/24851977/hide-label-text-for-qt-tabs-without-setting-text-to-empty-string
-        if getIconMode() == 'Icons':
-            self.setWindowTitle('') # hide it, knowing that tabWhatsThis has been set and can be used to restore later
+        # if getIconMode() == 'Icons':
+        #     self.setWindowTitle('') # hide it, knowing that tabWhatsThis has been set and can be used to restore later
 
     def closeEvent(self, event):
         self.signalComm.dockClosingSignal.emit()
         return super().closeEvent(event)
 
-class BetterIcon(QIcon):
+class Icon(QIcon):
     """QIcon that allows to save the icon file name. Allows to reuse icon elsewhere, e.g., for html about dialog."""
 
-    def __init__(self, file):
+    def __init__(self, file, pixmap=None):
         if isinstance(file, Path):
             file = file.as_posix()
-        super().__init__(file)
+        if pixmap is None:
+            super().__init__(file)
+        else:
+            super().__init__(pixmap)
         self.fileName = file # remember for later access
+
+class TreeWidget(QTreeWidget):
+
+    def __init__(self, parent=None, minimizeHeight=False):
+        super().__init__(parent)
+        self.minimizeHeight = minimizeHeight
+
+    def calculate_tree_height_hint_complete(self):
+        item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
+        return self.header().height() + self.topLevelItemCount() * item_height
+
+    def calculate_tree_height_hint_minimal(self):
+        item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
+        return self.header().height() + min(self.topLevelItemCount(), 4) * item_height
+
+    def count_child_items(self, item):
+        count = item.childCount()
+        for i in range(item.childCount()):
+            count += self.count_child_items(item.child(i))
+        return count
+
+    def fitAllItems(self):
+        self.resize(self.width(), self.calculate_tree_height())
+
+    def sizeHint(self):
+        return QSize(self.width(), self.calculate_tree_height_hint_minimal() if self.minimizeHeight else self.calculate_tree_height_hint_complete())
 
 class LedIndicator(QAbstractButton):
     """Simple custom LED indicator"""
@@ -2590,7 +2867,7 @@ class LedIndicator(QAbstractButton):
     def offColor2(self, color):
         self.off_color_2 = color
 
-class BetterLineEdit(QLineEdit):
+class LineEdit(QLineEdit):
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
     userEditingFinished = pyqtSignal(str)
 
@@ -2714,10 +2991,10 @@ class IconStatusBar(QStatusBar):
         # self.icon_message = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation)
         # self.icon_error = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
         # self.icon_warning = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
-        self.icon_warning = BetterIcon(internalMediaPath / 'unicode_warning.png')
-        self.icon_error   = BetterIcon(internalMediaPath / 'unicode_error.png')
-        self.icon_info    = BetterIcon(internalMediaPath / 'unicode_info.png')
-        self.icon_explorer= BetterIcon(PROGRAM_ICON)
+        self.icon_warning = Icon(internalMediaPath / 'unicode_warning.png')
+        self.icon_error   = Icon(internalMediaPath / 'unicode_error.png')
+        self.icon_info    = Icon(internalMediaPath / 'unicode_info.png')
+        self.icon_explorer= Icon(PROGRAM_ICON)
         self.setIcon(self.icon_explorer)
 
         self._statusLabel = QLabel()
@@ -2812,9 +3089,6 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.updateTheme()
 
     def updateTheme(self):
-        self.fgColor = '#ffffff' if getDarkMode() else '#000000' # foreground
-        self.bgColor = '#000000' if getDarkMode() else '#ffffff' # background
-        self.hlColor = '#51537e' if getDarkMode() else '#ccccff' # highlight
         self.output.setStyleSheet(f'QPlainTextEdit{{background-color:{colors.bg};}}')
 
     def scrollToBottom(self):
@@ -2959,7 +3233,7 @@ class MZCalculator():
                                 xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top')
         self.parentPlugin.labelPlot(self.ax, self.parentPlugin.file.name)
 
-class BetterPlotItem(pg.PlotItem):
+class PlotItem(pg.PlotItem):
     """PlotItem providing xyLabel."""
 
     def __init__(self, _parent=None, groupLabel='', tickWidth=50, showXY=True, **kwargs):
@@ -2970,13 +3244,13 @@ class BetterPlotItem(pg.PlotItem):
         self.plotWidgetFont = QFont()
         self.plotWidgetFont.setPixelSize(13)
         if groupLabel != '':
-            self.groupLabel = BetterLabelItem(anchor=(1, 1))
+            self.groupLabel = LabelItem(anchor=(1, 1))
             self.groupLabel.setParentItem(self.getViewBox())
             self.groupLabel.setText(groupLabel)
             self.groupLabel.setPos(10, 0)
             self.groupLabel.setColor(colors.fg)
         if showXY:
-            self.xyLabel = BetterLabelItem(anchor=(1, 1))
+            self.xyLabel = LabelItem(anchor=(1, 1))
             self.xyLabel.setParentItem(self.getViewBox())
             self.xyLabel.setColor(colors.fg)
 
@@ -3024,7 +3298,7 @@ class BetterPlotItem(pg.PlotItem):
                         self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {pos.y():.2f}")
                     self.xyLabel.setPos(self.getViewBox().geometry().width()-self.xyLabel.boundingRect().width()-4, 2)
                 except (OSError, ValueError, OverflowError): # as e throws errors before time axis is initialized
-                    # self._parent.print(f'BetterPlotItem mouseMoveError: {e}', flag=PRINT.DEBUG)
+                    # self._parent.print(f'PlotItem mouseMoveError: {e}', flag=PRINT.DEBUG)
                     pass
             else:
                 self.xyLabel.setText('')
@@ -3039,21 +3313,21 @@ class BetterPlotItem(pg.PlotItem):
             # self._parent.print('sigXRangeChanged', flag=PRINT.DEBUG)
             self._parent.parentPlugin.signalComm.plotSignal.emit()
 
-class BetterPlotWidget(pg.PlotWidget):
+class PlotWidget(pg.PlotWidget):
     """PlotWidget providing xyLabel."""
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs, plotItem = BetterPlotItem(**kwargs))
+        super().__init__(**kwargs, plotItem = PlotItem(**kwargs))
         self.init = self.getPlotItem().init
         self.finalizeInit = self.getPlotItem().finalizeInit
-        self.setMinimumHeight(50) # can fit more plots on top of each other
+        self.setMinimumHeight(30) # can fit more plots on top of each other
         self.setBackground(colors.bg)
 
     @property
     def legend(self):
         return self.plotItem.legend
 
-class BetterLabelItem(pg.LabelItem):
+class LabelItem(pg.LabelItem):
 
     def setColor(self, color):
         self.setText(self.text, color=color)

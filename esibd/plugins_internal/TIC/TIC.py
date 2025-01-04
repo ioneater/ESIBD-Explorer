@@ -25,8 +25,8 @@ class TIC(Device):
         self.controller = PressureController(_parent=self)
         self.logY = True
 
-    def getIcon(self):
-        return self.makeIcon('edwards_tic.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('edwards_tic.png', **kwargs)
 
     def getDefaultSettings(self):
         ds = super().getDefaultSettings()

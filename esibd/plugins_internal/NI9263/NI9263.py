@@ -20,6 +20,7 @@ class NI9263(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = VoltageChannel
 
     def initGUI(self):
@@ -27,15 +28,8 @@ class NI9263(Device):
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='NI9263 on.', iconFalse=self.makeIcon('NI9263_off.png'),
-                                                                  toolTipTrue='NI9263 off.', iconTrue=self.getIcon(),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('NI9263.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('NI9263.png', **kwargs)
 
     def closeCommunication(self):
         self.setOn(False)
@@ -45,8 +39,8 @@ class NI9263(Device):
     def applyValues(self, apply=False):
         for channel in self.channels:
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
-
-    def voltageON(self):
+    def setOn(self, on=None):
+        super().setOn(on)
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning on or off
             self.controller.voltageON()

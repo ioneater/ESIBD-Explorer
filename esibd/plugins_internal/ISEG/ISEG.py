@@ -5,7 +5,7 @@ import time
 from random import choices
 import numpy as np
 from esibd.plugins import Device
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getDarkMode, getTestMode
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
     return [Voltage]
@@ -26,21 +26,15 @@ class Voltage(Device):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = VoltageChannel
+        self.useOnOffLogic = True
 
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self, modules = self.getModules()) # after all channels loaded
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='ISEG on.', iconFalse=self.getIcon(),
-                                                                  toolTipTrue='ISEG off.', iconTrue=self.makeIcon('ISEG_on.png'),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('ISEG_off_dark.png') if getDarkMode() else self.makeIcon('ISEG_off_light.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('ISEG.png', **kwargs)
 
     def getDefaultSettings(self):
         """:meta private:"""
@@ -66,18 +60,13 @@ class Voltage(Device):
         for channel in self.getChannels():
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
 
-    def voltageON(self):
+    def setOn(self, on=None):
+        super().setOn(on=on)
         if self.initialized():
             self.updateValues(apply=True) # apply voltages before turning modules on or off
             self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
-
-    def updateTheme(self):
-        """:meta private:"""
-        super().updateTheme()
-        self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.isOn())
 
 class VoltageChannel(Channel):
 

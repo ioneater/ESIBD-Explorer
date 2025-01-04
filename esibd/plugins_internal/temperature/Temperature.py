@@ -23,6 +23,7 @@ class Temperature(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = TemperatureChannel
         self.controller = TemperatureController(_parent=self)
 
@@ -31,13 +32,8 @@ class Temperature(Device):
         self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
-    def finalizeInit(self, aboutFunc=None):
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.cryoON(), toolTipFalse='Cryo on.', iconFalse=self.getIcon(), toolTipTrue='Cryo off.',
-                                                                  iconTrue=self.makeIcon('temperature_on.png'), before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('temperature_dark.png') if getDarkMode() else self.makeIcon('temperature_light.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('temperature.png', **kwargs)
 
     def runTestParallel(self):
         self.testControl(self.unitAction, self.unitAction.state)
@@ -79,7 +75,8 @@ class Temperature(Device):
         """Overwrite if you want to change units dynamically."""
         return '°C' if self.unitAction.state else self.unit
 
-    def cryoON(self):
+    def setOn(self, on=None):
+        super().setOn(on)
         if self.initialized():
             self.controller.cryoON()
         else:
@@ -91,8 +88,6 @@ class Temperature(Device):
 
     def updateTheme(self):
         super().updateTheme()
-        self.onAction.iconFalse = self.getIcon()
-        self.onAction.updateIcon(self.isOn())
         self.unitAction.iconFalse = self.makeIcon('tempC_dark.png' if getDarkMode() else 'tempC_light.png')
         self.unitAction.iconTrue = self.makeIcon('tempK_dark.png' if getDarkMode() else 'tempK_light.png')
         self.unitAction.updateIcon(self.unitAction.state)

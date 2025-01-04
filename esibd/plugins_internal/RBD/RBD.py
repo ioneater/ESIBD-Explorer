@@ -46,29 +46,28 @@ class Current(Device):
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
                     return
                 for d, header in zip(data, headers):
-                    self.outputs.append(MetaChannel(name=header.strip(), data=np.array(d), background=np.zeros(d.shape[0]), unit='pA', channel=self.parentPlugin.getChannelByName(header.strip())))
+                    self.outputs.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(d), recordingBackground=np.zeros(d.shape[0]), unit='pA'))
                 if len(self.outputs) > 0: # might be empty
                     # need to fake time axis as it was not implemented
-                    self.inputs.append(MetaChannel(name=self.TIME, data=np.linspace(0, 120000, self.outputs[0].data.shape[0])))
+                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=np.linspace(0, 120000, self.outputs[0].getRecordingData().shape[0])))
             elif file.name.endswith('.cur.h5'):
                 with h5py.File(file, 'r') as h5file:
-                    self.inputs.append(MetaChannel(name=self.TIME, data=h5file[self.TIME][:]))
+                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[self.TIME][:]))
                     output_group = h5file['Current']
                     for name, item in output_group.items():
                         if '_BG' in name:
-                            self.outputs[-1].background = item[:]
+                            self.outputs[-1].recordingBackground = item[:]
                         else:
-                            self.outputs.append(MetaChannel(name=name, data=item[:], unit='pA', channel=self.parentPlugin.getChannelByName(name)))
+                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit='pA'))
             elif file.name.endswith('OUT.h5'): # old Output format when EBD was the only output
                 with h5py.File(file, 'r') as h5file:
-                    self.inputs.append(MetaChannel(name=self.TIME, data=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
+                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
                     output_group = h5file[Scan.OUTPUTCHANNELS]
                     for name, item in output_group.items():
                         if '_BG' in name:
-                            self.outputs[-1].background = item[:]
+                            self.outputs[-1].recordingBackground = item[:]
                         else:
-                            self.outputs.append(MetaChannel(name=name, data=item[:], unit=item.attrs[Scan.UNIT] if Scan.UNIT in item.attrs else '',
-                                                            channel=self.parentPlugin.getChannelByName(name)))
+                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs[Scan.UNIT] if Scan.UNIT in item.attrs else ''))
             else:
                 return super().loadDataInternal(file)
             return True
@@ -78,8 +77,8 @@ class Current(Device):
         self.channelType = CurrentChannel
         self.useBackgrounds = True # record backgrounds for data correction
 
-    def getIcon(self):
-        return self.makeIcon('RBD.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('RBD.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()

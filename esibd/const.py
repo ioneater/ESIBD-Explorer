@@ -208,7 +208,7 @@ def validatePath(path, default):
     else:
         return path, False
 
-def betterSmooth(array, smooth):
+def smooth(array, smooth):
     """Smooths a 1D array while keeping edges meaningful.
     This method is robust if array contains np.nan."""
     if len(array) < smooth:

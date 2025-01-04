@@ -22,18 +22,12 @@ class Current(Device):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.useOnOffLogic = True
         self.channelType = CurrentChannel
         self.useBackgrounds = True # record backgrounds for data correction
 
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        self.onAction = self.pluginManager.DeviceManager.addStateAction(event=lambda: self.voltageON(), toolTipFalse='KEITHLEY on.', iconFalse=self.makeIcon('keithley_off.png'),
-                                                                  toolTipTrue='KEITHLEY off.', iconTrue=self.getIcon(),
-                                                                 before=self.pluginManager.DeviceManager.aboutAction)
-        super().finalizeInit(aboutFunc)
-
-    def getIcon(self):
-        return self.makeIcon('keithley.png')
+    def getIcon(self, **kwargs):
+        return self.makeIcon('keithley.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()
@@ -60,7 +54,8 @@ class Current(Device):
             channel.controller.voltageON(parallel=False)
         super().closeCommunication()
 
-    def voltageON(self):
+    def setOn(self, on=None):
+        super().setOn(on)
         if self.initialized():
             for channel in self.channels:
                 channel.controller.voltageON()
@@ -167,6 +162,7 @@ class CurrentController(DeviceController):
             self.initializing = True
             try:
                 # name = rm.list_resources()
+                # TODO test restart while running
                 self.rm = pyvisa.ResourceManager()
                 self.port = self.rm.open_resource(self.channel.address)
                 self.port.write("*RST")
