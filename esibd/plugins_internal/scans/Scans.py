@@ -1072,7 +1072,7 @@ class Depo(Scan):
         ds.pop(self.LARGESTEP)
         ds.pop(self.SCANTIME)
         ds[self.DISPLAY][Parameter.VALUE] = 'RT_Sample-Center'
-        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Channel of deposition sample.'
+        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Any channel that should be recorded during deposition, including at least one current channel.'
         ds[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
         ds[self.AVERAGE][Parameter.VALUE] = 4000
         ds[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,

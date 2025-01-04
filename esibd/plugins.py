@@ -3545,7 +3545,7 @@ class Text(Plugin):
 
     def getIcon(self, **kwargs):
         """:meta private:"""
-        return self.makeCoreIcon('text.png', **kwargs)
+        return self.makeCoreIcon('text_dark.png' if getDarkMode() else 'text.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""

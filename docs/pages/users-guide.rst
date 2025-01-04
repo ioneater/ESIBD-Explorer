@@ -218,7 +218,7 @@ Background
    For output channels, background signals can be defined manually or
    using the *set current value as background* option in the
    corresponding :ref:`live display<sec:live_displays>`. Each value will be saved with a
-   corresponding background. Backgrounds can be optionally and temporarily subtracted 
+   corresponding background. Backgrounds can be optionally and temporarily subtracted
    without loosing the raw data.
 
 Display
@@ -472,14 +472,12 @@ MAXIGAUGE
 .. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
    :noindex:
 
-.. _`sec:Temperature`:
-
 Temperature
 ~~~~~~~~~~~
 
 .. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
    :noindex:
-   
+
 Beam
 ~~~~
 

@@ -53,13 +53,9 @@ class PICO(Device):
         return [d for d in self.channels if (d.enabled and (self.controller.port is not None or self.getTestMode())) or not d.active]
 
     def convertDataDisplay(self, data):
-        if self.unitAction.state:
-            return data - 273.15
-        else:
-            return data
+        return data - 273.15 if self.unitAction.state else data
 
     def getUnit(self):
-        """Overwrite if you want to change units dynamically."""
         return '°C' if self.unitAction.state else self.unit
 
     def updateTheme(self):

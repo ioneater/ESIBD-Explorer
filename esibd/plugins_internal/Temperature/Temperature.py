@@ -66,13 +66,9 @@ class Temperature(Device):
         super().closeCommunication()
 
     def convertDataDisplay(self, data):
-        if self.unitAction.state:
-            return data - 273.15
-        else:
-            return data
+        return data - 273.15 if self.unitAction.state else data
 
     def getUnit(self):
-        """Overwrite if you want to change units dynamically."""
         return '°C' if self.unitAction.state else self.unit
 
     def setOn(self, on=None):
@@ -108,7 +104,9 @@ class TemperatureChannel(Channel):
 
 class TemperatureController(DeviceController):
 
-    messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
+    def __init__(self, _parent):
+        super().__init__(_parent)
+        self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self):
         if self.port is not None:

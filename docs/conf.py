@@ -25,6 +25,17 @@ project_copyright = '2024, Tim Esser'
 author = 'Tim Esser'
 release = '0.6'
 
+# uncomment following to generate log while compiling
+# import logging
+# logging.basicConfig(level=logging.DEBUG, filename="sphinx_debug.log", filemode="w")
+# logger = logging.getLogger()
+
+# def on_import(app, what, name, obj, options, lines):
+#     logger.debug(f"Processing: what={what}, name={name}")
+
+# def setup(app):
+#     app.connect("autodoc-process-docstring", on_import)
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
