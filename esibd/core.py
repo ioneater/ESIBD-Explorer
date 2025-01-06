@@ -257,6 +257,10 @@ class PluginManager():
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Tree))) # move Tree to end to have lowest priority to handle files
         if hasattr(self, 'Text'):
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Text))) # move Text to end to have lowest priority to handle files
+        if hasattr(self, 'PID'):
+            self.plugins.append(self.plugins.pop(self.plugins.index(self.PID))) # move PID to end to connectAllSources after all devices are initialized
+        if hasattr(self, 'UCM'):
+            self.plugins.append(self.plugins.pop(self.plugins.index(self.UCM))) # move UCM to end to connectAllSources after all devices and PID are initialized
         self.loading = False
         self.finalizeInit()
         self.afterFinalizeInit()
@@ -293,13 +297,13 @@ class PluginManager():
             self.pluginNames.append(Plugin.name)
             if Plugin.name not in self.confParser: #add
                 self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.SUPPORTEDVERSION : Plugin.supportedVersion, self.PLUGINTYPE : str(Plugin.pluginType.value),
-                                            self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes),
+                                            self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes), # getSupportedFiles() not available without instantiation
                                             self.DESCRIPTION : Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL : str(Plugin.optional)}
             else: # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
                 self.confParser[Plugin.name][self.SUPPORTEDVERSION] = Plugin.supportedVersion
                 self.confParser[Plugin.name][self.PLUGINTYPE] = str(Plugin.pluginType.value)
-                self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(Plugin.previewFileTypes)
+                self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(Plugin.previewFileTypes) # getSupportedFiles() not available without instantiation
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
@@ -401,7 +405,7 @@ class PluginManager():
         self.logger.print('Stopping test.')
         self.testing = False
         for plugin in self.plugins:
-            plugin.testing = False
+            plugin.signalComm.testCompleteSignal.emit()
 
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
@@ -411,7 +415,7 @@ class PluginManager():
             plugin.testing = True
             plugin.runTestParallel()
             if not plugin.waitForCondition(condition=lambda: plugin.testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
-                plugin.testing = False
+                plugin.signalComm.testCompleteSignal.emit()
             if not self.testing:
                 break
         self.testing = False
@@ -433,7 +437,7 @@ class PluginManager():
         lay = QGridLayout()
         tree = QTreeWidget()
         tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
-        tree.setColumnCount(6)
+        tree.setColumnCount(7)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         tree.header().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
@@ -1464,6 +1468,10 @@ class RelayChannel():
         #     return self.getRecordingData()[-1]
         else:
             return None
+    @value.setter
+    def value(self, value):
+        if self.sourceChannel is not None:
+            self.sourceChannel.value = value
 
     @property
     def enabled(self):
@@ -2746,13 +2754,21 @@ class TreeWidget(QTreeWidget):
         super().__init__(parent)
         self.minimizeHeight = minimizeHeight
 
+    def totalItems(self):
+        total_items = 0
+        for i in range(self.topLevelItemCount()):
+            top_item = self.topLevelItem(i)
+            total_items += 1  # Count the top-level item
+            total_items += top_item.childCount()# Add the count of its children
+        return total_items
+
     def calculate_tree_height_hint_complete(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
-        return self.header().height() + self.topLevelItemCount() * item_height
+        return self.header().height() + self.totalItems() * item_height
 
     def calculate_tree_height_hint_minimal(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
-        return self.header().height() + min(self.topLevelItemCount(), 4) * item_height
+        return self.header().height() + min(self.totalItems(), 4) * item_height
 
     def count_child_items(self, item):
         count = item.childCount()
@@ -3387,18 +3403,22 @@ class TimeoutLock(object):
         return self._lock.acquire(blocking, timeout)
 
     @contextmanager
-    def acquire_timeout(self, timeout, timeoutMessage=None):
+    def acquire_timeout(self, timeout, timeoutMessage=None, lock_acquired=False):
         """
         :param timeout: timeout in seconds
         :type timeout: float, optional
+        :param timeoutMessage: Message shown in case of a timeout
+        :type timeoutMessage: str, optional
+        :param lock_acquired: True if lock has already been acquired in callstack. Use to prevent deadlocks
+        :type lock_acquired: bool, optional
         """
-        result = self._lock.acquire(timeout=timeout)
+        result = lock_acquired or self._lock.acquire(timeout=timeout)
         try:
             yield result
         except Exception as e:
             self.print(f'Error while using lock: {e}', flag=PRINT.ERROR)
         finally:
-            if result:
+            if result and not lock_acquired:
                 self._lock.release()
         if not result and timeoutMessage is not None:
             self.print(timeoutMessage, flag=PRINT.ERROR)
@@ -3478,12 +3498,18 @@ class DeviceController(QObject):
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
             self.closeCommunication() # terminate old thread before starting new one
-        self.initThread = Thread(target=self.runInitialization, name=f'{self.device.name} initThread')
+        self.initThread = Thread(target=self.fakeInitialization if getTestMode() else self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
 
     def runInitialization(self):
         """Hardware specific initialization of communication. Executed in initThread (no access to GUI!)."""
+
+    def fakeInitialization(self):
+        """Called in test mode instead of runInitialization"""
+        time.sleep(2)
+        self.signalComm.initCompleteSignal.emit()
+        self.print('Faking values for testing!', PRINT.WARNING)
 
     def initComplete(self):
         """Called after successful initialization to start acquisition from main thread (access to GUI!)."""

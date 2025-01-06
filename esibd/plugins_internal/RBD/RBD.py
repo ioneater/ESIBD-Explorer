@@ -245,38 +245,33 @@ class CurrentController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.port=serial.Serial(
+                f'{self.channel.com}',
+                baudrate=57600,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                xonxoff=False,
+                timeout=3)
+            self.setRange()
+            self.setAverage()
+            self.setGrounding()
+            self.setBias()
+            name = self.getName()
+            if name == '':
+                self.signalComm.updateValueSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
+                return
+            self.signalComm.updateValueSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
+            self.signalComm.updateDeviceNameSignal.emit(name) # pass port to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.port=serial.Serial(
-                    f'{self.channel.com}',
-                    baudrate=57600,
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=False,
-                    timeout=3)
-                self.setRange()
-                self.setAverage()
-                self.setGrounding()
-                self.setBias()
-                name = self.getName()
-                if name == '':
-                    self.signalComm.updateValueSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
-                    return
-                self.signalComm.updateValueSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
-                self.signalComm.updateDeviceNameSignal.emit(name) # pass port to main thread as init thread will die
-                self.signalComm.initCompleteSignal.emit()
-            except serial.serialutil.PortNotOpenError as e:
-                self.signalComm.updateValueSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
-            except serial.serialutil.SerialException as e:
-                self.signalComm.updateValueSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
-            finally:
-                self.initializing = False
+        except serial.serialutil.PortNotOpenError as e:
+            self.signalComm.updateValueSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
+        except serial.serialutil.SerialException as e:
+            self.signalComm.updateValueSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
+        finally:
+            self.initializing = False
 
     def startAcquisition(self):
         if self.channel.active and self.channel.real:
@@ -425,12 +420,8 @@ class CurrentController(DeviceController):
     def RBDWriteRead(self, message, lock_acquired=False):
         response = ''
         if not getTestMode():
-            if lock_acquired: # already acquired -> safe to use
-                self.RBDWrite(message) # get channel name
-                response = self.RBDRead()
-            else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
-                    if lock_acquired:
-                        self.RBDWrite(message) # get channel name
-                        response = self.RBDRead()
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
+                if lock_acquired:
+                    self.RBDWrite(message) # get channel name
+                    response = self.RBDRead()
         return response

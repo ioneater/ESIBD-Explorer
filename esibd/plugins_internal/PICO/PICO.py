@@ -101,22 +101,17 @@ class TemperatureController(DeviceController):
 
     def runInitialization(self):
         self.temperatures = [np.nan]*len(self.device.channels)
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
+            for channel in self.device.channels:
+                assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[channel.channel],
+                                                        pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
-                for channel in self.device.channels:
-                    assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[channel.channel],
-                                                            pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'Error while initializing: {e}', PRINT.ERROR)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+        finally:
+            self.initializing = False
 
     def runAcquisition(self, acquiring):
         while acquiring():

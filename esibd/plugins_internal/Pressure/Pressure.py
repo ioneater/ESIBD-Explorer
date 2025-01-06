@@ -95,37 +95,32 @@ class PressureController(DeviceController):
 
     def runInitialization(self):
         self.pressures = [np.nan]*len(self.device.channels)
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.ticPort=serial.Serial(
+                f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
+            TICStatus = self.TICWriteRead(message=902)
+            self.print(f"TIC Status: {TICStatus}") # query status
+            if TICStatus == '':
+                raise ValueError('TIC did not return status.')
+            self.ticInitialized = True
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+        try:
+            self.tpgPort=serial.Serial(
+                f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
+            TPGStatus = self.TPGWriteRead(message='TID')
+            self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
+            if TPGStatus == '':
+                raise ValueError('TPG did not return status.')
+            self.tpgInitialized = True
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
+        if self.ticInitialized or self.tpgInitialized:
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.ticPort=serial.Serial(
-                    f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
-                TICStatus = self.TICWriteRead(message=902)
-                self.print(f"TIC Status: {TICStatus}") # query status
-                if TICStatus == '':
-                    raise ValueError('TIC did not return status.')
-                self.ticInitialized = True
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
-            try:
-                self.tpgPort=serial.Serial(
-                    f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
-                TPGStatus = self.TPGWriteRead(message='TID')
-                self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
-                if TPGStatus == '':
-                    raise ValueError('TPG did not return status.')
-                self.tpgInitialized = True
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
-            if self.ticInitialized or self.tpgInitialized:
-                self.signalComm.initCompleteSignal.emit()
-            self.initializing = False
+        self.initializing = False
 
     def runAcquisition(self, acquiring):
         while acquiring():
@@ -194,14 +189,10 @@ class PressureController(DeviceController):
 
     def TICWriteRead(self, message, lock_acquired=False):
         response = ''
-        if lock_acquired:
-            self.TICWrite(message)
-            response = self.TICRead() # reads return value
-        else:
-            with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
-                if lock_acquired:
-                    self.TICWrite(message)
-                    response = self.TICRead() # reads return value
+        with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
+            if lock_acquired:
+                self.TICWrite(message)
+                response = self.TICRead() # reads return value
         return response
 
     def TPGWrite(self, message):
@@ -216,12 +207,8 @@ class PressureController(DeviceController):
 
     def TPGWriteRead(self, message, lock_acquired=False):
         response = ''
-        if lock_acquired:
-            self.TPGWrite(message)
-            response = self.TPGRead() # reads return value
-        else:
-            with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
-                if lock_acquired:
-                    self.TPGWrite(message)
-                    response = self.TPGRead() # reads return value
+        with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
+            if lock_acquired:
+                self.TPGWrite(message)
+                response = self.TPGRead() # reads return value
         return response

@@ -76,19 +76,15 @@ class VoltageChannel(Channel):
 class VoltageController(DeviceController):
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            with nidaqmx.Task() as task:
+                task.ao_channels # will raise exception if connection failed
             self.signalComm.initCompleteSignal.emit()
-        else:
-            self.initializing = True
-            try:
-                with nidaqmx.Task() as task:
-                    task.ao_channels # will raise exception if connection failed
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
-                self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+            self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()

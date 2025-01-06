@@ -162,19 +162,14 @@ class CustomController(DeviceController):
         super().initializeCommunication()
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                # TODO add custom initialization code here
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'Error while initializing: {e}', PRINT.ERROR)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()

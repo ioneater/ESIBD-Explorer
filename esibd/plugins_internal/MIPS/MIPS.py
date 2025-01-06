@@ -103,28 +103,26 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent, COMs):
         super().__init__(_parent=_parent)
-        # TODO need both COMs and ports?
         self.COMs       = COMs or ['COM1']
         self.ports      = [None]*len(self.COMs)
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
-            self.signalComm.initCompleteSignal.emit()
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE, bytesize = serial.EIGHTBITS) for COM in self.COMs]
-                # TODO test communication and throw exception. serial connection may initialize even though mips turned off!
-                # self.MIPSWriteRead(self.COMs[0], f'GDCBV,{1}\r\n')
+        self.initializing = True
+        try:
+            self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE,
+                                        bytesize = serial.EIGHTBITS, timeout=2) for COM in self.COMs]
+            result = self.MIPSWriteRead(self.COMs[0], 'GDCBV,1\r\n')
+            if result is not '':
                 self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
-                self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
-            finally:
-                self.initializing = False
+            else:
+                self.closeCommunication()
+                raise ValueError('Could not read values. Make sure MIPS is turned on.')
+        except ValueError as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+            self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()
@@ -133,11 +131,10 @@ class VoltageController(DeviceController):
         self.voltageON()
 
     def closeCommunication(self):
-        # TODO Use port.port instead of COMs for all below!
-        for i, COM in enumerate(self.COMs):
-            if self.ports[i] is not None:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {COM}.'):
-                    self.ports[i].close()
+        for i, port in enumerate(self.ports):
+            if port is not None:
+                with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {port.port}.'):
+                    port.close()
                     self.ports[i] = None
         super().closeCommunication()
 
@@ -199,18 +196,14 @@ class VoltageController(DeviceController):
 
     def MIPSRead(self, COM):
         # only call from thread! # make sure lock is acquired before and released after
-        if not getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized or self.initializing:
             return self.serialRead(self.ports[self.COMs.index(COM)], EOL='\r', strip='b\x06')
 
     def MIPSWriteRead(self, COM, message, lock_acquired=False):
         response = ''
         if not getTestMode():
-            if lock_acquired: # already acquired -> save to use
-                self.MIPSWrite(COM, message) # get channel name
-                response = self.MIPSRead(COM)
-            else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
-                    if lock_acquired:
-                        self.MIPSWrite(COM, message) # get channel name
-                        response = self.MIPSRead(COM)
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
+                if lock_acquired:
+                    self.MIPSWrite(COM, message) # get channel name
+                    response = self.MIPSRead(COM)
         return response

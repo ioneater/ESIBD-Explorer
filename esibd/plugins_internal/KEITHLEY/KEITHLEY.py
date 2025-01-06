@@ -154,27 +154,21 @@ class CurrentController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            # name = rm.list_resources()
+            self.rm = pyvisa.ResourceManager()
+            self.port = self.rm.open_resource(self.channel.address)
+            self.port.write("*RST")
+            self.device.print(self.port.query('*IDN?'))
+            self.port.write("SYST:ZCH OFF")
+            self.port.write("CURR:NPLC 6")
+            self.port.write("SOUR:VOLT:RANG 50")
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                # name = rm.list_resources()
-                # TODO test restart while running
-                self.rm = pyvisa.ResourceManager()
-                self.port = self.rm.open_resource(self.channel.address)
-                self.port.write("*RST")
-                self.device.print(self.port.query('*IDN?'))
-                self.port.write("SYST:ZCH OFF")
-                self.port.write("CURR:NPLC 6")
-                self.port.write("SOUR:VOLT:RANG 50")
-                self.signalComm.initCompleteSignal.emit()
-            except Exception:
-                self.signalComm.updateValueSignal.emit(np.nan)
-            finally:
-                self.initializing = False
+        except Exception:
+            self.signalComm.updateValueSignal.emit(np.nan)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()

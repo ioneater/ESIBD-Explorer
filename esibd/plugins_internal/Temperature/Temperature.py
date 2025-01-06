@@ -75,7 +75,7 @@ class Temperature(Device):
         super().setOn(on)
         if self.initialized():
             self.controller.cryoON()
-        else:
+        elif self.isOn():
             self.initializeCommunication()
 
     def applyValues(self, apply=False): # pylint: disable = unused-argument # keep default signature
@@ -117,31 +117,26 @@ class TemperatureController(DeviceController):
 
     def runInitialization(self):
         self.temperatures = [channel.value for channel in self.device.channels] if getTestMode() else [np.nan]*len(self.device.channels)
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.port=serial.Serial(
+                self.device.CRYOTELCOM,
+                baudrate=9600, # used to be 4800
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                xonxoff=False,
+                timeout=3)
+            # self.CryoTelWriteRead('SET TBAND=5') # set temperature band
+            # self.CryoTelWriteRead('SET PID=2')# set temperature control mode
+            # self.CryoTelWriteRead('SET SSTOPM=0') # enable use of SET SSTOP
+            # self.CryoTelWriteRead('SENSOR') # test if configured for correct temperature sensor DT-670
+            # self.CryoTelWriteRead('SENSOR=DT-670') # set Sensor if applicable
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.port=serial.Serial(
-                    self.device.CRYOTELCOM,
-                    baudrate=9600, # used to be 4800
-                    bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE,
-                    stopbits=serial.STOPBITS_ONE,
-                    xonxoff=False,
-                    timeout=3)
-                # self.CryoTelWriteRead('SET TBAND=5') # set temperature band
-                # self.CryoTelWriteRead('SET PID=2')# set temperature control mode
-                # self.CryoTelWriteRead('SET SSTOPM=0') # enable use of SET SSTOP
-                # self.CryoTelWriteRead('SENSOR') # test if configured for correct temperature sensor DT-670
-                # self.CryoTelWriteRead('SENSOR=DT-670') # set Sensor if applicable
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'Error while initializing: {e}', PRINT.ERROR)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()

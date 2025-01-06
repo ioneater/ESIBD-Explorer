@@ -118,22 +118,17 @@ class VoltageController(DeviceController):
         self.currents   = [np.nan]*len(self.device.channels)
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            rm = pyvisa.ResourceManager()
+            # name = rm.list_resources()
+            self.port = rm.open_resource(self.device.address, open_timeout=500)
+            self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                rm = pyvisa.ResourceManager()
-                # name = rm.list_resources()
-                self.port = rm.open_resource(self.device.address, open_timeout=500)
-                self.device.print(self.port.query('*IDN?'))
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
-                self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+            self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()
@@ -200,10 +195,7 @@ class VoltageController(DeviceController):
 
     def RSQuery(self, message, lock_acquired=False):
         response = ''
-        if lock_acquired:
-            response = self.port.query(message)
-        else:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {message}.') as lock_acquired:
-                if lock_acquired:
-                    response = self.port.query(message)
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {message}.', lock_acquired=lock_acquired) as lock_acquired:
+            if lock_acquired:
+                response = self.port.query(message)
         return response

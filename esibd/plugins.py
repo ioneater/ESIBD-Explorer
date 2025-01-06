@@ -188,7 +188,7 @@ class Plugin(QWidget):
         Timer(0, self.runTestParallel).start()
 
     def stopTest(self):
-        self.testing=False
+        self.signalComm.testCompleteSignal.emit()
 
     def testControl(self, control, value, delay=0, label=None):
         """Changes control states and triggers corresponding events."""
@@ -253,7 +253,7 @@ class Plugin(QWidget):
 
     def processEvents(self):
         if not self.testing: # avoid triggering unrelated events queued by testing
-            pass # QApplication.processEvents() TODO
+            QApplication.processEvents()
 
     def waitForCondition(self, condition, interval=0.1, timeout=5, timeoutMessage =''):
         """Waits until condition returns false or timeout expires.
@@ -5334,7 +5334,7 @@ class UCM(ChannelManager):
             else:
                 self.sourceChannel = sources[0]
                 self.getParameterByName(self.DEVICE).getWidget().setIcon(self.sourceChannel.getDevice().getIcon())
-                self.notes = f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}'
+                self.notes = f'Source: {self.sourceChannel.device.name}.{self.sourceChannel.name}'
                 if len(sources) > 1:
                     self.print(f'More than one channel named {self.name}. Using {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}. Use unique names to avoid this.', PRINT.WARNING)
 
@@ -5353,16 +5353,19 @@ class UCM(ChannelManager):
                 else:
                     self.unit = ''
                 if self.sourceChannel.useMonitors:
+                    # show value and monitor
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(self.sourceChannel.real)
                     self.getParameterByName(self.VALUE).getWidget().setVisible(True)
                 elif self.sourceChannel.inout == INOUT.OUT:
+                    # only show value as monitor
                     self.getParameterByName(self.MONITOR).widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
                     self.getParameterByName(self.MONITOR).applyWidget()
                     self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
                 else:
-                    self.getParameterByName(self.VALUE).getWidget().setVisible(False)
+                    # only show value
+                    # self.getParameterByName(self.VALUE).getWidget().setVisible(False)
                     self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
 
                 self.getSourceChannelValues()
@@ -5538,6 +5541,7 @@ class PID(ChannelManager):
             self.inputChannel = None
             self.sourceChannel = None
             self.pid = None
+            self.real = True
 
         OUTPUT       = 'Output'
         OUTPUTDEVICE = 'OutputDevice'
@@ -5584,8 +5588,15 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
-            if self.active and self.getDevice().isOn():
+            if self.sourceChannel.useMonitors:
+                self.monitor = self.sourceChannel.monitor
+            else:
+                self.monitor = self.sourceChannel.value
+            if self.active and self.inputChannel.getDevice().isOn():
                 self.inputChannel.value = self.pid(self.sourceChannel.value)
+
+        def monitorChanged(self):
+            pass
 
         def updateSetpoint(self):
             if self.pid is not None:
@@ -5682,6 +5693,7 @@ class PID(ChannelManager):
     def __init__(self, **kwargs):
         self.useOnOffLogic = True
         self.useDisplays = False
+        self.useMonitors = True
         super().__init__(**kwargs)
 
     def afterFinalizeInit(self):

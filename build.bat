@@ -41,7 +41,8 @@ REM use sphinx-quickstart to generate initial configuration
 REM then edit docs/conf.py to customize
 call rmdir /q /s docs\_build REM delete docs/_build to generate clean documentation
 call rmdir /q /s esibd\docs REM delete docs/_build to generate clean documentation
-REM call rm -r docs\_build REM delete docs/_build to generate clean documentation (works in powershell?)
+REM call rm -r docs\_build works in powershell
+REM call rm -r esibd\docs works in powershell
 REM -M coverage
 call sphinx-build docs docs\_build
 REM offline version for in app documentation (instrument computers often have no internet access)

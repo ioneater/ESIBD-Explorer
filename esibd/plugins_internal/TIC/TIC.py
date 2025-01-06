@@ -72,24 +72,19 @@ class PressureController(DeviceController):
 
     def runInitialization(self):
         self.pressures = [np.nan]*len(self.device.channels)
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.port=serial.Serial(
+                f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
+            TICStatus = self.TICWriteRead(message=902)
+            self.print(f"TIC Status: {TICStatus}") # query status
+            if TICStatus == '':
+                raise ValueError('TIC did not return status.')
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.port=serial.Serial(
-                    f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
-                    parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
-                TICStatus = self.TICWriteRead(message=902)
-                self.print(f"TIC Status: {TICStatus}") # query status
-                if TICStatus == '':
-                    raise ValueError('TIC did not return status.')
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
-            self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+        self.initializing = False
 
     def runAcquisition(self, acquiring):
         while acquiring():
@@ -135,12 +130,8 @@ class PressureController(DeviceController):
 
     def TICWriteRead(self, message, lock_acquired=False):
         response = ''
-        if lock_acquired:
-            self.TICWrite(message)
-            response = self.TICRead() # reads return value
-        else:
-            with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
-                if lock_acquired:
-                    self.TICWrite(message)
-                    response = self.TICRead() # reads return value
+        with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
+            if lock_acquired:
+                self.TICWrite(message)
+                response = self.TICRead() # reads return value
         return response

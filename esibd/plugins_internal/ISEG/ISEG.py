@@ -115,20 +115,15 @@ class VoltageController(DeviceController):
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
 
     def runInitialization(self):
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
+            self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking monitor values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
-                self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
-                self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
-            finally:
-                self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+            self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
+        finally:
+            self.initializing = False
 
     def initComplete(self):
         super().initComplete()
@@ -195,18 +190,14 @@ class VoltageController(DeviceController):
 
     def ISEGRead(self):
         # only call from thread! # make sure lock is acquired before and released after
-        if not getTestMode() and self.initialized:
+        if not getTestMode() and self.initialized or self.initializing:
             return self.socket.recv(4096).decode("utf-8")
 
     def ISEGWriteRead(self, message, lock_acquired=False):
         response = ''
         if not getTestMode():
-            if lock_acquired: # already acquired -> safe to use
-                self.ISEGWrite(message) # get channel name
-                return self.ISEGRead()
-            else:
-                with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.') as lock_acquired:
-                    if lock_acquired:
-                        self.ISEGWrite(message) # get channel name
-                        response = self.ISEGRead()
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
+                if lock_acquired:
+                    self.ISEGWrite(message) # get channel name
+                    response = self.ISEGRead()
         return response

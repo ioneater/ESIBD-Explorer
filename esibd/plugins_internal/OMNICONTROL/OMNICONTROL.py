@@ -72,19 +72,14 @@ class PressureController(DeviceController):
 
     def runInitialization(self):
         self.pressures = [np.nan]*len(self.device.channels)
-        if getTestMode():
-            time.sleep(2)
+        self.initializing = True
+        try:
+            self.port=serial.Serial(self.device.com, timeout=1)
+            pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
-            self.print('Faking values for testing!', PRINT.WARNING)
-        else:
-            self.initializing = True
-            try:
-                self.port=serial.Serial(self.device.com, timeout=1)
-                pvp.enable_valid_char_filter()
-                self.signalComm.initCompleteSignal.emit()
-            except Exception as e: # pylint: disable=[broad-except]
-                self.print(f'Omnicontrol error while initializing: {e}', PRINT.ERROR)
-            self.initializing = False
+        except Exception as e: # pylint: disable=[broad-except]
+            self.print(f'Omnicontrol error while initializing: {e}', PRINT.ERROR)
+        self.initializing = False
 
     def runAcquisition(self, acquiring):
         while acquiring():
