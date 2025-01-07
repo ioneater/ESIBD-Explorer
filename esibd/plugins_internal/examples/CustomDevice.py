@@ -162,7 +162,6 @@ class CustomController(DeviceController):
         super().initializeCommunication()
 
     def runInitialization(self):
-        self.initializing = True
         try:
             # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()

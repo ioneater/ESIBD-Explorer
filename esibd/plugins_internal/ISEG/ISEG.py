@@ -115,7 +115,6 @@ class VoltageController(DeviceController):
         self.voltages   = np.zeros([len(self.modules), self.maxID+1])
 
     def runInitialization(self):
-        self.initializing = True
         try:
             self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
             self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))

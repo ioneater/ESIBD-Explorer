@@ -71,8 +71,6 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.pressures = [np.nan]*len(self.device.channels)
-        self.initializing = True
         try:
             self.port=serial.Serial(
                 f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
@@ -84,7 +82,12 @@ class PressureController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         except Exception as e: # pylint: disable=[broad-except]
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
-        self.initializing = False
+        finally:
+            self.initializing = False
+
+    def initComplete(self):
+        self.pressures = [np.nan]*len(self.device.channels)
+        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():

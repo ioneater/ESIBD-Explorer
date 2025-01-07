@@ -526,8 +526,8 @@ class PluginManager():
     def finalizeUiState(self):
         """Restores dimensions of core plugins."""
         self.Settings.raiseDock() # make sure settings tab visible after start
-        if len(self.DeviceManager.getActiveLiveDisplays()) > 1:
-            self.DeviceManager.getActiveLiveDisplays()[0].raiseDock(True)
+        # if len(self.DeviceManager.getActiveLiveDisplays()) > 1: UCM is last livedisplay
+        #     self.DeviceManager.getActiveLiveDisplays()[0].raiseDock(True)
         self.Console.toggleVisible()
         QApplication.processEvents()
 
@@ -3498,6 +3498,7 @@ class DeviceController(QObject):
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
             self.closeCommunication() # terminate old thread before starting new one
+        self.initializing = True
         self.initThread = Thread(target=self.fakeInitialization if getTestMode() else self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
@@ -3510,6 +3511,7 @@ class DeviceController(QObject):
         time.sleep(2)
         self.signalComm.initCompleteSignal.emit()
         self.print('Faking values for testing!', PRINT.WARNING)
+        self.initializing = False
 
     def initComplete(self):
         """Called after successful initialization to start acquisition from main thread (access to GUI!)."""

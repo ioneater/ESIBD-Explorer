@@ -59,10 +59,6 @@ class PressureChannel(Channel):
 
 class PressureController(DeviceController):
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        self.pressures = []
-
     def closeCommunication(self):
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
@@ -71,15 +67,18 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.pressures = [np.nan]*len(self.device.channels)
-        self.initializing = True
         try:
             self.port=serial.Serial(self.device.com, timeout=1)
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
         except Exception as e: # pylint: disable=[broad-except]
             self.print(f'Omnicontrol error while initializing: {e}', PRINT.ERROR)
-        self.initializing = False
+        finally:
+            self.initializing = False
+
+    def initComplete(self):
+        self.pressures = [np.nan]*len(self.device.channels)
+        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():

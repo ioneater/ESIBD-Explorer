@@ -94,8 +94,6 @@ class PressureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.pressures = [np.nan]*len(self.device.channels)
-        self.initializing = True
         try:
             self.ticPort=serial.Serial(
                 f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
@@ -121,6 +119,10 @@ class PressureController(DeviceController):
         if self.ticInitialized or self.tpgInitialized:
             self.signalComm.initCompleteSignal.emit()
         self.initializing = False
+
+    def initComplete(self):
+        self.pressures = [np.nan]*len(self.device.channels)
+        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():

@@ -109,7 +109,6 @@ class VoltageController(DeviceController):
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
-        self.initializing = True
         try:
             self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE,
                                         bytesize = serial.EIGHTBITS, timeout=2) for COM in self.COMs]

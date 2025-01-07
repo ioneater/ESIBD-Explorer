@@ -154,7 +154,6 @@ class CurrentController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.initializing = True
         try:
             # name = rm.list_resources()
             self.rm = pyvisa.ResourceManager()

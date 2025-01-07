@@ -245,7 +245,6 @@ class CurrentController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.initializing = True
         try:
             self.port=serial.Serial(
                 f'{self.channel.com}',

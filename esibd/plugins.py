@@ -249,6 +249,7 @@ class Plugin(QWidget):
         return self._testing
     @testing.setter
     def testing(self, state):
+        self.print(f'testing {state}', PRINT.DEBUG)
         self._testing = state
 
     def processEvents(self):
@@ -698,13 +699,11 @@ class Plugin(QWidget):
                     ax.set_ylim(limits[i][1])
                 self.fig.set_size_inches(size)
                 self.canvas.draw_idle()
-                # self.canvas.draw()
-                self.processEvents()
-                # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> pixelated
-                buf = io.BytesIO()
-                self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
-                QApplication.clipboard().setImage(QImage.fromData(buf.getvalue()))
-                buf.close()
+                # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> pixelated -> use buffer
+                buffer = io.BytesIO()
+                self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
+                QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
+                buffer.close()
         else:
         #     self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
             QApplication.clipboard().setPixmap(self.canvas.grab())
@@ -3674,6 +3673,8 @@ class Tree(Plugin):
         self.tree = QTreeWidget()
         self.addContentWidget(self.tree)
         self.tree.itemExpanded.connect(self.expandObjet)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self.initContextMenu)
 
     def provideDock(self):
         """:meta private:"""
@@ -3820,6 +3821,30 @@ class Tree(Plugin):
                         class_method_widget.setText(1, attr.__doc__.split('\n')[0])
                         class_method_widget.setToolTip(1, attr.__doc__)
         self.raiseDock(True)
+
+    def initContextMenuBase(self, widget, pos):
+        """General implementation of a context menu.
+        The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Parameter`."""
+        contextMenu = QMenu(self.tree)
+        copyClipboardAction = contextMenu.addAction('Copy to clipboard')
+        contextMenu = contextMenu.exec(self.tree.mapToGlobal(pos))
+        if contextMenu is not None:
+            if contextMenu is copyClipboardAction:
+                column_index = -1
+                header = self.tree.header()
+                for col in range(self.tree.columnCount()):
+                    rect = header.sectionViewportPosition(col)
+                    if rect <= pos.x() < rect + header.sectionSize(col):
+                        column_index = col
+                        break
+                if column_index != -1:
+                    QApplication.clipboard().setText(widget.text(column_index))
+
+    def initContextMenu(self, pos):
+        try:
+            self.initContextMenuBase(self.tree.itemAt(pos), pos)
+        except KeyError as e:
+            self.print(e)
 
 class Console(Plugin):
     """The console should typically not be needed, unless you are a developer

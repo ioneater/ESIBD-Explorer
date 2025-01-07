@@ -100,8 +100,6 @@ class TemperatureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.temperatures = [np.nan]*len(self.device.channels)
-        self.initializing = True
         try:
             pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
             for channel in self.device.channels:
@@ -112,6 +110,10 @@ class TemperatureController(DeviceController):
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
+
+    def initComplete(self):
+        self.temperatures = [np.nan]*len(self.device.channels)
+        super().initComplete()
 
     def runAcquisition(self, acquiring):
         while acquiring():

@@ -118,7 +118,6 @@ class VoltageController(DeviceController):
         self.currents   = [np.nan]*len(self.device.channels)
 
     def runInitialization(self):
-        self.initializing = True
         try:
             rm = pyvisa.ResourceManager()
             # name = rm.list_resources()

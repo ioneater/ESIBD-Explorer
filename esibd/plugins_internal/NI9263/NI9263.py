@@ -76,7 +76,6 @@ class VoltageChannel(Channel):
 class VoltageController(DeviceController):
 
     def runInitialization(self):
-        self.initializing = True
         try:
             with nidaqmx.Task() as task:
                 task.ao_channels # will raise exception if connection failed

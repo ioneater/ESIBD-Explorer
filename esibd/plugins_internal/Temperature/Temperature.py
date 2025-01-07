@@ -116,8 +116,6 @@ class TemperatureController(DeviceController):
         super().closeCommunication()
 
     def runInitialization(self):
-        self.temperatures = [channel.value for channel in self.device.channels] if getTestMode() else [np.nan]*len(self.device.channels)
-        self.initializing = True
         try:
             self.port=serial.Serial(
                 self.device.CRYOTELCOM,
@@ -139,6 +137,7 @@ class TemperatureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
+        self.temperatures = [channel.value for channel in self.device.channels] if getTestMode() else [np.nan]*len(self.device.channels)
         super().initComplete()
         if self.device.isOn():
             self.cryoON()
