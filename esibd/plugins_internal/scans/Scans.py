@@ -10,6 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.dates as mdates
+from matplotlib.ticker import ScalarFormatter
 import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
@@ -129,10 +130,10 @@ class Beam(Scan):
             try:
                 data = np.flip(np.loadtxt(self.file).transpose())
             except ValueError as e:
-                self.print(f'Error when loading from {self.file.name}: {e}', PRINT.WARNING)
+                self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
                 return
             if data.shape[0] == 0:
-                self.print(f'no data found in file {self.file.name}', PRINT.WARNING)
+                self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
                 return
             self.addOutputChannel(name='', unit='pA', recordingData=data)
             self.inputs.append(MetaChannel(parentPlugin=self, name='LR Voltage', recordingData=np.arange(0, 1, 1/self.outputs[0].getRecordingData().shape[1]), unit='V'))
@@ -596,10 +597,10 @@ class Energy(Scan):
             try:
                 data = np.loadtxt(self.file, skiprows=4, delimiter=',', unpack=True)
             except ValueError as e:
-                self.print(f'Error when loading from {self.file.name}: {e}', PRINT.WARNING)
+                self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
                 return
             if data.shape[0] == 0:
-                self.print(f'No data found in file {self.file.name}.', PRINT.WARNING)
+                self.print(f'No data found in file {self.file.name}.', PRINT.ERROR)
                 return
             self.inputs.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
             for name, dat in zip(headers, data[1:][::2]):
@@ -667,7 +668,7 @@ class Energy(Scan):
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
                                 #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm]) # can screw up x range if fit fails
                             else:
-                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
+                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.ERROR)
                         except (RuntimeError, ValueError) as e:
                             self.print(f'Fit failed with error: {e}')
                     self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False) # has to be initialized last, otherwise axis limits may be affected
@@ -995,6 +996,24 @@ class Depo(Scan):
     class Display(Scan.Display):
         """Display for depo scan."""
 
+        class CustomScientificFormatter(ScalarFormatter):
+            """custom formatter that prevents waste of vertical space by offset or scale factor.
+            There is still an issue with very large or very small values if log=False.
+            In that case the corresponding device should use self.logY = True"""
+            def __init__(self, log=False, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.log=log
+                self.set_scientific(True)  # Enable scientific notation
+                self.set_useOffset(False)  # Disable the offset/scaling factor above the axis
+
+            def _set_format(self):
+                """Override the default format behavior to suppress scaling."""
+                self._useMathText = True
+                if self.log:
+                    self.format = "%.1e"  # Format ticks in scientific notation (e.g., 1.0e-10)
+                else:
+                    self.format = "%.1f"  # Format ticks in normal notation
+
         def initFig(self):
             super().initFig()
             self.fig.set_constrained_layout_pads(h_pad=-4.0) # reduce space between axes
@@ -1009,6 +1028,8 @@ class Depo(Scan):
                     output.line = self.axes[2+self.scan.getExtraUnits().index(output.unit)].plot([[datetime.now()]], [0], color=output.color, label=output.name)[0]
                     if output.logY:
                         self.axes[2+self.scan.getExtraUnits().index(output.unit)].set_yscale('log')
+                    self.axes[2+self.scan.getExtraUnits().index(output.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=output.logY))
+                # self.axes[2+i].get_yaxis().set_major_formatter(mpl.ticker.FuncFormatter(lambda x, p: self.scientificNotation(x)))
             for i, unit in enumerate(self.scan.getExtraUnits()):
                 legend = self.axes[2+i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
@@ -1026,7 +1047,7 @@ class Depo(Scan):
             self.axes[-1].set_xlabel(self.TIME)
             self.axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M')) # auto formatting will resort to only year if space is limited -> fix format
             self.tilt_xlabels(self.axes[-1])
-            self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top',
+            self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=6, ha='left', va='top',
                                                             bbox=dict(boxstyle='square, pad=.2', fc=plt.rcParams['axes.facecolor'], ec='none'))
             # self.fig.xticks(rotation = 30)
 

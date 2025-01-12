@@ -40,7 +40,7 @@ class Current(Device):
                 try:
                     data = np.loadtxt(file, skiprows=4, delimiter=',', unpack=True)
                 except ValueError as e:
-                    self.print(f'Error when loading from {file.name}: {e}', PRINT.ERROR)
+                    self.print(f'Loading from {file.name} failed: {e}', PRINT.ERROR)
                     return
                 if data.shape[0] == 0:
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)

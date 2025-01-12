@@ -2,7 +2,6 @@
 import socket
 from threading import Thread
 import time
-from random import choices
 import numpy as np
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
@@ -94,11 +93,8 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        if self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)):
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
-        else:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
+        self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self):
         self.getParameterByName(self.MODULE).getWidget().setVisible(self.real)
@@ -161,11 +157,8 @@ class VoltageController(DeviceController):
     def fakeNumbers(self):
         for channel in self.device.getChannels():
             if channel.real:
-                if self.device.isOn() and channel.enabled:
-                    # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
-                else:
-                    channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
+                # fake values with noise and 10% channels with offset to simulate defect channel or short
+                channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (np.random.choice([0, 1], p=[0.98, 0.02])) + np.random.random()
 
     def runAcquisition(self, acquiring):
         while acquiring():

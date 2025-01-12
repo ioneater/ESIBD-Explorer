@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QMenu)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QSize #, QEvent #, QPoint
-from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction, QFont, QMouseEvent
+from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction, QFont, QMouseEvent, QFontMetrics
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 class EsibdExplorer(QMainWindow):
@@ -171,7 +171,7 @@ class PluginManager():
 
     def __init__(self):
         self.mainWindow = QApplication.instance().mainWindow
-        self.testing = False # has to be defined before logger
+        self._testing = False # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath     = None
@@ -188,7 +188,9 @@ class PluginManager():
         self.pluginNames = []
         self.firstControl = None
         self.firstDisplay = None
+        self.tabBars = None
         self._loading = 0
+        self.finalizing = False
         self.closing = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
@@ -262,8 +264,11 @@ class PluginManager():
         if hasattr(self, 'UCM'):
             self.plugins.append(self.plugins.pop(self.plugins.index(self.UCM))) # move UCM to end to connectAllSources after all devices and PID are initialized
         self.loading = False
+        self.finalizing = True
         self.finalizeInit()
         self.afterFinalizeInit()
+        self.finalizing = False
+        self.toggleTitleBarDelayed(update=True, delay=2000)
         self.mainWindow.setUpdatesEnabled(True)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
@@ -354,7 +359,7 @@ class PluginManager():
         for plugin in sorted((plugin for plugin in self.plugins if plugin.pluginType in pluginTypeOrder),
             key=lambda x: pluginTypeOrder.index(x.pluginType)):
             # Note: self.TYPE.INTERNAL, self.TYPE.DISPLAY will be loaded by their parent items later if needed
-            self.logger.print(f'provideDocks {plugin.name} {plugin.version}', flag=PRINT.DEBUG)
+            # self.logger.print(f'provideDocks {plugin.name} {plugin.version}', flag=PRINT.DEBUG)
             # display plugins will be initialized when needed, internal plugins do not need GUI
             try:
                 plugin.provideDock()
@@ -362,10 +367,6 @@ class PluginManager():
                 self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                 self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
             self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
-        # tabBars = self.mainWindow.findChildren(QTabBar)
-        # if tabBars: #might be null if there are no tabbed docks
-        #     for tabBar in tabBars:
-        #         tabBar.setElideMode(Qt.TextElideMode.ElideNone) # do not elide tab names
 
     def finalizeInit(self):
         """Finalize initialization after all other plugins have been initialized."""
@@ -391,6 +392,14 @@ class PluginManager():
                     plugin.closeGUI()
                     self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
 
+    @property
+    def testing(self):
+        return self._testing or any([plugin._testing for plugin in self.plugins])
+    @testing.setter
+    def testing(self, state):
+        # self.print(f'testing {state}', PRINT.DEBUG)
+        self._testing = state
+
     def test(self):
         """ Calls :meth:`~esibd.core.PluginManager.runTestParallel` to test most features of for all plugins."""
         self.testing = True
@@ -414,7 +423,7 @@ class PluginManager():
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
             plugin.runTestParallel()
-            if not plugin.waitForCondition(condition=lambda: plugin.testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
+            if not plugin.waitForCondition(condition=lambda: plugin._testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
                 plugin.signalComm.testCompleteSignal.emit()
             if not self.testing:
                 break
@@ -585,17 +594,24 @@ class PluginManager():
         """
         return [plugin for plugin in self.plugins if isinstance(plugin, parentClasses)]
 
-    def toggleTitleBarDelayed(self):
-        tabBars = self.mainWindow.findChildren(QTabBar)
-        if tabBars:
-            for tabBar in tabBars:
+    def toggleTitleBarDelayed(self, update=False, delay=500):
+        QTimer.singleShot(delay, lambda: self.toggleTitleBar(update=update))
+
+    def toggleTitleBar(self, update=False):
+        if not self.tabBars or update:
+            # this is very expensive as it traverses the entire QObject hierarchy, but this is the only way to find a new tabbar that is created by moving docks around
+            # keep reference to tabBars. this should only need update if dock topLevelChanged
+            self.tabBars = self.mainWindow.findChildren(QTabBar)
+        if self.tabBars:
+            for tabBar in self.tabBars:
+                # has to be called in main thread!
                 tabBar.setStyleSheet(
         f'QTabBar::tab {{font-size: 1px; margin-right: -18px; color: transparent}}QTabBar::tab:selected {{font-size: 12px;margin-right: 0px; color: {colors.highlight}}}'
-        if getIconMode() == 'Icons' else '')
+                        if getIconMode() == 'Icons' else '')
         if not self.loading:
             for plugin in self.plugins:
                 if plugin.initializedDock:
-                    plugin.toggleTitleBarDelayed()
+                    plugin.toggleTitleBar()
 
     def updateTheme(self):
         """Updates application theme while showing a splash screen if necessary."""
@@ -702,7 +718,6 @@ class Logger(QObject):
                 self.terminalOut.write(message) # write to original stdout
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    self.purge()
                     self.log.write(message) # write to log file
                     self.log.flush()
                 # else: cannot print without using recursion
@@ -713,6 +728,7 @@ class Logger(QObject):
             self.pluginManager.Console.write(message)
 
     def purge(self):
+        # ca. 12 ms, only call once when starting
         with open(self.logFileName, 'r', encoding=UTF8) as original:
             lines = original.readlines()
         if len(lines) > self.purgeLimit:
@@ -1288,14 +1304,12 @@ class Parameter():
         elif self.widgetType == self.TYPE.TEXT:
             self.line.setFont(font)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
-            self.spin.setMinimumWidth(int(scaling*50)+10) # empirical
+            self.spin.setMinimumWidth(int(scaling*50)+10) # empirical fixed width
             self.spin.lineEdit().setFont(font)
         elif self.widgetType == self.TYPE.BOOL:
             if isinstance(self.check, QCheckBox):
                 checkBoxHeight = min(self.rowHeight-4, QCheckBox().sizeHint().height()-2)
                 self.check.checkBoxHeight = checkBoxHeight # remember for updateColor
-                self.check.setMinimumWidth(self.rowHeight)
-                self.check.setMinimumWidth(self.rowHeight)
                 self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
             else: #isinstance(self.check, QToolButton, QPushButton)
                 iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
@@ -1647,7 +1661,8 @@ class Channel(QTreeWidgetItem):
         self.inout = self.device.inout if hasattr(self.device, 'inout') else INOUT.NONE
         self.controller = None
         self.defaultStyleSheet = None # will be initialized when color is set
-        self.warningStyleSheet = f'background: rgb({255},{0},{0})'
+        self.warningStyleSheet = 'background: rgb(255,0,0)'
+        self.warningState = False
 
         if self.inout != INOUT.NONE and self.useBackgrounds:
                 # array of background history. managed by instrument manager to keep timing synchronous
@@ -1734,18 +1749,15 @@ class Channel(QTreeWidgetItem):
                                     toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header= '',)
         channel[self.SELECT  ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     toolTip='Select channel for deleting, moving, or duplicating.', event=lambda: self.device.channelSelection(selectedChannel = self), attr='select')
-        channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.ENABLED ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=lambda: self.enabledChanged(), attr='enabled')
-        channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name')
-        channel[self.VALUE   ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='Unit', attr='value')
-        if self.useMonitors:
-            channel[self.MONITOR] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                                  event=lambda: self.monitorChanged(), attr='monitor', indicator=True)
-        if self.inout == INOUT.IN:
-            channel[self.VALUE][Parameter.EVENT] = lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
-        elif self.inout == INOUT.OUT:
-            channel[self.VALUE][Parameter.VALUE] = np.nan # undefined until communication started
+        channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name',
+                                               event=self.updateDisplay if self.inout == INOUT.OUT else None)
+        channel[self.VALUE   ] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0, widgetType=Parameter.TYPE.FLOAT,
+                                               advanced=False, header='Unit', attr='value',
+                                               event=lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
+                                               indicator=self.inout == INOUT.OUT)
         channel[self.EQUATION] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='equation',
                                     event=lambda: self.equationChanged())
         channel[self.ACTIVE  ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
@@ -1754,6 +1766,15 @@ class Channel(QTreeWidgetItem):
         channel[self.REAL    ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                     header='R', toolTip='Set to real for physically exiting channels.',
                                     event=lambda: self.realChanged(), attr='real')
+        channel[self.SCALING ] = parameterDict(value='normal', default='normal', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
+                                                       items='small, normal, large, larger, huge', toolTip='Scaling used to display channels.')
+        # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
+        # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
+        channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
+                                    event=lambda: self.updateColor(), attr='color')
+        if self.useMonitors:
+            channel[self.MONITOR] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+                                                  event=lambda: self.monitorChanged(), attr='monitor', indicator=True)
         if self.useDisplays:
             channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                         header='D', toolTip='Display channel history.',
@@ -1769,12 +1790,6 @@ class Channel(QTreeWidgetItem):
                                             items='solid, dotted, dashed, dashdot', attr='linestyle', event=lambda: self.updateDisplay(), toolTip='Line style used in plots.')
             channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=lambda: self.updateDisplay(),
                                                            items='0, 1, 2, 3, 4, 5', fixedItems=False, toolTip='Used to group channels in the live display.')
-        channel[self.SCALING] = parameterDict(value='normal', default='normal', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
-                                                       items='small, normal, large, larger, huge', toolTip='Scaling used to display channels.')
-        # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
-        # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
-        channel[self.COLOR   ] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
-                                    event=lambda: self.updateColor(), attr='color')
         if self.inout == INOUT.IN:
             channel[self.MIN     ] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
                                     event=lambda: self.updateMin(), attr='min', header='Min       ')
@@ -1782,12 +1797,9 @@ class Channel(QTreeWidgetItem):
                                     event=lambda: self.updateMax(), attr='max', header='Max       ')
             channel[self.OPTIMIZE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                     header='O', toolTip='Selected channels will be optimized using GA.', attr='optimize')
-        elif self.inout == INOUT.OUT:
-            channel[self.VALUE][Parameter.INDICATOR] = True
-            channel[self.NAME][Parameter.EVENT] = self.updateDisplay
-            if self.device.useBackgrounds:
-                channel[self.BACKGROUND] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
-                                    header='BG      ', attr='background')
+        if self.useBackgrounds:
+            channel[self.BACKGROUND] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+                                header='BG      ', attr='background')
         return channel
 
     def getSortedDefaultChannel(self):
@@ -1820,7 +1832,7 @@ class Channel(QTreeWidgetItem):
             self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
             self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
             self.insertDisplayedParameter(self.OPTIMIZE, before=self.DISPLAY)
-        if self.inout != INOUT.NONE and self.device.useBackgrounds:
+        if self.inout != INOUT.NONE and self.useBackgrounds:
             self.insertDisplayedParameter(self.BACKGROUND, before=self.DISPLAY)
 
     def tempParameters(self):
@@ -1885,13 +1897,13 @@ class Channel(QTreeWidgetItem):
             self.values.add(x=np.nan, lenT=lenT)
         else:
             self.values.add(x=self.monitor if (self.useMonitors and self.enabled and self.real) else self.value, lenT=lenT)
-        if self.device.useBackgrounds:
+        if self.useBackgrounds:
             self.backgrounds.add(x=self.background, lenT=lenT)
 
     def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None): # pylint: disable = unused-argument # use consistent arguments for all versions of getValues
         """Returns plain Numpy array of values.
         Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained."""
-        if self.device.useBackgrounds and subtractBackground:
+        if self.useBackgrounds and subtractBackground:
             return self.values.get(length=length, _min=_min, _max=_max, n=n) - self.backgrounds.get(length=length, _min=_min, _max=_max, n=n)
         else:
             return self.values.get(length=length, _min=_min, _max=_max, n=n)
@@ -1900,7 +1912,7 @@ class Channel(QTreeWidgetItem):
         if self.device.pluginManager.DeviceManager is not None and (self.device.pluginManager.Settings is not None and not self.device.pluginManager.Settings.loading):
             self.values = DynamicNp(max_size=max_size if max_size is not None else 600000/int(self.device.interval)) # 600000 -> only keep last 10 min to save ram unless otherwise specified
         self.clearPlotCurve()
-        if self.device.useBackgrounds:
+        if self.useBackgrounds:
             self.backgrounds = DynamicNp(max_size=max_size)
 
     def clearPlotCurve(self):
@@ -2006,10 +2018,13 @@ class Channel(QTreeWidgetItem):
 
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
-        if self.enabled and self.device.controller.acquiring and self.getDevice().isOn() and abs(self.monitor - self.value) > 1:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet)
-        else:
-            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.defaultStyleSheet)
+        self.updateWarningState(self.enabled and self.device.controller.acquiring and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
+
+    def updateWarningState(self, warn):
+        if warn != self.warningState:
+            self.warningState = warn
+            self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet if warn else self.defaultStyleSheet)
+
 
     def initGUI(self, item):
         """Call after item has been added to tree.
@@ -2145,7 +2160,7 @@ class ScanChannel(RelayChannel, Channel):
                                         event=lambda: self.updateDisplay(), attr='display')
         channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
-        channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
+        channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, attr='unit', header='Unit   ', indicator=True)
         channel[self.NOTES] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
         return channel
 
@@ -2286,9 +2301,6 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         else:
             return super().contextMenuEvent(event)
 
-    # def validate(self, input, pos):
-    #     return QValidator.State.Acceptable, input, pos#super().validate(input, pos)
-
     def setDisplayDecimals(self, prec):
         # decimals used for display.
         self.displayDecimals = prec
@@ -2300,7 +2312,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
 
     def textFromValue(self, value):
         """make sure nan and inf will be represented by NaN."""
-        if value in [np.nan, np.inf]:
+        if np.isnan(value) or np.isinf(value):
             return self.NAN
         else:
             return f'{value:.{self.displayDecimals}f}'
@@ -2309,6 +2321,11 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         if self.text() == self.NAN:
             return np.nan
         return super().value()
+
+    def setValue(self, val):
+        super().setValue(val)
+        if np.isnan(val) or np.isinf(val):
+            self.lineEdit().setText(self.NAN) # needed in rare cases where setting to nan would set to maximum
 
     def wheelEvent(self, event):
         event.ignore()
@@ -2351,6 +2368,10 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         elif len(newText) < len(text):
             self.lineEdit().setCursorPosition(max(cur - 1, 0))
 
+    # def sizeHint(self): # use fixed sizes based on expected values instead of dynamically adjusting every time value changes
+    #     """Return reasonable size hint based on content within minimum and maximum limits"""
+    #     return QSize(max(self.minimumWidth(), QFontMetrics(self.lineEdit().font()).horizontalAdvance(self.text() or " ") + 10), self.height())
+
 class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
     """Spinbox for scientific notation."""
     # inspired by https://gist.github.com/jdreaver/0be2e44981159d0854f5
@@ -2388,7 +2409,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         return self.validator.fixup(text)
 
     def textFromValue(self, value):
-        if value in [np.nan, np.inf]:
+        if np.isnan(value) or np.isinf(value):
             return self.NAN
         else:
             return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
@@ -2682,55 +2703,45 @@ class DockWidget(QDockWidget):
         self.signalComm.dockClosingSignal.connect(self.plugin.closeGUI)
         self.setObjectName(f'{self.plugin.pluginType}_{self.plugin.name}') # essential to make restoreState work!
         self.setTitleBarWidget(plugin.titleBar)
-        self.topLevelChanged.connect(self.plugin.pluginManager.toggleTitleBarDelayed)
-        self.plugin.toggleTitleBarDelayed() # not sure why needed but needed
+        self.topLevelChanged.connect(lambda: self.on_top_level_changed())
         self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable) # | QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.setWidget(self.plugin.mainDisplayWidget)
 
+    def on_top_level_changed(self):
+        # self.plugin.print('on_top_level_changed', flag=PRINT.DEBUG)
+        # there are no signals available to be emitted at the end of dragging or when tabifying.
+        # for now I am just using a long delay and hope that the operation has been completed before toggleTitleBar is called
+        if not self.plugin.pluginManager.finalizing and not self.plugin.pluginManager.loading:
+            self.plugin.pluginManager.toggleTitleBarDelayed(update=True, delay=3000)
+
     def toggleTitleBar(self):
         """Updates titleBar as dock is changing from floating to docked states."""
-        if self.isFloating(): # dock is floating on its own
-            # self.setWindowFlags(Qt.WindowType.Window)
-            if self.plugin.titleBarLabel is not None:
-                self.plugin.titleBarLabel.setText(self.title)
-            if hasattr(self.plugin, 'floatAction'):
-                self.plugin.floatAction.state = True
-                # self.plugin.floatAction.setVisible(False)
-        else: # dock is inside the mainWindow or an external window
-            if hasattr(self.plugin, 'floatAction'):
-                self.plugin.floatAction.state = False
-                # do not allow to float from external windows as this causes GUI instabilities (empty external windows, crash without error, ...)
-                # need to allow float to leave external window -> need to make safe / dragging using standard titleBar works but not using custom titleBar
-                # self.plugin.floatAction.setVisible(isinstance(self.parent(), QMainWindow))
-            if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
-                # self.plugin.titleBarLabel.setText(self.plugin.name if not isinstance(self.parent(), QMainWindow) or len(self.parent().tabifiedDockWidgets(self)) == 0 else '')
-                self.plugin.titleBarLabel.setText(self.title)
-                # need to apply for proper resizing, even if set to '' next
-                if hasattr(self.parent(), 'tabifiedDockWidgets') and len(self.parent().tabifiedDockWidgets(self)) > 0:
-                    self.plugin.titleBarLabel.setText('')
-                self.updateIcon()
-            if not isinstance(self.parent(), QMainWindow):
-                self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
-
-    def updateIcon(self):
-        tabBars = self.plugin.pluginManager.mainWindow.findChildren(QTabBar)
-        # self.setWindowTitle(self.title) # set it just for now so tabWhatsThis can always be initialized correctly
-        if tabBars: #might be null if there are no tabbed docks
-            for tabBar in tabBars:
-                for i in range(tabBar.count()):
-                    # tabWhatsThis stays unchanged when setWindowTitle('') unlike tabToolTip
-                    # if (tabBar.tabWhatsThis(i) is None or tabBar.tabWhatsThis(i) == '') and tabBar.tabText(i) == self.title:
-                    #     tabBar.setTabWhatsThis(i, self.title) # make sure we can identify tab even if windowTitle is set to '' temporarily
-                    # if tabBar.tabWhatsThis(i) is not None and tabBar.tabWhatsThis(i) == self.title:# tabBar.tabText(i) == self.title:
-                    if tabBar.tabText(i) == self.title:
-                        # tabBar.setTabText(i, '' if getIconMode() == 'Icons' else self.title) # no effect
-                        # button1 = QToolButton()
-                        # button1.setIcon(self.plugin.getIcon())
-                        # tabBar.setTabButton(i, QTabBar.ButtonPosition.LeftSide, button1)
-                        tabBar.setTabIcon(i, QIcon() if getIconMode() == 'Labels' else self.plugin.getIcon())
-        # https://stackoverflow.com/questions/24851977/hide-label-text-for-qt-tabs-without-setting-text-to-empty-string
-        # if getIconMode() == 'Icons':
-        #     self.setWindowTitle('') # hide it, knowing that tabWhatsThis has been set and can be used to restore later
+        # self.plugin.print('toggleTitleBar', flag=PRINT.DEBUG)
+        if self.plugin.initializedDock: # may have changed between toggleTitleBarDelayed and toggleTitleBar
+            if self.isFloating(): # dock is floating on its own
+                # self.setWindowFlags(Qt.WindowType.Window)
+                if self.plugin.titleBarLabel is not None:
+                    self.plugin.titleBarLabel.setText(self.title)
+                if hasattr(self.plugin, 'floatAction'):
+                    self.plugin.floatAction.state = True
+                    # self.plugin.floatAction.setVisible(False)
+            else: # dock is inside the mainWindow or an external window
+                if hasattr(self.plugin, 'floatAction'):
+                    self.plugin.floatAction.state = False
+                    # do not allow to float from external windows as this causes GUI instabilities (empty external windows, crash without error, ...)
+                    # need to allow float to leave external window -> need to make safe / dragging using standard titleBar works but not using custom titleBar
+                    # self.plugin.floatAction.setVisible(isinstance(self.parent(), QMainWindow))
+                if hasattr(self.plugin, 'titleBarLabel') and self.plugin.titleBarLabel is not None:
+                    self.plugin.titleBarLabel.setText(self.title) # need to apply for proper resizing, even if set to '' next
+                    if hasattr(self.parent(), 'tabifiedDockWidgets') and len(self.parent().tabifiedDockWidgets(self)) > 0:
+                        self.plugin.titleBarLabel.setText('')
+                    if self.plugin.pluginManager.tabBars: # might be null if there are no tabbed docks
+                        for tabBar in self.plugin.pluginManager.tabBars:
+                            for i in range(tabBar.count()):
+                                if tabBar.tabText(i) == self.title:
+                                    tabBar.setTabIcon(i, QIcon() if getIconMode() == 'Labels' else self.plugin.getIcon())
+                if not isinstance(self.parent(), QMainWindow):
+                    self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
 
     def closeEvent(self, event):
         self.signalComm.dockClosingSignal.emit()
@@ -2755,6 +2766,7 @@ class TreeWidget(QTreeWidget):
         self.minimizeHeight = minimizeHeight
 
     def totalItems(self):
+        "total number of items at top level and first child level"
         total_items = 0
         for i in range(self.topLevelItemCount()):
             top_item = self.topLevelItem(i)
@@ -2762,11 +2774,23 @@ class TreeWidget(QTreeWidget):
             total_items += top_item.childCount()# Add the count of its children
         return total_items
 
-    def calculate_tree_height_hint_complete(self):
+    def totalHeight(self):
+        total_height = self.header().height()
+        for i in range(self.topLevelItemCount()):
+            top_item = self.topLevelItem(i)
+            total_height += self.visualItemRect(top_item).height()
+            for j in range(top_item.childCount()):
+                total_height += self.visualItemRect(top_item.child(j)).height()
+        return total_height
+
+    def itemWidth(self):
+        return self.visualItemRect(self.topLevelItem(0)).width() if self.topLevelItemCount() > 0 else 300
+
+    def tree_height_hint_complete(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
         return self.header().height() + self.totalItems() * item_height
 
-    def calculate_tree_height_hint_minimal(self):
+    def tree_height_hint_minimal(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
         return self.header().height() + min(self.totalItems(), 4) * item_height
 
@@ -2776,11 +2800,15 @@ class TreeWidget(QTreeWidget):
             count += self.count_child_items(item.child(i))
         return count
 
-    def fitAllItems(self):
-        self.resize(self.width(), self.calculate_tree_height())
+    def itemRect(self):
+        """Returns the QRect of all visible items."""
+        return QRect(self.rect().left(), self.rect().top(), min(self.rect().width(), self.itemWidth()), min(self.rect().height(), self.totalHeight()))
+
+    def grabItems(self):
+        return self.grab(self.itemRect())
 
     def sizeHint(self):
-        return QSize(self.width(), self.calculate_tree_height_hint_minimal() if self.minimizeHeight else self.calculate_tree_height_hint_complete())
+        return QSize(self.width(), self.tree_height_hint_minimal() if self.minimizeHeight else self.tree_height_hint_complete())
 
 class LedIndicator(QAbstractButton):
     """Simple custom LED indicator"""
@@ -2894,6 +2922,9 @@ class LineEdit(QLineEdit):
         self._edited = False
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)
+        # self.textChanged.connect(self.adjust_width)
+        self.setMinimumWidth(50)  # Set a reasonable minimum width
+        self.max_width = 300
 
     def onTextEdited(self):
         self._edited = True
@@ -2902,6 +2933,10 @@ class LineEdit(QLineEdit):
         if self._edited:
             self._edited = False
             self.userEditingFinished.emit(self.text())
+
+    def sizeHint(self):
+        """Return reasonable size hint based on content within minimum and maximum limits"""
+        return QSize(min(max(self.minimumWidth(), QFontMetrics(self.font()).horizontalAdvance(self.text() or " ") + 10), self.max_width), self.height())
 
 class TextEdit(QPlainTextEdit):
     """Editor that is compatible with :class:`~esibd.core.NumberBar`"""
@@ -3362,7 +3397,7 @@ class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
         self.enableAutoSIPrefix(False) # always show complete numbers in ticks. especially for currents and pressures dividing by a random factor is very confusing
 
     def logTickStrings(self, values, scale, spacing):
-        estrings = [f'{x:.0e}' for x in 10 ** np.array(values).astype(float) * np.array(scale)]
+        estrings = [f'{x:.0e}' for x in 10 ** np.array(values) * scale]
         convdict = {"0": "⁰",
                     "1": "¹",
                     "2": "²",
@@ -3416,7 +3451,7 @@ class TimeoutLock(object):
         try:
             yield result
         except Exception as e:
-            self.print(f'Error while using lock: {e}', flag=PRINT.ERROR)
+            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e}
         finally:
             if result and not lock_acquired:
                 self._lock.release()

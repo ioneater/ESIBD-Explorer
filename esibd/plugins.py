@@ -39,7 +39,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
                             QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor, QPixmap # , QColor
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor, QPixmap # ,QScreen , QColor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -127,8 +127,6 @@ class Plugin(QWidget):
 
     class SignalCommunicate(QObject): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
-        toggleTitleBarSignal = pyqtSignal()
-        """Signal used to toggle use of icons and text in titleBars."""
         testCompleteSignal = pyqtSignal()
 
     def __init__(self, pluginManager=None, dependencyPath=None):
@@ -153,7 +151,6 @@ class Plugin(QWidget):
         self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
         self._testing = False
         self.signalComm = self.SignalCommunicate()
-        self.signalComm.toggleTitleBarSignal.connect(self.toggleTitleBar)
         self.signalComm.testCompleteSignal.connect(self.testComplete)
 
     def print(self, message, flag=PRINT.MESSAGE):
@@ -199,6 +196,8 @@ class Plugin(QWidget):
             message = f'Testing {control.objectName()} {control.toolTip() if callable(control.toolTip) else control.toolTip}'
         else:
             message = f'Testing {control.objectName()}'
+        message = message.replace('\n', '')
+        message = message if len(message) <= 86 else f'{message[:83]}...' # limit length to keep log clean
         with self.lock.acquire_timeout(5, timeoutMessage=f'Could not acquire lock to test {message}') as lock_acquired: # allow any critical function to finish before testing next control
             if lock_acquired:
                 self.print(message)
@@ -246,10 +245,10 @@ class Plugin(QWidget):
 
     @property
     def testing(self):
-        return self._testing
+        return self.pluginManager.testing
     @testing.setter
     def testing(self, state):
-        self.print(f'testing {state}', PRINT.DEBUG)
+        # self.print(f'testing {state}', PRINT.DEBUG)
         self._testing = state
 
     def processEvents(self):
@@ -364,8 +363,8 @@ class Plugin(QWidget):
                     mw.splitDockWidget(self.pluginManager.topDock, self.dock, Qt.Orientation.Vertical) # below topDock
                 else:
                     mw.tabifyDockWidget(liveDisplays[-1].dock, self.dock) # add to other live displays
-                    if len(liveDisplays) == 1:
-                        self.pluginManager.toggleTitleBarDelayed()
+                    # if len(liveDisplays) == 1 and not self.pluginManager.finalizing: TODO delete
+                    #     self.pluginManager.toggleTitleBarDelayed(update=True)
             elif self.pluginType in [PluginManager.TYPE.CHANNELMANAGER, PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE, PluginManager.TYPE.CONTROL, PluginManager.TYPE.SCAN]:
                 if self.pluginManager.firstControl is None:
                     self.pluginManager.firstControl = self
@@ -382,6 +381,8 @@ class Plugin(QWidget):
                     mw.tabifyDockWidget(self.pluginManager.firstDisplay.dock, self.dock)
             self.initializedDock = True # only true after initializing and adding dock to GUI
             self.loading = False
+            if not self.pluginManager.finalizing and not self.pluginManager.loading:
+                self.toggleTitleBarDelayed()
             return True # dock has been created
         return False # dock already exists
 
@@ -484,9 +485,8 @@ class Plugin(QWidget):
         """
         self.dock.toggleTitleBar()
 
-    def toggleTitleBarDelayed(self):
-        # self.logger.print('toggleTitleBarDelayed', flag=PRINT.DEBUG)
-        QTimer.singleShot(500, self.signalComm.toggleTitleBarSignal.emit)
+    def toggleTitleBarDelayed(self, delay=500):
+        QTimer.singleShot(delay, lambda: self.toggleTitleBar())
 
     def addContentWidget(self, cw):
         """Use this to add your main content widget to the user interface.
@@ -810,7 +810,6 @@ class StaticDisplay(Plugin):
         """:meta private:"""
         super().initGUI()
         self.legend = None
-        self.subtractBackgroundAction = None
         self.outputLayout = QVBoxLayout()
         self.plotWidgetFont = QFont()
         self.plotWidgetFont.setPixelSize(15)
@@ -860,10 +859,6 @@ class StaticDisplay(Plugin):
         self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.plotEfficientAction = self.addStateAction(event=lambda: self.togglePlotType(), toolTipFalse='Use matplotlib plot.', iconFalse=self.makeCoreIcon('mpl.png'),
                                                        toolTipTrue='Use pyqtgraph plot.', iconTrue=self.makeCoreIcon('pyqt.png'), attr='plotEfficient', before=self.copyAction)
-        if self.parentPlugin.useBackgrounds:
-            self.subtractBackgroundAction = self.addStateAction(toolTipFalse='Subtract background.', iconFalse=self.makeCoreIcon('eraser.png'),
-                                                        toolTipTrue='Ignore background.', iconTrue=self.makeCoreIcon('eraser.png'), before=self.plotEfficientAction,
-                                                        attr='subtractStaticBackground', event=lambda: self.plot()) # pylint: disable=unnecessary-lambda
         self.togglePlotType()
         self.staticPlotWidget.updateGrid()
 
@@ -876,8 +871,6 @@ class StaticDisplay(Plugin):
             self.raiseDock(True)
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.plotEfficientAction, not self.plotEfficientAction.state, 1)
-            if self.parentPlugin.useBackgrounds:
-                self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
     # @synchronized() do not use same lock for extended version of already decorated super().copyClipboard()
@@ -954,7 +947,7 @@ class StaticDisplay(Plugin):
             length = min(self.inputs[0].getRecordingData().shape[0], output.getRecordingData().shape[0])
             x = self.inputs[0].getRecordingData()[-length:]
             y = self.parentPlugin.convertDataDisplay((output.getRecordingData()-output.recordingBackground)[:length]
-                                           if self.parentPlugin.useBackgrounds and (self.subtractBackgroundAction.state if self.subtractBackgroundAction is not None else False)
+                                           if self.parentPlugin.useBackgrounds and self.parentPlugin.subtractBackgroundActive()
                                            else output.getRecordingData()[:length])
 
             if output.sourceChannel is None:
@@ -1119,7 +1112,6 @@ class LiveDisplay(Plugin):
         self.plotting = False
         self._updateLegend = True
         super().__init__(**kwargs)
-        self.subtractBackgroundAction = None
 
     def initGUI(self):
         """:meta private:"""
@@ -1136,14 +1128,9 @@ class LiveDisplay(Plugin):
             self.clearHistoryAction = self.addAction(event=lambda: self.parentPlugin.clearHistory(), toolTip='Clear history.', icon=self.makeCoreIcon('clipboard-empty.png'))
             self.clearHistoryAction.setVisible(False) # usually not required as number of data points is already limited. only show in advanced mode
             if self.parentPlugin.useBackgrounds:
-                self.subtractBackgroundAction = self.addStateAction(toolTipFalse='Subtract background.', iconFalse=self.makeCoreIcon('eraser.png'),
-                                                            toolTipTrue='Ignore background.', iconTrue=self.makeCoreIcon('eraser.png'),
-                                                            attr='subtractLiveBackground', event=lambda: self.plot(apply=True))
                 self.addAction(event=lambda: self.parentPlugin.setBackground(), toolTip='Set current value as background.', icon=self.makeCoreIcon('eraser--pencil.png'))
             self.exportAction = self.addAction(event=lambda: self.parentPlugin.exportOutputData(), toolTip=f'Save visible {self.parentPlugin.name} data to current session.', # pylint: disable=unnecessary-lambda
                            icon=self.makeCoreIcon('database-export.png'))
-        self.recordingAction = self.addStateAction(lambda: self.parentPlugin.toggleRecording(manual=True), 'Start data acquisition.', self.makeCoreIcon('play.png'),
-                                                   'Stop data acquisition.', self.makeCoreIcon('pause.png'))
         self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally', self.makeCoreIcon('stack_horizontal.png')),
                                                             MultiState('horizontal', 'Stack axes on top of each other.', self.makeCoreIcon('stack_top.png')),
                                                             MultiState('stacked', 'Stack axes vertically.', self.makeCoreIcon('stack_vertical.png'))],
@@ -1162,7 +1149,6 @@ class LiveDisplay(Plugin):
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
-        self.recordingAction.state = self.parentPlugin.recording
         self.plot(apply=True)
 
     def displayTimeChanged(self):
@@ -1181,7 +1167,7 @@ class LiveDisplay(Plugin):
     def clearPlot(self):
         """Clears all references to plotCurves, plotItems, and legends.
         To be recreated if needed."""
-        self.print('clearPlot', flag=PRINT.DEBUG)
+        # self.print('clearPlot', flag=PRINT.DEBUG)
         for channel in self.parentPlugin.getChannels():
             channel.clearPlotCurve()
         for livePlotWidget in self.livePlotWidgets:
@@ -1319,9 +1305,7 @@ class LiveDisplay(Plugin):
         if self.initializedDock:
             self.raiseDock(True)
             # init, start, pause, stop acquisition will be tested by instManager
-            self.testControl(self.copyAction, True) # ,1
-            if self.parentPlugin.useBackgrounds:
-                self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
+            self.testControl(self.copyAction, True)
             # self.testControl(self.clearHistoryAction, True) # keep history, test manually if applicable
             if hasattr(self, 'exportAction'):
                 self.testControl(self.exportAction, True)
@@ -1500,8 +1484,9 @@ class LiveDisplay(Plugin):
 
     def closeGUI(self):
         """:meta private:"""
-        self.parentPlugin.clearPlot() # plotCurve references will be deleted and have to be recreated later if needed
-        self.pluginManager.toggleTitleBarDelayed()
+        if not self.pluginManager.closing:
+            self.parentPlugin.clearPlot() # plotCurve references will be deleted and have to be recreated later if needed
+            self.pluginManager.toggleTitleBarDelayed(update=True)
         super().closeGUI()
 
     def updateTheme(self):
@@ -1634,7 +1619,7 @@ class ChannelManager(Plugin):
             self.toggleLiveDisplayAction = self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
                                               toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
                                               attr='showLiveDisplay', event=lambda: self.toggleLiveDisplay(), default='true')
-        self.tree = QTreeWidget()
+        self.tree = TreeWidget()
         self.addContentWidget(self.tree)
         self.loadConfiguration(default=True)
 
@@ -1644,6 +1629,7 @@ class ChannelManager(Plugin):
                                                                   toolTipTrue=f'{self.name} off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.toggleLiveDisplay()
 
     def isOn(self):
@@ -1666,6 +1652,7 @@ class ChannelManager(Plugin):
                 self.testControl(self.channelPlotAction, True)#, 1
             self.testControl(self.advancedAction, True)
             self.testControl(self.saveAction, True)
+            self.testControl(self.copyAction, True)
             for parameter in self.channels[0].parameters:
                 if parameter.name not in [Channel.COLOR]: # color requires user interaction
                     self.testControl(parameter.getWidget(), parameter.value, .1,
@@ -1690,6 +1677,11 @@ class ChannelManager(Plugin):
                 self.channelPlot.runTestParallel()
                 # init, start, pause, stop acquisition will be tested by DeviceManager
         super().runTestParallel()
+
+    def copyClipboard(self):
+        # global_rect = QRect(self.tree.mapToGlobal(self.tree.rect().topLeft()), self.tree.mapToGlobal(self.tree.rect().bottomRight()))
+        # QApplication.clipboard().setPixmap(QApplication.primaryScreen().grabWindow(self.tree.winId(), global_rect.x(), global_rect.y(), global_rect.width(), global_rect.height()))
+        QApplication.clipboard().setPixmap(self.tree.grabItems())
 
     INTERVAL = 'Interval'
 
@@ -1778,8 +1770,10 @@ class ChannelManager(Plugin):
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             self.channels[min(index, len(self.channels)-1)].select = True
+            if hasattr(self.pluginManager, 'PID'):
+                self.pluginManager.PID.reconnectSource(selectedChannel.name) # reconnect will fail and disconnect
             if hasattr(self.pluginManager, 'UCM'):
-                self.pluginManager.UCM.connectAllSources()
+                self.pluginManager.UCM.reconnectSource(selectedChannel.name)
 
     @synchronized()
     def moveChannel(self, up):
@@ -1800,6 +1794,7 @@ class ChannelManager(Plugin):
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             oldValues = selectedChannel.values.get()
+            oldValue = selectedChannel.value
             if up:
                 self.addChannel(item=selectedChannel.asDict(), index=index - 1)
             else:
@@ -1807,12 +1802,18 @@ class ChannelManager(Plugin):
             newChannel = self.getChannelByName(selectedChannel.name)
             if len(oldValues) > 0:
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
-                newChannel.value = oldValues[-1]
+                newChannel.value = oldValue
             self.loading = False
+            if hasattr(self.pluginManager, 'PID'):
+                self.pluginManager.PID.reconnectSource(newChannel.name)
             if hasattr(self.pluginManager, 'UCM'):
-                self.pluginManager.UCM.connectAllSources()
+                self.pluginManager.UCM.reconnectSource(newChannel.name)
             self.tree.scheduleDelayedItemsLayout()
             return newChannel
+
+    def plot(self, apply=False):
+        if self.liveDisplayActive():
+            self.liveDisplay.plot(apply=apply)
 
     def clearPlot(self):
         if self.liveDisplayActive() and not self.pluginManager.closing:
@@ -1878,7 +1879,7 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def toggleAdvanced(self, advanced=None):
-        self.print('toggleAdvanced', flag=PRINT.DEBUG)
+        # self.print('toggleAdvanced', flag=PRINT.DEBUG)
         if advanced is not None:
             self.advancedAction.state = advanced
         self.importAction.setVisible(self.advancedAction.state)
@@ -2175,8 +2176,8 @@ class ChannelManager(Plugin):
     def recording(self, recording):
         self._recording = recording
         # allow output widgets to react to change if acquisition state
-        if self.liveDisplayActive():
-            self.liveDisplay.recordingAction.state = self.recording
+        if hasattr(self, 'recordingAction'):
+            self.recordingAction.state = self.recording
 
     def closeCommunication(self):
         """Stops recording and also closes all device communication.
@@ -2321,12 +2322,20 @@ class Device(ChannelManager):
         self.signalComm.appendDataSignal.connect(self.appendData)
         # implement a controller based on DeviceController(_parent=self). In some cases there is no controller for the device, but for every channel. Adjust
         self.controller = None
+        self.subtractBackgroundAction = None
 
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.addAction(event=lambda: self.closeCommunication(), toolTip='Close communication.', icon=self.makeCoreIcon('stop.png'))
+        self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(), toolTip='Close communication.', icon=self.makeCoreIcon('stop.png'))
         self.initAction = self.addAction(event=lambda: self.initializeCommunication(), toolTip='Initialize communication.', icon=self.makeCoreIcon('rocket-fly.png'))
+        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), 'Start data acquisition.', self.makeCoreIcon('play.png'),
+                                                   'Stop data acquisition.', self.makeCoreIcon('pause.png'))
+        if self.useBackgrounds:
+            self.subtractBackgroundAction = self.addStateAction(toolTipFalse='Subtract background.', iconFalse=self.makeCoreIcon('eraser.png'),
+                                                        toolTipTrue='Ignore background.', iconTrue=self.makeCoreIcon('eraser.png'),
+                                                        attr='subtractBackground', event=lambda: self.plot(apply=True))
+            self.addAction(event=lambda: self.setBackground(), toolTip='Set current value as background.', icon=self.makeCoreIcon('eraser--pencil.png'))
         self.estimateStorage()
         if self.inout == INOUT.IN:
             self.addAction(lambda: self.loadValues(None), 'Load values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
@@ -2354,7 +2363,8 @@ class Device(ChannelManager):
 
     def runTestParallel(self):
         """:meta private:"""
-        # extend with device specific test if needed
+        if self.useBackgrounds:
+            self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
     def intervalChanged(self):
@@ -2435,11 +2445,19 @@ class Device(ChannelManager):
             for channel in self.getChannels(): # save present signal as background
                 # use average of last 10 s if possible
                 length = min(int(10000/self.interval), len(channel.getValues(subtractBackground=False)))
-                channel.background = np.mean(channel.getValues(subtractBackground=False)[-length:])
+                values = channel.getValues(subtractBackground=False)[-length:]
+                if not any([np.isnan(value) for value in values]):
+                    channel.background = np.mean(values)
+                elif not np.isnan(values[-1]):
+                    channel.background = values[-1]
+                else:
+                    channel.background = np.nan
+
 
     def subtractBackgroundActive(self):
-        # independent of GUI as liveDisplay may not be initialized
-        return self.useBackgrounds and qSet.value(f'{self.name} LiveDisplay/subtractLiveBackground', 'false') == 'true'
+        return self.subtractBackgroundAction.state if self.useBackgrounds else False
+        # independent of GUI
+        # return self.useBackgrounds and qSet.value(f'{self.name}/subtractBackground', 'false') == 'true'
 
     def estimateStorage(self):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
@@ -3110,7 +3128,7 @@ class Scan(Plugin):
         return self.inputs[i].getRecordingData() if inout == INOUT.IN else self.outputs[i].getRecordingData()
 
     def toggleAdvanced(self, advanced=None):
-        self.print('toggleAdvanced', flag=PRINT.DEBUG)
+        # self.print('toggleAdvanced', flag=PRINT.DEBUG)
         if advanced is not None:
             self.advancedAction.state = advanced
         if len(self.channels) > 0:
@@ -3280,8 +3298,9 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         self.print(f'Saved {file.name}')
 
     def saveScanComplete(self):
-        self.pluginManager.Explorer.populateTree()
-        self.notes='' # reset after saved to last scan
+        if not self.pluginManager.closing:
+            self.pluginManager.Explorer.populateTree()
+            self.notes='' # reset after saved to last scan
         self.finished = True
 
     def plot(self, update=False, **kwargs): # pylint: disable = unused-argument # use **kwargs to allow child classed to extend the signature
@@ -3954,7 +3973,8 @@ class Console(Plugin):
                 break
             # self.triggerComboBoxSignal.emit(i) # ? causes logger to break: print no longer redirected to console, terminal, or file!
             # self.mainConsole.input.sigExecuteCmd.emit(self.commonCommandsComboBox.itemText(i)) # works but does not add command to history
-            self.print(f'Testing command: {self.commonCommandsComboBox.itemText(i)}')
+            command = self.commonCommandsComboBox.itemText(i)
+            self.print(f"Testing command: {command if len(command) <= 70 else f'{command[:67]}...'}")
             with self.lock.acquire_timeout(timeout=1, timeoutMessage=f'Could not acquire lock to test {self.commonCommandsComboBox.itemText(i)}') as lock_acquired:
                 if lock_acquired:
                     self.signalComm.executeSignal.emit(self.commonCommandsComboBox.itemText(i))
@@ -4391,7 +4411,7 @@ class Settings(SettingsManager):
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL)
-        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(),
+        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
@@ -4750,7 +4770,8 @@ class DeviceManager(Plugin):
             if len(dupes) > 0:
                 self.print(f"The following {put} channel names have been used more than once: {', '.join(dupes)}", PRINT.WARNING)
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
-            plugin.toggleRecording(on=self.recordingAction.state, manual=False)
+            if hasattr(plugin, 'recordingAction'):
+                plugin.toggleRecording(on=self.recordingAction.state, manual=False)
 
     def close(self):
         """:meta private:"""
@@ -4975,7 +4996,7 @@ class Explorer(Plugin):
                     if not file.is_dir():
                         if not self.testing:
                             break
-                        self.print(f'Loading file {file.name}.')
+                        self.print(f"Loading file {shorten_text(file.name,50)}.")
                         self.activeFileFullPath = file
                         self.displayContentSignal.emit() # call displayContent in main thread
                         self.loadingContent = True
@@ -5225,7 +5246,8 @@ class Explorer(Plugin):
         handled = False
         try:
             for plugin in [plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(self.activeFileFullPath)]:
-                self.print(f'displayContent {self.activeFileFullPath.name} using {plugin.name}', PRINT.DEBUG)
+                message = f'displayContent {self.activeFileFullPath.name} using {plugin.name}'
+                self.print(shorten_text(message, 86), flag=PRINT.DEBUG)
                 plugin.loadData(file=self.activeFileFullPath, _show=not handled) # after widget is visible to make sure it is drawn properly
                 handled = True # display first widget that supports file (others like tree or text come later and are optional)
             if not handled:
@@ -5471,7 +5493,7 @@ class UCM(ChannelManager):
             channel[self.MONITOR][Parameter.HEADER] = 'ReadValue' # channels can have different types of parameters and units
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
-            channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='unit', header='Unit   ', indicator=True)
+            channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='unit', header='Unit   ', indicator=True)
             channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
             channel[self.NAME][Parameter.EVENT] = lambda: self.connectSource()
             return channel
@@ -5506,9 +5528,11 @@ class UCM(ChannelManager):
         super().initGUI()
         self.importAction.setToolTip('Import channels.')
         self.exportAction.setToolTip('Export channels.')
+        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), 'Start data acquisition.', self.makeCoreIcon('play.png'),
+                                                   'Stop data acquisition.', self.makeCoreIcon('pause.png'))
 
     def afterFinalizeInit(self):
-        self.connectAllSources()
+        self.connectAllSources(update=True)
         self.liveDisplay.plot(apply=True)
 
     def getChannels(self):
@@ -5535,13 +5559,27 @@ class UCM(ChannelManager):
 
     def loadConfiguration(self, file=None, default=False):
         super().loadConfiguration(file, default)
-        self.connectAllSources()
+        if not self.pluginManager.loading:
+            self.connectAllSources(update=True)
 
-    def connectAllSources(self):
+    def connectAllSources(self, update=False):
         self.loading = True # suppress plot
         for channel in self.channels:
-            channel.connectSource()
+            if channel.sourceChannel is None or update:
+                channel.connectSource()
+            else: # only reconnect (disconnect) if the reference has become invalid
+                try:
+                    channel.sourceChannel.value # testing access to a parameter that depends on sourceChannel with no internal fallback
+                except RuntimeError as e:
+                    self.print(f'Source channel {channel.name} may have been lost: {e} Attempt reconnecting.', flag=PRINT.WARNING)
+                    channel.connectSource()
         self.loading = False
+
+    def reconnectSource(self, name):
+        for channel in self.channels:
+            if channel.name == name:
+                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
+                channel.connectSource()
 
 class PID(ChannelManager):
     """Allows to connect an input (controlling) and output (controlled) channel via PID logic.
@@ -5577,7 +5615,7 @@ class PID(ChannelManager):
         DERIVATIVE   = 'Derivative'   # if you’re getting close to where you want to be, slow down
         SAMPLETIME   = 'Sampletime'
 
-        def initPID(self):
+        def connectSource(self):
             self.removeEvents()
             self.sourceChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
@@ -5613,12 +5651,16 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
-            if self.sourceChannel.useMonitors:
-                self.monitor = self.sourceChannel.monitor
-            else:
-                self.monitor = self.sourceChannel.value
-            if self.active and self.inputChannel.getDevice().isOn():
-                self.inputChannel.value = self.pid(self.sourceChannel.value)
+            try:
+                if self.sourceChannel.useMonitors:
+                    self.monitor = self.sourceChannel.monitor
+                else:
+                    self.monitor = self.sourceChannel.value
+                if self.active and self.device.isOn() and self.inputChannel.getDevice().isOn():
+                    self.inputChannel.value = self.pid(self.sourceChannel.value)
+            except RuntimeError as e:
+                self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}', flag=PRINT.ERROR)
+                self.connectSource()
 
         def monitorChanged(self):
             pass
@@ -5655,11 +5697,11 @@ class PID(ChannelManager):
             channel[self.VALUE][Parameter.HEADER] = 'Setpoint   ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = self.updateSetpoint
             channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
-            channel[self.OUTPUT] = parameterDict(value='Output', widgetType=Parameter.TYPE.TEXT, attr='output', event=lambda: self.initPID(),
+            channel[self.OUTPUT] = parameterDict(value='Output', widgetType=Parameter.TYPE.TEXT, attr='output', event=lambda: self.connectSource(),
                                                  toolTip='Output channel', header='Controlled')
             channel[self.OUTPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Output device.', header='')
-            channel[self.INPUT ] = parameterDict(value='Input',  widgetType=Parameter.TYPE.TEXT, attr='input', event=lambda: self.initPID(),
+            channel[self.INPUT ] = parameterDict(value='Input',  widgetType=Parameter.TYPE.TEXT, attr='input', event=lambda: self.connectSource(),
                                                  toolTip='Input channel', header='Controlling')
             channel[self.INPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Input device.', header='')
@@ -5722,7 +5764,12 @@ class PID(ChannelManager):
         super().__init__(**kwargs)
 
     def afterFinalizeInit(self):
-        self.connectAllSources()
+        self.connectAllSources(update=True)
+
+    def loadConfiguration(self, file=None, default=False):
+        super().loadConfiguration(file, default)
+        if not self.pluginManager.loading:
+            self.connectAllSources(update=True)
 
     def getChannels(self):
         return [channel for channel in self.channels if channel.sourceChannel is not None]
@@ -5730,20 +5777,30 @@ class PID(ChannelManager):
     def moveChannel(self, up):
         newChannel = super().moveChannel(up)
         if newChannel is not None:
-            newChannel.initPID()
+            newChannel.connectSource()
 
     def duplicateChannel(self):
         newChannel = super().duplicateChannel()
         if newChannel is not None:
-            newChannel.initPID()
+            newChannel.connectSource()
 
     def getIcon(self, **kwargs):
         return self.makeIcon('PID.png', **kwargs)
 
-    def connectAllSources(self):
+    def connectAllSources(self, update=False):
         for channel in self.channels:
-            channel.initPID()
+            if channel.sourceChannel is None or channel.inputChannel is None or update:
+                channel.connectSource()
+            else: # only reconnect (disconnect) if the reference has become invalid
+                try:
+                    channel.sourceChannel.value # testing access to a parameter that depends on sourceChannel with no internal fallback
+                    channel.inputChannel.value # testing access to a parameter that depends on inputChannel with no internal fallback
+                except RuntimeError as e:
+                    self.print(f'Source channel {channel.output} or {channel.input} may have been lost: {e} Attempt reconnecting.', flag=PRINT.WARNING)
+                    channel.connectSource()
 
-    def loadConfiguration(self, file=None, default=False):
-        super().loadConfiguration(file, default)
-        self.connectAllSources()
+    def reconnectSource(self, name):
+        for channel in self.channels:
+            if channel.input == name or channel.output == name:
+                self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
+                channel.connectSource()

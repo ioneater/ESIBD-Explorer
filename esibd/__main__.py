@@ -19,6 +19,10 @@ warnings.filterwarnings("ignore" , message='constrained_layout') # suppress User
 warnings.filterwarnings("ignore", message="Attempted to set non-positive left xlim on a log-scaled axis.\nInvalid limit will be ignored.")
 warnings.filterwarnings("ignore", message="Attempt to set non-positive ylim on a log-scaled axis will be ignored.")
 warnings.filterwarnings("ignore", message="Data has no positive values, and therefore cannot be log-scaled.")
+warnings.filterwarnings("ignore", message="loadtxt: input contained no data:")
+warnings.filterwarnings("ignore", message="Covariance of the parameters could not be estimated")
+warnings.filterwarnings("ignore", message="overflow encountered in scalar subtract")
+warnings.filterwarnings("ignore", message="overflow encountered in scalar add")
 
 def main():
     app = QApplication(sys.argv)

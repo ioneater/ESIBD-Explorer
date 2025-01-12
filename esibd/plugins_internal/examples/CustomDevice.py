@@ -53,7 +53,8 @@ class CustomDevice(Device):
 
     def setOn(self, on=None):
         super().setOn(on)
-        self.customAction()
+        if self.isOn():
+            self.customAction()
 
     def customAction(self):
         """Execute your custom code"""
