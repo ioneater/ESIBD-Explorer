@@ -115,7 +115,7 @@ class VoltageController(DeviceController):
             else:
                 self.closeCommunication()
                 raise ValueError('Could not read values. Make sure MIPS is turned on.')
-        except ValueError as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+        except (ValueError, serial.serialutil.SerialException) as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
             self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False

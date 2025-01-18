@@ -688,6 +688,7 @@ class Logger(QObject):
         self.purgeTo = 10000
         self.purgeLimit = 30000
         self.lastCallTime = None
+        self.errorCount = 0
         self.timer = QTimer()
         self.timer.timeout.connect(self.purge)
         self.timer.setInterval(3600000) # every 1 hour
@@ -3443,6 +3444,7 @@ class TimeoutLock(object):
     # based on https://stackoverflow.com/questions/16740104/python-lock-with-statement-and-timeout
     def __init__(self, _parent):
         self._lock = threading.Lock()
+        self._parent = _parent
         self.print = _parent.print
 
     def acquire(self, blocking=True, timeout=-1):
@@ -3463,9 +3465,14 @@ class TimeoutLock(object):
             yield result
         except Exception as e:
             self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e}
+            self._parent.errorCount += 1
         finally:
             if result and not lock_acquired:
                 self._lock.release()
+            if self._parent.errorCount > 10:
+                if hasattr(self._parent, 'closeCommunication'):
+                    self.print(f'Closing communication of {self._parent.name} after more than 10 consecutive errors.', flag=PRINT.ERROR) # {e}
+                    self._parent.closeCommunication()
         if not result and timeoutMessage is not None:
             self.print(timeoutMessage, flag=PRINT.ERROR)
 
@@ -3528,10 +3535,15 @@ class DeviceController(QObject):
         self.device = _parent # overwrite with channel.getDevice() if applicable
         self.lock = TimeoutLock(_parent=self) # init here so each instance gets its own lock
         self.port = None
+        self.errorCount = 0
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
+
+    @property
+    def name(self):
+        return self.device.name # initially set to _parent, may be overwritten with self.channel.getDevice()
 
     def print(self, message, flag=PRINT.MESSAGE):
         controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'
@@ -3545,6 +3557,7 @@ class DeviceController(QObject):
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
             self.closeCommunication() # terminate old thread before starting new one
         self.initializing = True
+        self.errorCount = 0
         self.initThread = Thread(target=self.fakeInitialization if getTestMode() else self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
@@ -3615,6 +3628,8 @@ class DeviceController(QObject):
     def stopAcquisition(self):
         """Terminates acquisition but leaves communication initialized."""
         self.print('stopAcquisition', PRINT.DEBUG)
+        if self.device.recording:
+            self.device.recording = False # stop recording if controller is stopping acquisition
         if self.acquisitionThread is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
                 # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed

@@ -139,6 +139,7 @@ class Plugin(QWidget):
         self.dock = None
         self.lock = TimeoutLock(_parent=self)
         self.fig = None
+        self.errorCount = 0
         self.axes = []
         self.canvas = None
         self.navToolBar = None

@@ -1,5 +1,6 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
+import numpy as np
 # Users who add custom controls can use the build-in features at their own risk.
 # If you want your module to be more independent, implement your own replacement for the following imports.
 from PyQt6.QtWidgets import QMessageBox
@@ -172,6 +173,7 @@ class CustomController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
+        self.monitors = [np.nan]*len(self.device.channels)
         super().initComplete()
         # TODO any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
 

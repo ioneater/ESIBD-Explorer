@@ -17,6 +17,7 @@ class Temperature(Device):
 
     name = 'Temperature'
     version = '1.0'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
