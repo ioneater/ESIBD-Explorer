@@ -1,5 +1,4 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
-import time
 from threading import Thread
 import nidaqmx
 from esibd.plugins import Device

@@ -1104,11 +1104,9 @@ class LiveDisplay(Plugin):
         self.name = f'{parentPlugin.name} LiveDisplay'
         self.dataFileType = f'_{self.parentPlugin.name.lower()}.dat.h5'
         self.previewFileTypes = [self.dataFileType]
-        self.lastPlotTime = time.time()*1000
         self.stackedGraphicsLayoutWidget = None
         self.livePlotWidgets = []
         self.channelGroups = {}
-        self.lagging = 0
         self.plotting = False
         self._updateLegend = True
         super().__init__(**kwargs)
@@ -1416,32 +1414,7 @@ class LiveDisplay(Plugin):
             self._updateLegend = False
 
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE] and self.parentPlugin.recording:
-            # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
-            # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
-            self.parentPlugin.interval_meas = int((time.time()*1000-self.lastPlotTime)) if self.lastPlotTime is not None else self.parentPlugin.interval
-            self.parentPlugin.interval_tolerance = max(50, self.parentPlugin.interval/10) # larger margin for error if interval is large.
-            if abs(self.parentPlugin.interval_meas - self.parentPlugin.interval) < self.parentPlugin.interval_tolerance:
-                self.lagging = 0 # reset / ignore temporary lag if interval is within range
-            elif self.parentPlugin.interval_meas > self.parentPlugin.interval + self.parentPlugin.interval_tolerance: # increase self.lagging and react if interval is longer than expected
-                if self.lagging < 10:
-                    self.lagging += 1
-                elif self.lagging < 20: # lagging 10 times in a row -> reduce data points
-                    if self.lagging == 10:
-                        self.pluginManager.DeviceManager.limit_display_size = True
-                        self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, 1000) # keep if already smaller
-                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
-                    self.lagging += 1
-                else: # lagging > 19 times in a row -> turn of acquisition
-                    if self.lagging == 20:
-                        self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
-                                   ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
-                        self.pluginManager.DeviceManager.closeCommunication()
-            else:
-                # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
-                # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
-                # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
-                pass
-            self.lastPlotTime = time.time()*1000
+            self.parentPlugin.measureInterval()
         self.plotting = False
 
     def plotGroup(self, livePlotWidget, timeAxes, channels, apply):
@@ -1604,6 +1577,7 @@ class ChannelManager(Plugin):
         self.confh5 = f'_{self.name.lower()}.h5'
         self.previewFileTypes = [self.confINI, self.confh5]
         self.changeLog = []
+        self.lagging = 0
         self._recording = False
         self.staticDisplay = self.StaticDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None # need to initialize to access previewFileTypes
         self.liveDisplay = self.LiveDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None
@@ -2144,8 +2118,7 @@ class ChannelManager(Plugin):
                 return
         self.clearPlot() # update legend in case channels have changed
         self.recording = True
-        if self.liveDisplay is not None:
-            self.liveDisplay.lagging = 0
+        self.lagging = 0
         self.dataThread = Thread(target=self.runDataThread, args =(lambda: self.recording,), name=f'{self.name} dataThread')
         self.dataThread.daemon = True # Terminate with main app independent of stop condition
         self.dataThread.start()
@@ -2326,6 +2299,7 @@ class Device(ChannelManager):
         self.logY = False
         self.updating = False # Suppress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
+        self.lastIntervalTime = time.time()*1000
         self.interval_tolerance = None # how much the acquisition interval is allowed to deviate
         self.signalComm.appendDataSignal.connect(self.appendData)
         # implement a controller based on DeviceController(_parent=self). In some cases there is no controller for the device, but for every channel. Adjust
@@ -2359,7 +2333,7 @@ class Device(ChannelManager):
         toolTip=f'Measured plot interval for {self.name} in ms.\n'+
                 ' If this deviates multiple times in a row, the number of display points will be reduced and eventually acquisition\n'+
                 ' will be stopped to ensure the application remains responsive.',
-                                                                widgetType=Parameter.TYPE.INT, indicator=True, _min=0, _max=10000, attr='interval_meas')
+                                                                widgetType=Parameter.TYPE.INT, indicator=True, _min=0, _max=10000, attr='interval_measured')
         ds[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, widgetType=Parameter.TYPE.INT, _min=5, _max=500, event=lambda: self.estimateStorage(),
                                                           toolTip='Maximum amount of storage used to store history in MB. Updated on next restart to prevent accidental data loss!', attr='maxStorage')
         ds[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, widgetType=Parameter.TYPE.INT, attr='maxDataPoints',
@@ -2622,6 +2596,36 @@ class Device(ChannelManager):
             self.time.add(time.time()) # add time in seconds
             if self.liveDisplayActive():
                 self.signalComm.plotSignal.emit()
+            else:
+                self.measureInterval()
+
+    def measureInterval(self):
+        # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
+        # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
+        self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
+        self.interval_tolerance = max(50, self.interval/10) # larger margin for error if interval is large.
+        if abs(self.interval_measured - self.interval) < self.interval_tolerance:
+            self.lagging = 0 # reset / ignore temporary lag if interval is within range
+        elif self.interval_measured > self.interval + self.interval_tolerance: # increase self.lagging and react if interval is longer than expected
+            if self.lagging < 10:
+                self.lagging += 1
+            elif self.lagging < 20: # lagging 10 times in a row -> reduce data points
+                if self.lagging == 10:
+                    self.pluginManager.DeviceManager.limit_display_size = True
+                    self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, 1000) # keep if already smaller
+                    self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
+                self.lagging += 1
+            else: # lagging > 19 times in a row -> turn of acquisition
+                if self.lagging == 20:
+                    self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
+                               ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
+                    self.pluginManager.DeviceManager.closeCommunication()
+        else:
+            # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
+            # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
+            # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
+            pass
+        self.lastIntervalTime = time.time()*1000
 
     def toggleRecording(self, on=None, manual=False):
         """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""

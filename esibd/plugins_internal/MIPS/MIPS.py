@@ -110,7 +110,7 @@ class VoltageController(DeviceController):
             self.ports = [serial.Serial(baudrate = 9600, port = COM, parity = serial.PARITY_NONE, stopbits = serial.STOPBITS_ONE,
                                         bytesize = serial.EIGHTBITS, timeout=2) for COM in self.COMs]
             result = self.MIPSWriteRead(self.COMs[0], 'GDCBV,1\r\n')
-            if result is not '':
+            if result != '':
                 self.signalComm.initCompleteSignal.emit()
             else:
                 self.closeCommunication()
