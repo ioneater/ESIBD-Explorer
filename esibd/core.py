@@ -1084,7 +1084,7 @@ class Parameter():
             else:
                 return self.button.isChecked()
         elif self.widgetType == self.TYPE.COLOR:
-            return self.colBtn.color().name()
+            return self.colorButton.color().name()
         elif self.widgetType == self.TYPE.LABEL:
             return self.label.text()
         elif self.widgetType == self.TYPE.PATH:
@@ -1107,7 +1107,7 @@ class Parameter():
         elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.EXP]:
             self.spin.setValue(float(value))
         elif self.widgetType == self.TYPE.COLOR:
-            self.colBtn.setColor(value, True)
+            self.colorButton.setColor(value, True)
         elif self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             if value is None:
                 i = 0
@@ -1195,7 +1195,7 @@ class Parameter():
             else: #isinstance(self.check, QToolButton, QPushButton)
                 self.safeConnect(self.check, self.check.clicked, self.changedEvent)
         elif self.widgetType == self.TYPE.COLOR:
-            self.safeConnect(self.colBtn, self.colBtn.sigColorChanged, self.changedEvent)
+            self.safeConnect(self.colorButton, self.colorButton.sigColorChanged, self.changedEvent)
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             pass # self.label.changeEvent.connect(self.changedEvent) # no change events for labels
 
@@ -1261,7 +1261,12 @@ class Parameter():
                 self.check = self.widget
             self.setEnabled(not self.indicator)
         elif self.widgetType == self.TYPE.COLOR:
-            self.colBtn = pg.ColorButton() if self.widget is None else self.widget
+            if self.widget is None:
+                self.colorButton = pg.ColorButton()
+                self.colorButton.padding = (2, 2, -3, -3)
+            else:
+                self.colorButton = self.widget
+
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label = QLabel() if self.widget is None else self.widget
 
@@ -1325,7 +1330,7 @@ class Parameter():
                 self.check.setFont(font)
                 self.check.setIconSize(QSize(iconHeight, iconHeight))
         # elif self.widgetType == self.TYPE.COLOR:
-        #     self.colBtn
+        #     self.colorButton
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label.setFont(font)
 
@@ -1339,7 +1344,7 @@ class Parameter():
         elif self.widgetType == self.TYPE.BOOL:
             return self.check if self.check is not None else self.button
         elif self.widgetType == self.TYPE.COLOR:
-            return self.colBtn
+            return self.colorButton
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             return self.label
 

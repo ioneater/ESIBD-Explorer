@@ -10,7 +10,7 @@ REM Environment setup
 :::::::::::::::::::::
 
 REM If applicable perform clean install of virtual environment 
-REM start from ESIBD_Explorer
+REM start from ESIBD Explorer
 cd setup
 call create_env.bat REM make sure no other environments (including VSCode) are active during this step
 cd ..
@@ -26,7 +26,7 @@ REM Bump version
 REM update version in pyproject.toml
 REM update PROGRAM_VERSION in config.py
 REM if applicable update year in license file
-REM update copyright year and release version also in docs/config.py
+REM update copyright year and release version also in docs/conf.py
 
 REM Note that the program has to access the version during development and after deployment to test for plugin compatibility
 REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases, 

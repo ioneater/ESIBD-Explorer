@@ -6,8 +6,8 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>5. Library Reference &mdash; ESIBD Explorer 0.6 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+  <title>5. Library Reference &mdash; ESIBD Explorer 0.7 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
       <link rel="stylesheet" type="text/css" href="_static/css\rtd_sphinx_search.min.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec806d2c"></script>
+      <script src="_static/documentation_options.js?v=48f8e935"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -139,6 +139,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.closeCommunication"><code class="docutils literal notranslate"><span class="pre">ChannelManager.closeCommunication()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.compareItemsConfig"><code class="docutils literal notranslate"><span class="pre">ChannelManager.compareItemsConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.convertDataDisplay"><code class="docutils literal notranslate"><span class="pre">ChannelManager.convertDataDisplay()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.copyClipboard"><code class="docutils literal notranslate"><span class="pre">ChannelManager.copyClipboard()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.exportConfiguration"><code class="docutils literal notranslate"><span class="pre">ChannelManager.exportConfiguration()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.finalizeInit"><code class="docutils literal notranslate"><span class="pre">ChannelManager.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.getChannelByName"><code class="docutils literal notranslate"><span class="pre">ChannelManager.getChannelByName()</span></code></a></li>
@@ -154,6 +155,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.moveChannel"><code class="docutils literal notranslate"><span class="pre">ChannelManager.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.name"><code class="docutils literal notranslate"><span class="pre">ChannelManager.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.optional"><code class="docutils literal notranslate"><span class="pre">ChannelManager.optional</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.plot"><code class="docutils literal notranslate"><span class="pre">ChannelManager.plot()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.pluginType"><code class="docutils literal notranslate"><span class="pre">ChannelManager.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.previewFileTypes"><code class="docutils literal notranslate"><span class="pre">ChannelManager.previewFileTypes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.runDataThread"><code class="docutils literal notranslate"><span class="pre">ChannelManager.runDataThread()</span></code></a></li>
@@ -428,6 +430,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.acquiring"><code class="docutils literal notranslate"><span class="pre">DeviceController.acquiring</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.acquisitionThread"><code class="docutils literal notranslate"><span class="pre">DeviceController.acquisitionThread</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.closeCommunication"><code class="docutils literal notranslate"><span class="pre">DeviceController.closeCommunication()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.fakeInitialization"><code class="docutils literal notranslate"><span class="pre">DeviceController.fakeInitialization()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.initComplete"><code class="docutils literal notranslate"><span class="pre">DeviceController.initComplete()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.initThread"><code class="docutils literal notranslate"><span class="pre">DeviceController.initThread</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.DeviceController.initializeCommunication"><code class="docutils literal notranslate"><span class="pre">DeviceController.initializeCommunication()</span></code></a></li>
@@ -472,6 +475,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.LabelItem"><code class="docutils literal notranslate"><span class="pre">LabelItem</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.LedIndicator"><code class="docutils literal notranslate"><span class="pre">LedIndicator</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.LineEdit"><code class="docutils literal notranslate"><span class="pre">LineEdit</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.LineEdit.sizeHint"><code class="docutils literal notranslate"><span class="pre">LineEdit.sizeHint()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.LineEdit.userEditingFinished"><code class="docutils literal notranslate"><span class="pre">LineEdit.userEditingFinished</span></code></a></li>
 </ul>
 </li>
@@ -598,7 +602,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.ToolButton.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">ToolButton.SignalCommunicate</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#esibd.core.TreeWidget"><code class="docutils literal notranslate"><span class="pre">TreeWidget</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.core.TreeWidget"><code class="docutils literal notranslate"><span class="pre">TreeWidget</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.TreeWidget.itemRect"><code class="docutils literal notranslate"><span class="pre">TreeWidget.itemRect()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.TreeWidget.totalItems"><code class="docutils literal notranslate"><span class="pre">TreeWidget.totalItems()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.parameterDict"><code class="docutils literal notranslate"><span class="pre">parameterDict()</span></code></a></li>
 </ul>
 </li>
@@ -845,6 +853,12 @@ This allows to track changes and decide if files need to be updated.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.ChannelManager.copyClipboard">
+<span class="sig-name descname"><span class="pre">copyClipboard</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.copyClipboard" title="Link to this definition"></a></dt>
+<dd><p>Copy matplotlib figure to clipboard.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.ChannelManager.exportConfiguration">
 <span class="sig-name descname"><span class="pre">exportConfiguration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.exportConfiguration" title="Link to this definition"></a></dt>
 <dd><p>Saves an .ini or .h5 file which contains the configuration for this <a class="reference internal" href="#esibd.plugins.Device" title="esibd.plugins.Device"><code class="xref py py-class docutils literal notranslate"><span class="pre">Device</span></code></a>.
@@ -961,6 +975,12 @@ Plugins can be accessed directly from the <a class="reference internal" href="pa
 <dt class="sig sig-object py" id="esibd.plugins.ChannelManager.optional">
 <span class="sig-name descname"><span class="pre">optional</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#esibd.plugins.ChannelManager.optional" title="Link to this definition"></a></dt>
 <dd><p>Defines if the user can deactivate the plugin in the <a class="reference internal" href="#esibd.core.PluginManager" title="esibd.core.PluginManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">PluginManager</span></code></a> user interface.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.ChannelManager.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">apply</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.plot" title="Link to this definition"></a></dt>
+<dd><p>If applicable, overwrite with a plugin specific plot method.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -1521,6 +1541,12 @@ Item needs parent for all graphics operations.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.PID.PIDChannel.monitorChanged">
+<span class="sig-name descname"><span class="pre">monitorChanged</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.PID.PIDChannel.monitorChanged" title="Link to this definition"></a></dt>
+<dd><p>Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.PID.PIDChannel.onDelete">
 <span class="sig-name descname"><span class="pre">onDelete</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.PID.PIDChannel.onDelete" title="Link to this definition"></a></dt>
 <dd><p>Extend to handle events on deleting. E.g. handle references that should remain available.</p>
@@ -1641,12 +1667,6 @@ unless documentation is implemented explicitly.</p>
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.SignalCommunicate">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SignalCommunicate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.SignalCommunicate" title="Link to this definition"></a></dt>
 <dd><p>Object than bundles pyqtSignals for the Channelmanager</p>
-<dl class="py attribute">
-<dt class="sig sig-object py" id="esibd.plugins.Plugin.SignalCommunicate.toggleTitleBarSignal">
-<span class="sig-name descname"><span class="pre">toggleTitleBarSignal</span></span><a class="headerlink" href="#esibd.plugins.Plugin.SignalCommunicate.toggleTitleBarSignal" title="Link to this definition"></a></dt>
-<dd><p>Signal used to toggle use of icons and text in titleBars.</p>
-</dd></dl>
-
 </dd></dl>
 
 <dl class="py method">
@@ -2090,7 +2110,7 @@ Extend and add call to super().runTestParallel() to the end to make sure testing
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.supportedVersion">
-<span class="sig-name descname"><span class="pre">supportedVersion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'0.6.18'</span></em><a class="headerlink" href="#esibd.plugins.Plugin.supportedVersion" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">supportedVersion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'0.7.0'</span></em><a class="headerlink" href="#esibd.plugins.Plugin.supportedVersion" title="Link to this definition"></a></dt>
 <dd><p>By default the current program version is used. You can
 define a fixed version and future program versions will
 state that they are incompatible with this plugin. This can be used to
@@ -3161,6 +3181,12 @@ Make sure acquisition is stopped before communication is closed.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.DeviceController.fakeInitialization">
+<span class="sig-name descname"><span class="pre">fakeInitialization</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.DeviceController.fakeInitialization" title="Link to this definition"></a></dt>
+<dd><p>Called in test mode instead of runInitialization</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.DeviceController.initComplete">
 <span class="sig-name descname"><span class="pre">initComplete</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.DeviceController.initComplete" title="Link to this definition"></a></dt>
 <dd><p>Called after successful initialization to start acquisition from main thread (access to GUI!).</p>
@@ -3416,7 +3442,13 @@ All high level logic is provided by <a class="reference internal" href="#module-
 <dl class="py class">
 <dt class="sig sig-object py" id="esibd.core.LineEdit">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">esibd.core.</span></span><span class="sig-name descname"><span class="pre">LineEdit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.LineEdit" title="Link to this definition"></a></dt>
-<dd><dl class="py attribute">
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.LineEdit.sizeHint">
+<span class="sig-name descname"><span class="pre">sizeHint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.LineEdit.sizeHint" title="Link to this definition"></a></dt>
+<dd><p>Return reasonable size hint based on content within minimum and maximum limits</p>
+</dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.core.LineEdit.userEditingFinished">
 <span class="sig-name descname"><span class="pre">userEditingFinished</span></span><a class="headerlink" href="#esibd.core.LineEdit.userEditingFinished" title="Link to this definition"></a></dt>
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
@@ -3456,7 +3488,7 @@ Use <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esib
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Logger.print">
-<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.6.18'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.7.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
 <dd><p>Augments messages and redirects to log file, statusbar, and console.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -4214,10 +4246,14 @@ Adds light and dark theme support to NavigationToolbar2QT.</p>
 Can be used as normal Lock or optionally using ‘with self.lock.acquire_timeout(1) as lock_acquired:’</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.TimeoutLock.acquire_timeout">
-<span class="sig-name descname"><span class="pre">acquire_timeout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeoutMessage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.TimeoutLock.acquire_timeout" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">acquire_timeout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeoutMessage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lock_acquired</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.TimeoutLock.acquire_timeout" title="Link to this definition"></a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout in seconds</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout in seconds</p></li>
+<li><p><strong>timeoutMessage</strong> (<em>str</em><em>, </em><em>optional</em>) – Message shown in case of a timeout</p></li>
+<li><p><strong>lock_acquired</strong> (<em>bool</em><em>, </em><em>optional</em>) – True if lock has already been acquired in callstack. Use to prevent deadlocks</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -4244,7 +4280,19 @@ Can be used as normal Lock or optionally using ‘with self.lock.acquire_timeout
 <dl class="py class">
 <dt class="sig sig-object py" id="esibd.core.TreeWidget">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">esibd.core.</span></span><span class="sig-name descname"><span class="pre">TreeWidget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.TreeWidget" title="Link to this definition"></a></dt>
-<dd></dd></dl>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.TreeWidget.itemRect">
+<span class="sig-name descname"><span class="pre">itemRect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.TreeWidget.itemRect" title="Link to this definition"></a></dt>
+<dd><p>Returns the QRect of all visible items.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.TreeWidget.totalItems">
+<span class="sig-name descname"><span class="pre">totalItems</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.TreeWidget.totalItems" title="Link to this definition"></a></dt>
+<dd><p>total number of items at top level and first child level</p>
+</dd></dl>
+
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="esibd.core.parameterDict">
@@ -4480,7 +4528,7 @@ This method is robust if array contains np.nan.</p>
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2024, Tim Esser.</p>
+    <p>&#169; Copyright 2025, Tim Esser.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

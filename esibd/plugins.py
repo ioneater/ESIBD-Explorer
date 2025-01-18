@@ -1115,12 +1115,7 @@ class LiveDisplay(Plugin):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.plotSplitter = QSplitter()
-        self.plotSplitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
-        self.noPlotLabel = QLabel('Nothing to plot. Display a channel with data in the selected display time.')
-        self.noPlotLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.plotSplitter.addWidget(self.noPlotLabel)
-        self.addContentWidget(self.plotSplitter)
+        self.plotSplitter = None
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE]:
             self.addAction(event=lambda: self.parentPlugin.closeCommunication(), toolTip='Close communication.', icon=self.makeCoreIcon('stop.png'))
             self.addAction(event=lambda: self.parentPlugin.initializeCommunication(), toolTip='Initialize communication.', icon=self.makeCoreIcon('rocket-fly.png'))
@@ -1180,6 +1175,10 @@ class LiveDisplay(Plugin):
                 pass # Ignore if already been deleted
             finally:
                 self.stackedGraphicsLayoutWidget = None
+        if self.plotSplitter is not None:
+            self.plotSplitter.hide()
+            self.plotSplitter.deleteLater()
+            self.plotSplitter = None
         self.livePlotWidgets = []
         self._updateLegend = True
 
@@ -1215,6 +1214,12 @@ class LiveDisplay(Plugin):
         self.clearPlot()
         self.plotWidgetFont = QFont()
         self.plotWidgetFont.setPixelSize(13)
+        self.plotSplitter = QSplitter() # create new plotSplitter as old widgets are not garbage collected fast enough for copyClipboard
+        self.plotSplitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
+        self.noPlotLabel = QLabel('Nothing to plot. Display a channel with data in the selected display time.')
+        self.noPlotLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.plotSplitter.addWidget(self.noPlotLabel)
+        self.addContentWidget(self.plotSplitter)
         self.noPlotLabel.setVisible(len(self.getGroups()) == 0)
         for i, (groupLabel, group) in enumerate(self.getGroups().items()):
             logY = all([channel.logY for channel in group])
@@ -1314,6 +1319,8 @@ class LiveDisplay(Plugin):
     def copyClipboard(self):
         self.print('copyClipboard', flag=PRINT.DEBUG)
         """Extends matplotlib based version to add support for pyqtgraph."""
+        if len(self.livePlotWidgets) == 0:
+            return
         if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
             restoreAutoRange = False
@@ -1322,16 +1329,12 @@ class LiveDisplay(Plugin):
             self.updateTheme() # use default light theme for clipboard
             self.processEvents()
             self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1])
-            self.processEvents()
-            # self.plotSplitter.setSizes(sizes)
-            # self.plotSplitter.update()
-            # self.plotSplitter.repaint()
-            self.print(f'{sizes}, {self.plotSplitter.sizes()}')
+            self.plotSplitter.setSizes(sizes)
             self.processEvents()
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
             self.updateTheme() # restore dark theme
-            # self.plotSplitter.setSizes(sizes)
+            self.plotSplitter.setSizes(sizes)
             if restoreAutoRange: # restore auto ranging if applicable
                 self.livePlotWidgets[0].getViewBox().enableAutoRange(x=restoreAutoRange)
         else:
@@ -5566,7 +5569,7 @@ class UCM(ChannelManager):
             newChannel.connectSource()
 
     def getIcon(self, **kwargs):
-        return self.makeIcon('UCM.png', **kwargs)
+        return self.makeCoreIcon('UCM.png', **kwargs)
 
     def toggleRecording(self, on=None, manual=False):
         super().toggleRecording(on=on, manual=manual)
@@ -5808,7 +5811,7 @@ class PID(ChannelManager):
             newChannel.connectSource()
 
     def getIcon(self, **kwargs):
-        return self.makeIcon('PID.png', **kwargs)
+        return self.makeCoreIcon('PID.png', **kwargs)
 
     def connectAllSources(self, update=False):
         for channel in self.channels:
