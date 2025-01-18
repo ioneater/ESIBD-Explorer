@@ -68,7 +68,9 @@ REM PyPI
 ::::::::
 
 call rmdir /q /s dist
+call rm -r dist REM works in powershell
 call rmdir /q /s esibd_explorer.egg-info
+call rm -r esibd_explorer.egg-info REM works in powershell
 
 python -m build
 
@@ -87,30 +89,35 @@ REM python -m esibd.reset # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
 REM test software using PluginManager.test()
-REM test software PluginManager.test() with hardware!
+REM test software using PluginManager.test() with hardware!
 REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing
 
 REM only upload on real pypi after testing!
-REM twine upload dist/*
+twine upload dist/*
 
 :::::::::::::::
 REM pyinstaller
 :::::::::::::::
 
 call rmdir /q /s pyinstaller_build
+call rm -r pyinstaller_build
 call rmdir /q /s pyinstaller_dist
+call rm -r pyinstaller_dist
 conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
-pip install esibd-explorer pyinstaller --upgrade
+REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
+pip install esibd-explorer==0.7.0
+pip install pyinstaller
 REM test software
 python -m esibd.explorer 
 
 REM Run the following line to create initial spec file
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
-pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
+pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
-REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time
+REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time but are not imported at packaging time: e.g. packages only imported in plugins
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
+REM --copy-metadata nidaqmx is needed to avoid "No package metadata was found for nidaqmx"
 REM do not modify spec file, will be overwritten
 
 
@@ -134,11 +141,11 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git tag -a 0.6.18 -m "Realeasing version 0.6.18"
+git tag -a 0.7.0 -m "Realeasing version 0.7.0"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections
-REM Title: Version 0.6.18
+REM Title: Version 0.7.0
 REM Content: start bullet points with capitals and no dot at the end
 REM attach ESIBD_Explorer-setup.exe to release
 

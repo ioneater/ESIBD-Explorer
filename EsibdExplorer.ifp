@@ -3,7 +3,7 @@
 ProjectFileVersion = 1.1
 [General]
 Program name = ESIBD Explorer
-Program version = 0.6.18
+Program version = 0.7.0
 Windows XP = 0
 Windows Server 2003 = 0
 Windows Vista = 0
@@ -57,9 +57,9 @@ Time = 2
 PlaySound = 0
 Allow = 0
 [Build]
-File = C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_build\ESIBD_Explorer-setup.exe
-SetupIconPath = C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
-UninstallIconPath = C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
+File = C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_build\ESIBD_Explorer-setup.exe
+SetupIconPath = C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
+UninstallIconPath = C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
 CompressionMethod = 0
 CompressionLevel = 2
 [Updater]
@@ -77,21 +77,21 @@ Execdlls = 0
 [Languages]
 2
 [Files/Dirs]
-C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal
 N/A
 [Folder]
-C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
-16.5 MB
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
+18.6 MB
 exe
 [Licence_Begin]
 17516
 {\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Tahoma;}}
 {\colortbl ;\red0\green0\blue255;}
-{\*\generator Riched20 10.0.22621}\viewkind4\uc1 
+{\*\generator Riched20 10.0.26100}\viewkind4\uc1 
 \pard\f0\fs16\lang1036 ESIBD Explorer: A comprehensive data acquisition and analysis tool for\par
 Electrospray Ion-Beam Deposition experiments and beyond.\par
 \par
-Copyright (C) 2021-2024 Tim Esser <ioneater.dev@gmail.com>.\par
+Copyright (C) 2021-2025 Tim Esser <ioneater.dev@gmail.com>.\par
 \par
 The software is distributed under the terms of the GNU General Public License\par
 version 2 or later.\par
@@ -389,13 +389,13 @@ Startmenu
 ESIBD Explorer
 <InstallPath>\ESIBD Explorer.exe
 
-C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\esibd\media\ESIBD_Explorer.ico
 0
 Desktop
 ESIBD Explorer
 <InstallPath>\ESIBD Explorer.exe
 
-C:\Users\tim.esser\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\pyinstaller_dist\ESIBD Explorer\_internal\esibd\media\ESIBD_Explorer.ico
+C:\DATA\Syncthing\Essentials\Software\PyQt\ESIBD_Explorer\esibd\media\ESIBD_Explorer.ico
 0
 [IFP_End]
 [Serials]
