@@ -1,13 +1,13 @@
 [project]
 name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.6.18"
+version = "0.7.0"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license = {file = "LICENSE"}
 readme = "README.rst"
 # For tools, versions should be fixed. For libraries they should be constrained as little as possible.
 # https://www.reddit.com/r/Python/comments/13j6bri/why_is_strict_fixed_requirements_a_best_practice/
-# Since this project is both I minimize restaints. The windows installer will come with fixed dependencies. 
+# Since this project is both I minimize restaints. The windows installer will come with fixed dependencies.
 # commeted version numbers only show the last tested stable configuration
 dependencies = [
 	'asteval', # ==0.9.31
@@ -35,7 +35,7 @@ dependencies = [
 	'python-socketio', # ==5.10.0
 	'pyvisa',
 	'pywin32; sys_platform == "win32"', # ==306
-	'pyqtgraph==0.13.7', 
+	'pyqtgraph==0.13.7',
 	'scipy', # ==1.11.4
 	'Send2Trash', # ==1.8.2
 	'simple_pid',

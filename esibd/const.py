@@ -102,6 +102,9 @@ class PRINT(Enum):
     EXPLORER = 4
     """Key messages by Explorer"""
 
+def pluginSupported(pluginVersion):
+    return version.parse(pluginVersion).major == PROGRAM_VERSION.major and version.parse(pluginVersion).minor == PROGRAM_VERSION.minor
+
 def makeSettingWrapper(name, settingsMgr, docstring=None):
     """ Neutral setting wrapper for convenient access to the value of a setting.
         If you need to handle events on value change, link these directly to the events of the corresponding control.

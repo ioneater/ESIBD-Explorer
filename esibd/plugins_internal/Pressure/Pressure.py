@@ -16,7 +16,7 @@ class Pressure(Device):
     documentation = None # use __doc__
     name = 'Pressure'
     version = '1.0'
-    supportedVersion = '0.6.18'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
 

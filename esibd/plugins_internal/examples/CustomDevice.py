@@ -18,7 +18,7 @@ class CustomDevice(Device):
 
     name = 'CustomDevice'
     version = '1.0'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     # TODO adjust flags to choose default behavior. All default functions can be extended or overwritten if more customization is required.
     useMonitors = True

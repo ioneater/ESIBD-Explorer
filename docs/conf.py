@@ -21,9 +21,9 @@ sys.path.insert(0, package_path)
 sphinx = True # used for conditional doc strings (direct HTML vs. rst)
 
 project = 'ESIBD Explorer'
-project_copyright = '2024, Tim Esser'
+project_copyright = '2025, Tim Esser'
 author = 'Tim Esser'
-release = '0.6'
+release = '0.7'
 
 # uncomment following to generate log while compiling
 # import logging

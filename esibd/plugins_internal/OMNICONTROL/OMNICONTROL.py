@@ -15,7 +15,7 @@ class OMNICONTROL(Device):
     documentation = None # use __doc__
     name = 'OMNICONTROL'
     version = '1.0'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
 

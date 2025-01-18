@@ -17,7 +17,6 @@ from datetime import datetime
 from enum import Enum
 import configparser
 import serial
-from packaging import version
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.console
@@ -323,7 +322,7 @@ class PluginManager():
         Enabled state is saved and restored from an independent file and can also be edited using the plugins dialog."""
         QApplication.processEvents() # break down expensive initialization to allow update splash screens while loading
         self.logger.print(f'loadPlugin {Plugin.name}', flag=PRINT.DEBUG)
-        if version.parse(Plugin.supportedVersion).major != PROGRAM_VERSION.major or version.parse(Plugin.supportedVersion).minor != PROGRAM_VERSION.minor:
+        if not pluginSupported(Plugin.supportedVersion):
             # * we ignore micro (packaging.version name for patch)
             self.logger.print(f'Plugin {Plugin.name} supports {PROGRAM_NAME} {Plugin.supportedVersion}. It is not compatible with {PROGRAM_NAME} {PROGRAM_VERSION}.', flag=PRINT.WARNING)
             return
@@ -493,6 +492,7 @@ class PluginManager():
         tree.setItemWidget(plugin_widget, 2, versionLabel)
         supportedVersionLabel = QLabel()
         supportedVersionLabel.setText(supportedVersion)
+        supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(supportedVersion) else 'green'}")
         tree.setItemWidget(plugin_widget, 3, supportedVersionLabel)
         typeLabel = QLabel()
         typeLabel.setText(pluginType)
@@ -685,12 +685,16 @@ class Logger(QObject):
         self.pluginManager = pluginManager
         self.active = False
         self.lock = TimeoutLock(_parent=self)
-        self.purgeTo = 8000
-        self.purgeLimit = 10000
+        self.purgeTo = 10000
+        self.purgeLimit = 30000
         self.lastCallTime = None
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.purge)
+        self.timer.setInterval(3600000) # every 1 hour
         self.printFromThreadSignal.connect(self.print)
         if qSet.value(LOGGING, 'true') == 'true':
             self.open()
+            # self.purge()
 
     def open(self):
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
@@ -699,9 +703,9 @@ class Logger(QObject):
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self # redirect all calls to stdout and stderr to the write function of our logger
-            self.purge()
-            self.log = open(self.logFileName, 'a', encoding=UTF8) # pylint: disable=consider-using-with # keep file open instead of reopening for every new line
+            self.log = open(self.logFileName, 'a', encoding="utf-8-sig") # pylint: disable=consider-using-with # keep file open instead of reopening for every new line
             self.active = True
+            self.timer.start()
 
     def openLog(self):
         """Opens the log file in an external program."""
@@ -720,7 +724,8 @@ class Logger(QObject):
                 if lock_acquired:
                     self.log.write(message) # write to log file
                     self.log.flush()
-                # else: cannot print without using recursion
+                # else:
+                    # cannot print without using recursion
 
         if hasattr(self.pluginManager, 'Console'):
             # handles new lines in system error messages better than Console.repl.write()
@@ -728,13 +733,15 @@ class Logger(QObject):
             self.pluginManager.Console.write(message)
 
     def purge(self):
-        # ca. 12 ms, only call once when starting
-        with open(self.logFileName, 'r', encoding=UTF8) as original:
-            lines = original.readlines()
-        if len(lines) > self.purgeLimit:
-            with open(self.logFileName, 'w', encoding=UTF8) as purged:
-                for line in lines[-self.purgeTo:]:
-                    purged.write(line)
+        # ca. 12 ms, only call once per hour. lock makes sure there is not race conditions with open reference
+        with self.lock.acquire_timeout(1) as lock_acquired:
+            if lock_acquired:
+                with open(self.logFileName, 'r', encoding=UTF8) as original:
+                    lines = original.readlines()
+                if len(lines) > self.purgeLimit:
+                    with open(self.logFileName, 'w', encoding="utf-8-sig") as purged:
+                        for line in lines[-self.purgeTo:]:
+                            purged.write(line)
 
     def print(self, message, sender=f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag=PRINT.MESSAGE): # only used for program messages
         """Augments messages and redirects to log file, statusbar, and console.
@@ -792,6 +799,7 @@ class Logger(QObject):
             self.active = False
             sys.stdout = self.terminalOut # restore previous
             sys.stderr = self.terminalErr # restore previous
+        self.timer.stop()
 
 class CloseDialog(QDialog):
     """ Dialog to confirm closing the program."""
@@ -1227,7 +1235,7 @@ class Parameter():
             # self.combo.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             # self.combo.customContextMenuRequested.connect(self.initComboContextMenu)
         elif self.widgetType == self.TYPE.TEXT:
-            self.line = self.widget if self.widget is not None else LineEdit()
+            self.line = self.widget if self.widget is not None else LineEdit(tree=self.tree)
             self.line.setFrame(False)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.widget is None:
@@ -2917,12 +2925,12 @@ class LineEdit(QLineEdit):
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
     userEditingFinished = pyqtSignal(str)
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None, tree=None):
         super().__init__(parent)
         self._edited = False
+        self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)
-        # self.textChanged.connect(self.adjust_width)
         self.setMinimumWidth(50)  # Set a reasonable minimum width
         self.max_width = 300
 
@@ -2932,6 +2940,9 @@ class LineEdit(QLineEdit):
     def onEditingFinished(self):
         if self._edited:
             self._edited = False
+            self.updateGeometry() # adjust width to text
+            if self.tree is not None:
+                self.tree.scheduleDelayedItemsLayout()
             self.userEditingFinished.emit(self.text())
 
     def sizeHint(self):

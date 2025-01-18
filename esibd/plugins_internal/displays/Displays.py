@@ -8,7 +8,7 @@ import pyqtgraph.opengl as gl
 from Bio.PDB import PDBParser
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
 from esibd.plugins import Plugin
 
@@ -66,7 +66,7 @@ class MS(Plugin):
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
         self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
-        self.paperAction = self.addStateAction(event=lambda: self.plot, toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
+        self.paperAction = self.addStateAction(event=lambda: self.plot(), toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self):
@@ -435,13 +435,17 @@ class HOLO(Plugin):
         self.addContentLayout(hor)
 
         self.angleSlider = QSlider(Qt.Orientation.Horizontal)
-        self.angleSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=True))
+        self.angleSlider.valueChanged.connect(lambda: self.value_changed(plotAngle=True))
         self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
-        self.amplitudeSlider.sliderReleased.connect(lambda: self.value_changed(plotAngle=False))
+        self.amplitudeSlider.valueChanged.connect(lambda: self.value_changed(plotAngle=False))
         self.titleBar.addWidget(self.angleSlider)
         self.titleBar.addWidget(self.amplitudeSlider)
         self.angle = None
         self.amplitude = None
+        self.plotAngle = None
+        self.update_timer = QTimer()
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self.drawSurface)
 
     def provideDock(self):
         if super().provideDock():
@@ -469,10 +473,17 @@ class HOLO(Plugin):
     def mapSliderToData(self, slider, data):
         return data.min() + slider.value()/100*(data.max() - data.min())
 
-    def drawSurface(self, plotAngle):
+    def value_changed(self, plotAngle=True):
+        self.plotAngle = plotAngle
+        self.update_timer.start(200)
+        # QTimer.singleShot(500, lambda: self.drawSurface(plotAngle=plotAngle))
+
+    def drawSurface(self, plotAngle=None):
         """Draws an isosurface at a value defined by the sliders."""
+        if plotAngle is not None:
+            self.plotAngle=plotAngle
         if self.angle is not None:
-            if plotAngle:
+            if self.plotAngle:
                 self.glAngleView.clear()
                 verts, faces = pg.isosurface(self.angle, self.mapSliderToData(self.angleSlider, self.angle))
             else:
@@ -489,7 +500,7 @@ class HOLO(Plugin):
             m1.setGLOptions('additive')
             m1.translate(-self.angle.shape[0]/2, -self.angle.shape[1]/2, -self.angle.shape[2]/2)
 
-            if plotAngle:
+            if self.plotAngle:
                 self.glAngleView.addItem(m1)
             else:
                 self.glAmplitudeView.addItem(m1)

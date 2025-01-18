@@ -1319,13 +1319,20 @@ class LiveDisplay(Plugin):
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
             restoreAutoRange = False
             viewRange = self.livePlotWidgets[0].viewRange()
+            sizes = self.plotSplitter.sizes()
             self.updateTheme() # use default light theme for clipboard
             self.processEvents()
             self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1])
             self.processEvents()
+            # self.plotSplitter.setSizes(sizes)
+            # self.plotSplitter.update()
+            # self.plotSplitter.repaint()
+            self.print(f'{sizes}, {self.plotSplitter.sizes()}')
+            self.processEvents()
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
             self.updateTheme() # restore dark theme
+            # self.plotSplitter.setSizes(sizes)
             if restoreAutoRange: # restore auto ranging if applicable
                 self.livePlotWidgets[0].getViewBox().enableAutoRange(x=restoreAutoRange)
         else:
@@ -1374,6 +1381,7 @@ class LiveDisplay(Plugin):
             return
         if len(self.livePlotWidgets) != len(self.getGroups()):
             self.initFig()
+            apply = True # need to plot everything after initializing
         if len(self.livePlotWidgets) == 0:
             return
         if (not self.initializedDock or self.parentPlugin.pluginManager.loading
@@ -2534,21 +2542,24 @@ class Device(ChannelManager):
         if file.exists():
             self.print(f'Restoring data from {file.name}')
             with h5py.File(name=file, mode='r', track_order=True) as h5file:
-                if self.name not in h5file:
-                    return
-                group = h5file[self.name]
-                if not (INPUTCHANNELS in group and OUTPUTCHANNELS in group):
-                    return False
-                input_group = group[INPUTCHANNELS]
-                self.time = DynamicNp(initialData=input_group[self.TIME][:], max_size=self.maxDataPoints, dtype=np.float64)
-                output_group = group[OUTPUTCHANNELS]
-                for name, item in output_group.items():
-                    channel = self.getChannelByName(name.strip('_BG'))
-                    if channel is not None:
-                        if name.endswith('_BG'):
-                            channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
-                        else:
-                            channel.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                try:
+                    if self.name not in h5file:
+                        return
+                    group = h5file[self.name]
+                    if not (INPUTCHANNELS in group and OUTPUTCHANNELS in group):
+                        return False
+                    input_group = group[INPUTCHANNELS]
+                    self.time = DynamicNp(initialData=input_group[self.TIME][:], max_size=self.maxDataPoints, dtype=np.float64)
+                    output_group = group[OUTPUTCHANNELS]
+                    for name, item in output_group.items():
+                        channel = self.getChannelByName(name.strip('_BG'))
+                        if channel is not None:
+                            if name.endswith('_BG'):
+                                channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                            else:
+                                channel.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                except RuntimeError as e:
+                    self.print(f'Could not restore data from {file.name}. You can try to fix and then restart. If you record new data it will be overwritten! Error {e}', flag=PRINT.ERROR)
 
     def close(self):
         self.closeCommunication()
@@ -4003,8 +4014,8 @@ class Console(Plugin):
         self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state)
 
     def toggleLogging(self):
-        qSet.setValue(LOGGING, self.logging)
-        if self.logging:
+        qSet.setValue(LOGGING, self.toggleLoggingAction.state)
+        if self.toggleLoggingAction.state:
             self.pluginManager.logger.open()
         else:
             self.pluginManager.logger.close()
@@ -4341,7 +4352,8 @@ class Settings(SettingsManager):
         self.testControl(self.showConsoleAction, True)
         for setting in self.settings.values():
             if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
-                self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
+                if f'{self.SESSION}/' not in setting.fullName: # do not change session path unintentionally during testing
+                    self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
         super().runTestParallel()
 
     def initGUI(self):
@@ -5651,12 +5663,18 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
+            # if any([np.isnan(value) for value in self.pid.components]):
+            #     self.device.setOn(False)
+            #     self.inputChannel.value = 0
+            #     self.print(f'Stopped PID regulation. Reset {self.inputChannel.name} to 0', flag=PRINT.ERROR)
+            #     return
             try:
                 if self.sourceChannel.useMonitors:
                     self.monitor = self.sourceChannel.monitor
                 else:
                     self.monitor = self.sourceChannel.value
-                if self.active and self.device.isOn() and self.inputChannel.getDevice().isOn():
+                if self.active and self.device.isOn() and self.inputChannel.getDevice().isOn() and not np.isnan(self.sourceChannel.value):
+                    # self.print(f'stepPID {self.device.isOn()} {self.inputChannel.name} {self.inputChannel.value} {self.inputChannel.getDevice().isOn()} {self.sourceChannel.name} {self.sourceChannel.value} {self.pid.components}', flag=PRINT.DEBUG)
                     self.inputChannel.value = self.pid(self.sourceChannel.value)
             except RuntimeError as e:
                 self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}', flag=PRINT.ERROR)

@@ -23,6 +23,7 @@ warnings.filterwarnings("ignore", message="loadtxt: input contained no data:")
 warnings.filterwarnings("ignore", message="Covariance of the parameters could not be estimated")
 warnings.filterwarnings("ignore", message="overflow encountered in scalar subtract")
 warnings.filterwarnings("ignore", message="overflow encountered in scalar add")
+warnings.filterwarnings("ignore", message="No artists with labels found to put in legend.")
 
 def main():
     app = QApplication(sys.argv)

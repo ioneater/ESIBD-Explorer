@@ -19,7 +19,7 @@ class CustomControl(Plugin):
 
     name = 'CustomControl'
     version = '1.0'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.CONTROL
 
     def __init__(self, **kwargs):

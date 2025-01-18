@@ -14,7 +14,7 @@ class NI9263(Device):
 
     name = 'NI9263'
     version = '1.0'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
 

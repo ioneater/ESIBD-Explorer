@@ -16,7 +16,7 @@ class Current(Device):
 
     name = 'KEITHLEY'
     version = '1.0'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'pA'
 

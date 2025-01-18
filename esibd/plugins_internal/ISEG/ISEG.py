@@ -18,6 +18,7 @@ class Voltage(Device):
 
     name = 'ISEG'
     version = '1.1'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True

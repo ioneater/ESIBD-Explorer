@@ -1545,7 +1545,7 @@ class MassSpec(Scan):
 
     name = 'msScan'
     version = '1.1'
-    supportedVersion = '0.6'
+    supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.SCAN
 
     class Display(Scan.Display):
