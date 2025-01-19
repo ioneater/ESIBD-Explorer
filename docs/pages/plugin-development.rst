@@ -56,18 +56,6 @@ Channels
 .. automodule:: esibd.core.Channel
    :noindex:
 
-UCM
-----
-
-.. automodule:: esibd.plugins.UCM
-   :noindex:
-
-PID
-----
-
-.. automodule:: esibd.plugins.PID
-   :noindex:
-
 Scan
 ----
 

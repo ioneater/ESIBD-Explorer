@@ -8,9 +8,9 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
-    return [Current]
+    return [KEITHLEY]
 
-class Current(Device):
+class KEITHLEY(Device):
     """Device that contains a list of current channels, each corresponding to a single KEITHLEY 6487 picoammeter."""
     documentation = None # use __doc__
 

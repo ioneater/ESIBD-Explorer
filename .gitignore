@@ -21,6 +21,9 @@ pyinstaller_hooks\__pycache__\
 pyinstaller_dist
 pyinstaller_build
 
+# packed environment for offline installation
+esibd.tar.gz
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 

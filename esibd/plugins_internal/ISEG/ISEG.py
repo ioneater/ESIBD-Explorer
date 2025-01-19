@@ -159,7 +159,7 @@ class VoltageController(DeviceController):
         for channel in self.device.getChannels():
             if channel.real:
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
-                channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (np.random.choice([0, 1], p=[0.98, 0.02])) + np.random.random()
+                channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (np.random.choice([0, 1], p=[0.98, 0.02])) + np.random.random() - 0.5
 
     def runAcquisition(self, acquiring):
         while acquiring():

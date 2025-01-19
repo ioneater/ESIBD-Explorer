@@ -5,7 +5,7 @@ REM Then start the program using start_esibd_offline.bat
 REM https://conda.github.io/conda-pack/
 REM https://gist.github.com/pmbaumgartner/2626ce24adb7f4030c0075d2b35dda32
 REM Make sure files are copied to local drive before unpacking (q drive insanely slow)
+call conda activate base
 REM requires installation of conda-pack in base environment
 REM conda install -c conda-forge conda-pack
-call conda activate base
 call conda pack -n esibd -o esibd.tar.gz

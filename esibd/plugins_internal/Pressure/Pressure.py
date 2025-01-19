@@ -29,6 +29,10 @@ class Pressure(Device):
     def getIcon(self, **kwargs):
         return self.makeIcon('pressure_dark.png' if getDarkMode() else 'pressure_light.png', **kwargs)
 
+    def finalizeInit(self, aboutFunc=None):
+        super().finalizeInit(aboutFunc)
+        self.print('This plugin is deprecated and will be removed in the Future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
+
     def getDefaultSettings(self):
         ds = super().getDefaultSettings()
         ds[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value

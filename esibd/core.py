@@ -1622,7 +1622,6 @@ class Channel(QTreeWidgetItem):
 
     Channels are accessible from any plugin using :meth:`~esibd.plugins.DeviceManager.getChannelByName`.
     This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
-    Please avoid using very short names, and names that are a subset of names of other channels.
     """
 
     class SignalCommunicate(QObject):
@@ -2711,7 +2710,6 @@ class DockWidget(QDockWidget):
     def __init__(self, plugin):
         self.plugin = plugin
         self.title = self.plugin.parentPlugin.name if hasattr(self.plugin, 'parentPlugin') else self.plugin.name
-        # self.title = self.title if len(self.title) <= 10 else self.title[:7] + '...'
         super().__init__(self.title, QApplication.instance().mainWindow)
         self.signalComm = self.SignalCommunicate()
         self.signalComm.dockClosingSignal.connect(self.plugin.closeGUI)

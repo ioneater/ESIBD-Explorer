@@ -25,10 +25,10 @@ class CustomDevice(Device):
     useMonitors = True
     useBackgrounds = False
     useDisplays = True
+    useOnOffLogic = True
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = CustomChannel
         self.controller = CustomController(_parent=self)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)

@@ -87,7 +87,7 @@ class Plugin(QWidget):
     """Defines if the user can deactivate the plugin in the :class:`~esibd.core.PluginManager` user interface."""
     supportedVersion : str = str(PROGRAM_VERSION)
     """By default the current program version is used. You can
-       define a fixed version and future program versions will
+       define a fixed plugin version and future program versions will
        state that they are incompatible with this plugin. This can be used to
        prompt developers to update and test their plugins before
        distributing them for a more recent program version."""
@@ -198,7 +198,7 @@ class Plugin(QWidget):
         else:
             message = f'Testing {control.objectName()}'
         message = message.replace('\n', '')
-        message = message if len(message) <= 86 else f'{message[:83]}...' # limit length to keep log clean
+        message = message if len(message) <= 86 else f'{message[:83]}…' # limit length to keep log clean
         with self.lock.acquire_timeout(5, timeoutMessage=f'Could not acquire lock to test {message}') as lock_acquired: # allow any critical function to finish before testing next control
             if lock_acquired:
                 self.print(message)
@@ -1320,6 +1320,7 @@ class LiveDisplay(Plugin):
         self.print('copyClipboard', flag=PRINT.DEBUG)
         """Extends matplotlib based version to add support for pyqtgraph."""
         if len(self.livePlotWidgets) == 0:
+            self.print('Plot not initialized', flag=PRINT.WARNING)
             return
         if getDarkMode() and not getClipboardTheme():
             qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
@@ -3993,7 +3994,7 @@ class Console(Plugin):
             # self.triggerComboBoxSignal.emit(i) # ? causes logger to break: print no longer redirected to console, terminal, or file!
             # self.mainConsole.input.sigExecuteCmd.emit(self.commonCommandsComboBox.itemText(i)) # works but does not add command to history
             command = self.commonCommandsComboBox.itemText(i)
-            self.print(f"Testing command: {command if len(command) <= 70 else f'{command[:67]}...'}")
+            self.print(f"Testing command: {command if len(command) <= 70 else f'{command[:67]}…'}")
             with self.lock.acquire_timeout(timeout=1, timeoutMessage=f'Could not acquire lock to test {self.commonCommandsComboBox.itemText(i)}') as lock_acquired:
                 if lock_acquired:
                     self.signalComm.executeSignal.emit(self.commonCommandsComboBox.itemText(i))

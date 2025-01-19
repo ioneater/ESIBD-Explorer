@@ -226,7 +226,7 @@ def smooth(array, smooth):
 def shorten_text(text, max_length = 100):
     keep_chars = (max_length - 3) // 2
     text = text.replace('\n', '')
-    return text if len(text) < max_length else f'{text[:keep_chars]}...{text[-keep_chars:]}'
+    return text if len(text) < max_length else f'{text[:keep_chars]}…{text[-keep_chars:]}'
 
 # Decorator to add thread-safety using a lock from the instance
 # use with @synchronized() or @synchronized(timeout=5)

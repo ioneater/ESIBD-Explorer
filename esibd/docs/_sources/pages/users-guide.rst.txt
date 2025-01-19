@@ -15,7 +15,7 @@ User interface overview
 -----------------------
 
 By default, the user interface, shown in :numref:`fig:overview`, is structured into five main sections.
-The tabs on the left contain all controls for :ref:`sec:confman`
+The tabs on the left contain all controls for configuration and management
 including :ref:`sec:settings`, :ref:`sec:explorer`, :ref:`sec:devices`, :ref:`sec:scans`, and other controls.
 During and after the measurement, results are displayed using various
 :ref:`sec:displays` on the right. The most important signals of
@@ -42,24 +42,15 @@ question mark in their toolbar.
    including saved and running scans. :green:`Console` for
    debugging and plugin development.
 
-.. _sec:confman:
-
-Configuration and management
-----------------------------
-
-This is the main control section used to define and access most plugin
-settings, device configurations, and scans.
-
 .. _`sec:settings`:
 
 Settings
-~~~~~~~~
-
+--------
 .. automodule:: esibd.plugins.Settings
    :noindex:
 
 General settings
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 The most important parameters are:
 
@@ -90,8 +81,7 @@ that are not connected to the hardware.
 .. _`sec:session_settings`:
 
 Session settings
-^^^^^^^^^^^^^^^^
-
+~~~~~~~~~~~~~~~~
 All results are automatically saved to the *Session path* (inside *Data
 path*), based on the date, time, substrate, ion, session type, and
 automatically incremented measurement number. This ensures a consistent
@@ -104,15 +94,13 @@ replaced by more appropriate ones.
 .. _`sec:acquisition_settings`:
 
 Acquisition settings
-^^^^^^^^^^^^^^^^^^^^
-
+~~~~~~~~~~~~~~~~~~~~
 This section allows to reduce the number of displayed data points to
 increase performance. It also allows to chose if data should be restored
 after a restart.
 
 Other settings
-^^^^^^^^^^^^^^
-
+~~~~~~~~~~~~~~
 Any plugin can define additional settings and add them here in a
 dedicated section (e.g., see :ref:`sec:device_settings`). Alternatively, plugins can
 use the same built-in functions to manage settings internally (e.g., see :ref:`sec:scan_settings`).
@@ -120,23 +108,31 @@ use the same built-in functions to manage settings internally (e.g., see :ref:`s
 .. _`sec:explorer`:
 
 Explorer
-~~~~~~~~
-
+--------
 .. automodule:: esibd.plugins.Explorer
+   :noindex:
+
+UCM
+---
+.. automodule:: esibd.plugins.UCM
+   :noindex:
+
+PID
+---
+.. automodule:: esibd.plugins.PID
    :noindex:
 
 .. _`sec:devices`:
 
 Devices
-~~~~~~~
-
+-------
 .. automodule:: esibd.plugins.Device
    :noindex:
 
 .. _`sec:device_settings`:
 
 Device settings
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 Each device adds a section with the following settings to the :ref:`sec:settings` section.
 
@@ -163,11 +159,72 @@ Other
    Additional device specific settings, e.g. COM ports or IP addresses
    for communication.
 
+Custom device
+~~~~~~~~~~~~~
+.. automodule:: esibd.plugins_internal.examples.CustomDevice.CustomDevice
+   :noindex:
+
+.. _`sec:ISEG`:
+
+ISEG
+~~~~
+.. automodule:: esibd.plugins_internal.ISEG.ISEG.Voltage
+   :noindex:
+
+RBD
+~~~
+.. automodule:: esibd.plugins_internal.RBD.RBD.Current
+   :noindex:
+
+Pressure
+~~~~~~~~
+.. automodule:: esibd.plugins_internal.Pressure.Pressure.Pressure
+   :noindex:
+
+TIC
+~~~
+.. automodule:: esibd.plugins_internal.TIC.TIC.TIC
+   :noindex:
+
+MAXIGAUGE
+~~~~~~~~~
+.. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
+   :noindex:
+
+Temperature
+~~~~~~~~~~~
+.. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
+   :noindex:
+
+KEITHLEY
+~~~~~~~~
+.. automodule:: esibd.plugins_internal.KEITHLEY.KEITHLEY.KEITHLEY
+   :noindex:
+
+MIPS
+~~~~
+.. automodule:: esibd.plugins_internal.MIPS.MIPS.MIPS
+   :noindex:
+
+NI9263
+~~~~~~
+.. automodule:: esibd.plugins_internal.NI9263.NI9263.NI9263
+   :noindex:
+
+PICO
+~~~~
+.. automodule:: esibd.plugins_internal.PICO.PICO.PICO
+   :noindex:
+
+RSPD3303C
+~~~~~~~~~
+.. automodule:: esibd.plugins_internal.RSPD3303C.RSPD3303C.RSPD3303C
+   :noindex:
+
 .. _`sec:channels`:
 
 Channels
-~~~~~~~~
-
+--------
 .. automodule:: esibd.core.Channel
    :noindex:
 
@@ -253,15 +310,14 @@ Other
 .. _`sec:scans`:
 
 Scans
-~~~~~
-
+-----
 .. automodule:: esibd.plugins.Scan
    :noindex:
 
 .. _`sec:scan_settings`:
 
 Scan settings
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 Notes
    Add specific notes and metadata to the current scan. Will be reset
@@ -310,26 +366,44 @@ Other
 
 Genetic algorithm (GA)
 ~~~~~~~~~~~~~~~~~~~~~~
-
 .. automodule:: esibd.plugins_internal.scans.Scans.GA
    :noindex:
 
 Omni scan
 ~~~~~~~~~
-
 .. automodule:: esibd.plugins_internal.scans.Scans.Omni
    :noindex:
 
-Custom extensions
-~~~~~~~~~~~~~~~~~
-
-.. automodule:: esibd.plugins_internal.examples.Custom.CustomControl
+Spectra scan
+~~~~~~~~~~~~
+.. automodule:: esibd.plugins_internal.scans.Scans.Spectra
    :noindex:
 
-Custom device extensions
-~~~~~~~~~~~~~~~~~~~~~~~~
+The following scans are used for ESIBD experiments but may be very
+similar or identical to what is needed for other applications. If you do ESIBD
+experiments, make sure to get familiar with those scans, otherwise
+consider using them as templates for your own custom scans. See :ref:`sec:plugin_system` for
+more information.
 
-.. automodule:: esibd.plugins_internal.examples.CustomDevice.CustomDevice
+Beam scan
+~~~~~~~~~
+.. automodule:: esibd.plugins_internal.scans.Scans.Beam
+   :noindex:
+
+Energy scan
+~~~~~~~~~~~
+.. automodule:: esibd.plugins_internal.scans.Scans.Energy
+   :noindex:
+
+Depo scan
+~~~~~~~~~
+.. automodule:: esibd.plugins_internal.scans.Scans.Depo
+   :noindex:
+
+Custom extensions
+-----------------
+
+.. automodule:: esibd.plugins_internal.examples.Custom.CustomControl
    :noindex:
 
 .. _sec:displays:
@@ -430,76 +504,3 @@ Console
 
 .. automodule:: esibd.plugins.Console
    :noindex:
-
-ESIBD specific plugins
-----------------------
-
-The following plugins are used for ESIBD experiments but may be very
-similar or identical to what is needed for other applications. If you do ESIBD
-experiments, make sure to get familiar with those plugins, otherwise
-consider using them as templates for your own custom plugins. See :ref:`sec:plugin_system` for
-more information.
-
-.. _`sec:ISEG`:
-
-ISEG
-~~~~
-
-.. automodule:: esibd.plugins_internal.ISEG.ISEG.Voltage
-   :noindex:
-
-RBD
-~~~
-
-.. automodule:: esibd.plugins_internal.RBD.RBD.Current
-   :noindex:
-
-Pressure
-~~~~~~~~
-
-.. automodule:: esibd.plugins_internal.Pressure.Pressure.Pressure
-   :noindex:
-
-TIC
-~~~
-
-.. automodule:: esibd.plugins_internal.TIC.TIC.TIC
-   :noindex:
-
-MAXIGAUGE
-~~~~~~~~~
-
-.. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
-   :noindex:
-
-Temperature
-~~~~~~~~~~~
-
-.. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
-   :noindex:
-
-Beam
-~~~~
-
-.. automodule:: esibd.plugins_internal.scans.Scans.Beam
-   :noindex:
-
-Spectra
-~~~~~~~
-
-.. automodule:: esibd.plugins_internal.scans.Scans.Spectra
-   :noindex:
-
-Energy
-~~~~~~
-
-.. automodule:: esibd.plugins_internal.scans.Scans.Energy
-   :noindex:
-
-Depo
-~~~~
-
-.. automodule:: esibd.plugins_internal.scans.Scans.Depo
-   :noindex:
-
-
