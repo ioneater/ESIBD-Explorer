@@ -1123,7 +1123,6 @@ class Parameter():
                 self.combo.setCurrentIndex(i)
         elif self.widgetType == self.TYPE.TEXT:
             self.line.setText(str(value)) # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
-            # self.line.updateGeometry() # adjust width TODO delete
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
@@ -2153,8 +2152,9 @@ class Channel(QTreeWidgetItem):
 class ScanChannel(RelayChannel, Channel):
     """Minimal UI for abstract PID channel."""
 
-    def __init__(self, **kwargs):
-        Channel.__init__(self, **kwargs)
+    def __init__(self, device, **kwargs):
+        self.scan = device
+        Channel.__init__(self, device=device, **kwargs)
         self.sourceChannel = None
         self.recordingData = None
 
@@ -2174,7 +2174,8 @@ class ScanChannel(RelayChannel, Channel):
         channel.pop(Channel.COLLAPSE)
         channel[self.VALUE][Parameter.INDICATOR] = True
         channel[self.NAME][Parameter.INDICATOR] = True
-        channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+        if self.scan.useDisplayParameter:
+            channel[self.DISPLAY   ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                         header='D', toolTip='Display channel history.',
                                         event=lambda: self.updateDisplay(), attr='display')
         channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
@@ -2185,7 +2186,10 @@ class ScanChannel(RelayChannel, Channel):
 
     def tempParameters(self):
         """This channel is not restored from file, this every parameter is a tempParameter."""
-        return super().tempParameters() + [self.VALUE, self.DEVICE, self.DISPLAY, self.NOTES, self.SCALING]
+        tempParameters = super().tempParameters() + [self.VALUE, self.DEVICE, self.NOTES, self.SCALING]
+        if self.scan.useDisplayParameter:
+            tempParameters = tempParameters + [self.DISPLAY]
+        return tempParameters
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
@@ -2198,7 +2202,8 @@ class ScanChannel(RelayChannel, Channel):
         self.displayedParameters.remove(self.SELECT)
         self.insertDisplayedParameter(self.DEVICE, self.NAME)
         self.insertDisplayedParameter(self.UNIT, before=self.SCALING)
-        self.insertDisplayedParameter(self.DISPLAY, before=self.SCALING)
+        if self.scan.useDisplayParameter:
+            self.insertDisplayedParameter(self.DISPLAY, before=self.SCALING)
         self.insertDisplayedParameter(self.NOTES, before=self.SCALING)
 
     def initGUI(self, item):
@@ -2207,12 +2212,13 @@ class ScanChannel(RelayChannel, Channel):
         device.widget = QPushButton()
         device.widget.setStyleSheet('QPushButton{border:none;}')
         device.applyWidget()
-        self.display = True
+        if self.scan.useDisplayParameter:
+            self.display = True
 
     def connectSource(self):
-        self.sourceChannel = self.device.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
+        self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
         if self.sourceChannel is None:
-            self.sourceChannel = self.device.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
+            self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
         # if self.unit != '' and self.sourceChannel is not None and self.unit != self.sourceChannel.unit:
         #     Found a channel that has the same name but likely belongs to another device.
         #     In most cases the only consequence is using the wrong color.
@@ -2235,7 +2241,7 @@ class ScanChannel(RelayChannel, Channel):
                 self.unit = self.sourceChannel.unit
             self.notes = f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}'
         else:
-            self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+            self.getParameterByName(self.DEVICE).getWidget().setIcon(self.scan.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
             self.notes = f'Could not find {self.name}'
         self.getParameterByName(self.DEVICE).setHeight()
         self.updateColor()
@@ -2261,6 +2267,12 @@ class ScanChannel(RelayChannel, Channel):
             else:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
+
+    def updateDisplay(self):
+        # in general scan channels should be passive, but we need to react to changes in which channel should be displayed
+        if self.scan.display is not None and not self.loading and not self.scan.initializing:
+            self.scan.display.initFig()
+            self.scan.plot(update=self.scan.recording, done=not self.scan.recording)
 
 class QLabviewSpinBox(QSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""

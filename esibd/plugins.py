@@ -366,8 +366,6 @@ class Plugin(QWidget):
                     mw.splitDockWidget(self.pluginManager.topDock, self.dock, Qt.Orientation.Vertical) # below topDock
                 else:
                     mw.tabifyDockWidget(liveDisplays[-1].dock, self.dock) # add to other live displays
-                    # if len(liveDisplays) == 1 and not self.pluginManager.finalizing: TODO delete
-                    #     self.pluginManager.toggleTitleBarDelayed(update=True)
             elif self.pluginType in [PluginManager.TYPE.CHANNELMANAGER, PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE, PluginManager.TYPE.CONTROL, PluginManager.TYPE.SCAN]:
                 if self.pluginManager.firstControl is None:
                     self.pluginManager.firstControl = self
@@ -2611,19 +2609,20 @@ class Device(ChannelManager):
         # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
         self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
         self.interval_tolerance = max(100, self.interval/10) # larger margin for error if interval is large.
+        self.lag_limit = max(10, int(10000/self.interval)) # 10 seconds, independent of interval (at least 10 steps)
         if abs(self.interval_measured - self.interval) < self.interval_tolerance:
             self.lagging = 0 # reset / ignore temporary lag if interval is within range
         elif self.interval_measured > self.interval + self.interval_tolerance: # increase self.lagging and react if interval is longer than expected
-            if self.lagging < 10:
+            if self.lagging < self.lag_limit:
                 self.lagging += 1
-            elif self.lagging < 20: # lagging 10 times in a row -> reduce data points
-                if self.lagging == 10:
+            elif self.lagging < 2*self.lag_limit: # lagging 10 times in a row -> reduce data points
+                if self.lagging == self.lag_limit:
                     self.pluginManager.DeviceManager.limit_display_size = True
                     self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, 1000) # keep if already smaller
                     self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
                 self.lagging += 1
             else: # lagging > 19 times in a row -> turn of acquisition
-                if self.lagging == 20:
+                if self.lagging == 2*self.lag_limit:
                     self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
                                ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
                     self.pluginManager.DeviceManager.closeCommunication()
@@ -2770,6 +2769,8 @@ class Scan(Plugin):
     """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
     channels : List[EsibdCore.ScanChannel]
     """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
+    useDisplayParameter = False
+    """Use display parameter to control which scan channels are displayed."""
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Object that bundles pyqtSignals."""
@@ -2874,6 +2875,7 @@ class Scan(Plugin):
         self.saveThread = None
         self.settingsTree = None
         self.channelTree = None
+        self.initializing = False
         self.channels = []
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
@@ -2892,15 +2894,26 @@ class Scan(Plugin):
         self.settingsTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         # size to content prevents manual resize
         self.settingsTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.treeSplitter.addWidget(self.settingsTree)
+        self.settingsLayout = QHBoxLayout()
+        self.settingsLayout.setContentsMargins(0, 0, 0, 0)
+        self.settingsLayout.addWidget(self.settingsTree)
+        widget = QWidget()
+        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Minimum)
+        widget.setLayout(self.settingsLayout)
+        self.treeSplitter.addWidget(widget)
         self.channelTree = TreeWidget(minimizeHeight=True)
         self.channelTree.header().setStretchLastSection(False)
         self.channelTree.header().setMinimumSectionSize(0)
         self.channelTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.channelTree.setHeaderLabels(['', ScanChannel.NAME, ScanChannel.VALUE, ScanChannel.UNIT, ScanChannel.DISPLAY, ScanChannel.NOTES, ScanChannel.SCALING])
-        self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
         self.channelTree.setRootIsDecorated(False)
-        self.treeSplitter.addWidget(self.channelTree)
+        self.channelLayout = QHBoxLayout()
+        self.channelLayout.setContentsMargins(0, 0, 0, 0)
+        self.channelLayout.addWidget(self.channelTree)
+        widget = QWidget()
+        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Minimum)
+        widget.setLayout(self.channelLayout)
+        self.treeSplitter.addWidget(widget)
         self.addContentWidget(self.treeSplitter)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=self.settingsTree,
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
@@ -3050,6 +3063,7 @@ class Scan(Plugin):
         """Initializes all data and metadata.
         Returns True if initialization successful and scan is ready to start.
         Will likely need to be adapted for custom scans."""
+        self.initializing = True
         initializedOutputs = 0
         for name in self.settingsMgr.settings[self.DISPLAY].items:
             channel = self.getChannelByName(name, inout=INOUT.OUT)
@@ -3064,6 +3078,7 @@ class Scan(Plugin):
             else:
                 initializedOutputs += 1
         self.addOutputChannels()
+        self.initializing = False
         if initializedOutputs > 0:
             self.measurementsPerStep = max(int((self.average/self.outputs[0].getDevice().interval))-1, 1)
             self.toggleDisplay(True)
@@ -3075,8 +3090,6 @@ class Scan(Plugin):
             return False
 
     def addOutputChannels(self):
-        # self.channelTree.setUpdatesEnabled(False)
-        self.pluginManager.mainWindow.setUpdatesEnabled(False)
         self.print('addOutputChannels', flag=PRINT.DEBUG)
         if len(self.inputs) == 0:
             recordingData = None
@@ -3089,30 +3102,24 @@ class Scan(Plugin):
         if self.DISPLAY in self.getDefaultSettings():
             for name in self.settingsMgr.settings[self.DISPLAY].items:
                 self.addOutputChannel(name=name, recordingData=recordingData.copy() if recordingData is not None else None)
+            self.channelTree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
+                                                    for name, dict in self.channels[0].getSortedDefaultChannel().items()])
             self.toggleAdvanced(False)
         else:
             self.channelTree.hide()
-        # self.channelTree.setUpdatesEnabled(True)
-        self.pluginManager.mainWindow.setUpdatesEnabled(True)
 
     def addOutputChannel(self, name, unit='', recordingData=None, initialValue=None, recordingBackground=None):
-        self.print('addOutputChannel0', PRINT.DEBUG)
         channel = self.ScanChannel(device=self, tree=self.channelTree)
-        self.print('addOutputChannel1', PRINT.DEBUG)
         if recordingData is not None:
             channel.recordingData = recordingData
         if initialValue is not None:
             channel.initialValue = initialValue
         if recordingBackground is not None:
             channel.recordingBackground = recordingBackground
-        self.print('addOutputChannel2', PRINT.DEBUG)
         self.channelTree.addTopLevelItem(channel) # has to be added before populating
-        self.print('addOutputChannel3', PRINT.DEBUG)
         channel.initGUI(item={Parameter.NAME : name, ScanChannel.UNIT : unit})
-        self.print('addOutputChannel4', PRINT.DEBUG)
         if not self.loading:
             channel.connectSource()
-        self.print('addOutputChannel5', PRINT.DEBUG)
         self.channels.append(channel)
         if (self.loading and channel.recordingData is not None) or (channel.sourceChannel is not None and (channel.acquiring or channel.getDevice().recording)):
             # virtual channels will not necessarily be acquiring but they will be populated if their device is recording
@@ -3307,6 +3314,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
                     self.recordingAction.state = False
             else:
                 self.print('Wait for scan to finish.')
+                self.recordingAction.state = False
         else:
             self.print('Stopping scan.')
 

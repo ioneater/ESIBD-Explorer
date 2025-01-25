@@ -15,7 +15,7 @@ import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
 from asteval import Interpreter
-from PyQt6.QtWidgets import QSlider, QMessageBox
+from PyQt6.QtWidgets import QSlider, QMessageBox, QLabel, QSizePolicy
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
 from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT,
@@ -627,8 +627,7 @@ class Energy(Scan):
         return ds
 
     def initScan(self):
-        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and
-        super().initScan())
+        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
     def map_percent(self, x):
         """Maps any range on range 0 to 100."""
@@ -766,6 +765,7 @@ class Omni(Scan):
     name = 'Omni'
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
+    useDisplayParameter = True
 
     class Display(Scan.Display):
         """Display for energy scan."""
@@ -870,13 +870,19 @@ class Omni(Scan):
                     self.display.axes[0].set_xlim(self._from, self.to)
             if self.interactive:
                 for i, output in enumerate(self.outputs):
-                    x = self.inputs[0].getRecordingData()
-                    y = output.getRecordingData()
-                    mean, bin_edges, _ = binned_statistic(x, y, bins=self.bins, range=(int(self._from), int(self.to)))
-                    self.display.lines[i].set_data((bin_edges[:-1] + bin_edges[1:]) / 2, mean)
+                    if output.display:
+                        x = self.inputs[0].getRecordingData()
+                        y = output.getRecordingData()
+                        mean, bin_edges, _ = binned_statistic(x, y, bins=self.bins, range=(int(self._from), int(self.to)))
+                        self.display.lines[i].set_data((bin_edges[:-1] + bin_edges[1:]) / 2, mean)
+                    else:
+                        self.display.lines[i].set_data([], [])
             else:
                 for i, output in enumerate(self.outputs):
-                    self.display.lines[i].set_data(self.inputs[0].getRecordingData(), output.getRecordingData())
+                    if output.display:
+                        self.display.lines[i].set_data(self.inputs[0].getRecordingData(), output.getRecordingData())
+                    else:
+                        self.display.lines[i].set_data([], [])
             self.display.axes[0].relim() # adjust to data
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
@@ -954,6 +960,7 @@ class Depo(Scan):
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
     CHARGE = 'Charge'
+    useDisplayParameter = True
 
     class ScanChannel(ScanChannel):
 
@@ -989,11 +996,6 @@ class Depo(Scan):
                 super().connectSource() # running again after changing name -> disconnect
             if self.unit in ['pA','pAh']:
                 self.getParameterByName(self.DISPLAY).getWidget().setVisible(False)
-
-        def updateDisplay(self):
-            if self.parentPlugin.display is not None and not self.loading:
-                self.parentPlugin.display.initFig()
-                self.parentPlugin.plot(update=self.parentPlugin.recording, done=not self.parentPlugin.recording)
 
     class Display(Scan.Display):
         """Display for depo scan."""
@@ -1085,6 +1087,10 @@ class Depo(Scan):
     def initGUI(self):
         super().initGUI()
         self.recordingAction.setToolTip('Toggle deposition.')
+        self.depoCheckList = QLabel()
+        self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
+        self.depoCheckList.setText('Deposition checklist:\nShuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?')
+        self.settingsLayout.addWidget(self.depoCheckList)
 
     def getExtraUnits(self):
         return list(set([channel.unit for channel in self.outputs if channel.unit not in ['pA', 'pAh'] and channel.display]))
@@ -1127,6 +1133,7 @@ class Depo(Scan):
         # overwrite parent
         """Initialized all data and metadata.
         Returns True if initialization successful and scan is ready to start."""
+        self.initializing = True
         for name in self.settingsMgr.settings[self.DISPLAY].items:
             sourceChannel = self.getChannelByName(name, inout=INOUT.OUT)
             if sourceChannel is None:
@@ -1138,6 +1145,7 @@ class Depo(Scan):
             elif not sourceChannel.acquiring and not sourceChannel.getDevice().recording:
                 self.print(f'{sourceChannel.name} is not acquiring.', PRINT.WARNING)
         self.addOutputChannels()
+        self.initializing = False
         if len(self.outputs) > 0:
             self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
             self.measurementsPerStep = max(int((self.average/self.interval))-1, 1)
@@ -1157,6 +1165,8 @@ class Depo(Scan):
             if hasattr(channel.sourceChannel, 'resetCharge'):
                 channel.sourceChannel.resetCharge()
                 self.addOutputChannel(name=f'{name}_{self.CHARGE}', unit='pAh', recordingData=DynamicNp())
+        self.channelTree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
+                                                for name, dict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced(False)
 
     def loadDataInternal(self):
@@ -1417,6 +1427,7 @@ class GA(Scan):
     def initScan(self):
         """ Start optimization."""
         # overwrite parent
+        self.initializing = True
         self.gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
         self.ga.init() # don't mix up with init method from Scan
         self.ga.maximize(True)
@@ -1432,6 +1443,7 @@ class GA(Scan):
             self.addOutputChannels()
             self.toggleDisplay(True)
             self.display.axes[0].set_ylabel(self.gaChannel.name)
+        self.initializing = False
         for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
             if channel.optimize:
                 self.ga.optimize(channel.value, channel.min, channel.max,.2, abs(channel.max-channel.min)/10, channel.name)
@@ -1453,6 +1465,8 @@ class GA(Scan):
         self.addOutputChannel(name=f'{self.displayDefault}', recordingData=DynamicNp())
         if len(self.outputs) > 0:
             self.outputs.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
+        self.channelTree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
+                                                    for name, dict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced()
 
     def plot(self, update=False, **kwargs): # pylint:disable=unused-argument
@@ -1587,8 +1601,7 @@ class MassSpec(Scan):
         return ds
 
     def initScan(self):
-        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and
-        super().initScan())
+        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
     def plot(self, update=False, done=False, **kwargs): # pylint:disable=unused-argument
         """Plots mass spectrum including metadata"""
