@@ -15,7 +15,7 @@ import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
 from asteval import Interpreter
-from PyQt6.QtWidgets import QSlider, QMessageBox, QLabel, QSizePolicy
+from PyQt6.QtWidgets import QSlider, QLabel, QSizePolicy # , QMessageBox
 from PyQt6.QtCore import QObject, Qt
 import numpy as np
 from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT,
@@ -1076,10 +1076,6 @@ class Depo(Scan):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
-        self.qm = QMessageBox(QMessageBox.Icon.Information, 'Deposition checklist.',
-        'Shuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?',
-        buttons=QMessageBox.StandardButton.Ok)
-        self.qm.setWindowIcon(self.getIcon())
 
     def getIcon(self, **kwargs):
         return self.makeIcon('depo.png', **kwargs)
@@ -1089,8 +1085,8 @@ class Depo(Scan):
         self.recordingAction.setToolTip('Toggle deposition.')
         self.depoCheckList = QLabel()
         self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
-        self.depoCheckList.setText('Deposition checklist:\nShuttle inserted?\nGrid in place?\nPlasma cleaned?\nShield closed?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?')
-        self.settingsLayout.addWidget(self.depoCheckList)
+        self.depoCheckList.setText('Deposition checklist:\nPlasma cleaned?\nGrid in place?\nShield closed?\nShuttle inserted?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?')
+        self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
     def getExtraUnits(self):
         return list(set([channel.unit for channel in self.outputs if channel.unit not in ['pA', 'pAh'] and channel.display]))
@@ -1122,12 +1118,6 @@ class Depo(Scan):
     def updateDepoTarget(self):
         if self.display is not None and self.display.initializedDock:
             self.display.updateDepoTarget()
-
-    def toggleRecording(self):
-        if self.recording and not self.pluginManager.DeviceManager.testing:
-            self.qm.open()
-            self.qm.raise_()
-        super().toggleRecording()
 
     def initScan(self):
         # overwrite parent

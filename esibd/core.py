@@ -266,9 +266,9 @@ class PluginManager():
         self.finalizing = True
         self.finalizeInit()
         self.afterFinalizeInit()
-        self.finalizing = False
-        self.toggleTitleBarDelayed(update=True, delay=2000)
         self.mainWindow.setUpdatesEnabled(True)
+        self.finalizing = False
+        self.toggleTitleBarDelayed(update=True, delay=1000)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit) # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close() # close as soon as mainWindow is ready
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
@@ -666,7 +666,7 @@ class PluginManager():
                     plugin.updateTheme()
                 except Exception:
                     self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
-        if not self.loading:
+        if not (self.loading or self.finalizing):
             self.mainWindow.setUpdatesEnabled(True)
             splash.close()
 
