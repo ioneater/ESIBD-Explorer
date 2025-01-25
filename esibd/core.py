@@ -330,14 +330,14 @@ class PluginManager():
             self.logger.print(f'Ignoring duplicate plugin {Plugin.name}.', flag=PRINT.WARNING)
         else:
             try:
-                p=Plugin(pluginManager=self, dependencyPath=dependencyPath)
-                setattr(self.__class__, p.name, p) # use attributes to access for communication between plugins
+                plugin = Plugin(pluginManager=self, dependencyPath=dependencyPath)
+                setattr(self.__class__, plugin.name, plugin) # use attributes to access for communication between plugins
             except Exception: # pylint: disable = broad-except # we have no control about the exception a plugin can possibly throw
                 # No unpredictable exception in a single plugin should break the whole application
                 self.logger.print(f'Could not load plugin {Plugin.name} {Plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
             else:
-                self.plugins.append(p)
-                return p
+                self.plugins.append(plugin)
+                return plugin
         return None
 
     def provideDocks(self):
@@ -364,6 +364,7 @@ class PluginManager():
                 plugin.provideDock()
             except Exception:
                 self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                delattr(self.__class__, plugin.name) # remove attribute
                 self.plugins.pop(self.plugins.index(plugin)) # avoid any further undefined interaction
             self.splash.raise_() # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
 
@@ -1513,6 +1514,10 @@ class RelayChannel():
     @property
     def active(self):
         return self.sourceChannel.active if self.sourceChannel is not None else True
+
+    @property
+    def real(self):
+        return self.sourceChannel.real if self.sourceChannel is not None else False
 
     @property
     def acquiring(self):

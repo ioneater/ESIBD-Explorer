@@ -2165,6 +2165,9 @@ class ChannelManager(Plugin):
         if hasattr(self, 'recordingAction'):
             self.recordingAction.state = self.recording
 
+    def supportsFile(self, file):
+        return any(file.name.endswith(suffix) for suffix in (self.getSupportedFiles())) # does not support any files for preview, only when explicitly loading
+
     def closeCommunication(self):
         """Stops recording and also closes all device communication.
         Extend to add custom code to close device communication."""
@@ -2416,9 +2419,6 @@ class Device(ChannelManager):
             self.controller.closeCommunication()
         super().closeCommunication()
 
-    def supportsFile(self, file):
-        return any(file.name.endswith(suffix) for suffix in (self.getSupportedFiles())) # does not support any files for preview, only when explicitly loading
-
     def getSupportedFiles(self):
         if self.useDisplays:
             return self.previewFileTypes+self.staticDisplay.previewFileTypes+self.liveDisplay.previewFileTypes
@@ -2551,9 +2551,9 @@ class Device(ChannelManager):
             self.staticDisplay.loadData(file, _show)
         else:
             if self.inout == INOUT.IN:
-                self.pluginManager.Text.setText('Load channels or values using right click or import file explicitly.', False)
+                self.pluginManager.Text.setText('Load values using right click or import channels from file explicitly.', False)
             else:
-                self.pluginManager.Text.setText('Load channels using right click or import file explicitly.', False)
+                self.pluginManager.Text.setText('Import channels from file explicitly.', False)
 
     def updateValues(self, N=2, apply=False):
         """Updates channel values based on equations.
@@ -5344,7 +5344,9 @@ class Explorer(Plugin):
             self.print(f'{startPath} is not a valid directory', PRINT.ERROR)
 
     def getFileIcon(self, file):
-        plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)), None)
+        plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file) if plugin not in [self.pluginManager.Tree,self.pluginManager.Text]), None)
+        if plugin is None: # only use Tree or Text if no other supporting Plugin has been found
+            plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)), None)
         if plugin is not None:
             return plugin.getIcon()
         else:
@@ -5594,6 +5596,9 @@ class UCM(ChannelManager):
         if not self.pluginManager.loading:
             self.connectAllSources(update=True)
 
+    def loadData(self, file, _show=True):
+        self.pluginManager.Text.setText('Import channels from file explicitly.', True)
+
     def connectAllSources(self, update=False):
         self.loading = True # suppress plot
         for channel in self.channels:
@@ -5636,7 +5641,6 @@ class PID(ChannelManager):
             self.inputChannel = None
             self.sourceChannel = None
             self.pid = None
-            self.real = True
 
         OUTPUT       = 'Output'
         OUTPUTDEVICE = 'OutputDevice'
@@ -5808,6 +5812,9 @@ class PID(ChannelManager):
         super().loadConfiguration(file, default)
         if not self.pluginManager.loading:
             self.connectAllSources(update=True)
+
+    def loadData(self, file, _show=True):
+        self.pluginManager.Text.setText('Import channels from file explicitly.', True)
 
     def getChannels(self):
         return [channel for channel in self.channels if channel.sourceChannel is not None]

@@ -31,7 +31,7 @@ class Pressure(Device):
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
-        self.print('This plugin is deprecated and will be removed in the Future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
+        self.print('This plugin is deprecated and will be removed in the future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
 
     def getDefaultSettings(self):
         ds = super().getDefaultSettings()
