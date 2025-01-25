@@ -2608,7 +2608,7 @@ class Device(ChannelManager):
         # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
         # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
         self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
-        self.interval_tolerance = max(50, self.interval/10) # larger margin for error if interval is large.
+        self.interval_tolerance = max(100, self.interval/10) # larger margin for error if interval is large.
         if abs(self.interval_measured - self.interval) < self.interval_tolerance:
             self.lagging = 0 # reset / ignore temporary lag if interval is within range
         elif self.interval_measured > self.interval + self.interval_tolerance: # increase self.lagging and react if interval is longer than expected
@@ -3073,6 +3073,8 @@ class Scan(Plugin):
             return False
 
     def addOutputChannels(self):
+        # self.channelTree.setUpdatesEnabled(False)
+        self.pluginManager.mainWindow.setUpdatesEnabled(False)
         self.print('addOutputChannels', flag=PRINT.DEBUG)
         if len(self.inputs) == 0:
             recordingData = None
@@ -3088,19 +3090,27 @@ class Scan(Plugin):
             self.toggleAdvanced(False)
         else:
             self.channelTree.hide()
+        # self.channelTree.setUpdatesEnabled(True)
+        self.pluginManager.mainWindow.setUpdatesEnabled(True)
 
     def addOutputChannel(self, name, unit='', recordingData=None, initialValue=None, recordingBackground=None):
+        self.print('addOutputChannel0', PRINT.DEBUG)
         channel = self.ScanChannel(device=self, tree=self.channelTree)
+        self.print('addOutputChannel1', PRINT.DEBUG)
         if recordingData is not None:
             channel.recordingData = recordingData
         if initialValue is not None:
             channel.initialValue = initialValue
         if recordingBackground is not None:
             channel.recordingBackground = recordingBackground
+        self.print('addOutputChannel2', PRINT.DEBUG)
         self.channelTree.addTopLevelItem(channel) # has to be added before populating
+        self.print('addOutputChannel3', PRINT.DEBUG)
         channel.initGUI(item={Parameter.NAME : name, ScanChannel.UNIT : unit})
+        self.print('addOutputChannel4', PRINT.DEBUG)
         if not self.loading:
             channel.connectSource()
+        self.print('addOutputChannel5', PRINT.DEBUG)
         self.channels.append(channel)
         if (self.loading and channel.recordingData is not None) or (channel.sourceChannel is not None and (channel.acquiring or channel.getDevice().recording)):
             # virtual channels will not necessarily be acquiring but they will be populated if their device is recording
@@ -5458,10 +5468,11 @@ class UCM(ChannelManager):
         def relayValueEvent(self):
             if self.sourceChannel is not None:
                 try:
+                    value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
                     if self.sourceChannel.inout == INOUT.OUT:
-                        self.monitor = self.sourceChannel.value
+                        self.monitor = value
                     else:
-                        self.value = self.sourceChannel.value
+                        self.value = value
                 except RuntimeError:
                     self.removeEvents()
 
@@ -5681,7 +5692,7 @@ class PID(ChannelManager):
                 if self.sourceChannel.useMonitors:
                     self.monitor = self.sourceChannel.monitor
                 else:
-                    self.monitor = self.sourceChannel.value
+                    self.monitor = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
                 if self.active and self.device.isOn() and self.inputChannel.getDevice().isOn() and not np.isnan(self.sourceChannel.value):
                     # self.print(f'stepPID {self.device.isOn()} {self.inputChannel.name} {self.inputChannel.value} {self.inputChannel.getDevice().isOn()} {self.sourceChannel.name} {self.sourceChannel.value} {self.pid.components}', flag=PRINT.DEBUG)
                     self.inputChannel.value = self.pid(self.sourceChannel.value)

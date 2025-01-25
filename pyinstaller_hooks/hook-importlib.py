@@ -1,4 +1,5 @@
 # add all modules that might be used by plugins but are not imported at packaging time
+# when adding a module here, it should probably also be added to autodoc_mock_imports in docs\conf.py
 hiddenimports = [
 'socket',
 'serial',

@@ -60,11 +60,11 @@ autodoc_mock_imports = ["PyQt6","pyqtgraph","PyQt5","PySide2","matplotlib","seri
 
 html_theme = 'sphinx_rtd_theme'
 
-html_theme_options = {
-    # "collapse_navigation": False,  # Keep the sidebar expanded by default
-    "navigation_depth": 4,         # Allows up to 4 levels of TOC
-    # "titles_only": False           # Display section titles as links
-}
+# html_theme_options = {
+#     # "collapse_navigation": False,  # Keep the sidebar expanded by default
+#     "navigation_depth": 4,         # Allows up to 4 levels of TOC
+#     # "titles_only": False           # Display section titles as links
+# }
 
 #html_static_path = ['_static']
 html_logo = 'ESIBD_Explorer.png'

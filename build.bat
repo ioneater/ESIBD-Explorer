@@ -9,6 +9,8 @@ exit
 REM Change Log
 ::::::::::::::
 REM Often, writing the change log inspires some last minute changes!
+REM Content: start bullet points with capitals and dot at the end
+REM - will be replaced by bullet points on github
 
 REM Added 		for new features.
 REM Changed 	for changes in existing functionality.
@@ -57,6 +59,7 @@ call rmdir /q /s esibd\docs REM delete docs/_build to generate clean documentati
 call rm -r docs\_build REM works in powershell
 call rm -r esibd\docs REM works in powershell
 REM -M coverage
+REM update autodoc_mock_imports and correspondingly pyinstaller_hooks
 call sphinx-build docs docs\_build
 REM NOTE disable script blocker to properly test documentation offline
 REM offline version for in app documentation (instrument computers often have no internet access)
@@ -129,7 +132,7 @@ REM Run the following line to create initial spec file
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
 pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
-REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time but are not imported at packaging time: e.g. packages only imported in plugins
+REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time but are not imported at packaging time: e.g. modules only imported in plugins. modules added here should likely also be added to autodoc_mock_imports in docs/conf.py
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --copy-metadata nidaqmx is needed to avoid "No package metadata was found for nidaqmx"
 REM do not modify spec file, will be overwritten
@@ -155,10 +158,11 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git tag -a 0.7.0 -m "Realeasing version 0.7.0"
+git tag -a v0.7.0 -m "Realeasing version v0.7.0"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
-REM create release on github with changelog based on commits and following sections
-REM Title: Version 0.7.0
-REM Content: start bullet points with capitals and no dot at the end
+REM create release on github with changelog based on commits and following sections (have to be signed in!)
+REM select tag
+REM Title: Version v0.7.0
 REM attach ESIBD_Explorer-setup.exe to release
+REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

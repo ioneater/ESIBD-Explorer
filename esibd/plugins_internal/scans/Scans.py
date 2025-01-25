@@ -966,8 +966,10 @@ class Depo(Scan):
                 try:
                     if self.isChargeChannel:
                         self.value = self.sourceChannel.charge
+                    elif self.sourceChannel.useMonitors:
+                        self.value = self.sourceChannel.monitor
                     else:
-                        self.value = self.sourceChannel.monitor if self.sourceChannel.useMonitors else self.sourceChannel.value
+                        self.value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
                 except RuntimeError:
                     self.removeEvents()
 

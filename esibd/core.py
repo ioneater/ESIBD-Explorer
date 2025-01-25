@@ -1122,6 +1122,7 @@ class Parameter():
                 self.combo.setCurrentIndex(i)
         elif self.widgetType == self.TYPE.TEXT:
             self.line.setText(str(value)) # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
+            # self.line.updateGeometry() # adjust width TODO delete
         elif self.widgetType in [self.TYPE.LABEL, self.TYPE.PATH]:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
@@ -1238,6 +1239,8 @@ class Parameter():
         elif self.widgetType == self.TYPE.TEXT:
             self.line = self.widget if self.widget is not None else LineEdit(tree=self.tree)
             self.line.setFrame(False)
+            if self.indicator:
+                self.line.setEnabled(False)
         elif self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
             if self.widget is None:
                 if self.widgetType == self.TYPE.INT:
@@ -1492,6 +1495,8 @@ class RelayChannel():
     def value(self):
         if self.sourceChannel is not None:
             return self.sourceChannel.value
+            # leave decision to subtract background to be handled explicitly at higher level.
+            # return self.sourceChannel.value - self.sourceChannel.background if self.subtractBackgroundActive() else self.sourceChannel.value
         # elif len(self.getRecordingData()) > 0: # no valid use case so far
         #     return self.getRecordingData()[-1]
         else:
@@ -2054,14 +2059,12 @@ class Channel(QTreeWidgetItem):
                 if name not in self.tempParameters() and not len(item) < 2: # len(item) < 2 -> generating default file
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.device.channelsChanged = True
-
         if self.inout != INOUT.NONE and self.EQUATION in self.displayedParameters:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)
             font = line.font()
             font.setPointSize(8)
             line.setFont(font)
-
         if self.SELECT in self.displayedParameters:
             select = self.getParameterByName(self.SELECT)
             initialValue= select.value
@@ -2072,7 +2075,6 @@ class Channel(QTreeWidgetItem):
             select.check.setMinimumWidth(5)
             select.check.setCheckable(True)
             select.value = initialValue
-
         if self.COLLAPSE in self.displayedParameters:
             collapse = self.getParameterByName(self.COLLAPSE)
             initialValue = collapse.value
@@ -2082,7 +2084,6 @@ class Channel(QTreeWidgetItem):
             collapse.applyWidget()
             collapse.value = initialValue
             collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
-
         if self.inout != INOUT.NONE:
             self.updateColor()
             self.realChanged()
@@ -2237,8 +2238,13 @@ class ScanChannel(RelayChannel, Channel):
 
     def relayValueEvent(self):
         if self.sourceChannel is not None:
+            # Note self.value should only be used as a display. it should show the background corrected value if applicable
+            # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
             try:
-                self.value = self.sourceChannel.monitor if self.sourceChannel.useMonitors else self.sourceChannel.value
+                if self.sourceChannel.useMonitors:
+                    self.value = self.sourceChannel.monitor
+                else:
+                    self.value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
             except RuntimeError:
                 self.removeEvents()
 
@@ -2935,16 +2941,22 @@ class LineEdit(QLineEdit):
         self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)
+        self.textChanged.connect(self.onTextChanged)
         self.setMinimumWidth(50)  # Set a reasonable minimum width
         self.max_width = 300
 
     def onTextEdited(self):
+        # edited by user, emitted on every keystroke
         self._edited = True
 
+    def onTextChanged(self, text):
+        # text changed by user or setText
+        self.updateGeometry() # adjust width to text
+
     def onEditingFinished(self):
+        # editing finished by Enter or loosing focus
         if self._edited:
             self._edited = False
-            self.updateGeometry() # adjust width to text
             if self.tree is not None:
                 self.tree.scheduleDelayedItemsLayout()
             self.userEditingFinished.emit(self.text())
