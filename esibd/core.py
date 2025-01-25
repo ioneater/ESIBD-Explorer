@@ -778,7 +778,7 @@ class Logger(QObject):
             timerString = f'🕐 {ms:4.0f} ms '
             self.lastCallTime = datetime.now()
 
-        message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message.split()[0]}"
+        message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {message.split('\n')[0]}"
         message        = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {timerString}{flagString} {sender}: {message}"
         if self.active:
             print(message) # redirects to write if active
