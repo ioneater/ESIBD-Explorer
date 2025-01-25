@@ -1035,10 +1035,12 @@ class Depo(Scan):
             for i, unit in enumerate(self.scan.getExtraUnits()):
                 legend = self.axes[2+i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
-            self.currentLine        = self.axes[0].plot([[datetime.now()]],[0], color=self.scan.MYBLUE)[0] # need to be initialized with datetime on x axis
+
+            selected_output = self.scan.outputs[self.scan.getOutputIndex()]
+            self.currentLine        = self.axes[0].plot([[datetime.now()]],[0], color=selected_output.color)[0] # need to be initialized with datetime on x axis
             self.currentWarnLine    = self.axes[0].axhline(y=float(self.scan.warnLevel), color=self.scan.MYRED)
-            self.chargeLine         = self.axes[1].plot([[datetime.now()]],[0], color=self.scan.MYBLUE)[0]
-            self.chargePredictionLine = self.axes[1].plot([[datetime.now()]],[0], '--', color=self.scan.MYBLUE)[0]
+            self.chargeLine         = self.axes[1].plot([[datetime.now()]],[0], color=selected_output.color)[0]
+            self.chargePredictionLine = self.axes[1].plot([[datetime.now()]],[0], '--', color=selected_output.color)[0]
             self.depoChargeTarget   = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
             for i in range(len(self.axes)-1):
                 self.axes[i].tick_params(axis='x', which='both', bottom=False, labelbottom=False)
