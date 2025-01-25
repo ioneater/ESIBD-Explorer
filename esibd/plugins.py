@@ -272,6 +272,8 @@ class Plugin(QWidget):
         while condition():
             if time.time() - start < timeout:
                 time.sleep(interval)
+                if current_thread() is main_thread(): # do not block other events in main thread
+                    self.processEvents()
             else:
                 self.print(timeoutMessage)
                 return False
@@ -3331,7 +3333,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         if not self.pluginManager.closing:
             self.pluginManager.Explorer.populateTree()
             self.notes='' # reset after saved to last scan
-        self.finished = True
+        self.finished = True # main thread waits for this on closing
 
     def plot(self, update=False, **kwargs): # pylint: disable = unused-argument # use **kwargs to allow child classed to extend the signature
         """Plot showing a current or final state of the scan. Extend to add scan specific plot code.
@@ -4723,7 +4725,7 @@ class DeviceManager(Plugin):
         elif self.recording:
             self.recordingAction.state = self.recording
 
-    def closeCommunication(self, manual=False):
+    def closeCommunication(self, manual=False, closing=False):
         """Close all communication
 
         :param manual: Indicates if triggered by user, defaults to False
@@ -4731,13 +4733,18 @@ class DeviceManager(Plugin):
         """
         if not manual or self.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
             self.recording = False
-            self.stopScans()
+            self.stopScans(closing=closing)
             for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
                 plugin.closeCommunication()
 
-    def stopScans(self):
+    def stopScans(self, closing=False):
         for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             scan.recording = False # stop all running scans
+        if closing:
+            for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
+                if not scan.finished: # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
+                    self.print(f'Waiting for {scan.name} to finish.')
+                    self.waitForCondition(condition=lambda: not scan.finished, timeoutMessage=f'Timeout while stopping scan {scan.name}.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file=None):

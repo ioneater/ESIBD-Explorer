@@ -137,7 +137,7 @@ class VoltageController(DeviceController):
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
     def applyVoltageFromThread(self, channel):
-        self.RSWrite(f'CH{channel.id}:VOLT {channel.value}')
+        self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
     def updateValue(self):
         if getTestMode():

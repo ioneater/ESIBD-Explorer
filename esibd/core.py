@@ -106,7 +106,7 @@ class EsibdExplorer(QMainWindow):
         if not self.pluginManager.loading:
             if self.pluginManager.DeviceManager.recording:
                 if CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
-                    self.pluginManager.DeviceManager.closeCommunication()
+                    self.pluginManager.DeviceManager.closeCommunication(closing=True)
                 else:
                     event.ignore() # keep running
                     return
