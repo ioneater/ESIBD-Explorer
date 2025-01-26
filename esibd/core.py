@@ -229,6 +229,7 @@ class PluginManager():
         self.pluginFile.parent.mkdir(parents=True, exist_ok=True)
         if self.pluginFile.exists():
             self.confParser.read(self.pluginFile)
+        self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.providePlugins # pylint: disable = import-outside-toplevel # avoid circular import
         self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=Path('esibd/media'))
@@ -241,7 +242,7 @@ class PluginManager():
 
         obsoletePluginNames = []
         for name in self.confParser.keys():
-            if not name == Parameter.DEFAULT.upper() and name not in self.pluginNames:
+            if not name == Parameter.DEFAULT.upper() and not name == INFO and name not in self.pluginNames:
                 obsoletePluginNames.append(name)
         if len(obsoletePluginNames) > 0:
             self.logger.print(f"Removing obsolete plugin data: {', '.join(obsoletePluginNames)}", flag=PRINT.WARNING)
@@ -464,8 +465,9 @@ class PluginManager():
         confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
             confParser.read(self.pluginFile)
+        confParser[INFO] = infoDict('PluginManager')
         for name, item in confParser.items():
-            if name != Parameter.DEFAULT.upper():
+            if name != Parameter.DEFAULT.upper() and name != INFO:
                 self.addPluginTreeWidgetItem(tree=tree, name=name, enabled=item[self.ENABLED] == 'True', version_=item[self.VERSION], supportedVersion=item[self.SUPPORTEDVERSION],
                                                 pluginType=item[self.PLUGINTYPE], previewFileTypes=item[self.PREVIEWFILETYPES],
                                                 description=item[self.DESCRIPTION], optional=item[self.OPTIONAL] == 'True')

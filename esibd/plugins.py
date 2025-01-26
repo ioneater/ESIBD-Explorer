@@ -2898,7 +2898,7 @@ class Scan(Plugin):
         self.settingsLayout.setContentsMargins(0, 0, 0, 0)
         self.settingsLayout.addWidget(self.settingsTree, alignment=Qt.AlignmentFlag.AlignTop)
         widget = QWidget()
-        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
+        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
         widget.sizeHint = self.settingsTree.sizeHint
         widget.setLayout(self.settingsLayout)
         self.treeSplitter.addWidget(widget)
@@ -2912,9 +2912,12 @@ class Scan(Plugin):
         self.channelLayout.setContentsMargins(0, 0, 0, 0)
         self.channelLayout.addWidget(self.channelTree, alignment=Qt.AlignmentFlag.AlignTop)
         widget = QWidget()
-        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
+        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
         widget.setLayout(self.channelLayout)
         self.treeSplitter.addWidget(widget)
+        self.treeSpacer = QWidget()
+        self.treeSpacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.treeSplitter.addWidget(self.treeSpacer)
         self.addContentWidget(self.treeSplitter)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=self.settingsTree,
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
