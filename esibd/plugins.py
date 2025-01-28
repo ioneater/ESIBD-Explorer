@@ -3971,6 +3971,9 @@ class Console(Plugin):
         self.signalComm.writeSignal.connect(self.write)
         self.signalComm.executeSignal.connect(self.execute)
         # self.mainConsole.repl.input.installEventFilter(self.pluginManager.mainWindow) # clears input on Ctrl + C like a terminal. Not using it as it also prevents copy paste!
+        for message in self.pluginManager.logger.backLog:
+            self.write(message)
+        self.pluginManager.logger.backLog = []
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -3987,8 +3990,6 @@ class Console(Plugin):
         self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
         self.inspectAction = self.addAction(toolTip='Inspect object.',
                         icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'), before=self.toggleLoggingAction, event=lambda: self.inspect())
-        # self.addAction(toolTip='dummy', icon=self.makeCoreIcon('block.png'), event=lambda: self.mainConsole.input.sigExecuteCmd.emit('i=1'), before=self.aboutAction)
-
         self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
     def addToNamespace(self, key, value):
@@ -4022,7 +4023,7 @@ class Console(Plugin):
     def write(self, message):
         """Writes to integrated console to keep track of message history."""
         # avoid using self.mainConsole.repl.write() because stdout is already handled by core.Logger
-        if self.initializedDock:
+        if self.initializedGUI:
             if current_thread() is main_thread():
                 self.mainConsole.output.moveCursor(QTextCursor.MoveOperation.End)
                 self.mainConsole.output.insertPlainText(message)

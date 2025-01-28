@@ -711,6 +711,7 @@ class Logger(QObject):
         self.timer.timeout.connect(self.purge)
         self.timer.setInterval(3600000) # every 1 hour
         self.printFromThreadSignal.connect(self.print)
+        self.backLog = [] # stores messages to be displayed later if console is not initialized
         if qSet.value(LOGGING, 'true') == 'true':
             self.open()
 
@@ -745,10 +746,12 @@ class Logger(QObject):
                 # else:
                     # cannot print without using recursion
 
-        if hasattr(self.pluginManager, 'Console'):
+        if hasattr(self.pluginManager, 'Console') and self.pluginManager.Console.initializedGUI:
             # handles new lines in system error messages better than Console.repl.write()
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
+        else:
+            self.backLog.append(message)
 
     def purge(self):
         # ca. 12 ms, only call once per hour. lock makes sure there is not race conditions with open reference
