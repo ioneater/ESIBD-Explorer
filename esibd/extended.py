@@ -15,18 +15,17 @@ class ESIBDSettings(Settings):
     SESSIONTYPE         = 'Session type'
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
                                                                 items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', widgetType=Parameter.TYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='substrate')
-        ds[f'{self.SESSION}/{self.ION}']            = parameterDict(value='GroEL', toolTip='Choose ion',
+        defaultSettings[f'{self.SESSION}/{self.ION}']            = parameterDict(value='GroEL', toolTip='Choose ion',
                                                                 items='Betagal, Ferritin, GroEL, ADH, GDH, BSA, DNA, BK', widgetType=Parameter.TYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='molion')
-        ds[f'{self.SESSION}/{self.SESSIONTYPE}']   = parameterDict(value='MS', toolTip='Choose session type',
+        defaultSettings[f'{self.SESSION}/{self.SESSIONTYPE}']   = parameterDict(value='MS', toolTip='Choose session type',
                                                                 items='MS, depoHV, depoUHV, depoCryo, opt', widgetType=Parameter.TYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='sessionType')
-        return ds
+        return defaultSettings
 
     def buildSessionPath(self):
         return Path(*[self.substrate, self.molion, datetime.now().strftime(f'%Y-%m-%d_%H-%M_{self.substrate}_{self.molion}_{self.sessionType}')])
-    

@@ -5,11 +5,14 @@
 ESIBD_Explorer.code-workspace
 .vscode/
 
-#build folder
+# uild folder
 build/
 
-#dist folder
+# dist folder
 dist/
+
+# for testing of plugins from external developers
+external_plugins/
 
 # Sphinx documentation
 docs/_build/

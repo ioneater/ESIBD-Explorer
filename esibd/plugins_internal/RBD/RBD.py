@@ -46,8 +46,8 @@ class Current(Device):
                 if data.shape[0] == 0:
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
                     return
-                for d, header in zip(data, headers):
-                    self.outputs.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(d), recordingBackground=np.zeros(d.shape[0]), unit='pA'))
+                for dat, header in zip(data, headers):
+                    self.outputs.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
                 if len(self.outputs) > 0: # might be empty
                     # need to fake time axis as it was not implemented
                     self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=np.linspace(0, 120000, self.outputs[0].getRecordingData().shape[0])))
@@ -89,9 +89,9 @@ class Current(Device):
         """ Define device specific settings that will be added to the general settings tab.
         These will be included if the settings file is deleted and automatically regenerated.
         Overwrite as needed."""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
-        return ds
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
+        return defaultSettings
 
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]

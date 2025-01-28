@@ -37,12 +37,12 @@ class KEITHLEY(Device):
         """ Define device specific settings that will be added to the general settings tab.
         These will be included if the settings file is deleted and automatically regenerated.
         Overwrite as needed."""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
-        return ds
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
+        return defaultSettings
 
     def getInitializedChannels(self):
-        return [d for d in self.channels if (d.enabled and (d.controller.port is not None or self.getTestMode())) or not d.active]
+        return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def resetCharge(self):
         for channel in self.channels:

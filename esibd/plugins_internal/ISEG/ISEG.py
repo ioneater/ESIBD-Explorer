@@ -38,14 +38,14 @@ class Voltage(Device):
 
     def getDefaultSettings(self):
         """:meta private:"""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
                                                                 widgetType=Parameter.TYPE.TEXT, attr='ip')
-        ds[f'{self.name}/Port']     = parameterDict(value=10001, toolTip='SCPI port of ECH244',
+        defaultSettings[f'{self.name}/Port']     = parameterDict(value=10001, toolTip='SCPI port of ECH244',
                                                                 widgetType=Parameter.TYPE.INT, attr='port')
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
-        return ds
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
+        return defaultSettings
 
     def getModules(self): # get list of used modules
         return set([channel.module for channel in self.channels])
@@ -175,7 +175,7 @@ class VoltageController(DeviceController):
                                     self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
                                 except (ValueError, TypeError) as e:
                                     self.print(f'Parsing error: {e} for {res}.')
-                self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
+                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def ISEGWrite(self, message):

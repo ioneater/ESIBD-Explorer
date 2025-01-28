@@ -29,12 +29,12 @@ class OMNICONTROL(Device):
         return self.makeIcon('pfeiffer_omni.png', **kwargs)
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
-        ds[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port of Omnicontrol.', items=','.join([f'COM{x}' for x in range(1, 25)]),
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
+        defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port of Omnicontrol.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, attr='com')
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
-        return ds
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
+        return defaultSettings
 
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None) or self.getTestMode()) or not channel.active]
@@ -48,7 +48,6 @@ class PressureChannel(Channel):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
         # channel[self.VALUE][Parameter.INDICATOR] = False # overwrite existing parameter to change header
-        channel[self.VALUE][Parameter.WIDGETTYPE] = Parameter.TYPE.EXP # overwrite existing parameter to change to use exponent notation
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
         return channel

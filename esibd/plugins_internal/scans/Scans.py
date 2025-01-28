@@ -208,18 +208,18 @@ class Beam(Scan):
          super().initScan())
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='LR_channel')
-        ds[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
-        ds[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=lambda: self.estimateScanTime())
-        ds[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda: self.updateStep(self.LR_step))
-        ds[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
+        defaultSettings[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda: self.updateStep(self.LR_step))
+        defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='UD_channel')
-        ds[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
-        ds[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=lambda: self.estimateScanTime())
-        ds[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda: self.updateStep(self.UD_step))
-        return ds
+        defaultSettings[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda: self.updateStep(self.UD_step))
+        return defaultSettings
 
     def useLimits(self):
         if self.display is not None and self.display.initializedDock:
@@ -617,14 +617,14 @@ class Energy(Scan):
             super().loadDataInternal()
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[self.WAIT][Parameter.VALUE] = 2000
-        ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[self.WAIT][Parameter.VALUE] = 2000
+        defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
-        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
-        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
-        return ds
+        defaultSettings[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        defaultSettings[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
+        return defaultSettings
 
     def initScan(self):
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
@@ -802,20 +802,20 @@ class Omni(Scan):
         return self.makeIcon('omni.png', **kwargs)
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[self.WAIT][Parameter.VALUE] = 2000
-        ds[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[self.WAIT][Parameter.VALUE] = 2000
+        defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
-        ds[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
-        ds[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
+        defaultSettings[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        defaultSettings[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         self.BINS = 'Bins'
-        ds[self.BINS]    = parameterDict(value=20, widgetType=Parameter.TYPE.INT, _min=10, _max=200, attr='bins')
+        defaultSettings[self.BINS]    = parameterDict(value=20, widgetType=Parameter.TYPE.INT, _min=10, _max=200, attr='bins')
         self.INTERACTIVE = 'Interactive'
-        ds[self.INTERACTIVE]    = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
+        defaultSettings[self.INTERACTIVE]    = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
         toolTip='Use the slider to define channel value in interactive mode.\nUse short wait and average when possible to get fast feedback.\nStop scan when done.',
                                                 attr='interactive', event=lambda: self.updateInteractive())
-        return ds
+        return defaultSettings
 
     def updateInteractive(self):
         if self.display is not None and self.display.initializedDock:
@@ -1093,27 +1093,27 @@ class Depo(Scan):
 
     def getDefaultSettings(self):
         """Defines settings and default values for DepoScan."""
-        ds = super().getDefaultSettings()
-        ds.pop(self.WAIT)
-        ds.pop(self.WAITLONG)
-        ds.pop(self.LARGESTEP)
-        ds.pop(self.SCANTIME)
-        ds[self.DISPLAY][Parameter.VALUE] = 'RT_Sample-Center'
-        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Any channel that should be recorded during deposition, including at least one current channel.'
-        ds[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
-        ds[self.AVERAGE][Parameter.VALUE] = 4000
-        ds[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings.pop(self.WAIT)
+        defaultSettings.pop(self.WAITLONG)
+        defaultSettings.pop(self.LARGESTEP)
+        defaultSettings.pop(self.SCANTIME)
+        defaultSettings[self.DISPLAY][Parameter.VALUE] = 'RT_Sample-Center'
+        defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Any channel that should be recorded during deposition, including at least one current channel.'
+        defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
+        defaultSettings[self.AVERAGE][Parameter.VALUE] = 4000
+        defaultSettings[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
                                                                 _min=1000, _max=60000, attr='interval')
-        ds['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
+        defaultSettings['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
                                                                 widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
-        ds['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
+        defaultSettings['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
                                                             items='20, 15, 10, 0, -10, -15, -20', widgetType=Parameter.TYPE.INTCOMBO, attr='warnLevel')
-        ds['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
+        defaultSettings['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
                                                             widgetType=Parameter.TYPE.BOOL, attr='warn')
-        ds['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
+        defaultSettings['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
                                                             widgetType=Parameter.TYPE.BOOL, attr='autoscale')
-        ds['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', widgetType=Parameter.TYPE.BOOL, attr='dialog')
-        return ds
+        defaultSettings['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', widgetType=Parameter.TYPE.BOOL, attr='dialog')
+        return defaultSettings
 
     def updateDepoTarget(self):
         if self.display is not None and self.display.initializedDock:
@@ -1397,15 +1397,15 @@ class GA(Scan):
         super().runTestParallel()
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds.pop(self.WAITLONG)
-        ds.pop(self.LARGESTEP)
-        ds.pop(self.SCANTIME)
-        ds['GA Channel'] = ds.pop(self.DISPLAY) # keep display for using displayChannel functionality but modify properties as needed
-        ds['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
-        ds['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
-        ds['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', widgetType=Parameter.TYPE.BOOL, attr='log')
-        return ds
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings.pop(self.WAITLONG)
+        defaultSettings.pop(self.LARGESTEP)
+        defaultSettings.pop(self.SCANTIME)
+        defaultSettings['GA Channel'] = defaultSettings.pop(self.DISPLAY) # keep display for using displayChannel functionality but modify properties as needed
+        defaultSettings['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
+        defaultSettings['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
+        defaultSettings['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', widgetType=Parameter.TYPE.BOOL, attr='log')
+        return defaultSettings
 
     def toggleInitial(self):
         if len(self.outputs) > 0:
@@ -1579,16 +1579,16 @@ class MassSpec(Scan):
         return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png', **kwargs)
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[self.DISPLAY][Parameter.VALUE] = 'Detector'
-        ds[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
-        ds[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
-        ds[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[self.DISPLAY][Parameter.VALUE] = 'Detector'
+        defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
+        defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
+        defaultSettings[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        ds[self.FROM]    = parameterDict(value=50 , widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
-        ds[self.TO]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
-        ds[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
-        return ds
+        defaultSettings[self.FROM]    = parameterDict(value=50 , widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
+        defaultSettings[self.TO]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
+        return defaultSettings
 
     def initScan(self):
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())

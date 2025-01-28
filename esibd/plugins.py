@@ -2336,20 +2336,20 @@ class Device(ChannelManager):
         """ Define device specific settings that will be added to the general settings tab.
         Settings will be generated automatically if not found in the settings file.
         Overwrite and extend as needed."""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True,
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True,
         toolTip=f'Measured plot interval for {self.name} in ms.\n'+
                 ' If this deviates multiple times in a row, the number of display points will be reduced and eventually acquisition\n'+
                 ' will be stopped to ensure the application remains responsive.',
                                                                 widgetType=Parameter.TYPE.INT, indicator=True, _min=0, _max=10000, attr='interval_measured')
-        ds[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, widgetType=Parameter.TYPE.INT, _min=5, _max=500, event=lambda: self.estimateStorage(),
+        defaultSettings[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, widgetType=Parameter.TYPE.INT, _min=5, _max=500, event=lambda: self.estimateStorage(),
                                                           toolTip='Maximum amount of storage used to store history in MB. Updated on next restart to prevent accidental data loss!', attr='maxStorage')
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, widgetType=Parameter.TYPE.INT, attr='maxDataPoints',
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, widgetType=Parameter.TYPE.INT, attr='maxDataPoints',
         toolTip='Maximum number of data points saved per channel, based on max storage.\n' +
         'If this is reached, older data will be thinned to allow to keep longer history.')
-        ds[f'{self.name}/Logging'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
+        defaultSettings[f'{self.name}/Logging'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           widgetType=Parameter.TYPE.BOOL, attr='log')
-        return ds
+        return defaultSettings
 
     def runTestParallel(self):
         """:meta private:"""
@@ -2898,26 +2898,28 @@ class Scan(Plugin):
         self.settingsLayout.setContentsMargins(0, 0, 0, 0)
         self.settingsLayout.addWidget(self.settingsTree, alignment=Qt.AlignmentFlag.AlignTop)
         widget = QWidget()
-        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
+        # widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
         widget.sizeHint = self.settingsTree.sizeHint
         widget.setLayout(self.settingsLayout)
         self.treeSplitter.addWidget(widget)
-        self.channelTree = TreeWidget(minimizeHeight=True)
+        self.channelTree = TreeWidget() #minimizeHeight=True)
         self.channelTree.header().setStretchLastSection(False)
         self.channelTree.header().setMinimumSectionSize(0)
         self.channelTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+        self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.channelTree.setRootIsDecorated(False)
-        self.channelLayout = QHBoxLayout()
-        self.channelLayout.setContentsMargins(0, 0, 0, 0)
-        self.channelLayout.addWidget(self.channelTree, alignment=Qt.AlignmentFlag.AlignTop)
-        widget = QWidget()
-        widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
-        widget.setLayout(self.channelLayout)
-        self.treeSplitter.addWidget(widget)
-        self.treeSpacer = QWidget()
-        self.treeSpacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        self.treeSplitter.addWidget(self.treeSpacer)
+        # self.channelLayout = QHBoxLayout()
+        # self.channelLayout.setContentsMargins(0, 0, 0, 0)
+        # self.channelLayout.addWidget(self.channelTree, stretch=1, alignment=Qt.AlignmentFlag.AlignTop)
+        # widget = QWidget()
+        # widget.setLayout(self.channelLayout)
+        # widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
+        # widget.sizeHint = self.channelTree.sizeHint
+        # self.treeSplitter.addWidget(widget)
+        self.treeSplitter.addWidget(self.channelTree)
+        # self.treeSpacer = QWidget()
+        # self.treeSpacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        # self.treeSplitter.addWidget(self.treeSpacer)
         self.addContentWidget(self.treeSplitter)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, name=f'{self.name} Settings', tree=self.settingsTree,
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI)
@@ -4703,14 +4705,14 @@ class DeviceManager(Plugin):
 
     def getDefaultSettings(self):
         """:meta private:"""
-        ds = super().getDefaultSettings()
-        ds['Acquisition/Max display points'] = parameterDict(value=2000, toolTip='Maximum number of data points per channel used for plotting. Decrease if plotting is limiting performance.',
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings['Acquisition/Max display points'] = parameterDict(value=2000, toolTip='Maximum number of data points per channel used for plotting. Decrease if plotting is limiting performance.',
                                                                 event=lambda: self.livePlot(apply=True), widgetType=Parameter.TYPE.INT, _min=100, _max=100000, attr='max_display_size')
-        ds['Acquisition/Limit display points'] = parameterDict(value=True, toolTip="Number of displayed data points will be limited to 'Max display points'", widgetType=Parameter.TYPE.BOOL,
+        defaultSettings['Acquisition/Limit display points'] = parameterDict(value=True, toolTip="Number of displayed data points will be limited to 'Max display points'", widgetType=Parameter.TYPE.BOOL,
                                                                event=lambda: self.livePlot(apply=True), attr='limit_display_size')
-        ds['Acquisition/Restore data'] = parameterDict(value=True, toolTip='Enable to store and restore data for all devices.',
+        defaultSettings['Acquisition/Restore data'] = parameterDict(value=True, toolTip='Enable to store and restore data for all devices.',
                                                         widgetType=Parameter.TYPE.BOOL, attr='restoreData')
-        return ds
+        return defaultSettings
 
     def restoreConfiguration(self):
         for device in self.getDevices():
@@ -4807,7 +4809,8 @@ class DeviceManager(Plugin):
         # * scan and plugin settings are already saved as soon as they are changing
         if self.restoreData:
             for device in self.getDevices():
-                Thread(target=device.exportOutputData, kwargs={'default':True}, name=f'{device.name} exportOutputDataThread').start()
+                if device.recording:
+                    Thread(target=device.exportOutputData, kwargs={'default':True}, name=f'{device.name} exportOutputDataThread').start()
 
     @synchronized()
     def toggleRecording(self):

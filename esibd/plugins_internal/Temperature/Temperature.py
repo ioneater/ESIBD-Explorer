@@ -48,14 +48,14 @@ class Temperature(Device):
             self.staticDisplay.plot()
 
     def getDefaultSettings(self):
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 5000 # overwrite default value
-        ds[f'{self.name}/CryoTel COM'] = parameterDict(value='COM3', toolTip='COM port of Sunpower CryoTel.', items=','.join([f'COM{x}' for x in range(1, 25)]),
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000 # overwrite default value
+        defaultSettings[f'{self.name}/CryoTel COM'] = parameterDict(value='COM3', toolTip='COM port of Sunpower CryoTel.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, attr='CRYOTELCOM')
-        ds[f'{self.name}/Toggle threshold'] = parameterDict(value=15, toolTip='Cooler is toggled on and off to stay within threshold from set value.',
+        defaultSettings[f'{self.name}/Toggle threshold'] = parameterDict(value=15, toolTip='Cooler is toggled on and off to stay within threshold from set value.',
                                           widgetType=Parameter.TYPE.INT, attr='toggleThreshold')
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
-        return ds
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
+        return defaultSettings
 
     def getInitializedChannels(self):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]

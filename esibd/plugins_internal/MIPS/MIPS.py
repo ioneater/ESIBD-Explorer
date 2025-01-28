@@ -37,10 +37,10 @@ class MIPS(Device):
 
     def getDefaultSettings(self):
         """:meta private:"""
-        ds = super().getDefaultSettings()
-        ds[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
-        ds[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
-        return ds
+        defaultSettings = super().getDefaultSettings()
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
+        return defaultSettings
 
     def getCOMs(self): # get list of unique used COMs
         return list(set([channel.com for channel in self.channels]))

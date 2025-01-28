@@ -698,7 +698,6 @@ class Logger(QObject):
         self.printFromThreadSignal.connect(self.print)
         if qSet.value(LOGGING, 'true') == 'true':
             self.open()
-            # self.purge()
 
     def open(self):
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
@@ -1778,7 +1777,8 @@ class Channel(QTreeWidgetItem):
                                     event=lambda: self.enabledChanged(), attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name',
                                                event=self.updateDisplay if self.inout == INOUT.OUT else None)
-        channel[self.VALUE   ] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0, widgetType=Parameter.TYPE.FLOAT,
+        channel[self.VALUE   ] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0,
+                                               widgetType=Parameter.TYPE.EXP if hasattr(self.device, 'logY') and self.device.logY else Parameter.TYPE.FLOAT,
                                                advanced=False, header='Unit', attr='value',
                                                event=lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
                                                indicator=self.inout == INOUT.OUT)
@@ -2042,7 +2042,7 @@ class Channel(QTreeWidgetItem):
 
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
-        self.updateWarningState(self.enabled and self.device.controller.acquiring and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
+        self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
 
     def updateWarningState(self, warn):
         if warn != self.warningState:
@@ -2825,11 +2825,11 @@ class TreeWidget(QTreeWidget):
 
     def tree_height_hint_complete(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
-        return self.header().height() + self.totalItems() * item_height
+        return self.header().height() + self.totalItems() * item_height + 10
 
     def tree_height_hint_minimal(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
-        return self.header().height() + min(self.totalItems(), 4) * item_height
+        return self.header().height() + min(self.totalItems(), 4) * item_height + 10
 
     def count_child_items(self, item):
         count = item.childCount()
