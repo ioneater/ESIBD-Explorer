@@ -21,6 +21,7 @@ class CustomDevice(Device):
     version = '1.0'
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
+    iconFile = 'cookie.png'
     # TODO adjust flags to choose default behavior. All default functions can be extended or overwritten if more customization is required.
     useMonitors = True
     useBackgrounds = False
@@ -33,9 +34,6 @@ class CustomDevice(Device):
         self.controller = CustomController(_parent=self)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
         # TODO initialize any custom variables
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('cookie.png', **kwargs)
 
     def initGUI(self):
         """Initialize your custom user interface"""

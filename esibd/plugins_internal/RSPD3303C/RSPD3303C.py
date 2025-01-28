@@ -21,6 +21,7 @@ class RSPD3303C(Device):
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
+    iconFile = 'RSPD3303C.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -31,9 +32,6 @@ class RSPD3303C(Device):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('RSPD3303C.png', **kwargs)
 
     ADDRESS = 'Address'
 

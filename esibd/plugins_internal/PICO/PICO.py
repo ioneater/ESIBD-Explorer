@@ -22,6 +22,7 @@ class PICO(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'K'
+    iconFile = 'pico_104.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -32,9 +33,6 @@ class PICO(Device):
         super().initGUI()
         self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('pico_104.png', **kwargs)
 
     def changeUnit(self):
         if self.liveDisplayActive():

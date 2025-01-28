@@ -16,6 +16,7 @@ class NI9263(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
+    iconFile = 'NI9263.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -26,9 +27,6 @@ class NI9263(Device):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('NI9263.png', **kwargs)
 
     def closeCommunication(self):
         self.setOn(False)

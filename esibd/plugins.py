@@ -32,14 +32,12 @@ import keyboard as kb
 import pyqtgraph as pg
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from PIL import Image
-from PIL.ImageQt import ImageQt
 from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
                             QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor, QPixmap # ,QScreen , QColor
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor #, QPixmap # ,QScreen , QColor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -47,7 +45,7 @@ from PyQt6 import QtCore
 import esibd.core as EsibdCore
 import esibd.const as EsibdConst
 from esibd.core import (INOUT, Parameter, PluginManager, parameterDict, DynamicNp, PRINT, Channel, MetaChannel, TimeoutLock, ScanChannel, RelayChannel, # DeviceController,
-                        ToolButton, QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox, MultiState, PlotWidget, PlotItem, TreeWidget)
+                        ToolButton, QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox, MultiState, PlotWidget, PlotItem, TreeWidget, Icon)
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 if sys.platform == 'win32':
     import win32com.client
@@ -73,14 +71,14 @@ class Plugin(QWidget):
     pluginType : PluginManager.TYPE = PluginManager.TYPE.INTERNAL # overwrite in child class mandatory
     """The type defines the location of the plugin in the user interface and allows to run
        operations on a group of plugins with the same type using :meth:`~esibd.core.PluginManager.getPluginsByType`."""
-    name : str          = "" # specify in child class mandatory
+    name : str          = '' # specify in child class mandatory
     """A unique name that will be used in the graphic user interface.
        Plugins can be accessed directly from the :ref:`sec:console` using their name."""
     documentation : str = None # specify in child class
     """The plugin documentation used in the internal about dialog in the :ref:`sec:browser`.
     If None, the doc string *__doc__* will be used instead.
     """
-    version : str       = "" # specify in child class mandatory
+    version : str       = '' # specify in child class mandatory
     """The version of the plugin. Plugins are independent programs that
        require independent versioning and documentation."""
     optional : bool     = True # specify in child to prevent user from disabling this plugin
@@ -124,6 +122,10 @@ class Plugin(QWidget):
     lock : TimeoutLock
     """Locks are used to make sure methods decorated with @synchronized() cannot run in parallel,
        but one call has to be completed before the next."""
+    iconFile : str = ''
+    """Default icon file. Expected to be in dependencyPath."""
+    iconFileDark : str = ''
+    """Default icon file for dark mode. Expected to be in dependencyPath. Will fallback to iconFile."""
 
     class SignalCommunicate(QObject): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
@@ -331,7 +333,7 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large.png'))
+        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
         self.floatAction = self.addStateAction(lambda: self.setFloat(), 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
@@ -608,14 +610,17 @@ class Plugin(QWidget):
             ann.remove()
 
     def getIcon(self, desaturate=False):
-        """Gets the plugin icon. Overwrite to introduce custom icons.
-        Consider using a themed icon that works in dark and light modes.
+        """Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+        Overwrite only if definition of iconFile and iconFileDark is not sufficient.
 
         :return: Icon
         :rtype: :class:`~esibd.core.Icon`
         """
         # e.g. return self.darkIcon if getDarkMode() else self.lightIcon
-        return self.makeCoreIcon('document.png', desaturate=desaturate)
+        if self.iconFile != '':
+            return self.makeIcon(self.iconFileDark if getDarkMode() and self.iconFileDark != '' else self.iconFile, desaturate=desaturate)
+        else:
+            return self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png', desaturate=desaturate)
 
     def makeCoreIcon(self, file, desaturate=False):
         return self.makeIcon(file=file, path=internalMediaPath, desaturate=desaturate)
@@ -631,15 +636,8 @@ class Plugin(QWidget):
         iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
         if not iconPath.exists():
             self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.WARNING)
-        if desaturate:
-            if isinstance(iconPath, Path):
-                iconPath = iconPath.as_posix()
-            image = Image.open(iconPath).convert("RGBA")
-            r, g, b, a = image.split()
-            grayscale = Image.merge("RGB", (r, g, b)).convert("L")
-            return EsibdCore.Icon(iconPath, QPixmap.fromImage(ImageQt(Image.merge("RGBA", (grayscale, grayscale, grayscale, a)))))
-        else:
-            return EsibdCore.Icon(iconPath)
+            return None
+        return Icon(iconPath, desaturate=desaturate)
 
     def updateTheme(self):
         """Changes between dark and light themes. Most
@@ -1528,14 +1526,12 @@ class ChannelManager(Plugin):
         name = 'Line'
         version = '1.0'
         pluginType = PluginManager.TYPE.DISPLAY
+        iconFile = 'chart.png'
 
         def __init__(self, parentPlugin, pluginManager=None, dependencyPath=None):
             super().__init__(pluginManager, dependencyPath)
             self.parentPlugin = parentPlugin
             self.name = self.parentPlugin.name
-
-        def getIcon(self, **kwargs):
-            return self.makeCoreIcon('chart.png', **kwargs)
 
         def initGUI(self):
             super().initGUI()
@@ -3430,6 +3426,7 @@ class Browser(Plugin):
     version = '1.0'
     optional = False
     pluginType = PluginManager.TYPE.DISPLAY
+    iconFile = 'QWebEngine.png'
 
     previewFileTypes = ['.pdf', '.html', '.htm', '.svg', '.wav', '.mp3', '.ogg'] # , '.mp4','.avi' only work with codec
 
@@ -3448,10 +3445,6 @@ class Browser(Plugin):
         self.title = None
         self.html = None
         self.plugin = None
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('QWebEngine.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3599,6 +3592,8 @@ class Text(Plugin):
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.txt', '.dat', '.ter', '.cur', '.tt', '.log', '.py', '.star', '.pdb1', '.css', '.js', '.html', '.tex', '.ini', '.bat']
     SELECTFILE = 'Select File'
+    iconFile = 'text.png'
+    iconFileDark = 'text_dark.png'
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         setTextSignal = pyqtSignal(str, bool)
@@ -3606,10 +3601,6 @@ class Text(Plugin):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.signalComm.setTextSignal.connect(self.setText)
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('text_dark.png' if getDarkMode() else 'text.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3718,6 +3709,7 @@ class Tree(Plugin):
     h5PreviewFileTypes = ['.hdf5','.h5']
     pyPreviewFileTypes = ['.py']
     previewFileTypes = h5PreviewFileTypes + pyPreviewFileTypes
+    iconFile = 'tree.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -3727,10 +3719,6 @@ class Tree(Plugin):
         self.ICON_CLASS =   str(self.dependencyPath / 'application-block.png')
         self.ICON_GROUP =   str(self.dependencyPath / 'folder.png')
         self._inspect = False
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('tree.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -3934,14 +3922,11 @@ class Console(Plugin):
     version = '1.0'
     optional = False
     triggerComboBoxSignal = pyqtSignal(int)
+    iconFile = 'terminal.png'
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         writeSignal = pyqtSignal(str)
         executeSignal = pyqtSignal(str)
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('terminal.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -4364,6 +4349,7 @@ class Settings(SettingsManager):
     name        = 'Settings'
     optional = False
     showConsoleAction = None
+    iconFile = 'gear.png'
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
@@ -4376,10 +4362,6 @@ class Settings(SettingsManager):
         super().__init__(parentPlugin=self, tree=self.tree,
                          defaultFile=validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('gear.png', **kwargs)
 
     def runTestParallel(self):
         # cannot test file dialogs that require user interaction
@@ -4571,6 +4553,7 @@ class DeviceManager(Plugin):
     pluginType = PluginManager.TYPE.DEVICEMGR
     previewFileTypes = ['_combi.dat.h5']
     optional = False
+    iconFile = 'current.png'
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Object that bundles pyqtSignals."""
@@ -4585,10 +4568,6 @@ class DeviceManager(Plugin):
         self._recording = False
         self.signalComm.storeSignal.connect(self.store)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('current.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -4839,13 +4818,10 @@ class Notes(Plugin):
     name = 'Notes'
     pluginType = PluginManager.TYPE.DISPLAY
     version = '1.0'
+    iconFile = 'notes.png'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('notes.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -4957,7 +4933,7 @@ class Explorer(Plugin):
     previewFileTypes = ['.lnk']
     SELECTPATH          = 'Select Path'
     optional = False
-
+    iconFile = 'folder.png'
     displayContentSignal = pyqtSignal()
 
     def __init__(self, **kwargs):
@@ -4982,10 +4958,6 @@ class Explorer(Plugin):
         self.displayContentSignal.connect(self.displayContent)
         self.populating = False
         self.loadingContent = False
-
-    def getIcon(self, **kwargs):
-        """:meta private:"""
-        return self.makeCoreIcon('folder.png', **kwargs)
 
     def initGUI(self):
         """:meta private:"""
@@ -5414,6 +5386,7 @@ class UCM(ChannelManager):
     inout = INOUT.NONE
     maxDataPoints = 0 # UCM channels do not store data
     useMonitors = True
+    iconFile = 'UCM.png'
 
     class UCMChannel(RelayChannel, Channel):
         """Minimal UI for abstract channel."""
@@ -5604,9 +5577,6 @@ class UCM(ChannelManager):
         if newChannel is not None:
             newChannel.connectSource()
 
-    def getIcon(self, **kwargs):
-        return self.makeCoreIcon('UCM.png', **kwargs)
-
     def toggleRecording(self, on=None, manual=False):
         super().toggleRecording(on=on, manual=manual)
         if manual:
@@ -5654,6 +5624,7 @@ class PID(ChannelManager):
     optional = True
     inout = INOUT.NONE
     maxDataPoints = 0 # PID channels do not store data
+    iconFile = 'PID.png'
 
     class PIDChannel(RelayChannel, Channel):
         """Minimal UI for abstract PID channel."""
@@ -5850,9 +5821,6 @@ class PID(ChannelManager):
         newChannel = super().duplicateChannel()
         if newChannel is not None:
             newChannel.connectSource()
-
-    def getIcon(self, **kwargs):
-        return self.makeCoreIcon('PID.png', **kwargs)
 
     def connectAllSources(self, update=False):
         for channel in self.channels:

@@ -26,6 +26,8 @@ import matplotlib.pyplot as plt # pylint: disable = unused-import # need to impo
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+from PIL import Image
+from PIL.ImageQt import ImageQt
 from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-import # QtWebEngineWidgets must be imported or Qt.AA_ShareOpenGLContexts must be set before a QCoreApplication instance is created
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout, QInputDialog,
@@ -164,6 +166,9 @@ class PluginManager():
     DESCRIPTION         = 'DESCRIPTION'
     OPTIONAL            = 'OPTIONAL'
     PLUGINTYPE          = 'PLUGINTYPE'
+    DEPENDENCYPATH      = 'dependencyPath'
+    ICONFILE            = 'iconFile'
+    ICONFILEDARK        = 'iconFileDark'
     # WINDOWSTATE = 'WINDOWSTATE'
     plugins = [] # Plugin avoid circular import
     """A central plugin list that allows plugins to interact with each other."""
@@ -232,7 +237,7 @@ class PluginManager():
         self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.providePlugins # pylint: disable = import-outside-toplevel # avoid circular import
-        self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=Path('esibd/media'))
+        self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=internalMediaPath)
         self.loadPluginsFromPath(internalPluginPath)
         self.userPluginPath.mkdir(parents=True, exist_ok=True)
         if self.userPluginPath == internalPluginPath:
@@ -301,12 +306,17 @@ class PluginManager():
             # might consider different import mechanism which does not require import unless plugins are enabled.
             self.pluginNames.append(Plugin.name)
             if Plugin.name not in self.confParser: #add
-                self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.SUPPORTEDVERSION : Plugin.supportedVersion, self.PLUGINTYPE : str(Plugin.pluginType.value),
+                self.confParser[Plugin.name] = {self.ENABLED : not Plugin.optional, self.VERSION : Plugin.version, self.SUPPORTEDVERSION : Plugin.supportedVersion,
+                                                self.DEPENDENCYPATH : dependencyPath, self.ICONFILE : Plugin.iconFile, self.ICONFILEDARK : Plugin.iconFileDark,
+                                                self.PLUGINTYPE : str(Plugin.pluginType.value),
                                             self.PREVIEWFILETYPES : ', '.join(Plugin.previewFileTypes), # getSupportedFiles() not available without instantiation
                                             self.DESCRIPTION : Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL : str(Plugin.optional)}
             else: # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
                 self.confParser[Plugin.name][self.SUPPORTEDVERSION] = Plugin.supportedVersion
+                self.confParser[Plugin.name][self.DEPENDENCYPATH] = dependencyPath.as_posix()
+                self.confParser[Plugin.name][self.ICONFILE] = Plugin.iconFile
+                self.confParser[Plugin.name][self.ICONFILEDARK] = Plugin.iconFileDark
                 self.confParser[Plugin.name][self.PLUGINTYPE] = str(Plugin.pluginType.value)
                 self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(Plugin.previewFileTypes) # getSupportedFiles() not available without instantiation
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
@@ -446,15 +456,16 @@ class PluginManager():
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
-        tree.setHeaderLabels(['Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
-        tree.setColumnCount(7)
+        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
+        tree.setColumnCount(8)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        tree.header().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        tree.setColumnWidth(1, 50)
+        tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         tree.setColumnWidth(2, 50)
         tree.setColumnWidth(3, 50)
-        tree.setColumnWidth(5, 150)
+        tree.setColumnWidth(4, 50)
+        tree.header().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        tree.setColumnWidth(6, 150)
         root = tree.invisibleRootItem()
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -468,14 +479,12 @@ class PluginManager():
         confParser[INFO] = infoDict('PluginManager')
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
-                self.addPluginTreeWidgetItem(tree=tree, name=name, enabled=item[self.ENABLED] == 'True', version_=item[self.VERSION], supportedVersion=item[self.SUPPORTEDVERSION],
-                                                pluginType=item[self.PLUGINTYPE], previewFileTypes=item[self.PREVIEWFILETYPES],
-                                                description=item[self.DESCRIPTION], optional=item[self.OPTIONAL] == 'True')
+                self.addPluginTreeWidgetItem(tree=tree, item=item, name=name)
         dlg.setLayout(lay)
         if dlg.exec():
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             children = [root.child(i) for i in range(root.childCount())] # list of existing children
-            for name, enabled, internal in [(child.text(0),(tree.itemWidget(child, 1)).isChecked(), not (tree.itemWidget(child, 1)).isEnabled()) for child in children]:
+            for name, enabled, internal in [(child.text(1),(tree.itemWidget(child, 2)).isChecked(), not (tree.itemWidget(child, 2)).isEnabled()) for child in children]:
                 if not internal:
                     confParser[name][self.ENABLED] = str(enabled)
             with open(self.pluginFile, 'w', encoding=UTF8) as configFile:
@@ -483,32 +492,38 @@ class PluginManager():
             self.closePlugins(reload=True)
             QApplication.restoreOverrideCursor()
 
-    def addPluginTreeWidgetItem(self, tree, name, enabled, version_, supportedVersion, pluginType, previewFileTypes, description, optional=True):
+    def addPluginTreeWidgetItem(self, tree, item, name):
         """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox."""
-        plugin_widget = QTreeWidgetItem(tree.invisibleRootItem(),[name])
+        plugin_widget = QTreeWidgetItem(tree.invisibleRootItem())
+        if item[self.ICONFILE] != '':
+            plugin_widget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] != '' else item[self.ICONFILE])))
+        else:
+            plugin_widget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
+        plugin_widget.setText(1, name)
         checkbox = CheckBox()
-        checkbox.setChecked(enabled)
-        checkbox.setEnabled(optional)
-        tree.setItemWidget(plugin_widget, 1, checkbox)
+        checkbox.setChecked(item[self.ENABLED] == 'True')
+        checkbox.setEnabled(item[self.OPTIONAL] == 'True')
+        tree.setItemWidget(plugin_widget, 2, checkbox)
         versionLabel = QLabel()
-        versionLabel.setText(version_)
-        tree.setItemWidget(plugin_widget, 2, versionLabel)
+        versionLabel.setText(item[self.VERSION])
+        tree.setItemWidget(plugin_widget, 3, versionLabel)
         supportedVersionLabel = QLabel()
-        supportedVersionLabel.setText(supportedVersion)
-        supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(supportedVersion) else 'green'}")
-        tree.setItemWidget(plugin_widget, 3, supportedVersionLabel)
+        supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
+        supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
+        tree.setItemWidget(plugin_widget, 4, supportedVersionLabel)
         typeLabel = QLabel()
-        typeLabel.setText(pluginType)
-        tree.setItemWidget(plugin_widget, 4, typeLabel)
+        typeLabel.setText(item[self.PLUGINTYPE])
+        tree.setItemWidget(plugin_widget, 5, typeLabel)
         previewFileTypesLabel = QLabel()
-        previewFileTypesLabel.setText(previewFileTypes)
-        previewFileTypesLabel.setToolTip(previewFileTypes)
-        tree.setItemWidget(plugin_widget, 5, previewFileTypesLabel)
+        previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
+        previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])
+        tree.setItemWidget(plugin_widget, 6, previewFileTypesLabel)
         descriptionLabel = QLabel()
+        description = item[self.DESCRIPTION]
         if description is not None:
             descriptionLabel.setText(description.splitlines()[0][:100] )
             descriptionLabel.setToolTip(description)
-        tree.setItemWidget(plugin_widget, 6, descriptionLabel)
+        tree.setItemWidget(plugin_widget, 7, descriptionLabel)
 
     def closePlugins(self, reload=False):
         """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
@@ -2787,9 +2802,14 @@ class DockWidget(QDockWidget):
 class Icon(QIcon):
     """QIcon that allows to save the icon file name. Allows to reuse icon elsewhere, e.g., for html about dialog."""
 
-    def __init__(self, file, pixmap=None):
+    def __init__(self, file, pixmap=None, desaturate=False):
         if isinstance(file, Path):
             file = file.as_posix()
+        if desaturate:
+            image = Image.open(file).convert("RGBA")
+            r, g, b, a = image.split()
+            grayscale = Image.merge("RGB", (r, g, b)).convert("L")
+            pixmap = QPixmap.fromImage(ImageQt(Image.merge("RGBA", (grayscale, grayscale, grayscale, a))))
         if pixmap is None:
             super().__init__(file)
         else:

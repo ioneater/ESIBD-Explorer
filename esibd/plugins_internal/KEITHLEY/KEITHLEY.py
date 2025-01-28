@@ -19,15 +19,13 @@ class KEITHLEY(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'pA'
+    iconFile = 'keithley.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = CurrentChannel
         self.useBackgrounds = True # record backgrounds for data correction
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('keithley.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()

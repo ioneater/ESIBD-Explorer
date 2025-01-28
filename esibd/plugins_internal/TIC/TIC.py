@@ -18,15 +18,13 @@ class TIC(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
+    iconFile = 'edwards_tic.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(_parent=self)
         self.logY = True
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('edwards_tic.png', **kwargs)
 
     def getDefaultSettings(self):
         defaultSettings = super().getDefaultSettings()

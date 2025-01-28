@@ -49,6 +49,7 @@ class Beam(Scan):
     name = 'Beam'
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
+    iconFile = 'beam.png'
 
     class Display(Scan.Display):
         """Display for Beam Scan."""
@@ -106,9 +107,6 @@ class Beam(Scan):
         self.useDisplayChannel = True
         self.previewFileTypes.append('.S2D.dat')
         self.previewFileTypes.append('.s2d.h5')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('beam.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()
@@ -320,6 +318,7 @@ class Spectra(Beam):
 
     name = 'Spectra'
     version = '1.0'
+    iconFile = 'stacked.png'
     LEFTRIGHT = 'X'
     UPDOWN = 'Y'
 
@@ -370,9 +369,6 @@ class Spectra(Beam):
         super(Beam, self).__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('beam.h5')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('stacked.png', **kwargs)
 
     def initScan(self):
         self.toggleDisplay(True)
@@ -551,6 +547,7 @@ class Energy(Scan):
     name = 'Energy'
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
+    iconFile = 'energy.png'
 
     class Display(Scan.Display):
         """Display for energy scan."""
@@ -583,9 +580,6 @@ class Energy(Scan):
         self.useDisplayChannel = True
         self.previewFileTypes.append('.swp.dat')
         self.previewFileTypes.append('.swp.h5')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('energy.png', **kwargs)
 
     def loadDataInternal(self):
         """Loads data in internal standard format for plotting."""
@@ -766,6 +760,7 @@ class Omni(Scan):
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
     useDisplayParameter = True
+    iconFile = 'omni.png'
 
     class Display(Scan.Display):
         """Display for energy scan."""
@@ -797,9 +792,6 @@ class Omni(Scan):
                 if self.scan.interactive and len(self.scan.inputs) > 0:
                     self.xSlider.setValue(int((self.scan.inputs[0].value - self.scan.inputs[0].min)*
                                               self.xSlider.maximum()/(self.scan.inputs[0].max - self.scan.inputs[0].min)))
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('omni.png', **kwargs)
 
     def getDefaultSettings(self):
         defaultSettings = super().getDefaultSettings()
@@ -961,6 +953,7 @@ class Depo(Scan):
     pluginType = PluginManager.TYPE.SCAN
     CHARGE = 'Charge'
     useDisplayParameter = True
+    iconFile = 'depo.png'
 
     class ScanChannel(ScanChannel):
 
@@ -1076,9 +1069,6 @@ class Depo(Scan):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('depo.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()
@@ -1357,6 +1347,8 @@ class GA(Scan):
     name = 'GA'
     version = '1.0'
     pluginType = PluginManager.TYPE.SCAN
+    iconFile = 'GA_light.png'
+    iconFileDark = 'GA_dark.png'
 
     class GASignalCommunicate(QObject):
         updateValuesSignal = pyqtSignal(int, bool)
@@ -1382,9 +1374,6 @@ class GA(Scan):
         self.gaSignalComm.updateValuesSignal.connect(self.updateValues)
         self.changeLog = []
         self.gaChannel = None
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('GA_dark.png' if getDarkMode() else 'GA_light.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()
@@ -1555,6 +1544,8 @@ class MassSpec(Scan):
     version = '1.1'
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.SCAN
+    iconFile = 'ms_light.png'
+    iconFileDark = 'ms_dark.png'
 
     class Display(Scan.Display):
 
@@ -1574,9 +1565,6 @@ class MassSpec(Scan):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('ms scan.h5')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('ms_dark.png' if getDarkMode() else 'ms_light.png', **kwargs)
 
     def getDefaultSettings(self):
         defaultSettings = super().getDefaultSettings()

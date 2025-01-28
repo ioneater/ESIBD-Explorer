@@ -21,6 +21,7 @@ class MIPS(Device):
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
+    iconFile = 'mips.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -31,9 +32,6 @@ class MIPS(Device):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self, COMs = self.getCOMs()) # after all channels loaded
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('mips.png', **kwargs)
 
     def getDefaultSettings(self):
         """:meta private:"""

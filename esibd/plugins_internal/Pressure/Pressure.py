@@ -4,7 +4,7 @@ import re
 import serial
 import numpy as np
 from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, getDarkMode, PRINT, getTestMode, TimeoutLock
+from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode, TimeoutLock
 
 def providePlugins():
     return [Pressure]
@@ -19,15 +19,14 @@ class Pressure(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
+    iconFile = 'pressure_light.png'
+    iconFileDark = 'pressure_dark.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(_parent=self)
         self.logY = True
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('pressure_dark.png' if getDarkMode() else 'pressure_light.png', **kwargs)
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)

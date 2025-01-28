@@ -8,9 +8,9 @@ from esibd.plugins import Device, StaticDisplay, Scan
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel, getTestMode
 
 def providePlugins():
-    return [Current]
+    return [RBD]
 
-class Current(Device):
+class RBD(Device):
     """Device that contains a list of current channels, each corresponding to a single RBD
     9103 picoammeter. The channels show the accumulated charge over time,
     which is proportional to the number of deposited ions. It can also
@@ -22,6 +22,7 @@ class Current(Device):
     supportedVersion = '0.7'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'pA'
+    iconFile = 'RBD.png'
 
     class StaticDisplay(StaticDisplay):
         """A display for device data from files."""
@@ -77,9 +78,6 @@ class Current(Device):
         super().__init__(**kwargs)
         self.channelType = CurrentChannel
         self.useBackgrounds = True # record backgrounds for data correction
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('RBD.png', **kwargs)
 
     def initGUI(self):
         super().initGUI()

@@ -22,6 +22,7 @@ class Voltage(Device):
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
+    iconFile = 'ISEG.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -32,9 +33,6 @@ class Voltage(Device):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self, modules = self.getModules()) # after all channels loaded
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('ISEG.png', **kwargs)
 
     def getDefaultSettings(self):
         """:meta private:"""

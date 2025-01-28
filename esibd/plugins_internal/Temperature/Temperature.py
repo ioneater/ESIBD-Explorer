@@ -21,6 +21,7 @@ class Temperature(Device):
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
+    iconFile = 'temperature.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -32,9 +33,6 @@ class Temperature(Device):
         super().initGUI()
         self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
-
-    def getIcon(self, **kwargs):
-        return self.makeIcon('temperature.png', **kwargs)
 
     def runTestParallel(self):
         self.testControl(self.unitAction, self.unitAction.state)
