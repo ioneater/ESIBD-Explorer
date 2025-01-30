@@ -670,6 +670,7 @@ class Plugin(QWidget):
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
+            # self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.addContentWidget(self.canvas)
         else:
@@ -685,6 +686,7 @@ class Plugin(QWidget):
     def copyClipboard(self):
         """Copy matplotlib figure to clipboard."""
         limits = []
+        buffer = io.BytesIO()
         if getDarkMode() and not getClipboardTheme():
             # use default light theme for clipboard
             with mpl.style.context('default'):
@@ -699,13 +701,12 @@ class Plugin(QWidget):
                 self.fig.set_size_inches(size)
                 self.canvas.draw_idle()
                 # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> pixelated -> use buffer
-                buffer = io.BytesIO()
-                self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
-                QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
-                buffer.close()
+                self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI()) # safeFig in default context
         else:
-        #     self.fig.savefig(buf, format='png', bbox_inches='tight', dpi=getDPI())
-            QApplication.clipboard().setPixmap(self.canvas.grab())
+            self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
+            # QApplication.clipboard().setPixmap(self.canvas.grab()) # grabs entire canvas and not just figure
+        QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
+        buffer.close()
         if getDarkMode() and not getClipboardTheme():
             # restore dark theme for use inside app
             self.initFig()
@@ -841,6 +842,7 @@ class StaticDisplay(Plugin):
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
+            # self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.outputLayout.addWidget(self.canvas)
         else:
