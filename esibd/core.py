@@ -686,6 +686,7 @@ class PluginManager():
         if not (self.loading or self.finalizing):
             self.mainWindow.setUpdatesEnabled(True)
             splash.close()
+        self.toggleTitleBarDelayed(update=True)
 
 class Logger(QObject):
     """Redirects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.

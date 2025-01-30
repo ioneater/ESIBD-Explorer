@@ -662,15 +662,13 @@ class Plugin(QWidget):
         self.canvas = None
 
     def provideFig(self):
-        if self.fig is not None and ((
-                plt.rcParams['axes.facecolor'] == 'black' and self.fig.get_facecolor() == (1.0, 1.0, 1.0, 1.0)) # should be black but is white
-                or (plt.rcParams['axes.facecolor'] == 'white' and self.fig.get_facecolor() == (0.0, 0.0, 0.0, 1.0))): # should be white but is black
+        if self.fig is not None and (rgb_to_hex(self.fig.get_facecolor()) != colors.bg):
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
-            # self.fig.set_facecolor(colors.bg)
+            self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.addContentWidget(self.canvas)
         else:
@@ -701,7 +699,7 @@ class Plugin(QWidget):
                 self.fig.set_size_inches(size)
                 self.canvas.draw_idle()
                 # QApplication.clipboard().setPixmap(self.canvas.grab()) # does not work on just drawn image -> pixelated -> use buffer
-                self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI()) # safeFig in default context
+                self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI(), facecolor='w') # safeFig in default context
         else:
             self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
             # QApplication.clipboard().setPixmap(self.canvas.grab()) # grabs entire canvas and not just figure
@@ -842,7 +840,7 @@ class StaticDisplay(Plugin):
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
-            # self.fig.set_facecolor(colors.bg)
+            self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.outputLayout.addWidget(self.canvas)
         else:

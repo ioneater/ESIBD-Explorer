@@ -58,9 +58,12 @@ class Colors():
     def fg(self):
         return '#e4e7eb' if getDarkMode() else '#000000'
 
+    bg_dark = '#202124'
+    bg_light ='#ffffff'
+
     @property
     def bg(self):
-        return '#202124' if getDarkMode() else '#ffffff'
+        return self.bg_dark if getDarkMode() else self.bg_light
 
     @property
     def bgAlt1(self):
@@ -75,6 +78,9 @@ class Colors():
         return '#8ab4f7' if getDarkMode() else '#8ab4f7'
 
 colors = Colors()
+
+def rgb_to_hex(rgba):
+    return "#{:02x}{:02x}{:02x}".format(int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255))
 
 class INOUT(Enum):
     """Used to specify if a function affects only input, only output, or all channels."""
