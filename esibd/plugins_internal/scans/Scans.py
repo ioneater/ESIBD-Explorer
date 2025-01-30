@@ -15,8 +15,9 @@ import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
 from asteval import Interpreter
-from PyQt6.QtWidgets import QSlider, QLabel, QSizePolicy # , QMessageBox
+from PyQt6.QtWidgets import QSlider, QTextEdit, QSizePolicy # QLabel, QMessageBox
 from PyQt6.QtCore import QObject, Qt
+from PyQt6.QtGui import QFontMetrics
 import numpy as np
 from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT,
     pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState, MZCalculator, ScanChannel)
@@ -1073,9 +1074,12 @@ class Depo(Scan):
     def initGUI(self):
         super().initGUI()
         self.recordingAction.setToolTip('Toggle deposition.')
-        self.depoCheckList = QLabel()
-        self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
-        self.depoCheckList.setText('Deposition checklist:\nPlasma cleaned?\nGrid in place?\nShield closed?\nShuttle inserted?\nLanding energy set?\nRight polarity?\nTemperature set?\nMass selection on?\nNitrogen ready for transfer?')
+        self.depoCheckList = QTextEdit()
+        self.depoCheckList.setReadOnly(True)
+        self.depoCheckList.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        # self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Ignored)
+        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
+        self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') + self.depoCheckList.verticalScrollBar().sizeHint().width()+ 10)
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
     def getExtraUnits(self):

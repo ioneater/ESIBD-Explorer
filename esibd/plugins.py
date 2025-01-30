@@ -2779,6 +2779,17 @@ class Scan(Plugin):
 
     ScanChannel = ScanChannel # allows children to extend this
 
+    class TreeSplitter(QSplitter):
+
+        def __init__(self, scan, **kwargs):
+            self.scan = scan
+            super().__init__(**kwargs)
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)  # Ensure default behavior
+            # make sure settingsTree takes up as much space as possible but there is no gap between settingsTree and channelTree
+            self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height()-self.scan.settingsTree.sizeHint().height()])
+
     class Display(Plugin):
         """Display for base scan. Extend as needed.
 
@@ -2882,9 +2893,10 @@ class Scan(Plugin):
         """:meta private:"""
         self.loading = True
         super().initGUI()
-        self.treeSplitter = QSplitter(orientation=Qt.Orientation.Vertical)
+        self.treeSplitter = self.TreeSplitter(scan=self, orientation=Qt.Orientation.Vertical)
         self.treeSplitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
         self.settingsTree = TreeWidget()
+        self.settingsTree.setMinimumWidth(200)
         self.settingsTree.setHeaderLabels([self.PARAMETER, self.VALUE])
         self.settingsTree.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.settingsTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
@@ -2892,12 +2904,14 @@ class Scan(Plugin):
         self.settingsTree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.settingsLayout = QHBoxLayout()
         self.settingsLayout.setContentsMargins(0, 0, 0, 0)
+        self.settingsLayout.setSpacing(0)
         self.settingsLayout.addWidget(self.settingsTree, alignment=Qt.AlignmentFlag.AlignTop)
         widget = QWidget()
         # widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
-        widget.sizeHint = self.settingsTree.sizeHint
+        # widget.sizeHint = self.settingsTree.sizeHint
         widget.setLayout(self.settingsLayout)
         self.treeSplitter.addWidget(widget)
+        self.treeSplitter.setCollapsible(0, False)
         self.channelTree = TreeWidget() #minimizeHeight=True)
         self.channelTree.header().setStretchLastSection(False)
         self.channelTree.header().setMinimumSectionSize(0)
@@ -2913,6 +2927,7 @@ class Scan(Plugin):
         # widget.sizeHint = self.channelTree.sizeHint
         # self.treeSplitter.addWidget(widget)
         self.treeSplitter.addWidget(self.channelTree)
+        self.treeSplitter.setCollapsible(1, False)
         # self.treeSpacer = QWidget()
         # self.treeSpacer.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         # self.treeSplitter.addWidget(self.treeSpacer)
@@ -4443,7 +4458,7 @@ class Settings(SettingsManager):
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
-        ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
+        ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, _min=0, _max=100000000, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
                                                                 instantUpdate=False, # only trigger event when changed by user!
                                                                 event=lambda: self.updateSessionPath(self.measurementNumber), attr='measurementNumber')

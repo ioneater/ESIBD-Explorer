@@ -2294,6 +2294,10 @@ class ScanChannel(RelayChannel, Channel):
             self.scan.display.initFig()
             self.scan.plot(update=self.scan.recording, done=not self.scan.recording)
 
+    @property
+    def loading(self):
+        return self.scan.loading
+
 class QLabviewSpinBox(QSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False):
