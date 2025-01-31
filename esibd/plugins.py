@@ -1590,8 +1590,8 @@ class ChannelManager(Plugin):
         super().initGUI()
         self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), 'Show advanced options and virtual channels.', self.makeCoreIcon('toolbox.png'),
                                                   'Hide advanced options and virtual channels.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
-        self.importAction = self.addAction(lambda: self.loadConfiguration(None), 'Import channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.exportAction = self.addAction(lambda: self.exportConfiguration(None), 'Export channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), 'Import channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.exportAction = self.addAction(lambda: self.exportConfiguration(file=None), 'Export channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
         self.saveAction = self.addAction(lambda: self.saveConfiguration(), 'Save channels in current session.', icon=self.makeCoreIcon('database-export.png'))
         self.duplicateChannelAction = self.addAction(event=lambda: self.duplicateChannel(), toolTip='Insert copy of selected channel.', icon=self.makeCoreIcon('table-insert-row.png'))
         self.deleteChannelAction    = self.addAction(event=lambda: self.deleteChannel(), toolTip='Delete selected channel.', icon=self.makeCoreIcon('table-delete-row.png'))
@@ -1914,6 +1914,9 @@ class ChannelManager(Plugin):
         if default:
             file = self.customConfigFile(self.confINI)
         if file is None: # get file via dialog
+            if hasattr(self, 'initialized') and self.initialized():
+                self.print('Stop communication to load channels.')
+                return
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
             self.loading = True
