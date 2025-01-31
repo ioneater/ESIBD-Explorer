@@ -2,10 +2,6 @@
 import time
 import numpy as np
 import ctypes
-# Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
-# If needed, add SDK installation path to PATH
-from picosdk.usbPT104 import usbPt104 as pt104
-from picosdk.functions import assert_pico_ok
 from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
@@ -91,18 +87,29 @@ class TemperatureController(DeviceController):
 
     chandle = ctypes.c_int16()
 
+    def __init__(self, _parent):
+        super().__init__(_parent)
+        # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
+        # If needed, add SDK installation path to PATH
+        # importing modules here makes sure that the module is loaded without errors.
+        # Missing SDK is only raised if users enable this plugin.
+        from picosdk.usbPT104 import usbPt104 as pt104
+        from picosdk.functions import assert_pico_ok
+        self.pt104 = pt104
+        self.assert_pico_ok = assert_pico_ok
+
     def closeCommunication(self):
         if self.initialized:
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
-                pt104.UsbPt104CloseUnit(self.chandle)
+                self.pt104.UsbPt104CloseUnit(self.chandle)
         super().closeCommunication()
 
     def runInitialization(self):
         try:
-            pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
+            self.pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
             for channel in self.device.channels:
-                assert_pico_ok(pt104.UsbPt104SetChannel(self.chandle, pt104.PT104_CHANNELS[channel.channel],
-                                                        pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
+                self.assert_pico_ok(self.pt104.UsbPt104SetChannel(self.chandle, self.pt104.PT104_CHANNELS[channel.channel],
+                                                        self.pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e: # pylint: disable=[broad-except]
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -125,7 +132,7 @@ class TemperatureController(DeviceController):
         for i, channel in enumerate(self.device.channels):
             try:
                 meas = ctypes.c_int32()
-                pt104.UsbPt104GetValue(self.chandle, pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
+                self.pt104.UsbPt104GetValue(self.chandle, self.pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
                 if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
                     self.temperatures[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
                 else:

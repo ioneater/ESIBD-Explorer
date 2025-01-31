@@ -3948,7 +3948,7 @@ class Console(Plugin):
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1) # enable hiding
         self.historyFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'console_history.bin'
-        self.historyFile.touch(exist_ok=True)
+        # self.historyFile.touch(exist_ok=True) # will be created next time the program closes, touch creates an invalid file
         # self.historyFile = open(hf, 'w')
         self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
         self.mainConsole.repl._lastCommandRow = 0 # not checking for None if uninitialized! -> initialize
