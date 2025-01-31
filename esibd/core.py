@@ -688,6 +688,18 @@ class PluginManager():
             splash.close()
         self.toggleTitleBarDelayed(update=True)
 
+    def reconnectSource(self, channel):
+        if hasattr(self, 'PID'):
+            self.PID.reconnectSource(channel.name)
+        if hasattr(self, 'UCM'):
+            self.UCM.reconnectSource(channel.name)
+
+    def connectAllSources(self):
+        if hasattr(self, 'PID'):
+            self.PID.connectAllSources(update=True)
+        if hasattr(self, 'UCM'):
+            self.UCM.connectAllSources(update=True)
+
 class Logger(QObject):
     """Redirects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
     Also shows messages on Status bar.

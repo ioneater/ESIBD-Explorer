@@ -1753,10 +1753,7 @@ class ChannelManager(Plugin):
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             self.channels[min(index, len(self.channels)-1)].select = True
-            if hasattr(self.pluginManager, 'PID'):
-                self.pluginManager.PID.reconnectSource(selectedChannel.name) # reconnect will fail and disconnect
-            if hasattr(self.pluginManager, 'UCM'):
-                self.pluginManager.UCM.reconnectSource(selectedChannel.name)
+            self.pluginManager.reconnectSource(selectedChannel)
 
     @synchronized()
     def moveChannel(self, up):
@@ -1787,10 +1784,7 @@ class ChannelManager(Plugin):
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
                 newChannel.value = oldValue
             self.loading = False
-            if hasattr(self.pluginManager, 'PID'):
-                self.pluginManager.PID.reconnectSource(newChannel.name)
-            if hasattr(self.pluginManager, 'UCM'):
-                self.pluginManager.UCM.reconnectSource(newChannel.name)
+            self.pluginManager.reconnectSource(newChannel)
             self.tree.scheduleDelayedItemsLayout()
             return newChannel
 
@@ -1915,7 +1909,7 @@ class ChannelManager(Plugin):
             file = self.customConfigFile(self.confINI)
         if file is None: # get file via dialog
             if hasattr(self, 'initialized') and self.initialized():
-                self.print('Stop communication to load channels.')
+                self.print('Stop communication to load channels.', flag=PRINT.WARNING)
                 return
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
@@ -2040,6 +2034,7 @@ class ChannelManager(Plugin):
             if np.mod(len(self.channels), 5) == 0:
                 self.processEvents()
                 #print(f'{self.name} {len(self.channels)} channels')
+        self.pluginManager.connectAllSources() # previous channels have become invalid
 
     def compareItemsConfig(self, items, ignoreIndicators=False):
         """Compares channel items from file with current configuration.
@@ -2668,19 +2663,19 @@ class Device(ChannelManager):
 
     def duplicateChannel(self):
         if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to duplicate channel.")
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to duplicate channel.", flag=PRINT.WARNING)
             return
         super().duplicateChannel()
 
     def deleteChannel(self):
         if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to delete channel.")
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to delete channel.", flag=PRINT.WARNING)
             return
         super().deleteChannel()
 
     def moveChannel(self, up):
         if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to move channel.")
+            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to move channel.", flag=PRINT.WARNING)
             return
         super().moveChannel(up)
 
