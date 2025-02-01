@@ -1426,8 +1426,6 @@ class Parameter():
 
     def equals(self, value):
         """Returns True if a representation of value matches the value of the parameter"""
-        # if self.internal:
-        #     return self.value == value
         if self.widgetType == self.TYPE.BOOL:
             return self.value == value if isinstance(value,(bool, np.bool_)) else self.value == (value in ['True', 'true']) # accepts strings (from ini file or qSet) and bools
         elif self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
@@ -1442,6 +1440,23 @@ class Parameter():
             return self.value == str(value) # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
         else:
             return self.value == value
+
+    def formatValue(self, value=None):
+        value = value if value is not None else self.value
+        if value is None:
+            return str(value)
+        if self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
+            return f'{int(value)}'
+        elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.FLOATCOMBO, self.TYPE.EXP]:
+            displayDecimals = 2
+            if hasattr(self, 'spin') and hasattr(self.spin, 'displayDecimals'):
+                displayDecimals = self.spin.displayDecimals
+            if self.widgetType == self.TYPE.EXP:
+                return f'{float(value):.{displayDecimals}e}'
+            else:
+                return f'{float(value):.{displayDecimals}f}'
+        else:
+            return str(value)
 
     def initContextMenu(self, pos):
         self._parent.initSettingsContextMenuBase(self, self.getWidget().mapToGlobal(pos))
@@ -1907,7 +1922,7 @@ class Channel(QTreeWidgetItem):
             self.print(f'Could not find parameter {name}.', PRINT.WARNING)
         return parameter
 
-    def asDict(self, temp=False):
+    def asDict(self, temp=False, formatValue=False):
         """Returns a dictionary containing all channel parameters and their values.
 
         :param temp: If true, dict will contain temporary parameters
@@ -1916,7 +1931,7 @@ class Channel(QTreeWidgetItem):
         _dict = {}
         for parameter in self.parameters:
             if temp or parameter.name not in self.tempParameters():
-                _dict[parameter.name] = parameter.value
+                _dict[parameter.name] = parameter.formatValue() if formatValue else parameter.value
         return _dict
 
     def updateValueParallel(self, value): # used to update from external threads

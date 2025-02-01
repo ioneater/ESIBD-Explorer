@@ -15,7 +15,7 @@ import h5py
 from scipy import optimize, interpolate
 from scipy.stats import binned_statistic
 from asteval import Interpreter
-from PyQt6.QtWidgets import QSlider, QTextEdit, QSizePolicy # QLabel, QMessageBox
+from PyQt6.QtWidgets import QSlider, QTextEdit #, QSizePolicy # QLabel, QMessageBox
 from PyQt6.QtCore import QObject, Qt
 from PyQt6.QtGui import QFontMetrics
 import numpy as np
@@ -1526,9 +1526,10 @@ plt.show()
     def saveScanParallel(self, file):
         self.changeLog = [f'Change log for optimizing channels by {self.name}:']
         for channel in [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if channel.optimize]:
-            if not channel.getParameterByName(Parameter.VALUE).equals(self.ga.GAget(channel.name, channel.value, initial=True)):
+            parameter = channel.getParameterByName(Parameter.VALUE)
+            if not parameter.equals(self.ga.GAget(channel.name, channel.value, initial=True)):
                 self.changeLog.append(
-    f'Changed value of {channel.name} from {self.ga.GAget(channel.name, channel.value, initial=True)} to {self.ga.GAget(channel.name, channel.value, index=0):6.2f}.')
+    f'Changed value of {channel.name} from {parameter.formatValue(self.ga.GAget(channel.name, channel.value, initial=True))} to {parameter.formatValue(self.ga.GAget(channel.name, channel.value, index=0))}.')
         if len(self.changeLog) == 1:
             self.changeLog.append('No changes.')
         self.pluginManager.Text.setTextParallel('\n'.join(self.changeLog))

@@ -83,7 +83,7 @@ class Plugin(QWidget):
        require independent versioning and documentation."""
     optional : bool     = True # specify in child to prevent user from disabling this plugin
     """Defines if the user can deactivate the plugin in the :class:`~esibd.core.PluginManager` user interface."""
-    supportedVersion : str = str(PROGRAM_VERSION)
+    supportedVersion : str = f'{PROGRAM_VERSION.major}.{PROGRAM_VERSION.minor}'
     """By default the current program version is used. You can
        define a fixed plugin version and future program versions will
        state that they are incompatible with this plugin. This can be used to
@@ -1825,7 +1825,7 @@ class ChannelManager(Plugin):
                 confParser = configparser.ConfigParser()
                 confParser[INFO] = infoDict(self.name)
                 for i, channel in enumerate(self.channels):
-                    confParser[f'{self.CHANNEL}_{i:03d}'] = channel.asDict(temp=True)
+                    confParser[f'{self.CHANNEL}_{i:03d}'] = channel.asDict(temp=True, formatValue=True)
                 with open(file, 'w', encoding=self.UTF8) as configFile:
                     confParser.write(configFile)
             else: # h5
@@ -1963,7 +1963,7 @@ class ChannelManager(Plugin):
             self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
             for channel in self.getChannels():
                 channel.collapseChanged(toggle=False)
-            self.toggleAdvanced(False)
+            self.toggleAdvanced(self.advancedAction.state)
             self.tree.setUpdatesEnabled(True)
             self.tree.scheduleDelayedItemsLayout()
             self.loading=False
@@ -2004,10 +2004,11 @@ class ChannelManager(Plugin):
     def updateChannelValue(self, name, value):
         channel = self.getChannelByName(name)
         if channel is not None:
+            parameter = channel.getParameterByName(Parameter.VALUE)
             initialVal = channel.value
             channel.value=value
             if initialVal != channel.value: # c.value might be different from value due to coerced range
-                self.changeLog.append(f'Value of channel {name} changed from {initialVal} to {channel.value} {self.unit}.')
+                self.changeLog.append(f'Value of channel {name} changed from {parameter.formatValue(initialVal)} to {parameter.formatValue(channel.value)} {self.unit}.')
         else:
             self.print(f'Could not find channel {name}.', PRINT.WARNING)
 
@@ -2060,7 +2061,7 @@ class ChannelManager(Plugin):
                     if name in item and not parameter.equals(item[name]):
                         if parameter.indicator and ignoreIndicators:
                             continue
-                        changeLog.append(f'Updating parameter {name} on channel {channel.name} from {parameter.value} to {item[name]}')
+                        changeLog.append(f'Updating parameter {name} on channel {channel.name} from {parameter.formatValue()} to {parameter.formatValue(item[name])}')
         newNames = [item[Parameter.NAME] for item in items]
         for channel in self.getChannels():
             if channel.name not in newNames:
@@ -4266,7 +4267,7 @@ class SettingsManager(Plugin):
                     if not item[Parameter.INTERNAL]:
                         setting = self.settings[item[Parameter.NAME]]
                         if not setting.equals(item[Parameter.VALUE]):
-                            self.changeLog.append(f'Updating setting {setting.fullName} from {setting.value} to {item[Parameter.VALUE]}')
+                            self.changeLog.append(f'Updating setting {setting.fullName} from {setting.formatValue()} to {setting.formatValue(item[Parameter.VALUE])}')
                 else:
                     self.changeLog.append(f'Adding setting {item[Parameter.NAME]}')
             newNames = [item[Parameter.NAME] for item in items]
@@ -4320,8 +4321,8 @@ class SettingsManager(Plugin):
                 if name not in [Parameter.DEFAULT.upper(), VERSION] and not self.settings[name].internal:
                     if name not in config:
                         config[name] = {}
-                    config[name][Parameter.VALUE]     = str(self.settings[name].value)
-                    config[name][Parameter.DEFAULT]   = str(self.settings[name].default)
+                    config[name][Parameter.VALUE]     = self.settings[name].formatValue()
+                    config[name][Parameter.DEFAULT]   = self.settings[name].formatValue(self.settings[name].default)
                     if default[Parameter.WIDGETTYPE] in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]:
                         config[name][Parameter.ITEMS] = ','.join(self.settings[name].items)
             with open(file, 'w', encoding=self.UTF8) as configFile:
