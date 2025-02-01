@@ -445,11 +445,11 @@ class PluginManager():
 
     def managePlugins(self):
         """A dialog to select which plugins should be enabled."""
-        if self.DeviceManager.recording:
-            if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changing plugins!').exec():
-                self.DeviceManager.closeCommunication()
-            else:
-                return
+        # if self.DeviceManager.recording:
+        #     if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changing plugins!').exec():
+        #         self.DeviceManager.closeCommunication()
+        #     else:
+        #         return
         dlg = QDialog(self.mainWindow)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
@@ -469,7 +469,7 @@ class PluginManager():
         root = tree.invisibleRootItem()
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText("Confirm and Reload Plugins")
+        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText('Stop communication and reload plugins' if self.DeviceManager.recording else 'Reload plugins')
         buttonBox.accepted.connect(dlg.accept)
         buttonBox.rejected.connect(dlg.reject)
         lay.addWidget(buttonBox)
@@ -482,6 +482,8 @@ class PluginManager():
                 self.addPluginTreeWidgetItem(tree=tree, item=item, name=name)
         dlg.setLayout(lay)
         if dlg.exec():
+            if self.DeviceManager.recording:
+                self.DeviceManager.closeCommunication(closing=True)
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             children = [root.child(i) for i in range(root.childCount())] # list of existing children
             for name, enabled, internal in [(child.text(1),(tree.itemWidget(child, 2)).isChecked(), not (tree.itemWidget(child, 2)).isEnabled()) for child in children]:
