@@ -3025,6 +3025,8 @@ class LineEdit(QLineEdit):
     def __init__(self, parent=None, tree=None):
         super().__init__(parent)
         self._edited = False
+        # Regular expression to allow only letters (both upper and lower case), digits, and spaces + mathematical symbols and brackets for equations
+        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\.*\+\\/]*$'
         self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)
@@ -3039,6 +3041,17 @@ class LineEdit(QLineEdit):
     def onTextChanged(self, text):
         # text changed by user or setText
         self.updateGeometry() # adjust width to text
+        self.validateInput()
+
+    def validateInput(self):
+        """Validate the text and remove invalid characters"""
+        current_text = self.text()
+        # Remove any character that doesn't match the valid_chars regex
+        if not re.match(self.valid_chars, current_text):
+            # Filter the text, keeping only valid characters
+            filtered_text = ''.join([char for char in current_text if re.match(self.valid_chars, char)])
+            [print(f'Removing invalid character {char} from {current_text}') for char in current_text if not re.match(self.valid_chars, char)]
+            self.setText(filtered_text)  # Update the QLineEdit with valid characters only
 
     def onEditingFinished(self):
         # editing finished by Enter or loosing focus

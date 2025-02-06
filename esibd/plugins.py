@@ -2396,6 +2396,7 @@ class Device(ChannelManager):
             return self.controller.initialized
 
     def initializeCommunication(self):
+        initialRecording = self.recording
         self.appendData(nan=True) # prevent interpolation to old data
         if self.controller is None:
             if self.channels[0].controller is not None:
@@ -2405,6 +2406,8 @@ class Device(ChannelManager):
         else:
             self.controller.initializeCommunication()
         super().initializeCommunication()
+        if initialRecording:
+            self.startRecording()
 
     def closeCommunication(self):
         """Stops all communication.
