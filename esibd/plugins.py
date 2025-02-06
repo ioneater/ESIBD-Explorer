@@ -51,7 +51,6 @@ if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
 
-
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
     All plugins are ultimately derived from the :class:`~esibd.plugins.Plugin` class.
@@ -1595,6 +1594,7 @@ class ChannelManager(Plugin):
         super().initGUI()
         self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), 'Show advanced options and virtual channels.', self.makeCoreIcon('toolbox.png'),
                                                   'Hide advanced options and virtual channels.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
+        self.advancedAction.state = False # always off on start
         self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), 'Import channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
         self.exportAction = self.addAction(lambda: self.exportConfiguration(file=None), 'Export channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
         self.saveAction = self.addAction(lambda: self.saveConfiguration(), 'Save channels in current session.', icon=self.makeCoreIcon('database-export.png'))
@@ -1968,7 +1968,7 @@ class ChannelManager(Plugin):
             self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
             for channel in self.getChannels():
                 channel.collapseChanged(toggle=False)
-            self.toggleAdvanced(self.advancedAction.state)
+            self.toggleAdvanced(self.advancedAction.state) # keep state after importing new configuration
             self.tree.setUpdatesEnabled(True)
             self.tree.scheduleDelayedItemsLayout()
             self.loading=False
@@ -4002,7 +4002,7 @@ class Console(Plugin):
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow, 'help':lambda: self.help()}
         for plugin in self.pluginManager.plugins: # direct access to plugins
             namespace[plugin.name] = plugin
-        self.mainConsole.localNamespace=namespace
+        self.mainConsole.localNamespace = namespace
         self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
                                               before=self.aboutAction, event=lambda: self.toggleLogging())

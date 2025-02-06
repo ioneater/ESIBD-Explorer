@@ -482,13 +482,19 @@ class PluginManager():
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
                 self.addPluginTreeWidgetItem(tree=tree, item=item, name=name)
+
         dlg.setLayout(lay)
         if dlg.exec():
             if self.DeviceManager.recording:
                 self.DeviceManager.closeCommunication(closing=True)
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            children = [root.child(i) for i in range(root.childCount())] # list of existing children
-            for name, enabled, internal in [(child.text(1),(tree.itemWidget(child, 2)).isChecked(), not (tree.itemWidget(child, 2)).isEnabled()) for child in children]:
+            for child in [root.child(i) for i in range(root.childCount())]:
+                name = child.text(1)
+                enabled = True
+                internal = True
+                if tree.itemWidget(child, 2) is not None:
+                    enabled = (tree.itemWidget(child, 2)).isChecked()
+                    internal = False
                 if not internal:
                     confParser[name][self.ENABLED] = str(enabled)
             with open(self.pluginFile, 'w', encoding=UTF8) as configFile:
@@ -498,37 +504,36 @@ class PluginManager():
 
     def addPluginTreeWidgetItem(self, tree, item, name):
         """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox."""
-        plugin_widget = QTreeWidgetItem(tree.invisibleRootItem())
+        pluginTreeWidget = QTreeWidgetItem(tree.invisibleRootItem())
         if item[self.ICONFILE] != '':
-            plugin_widget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] != '' else item[self.ICONFILE])))
+            pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] != '' else item[self.ICONFILE])))
         else:
-            plugin_widget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
-        plugin_widget.setText(1, name)
-        checkbox = CheckBox()
-        checkbox.setChecked(item[self.ENABLED] == 'True')
-        checkbox.setEnabled(item[self.OPTIONAL] == 'True')
-        # checkbox.setVisible(item[self.OPTIONAL] == 'True') # TODO fix
-        tree.setItemWidget(plugin_widget, 2, checkbox)
+            pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
+        pluginTreeWidget.setText(1, name)
+        if item[self.OPTIONAL] == 'True':
+            checkbox = CheckBox()
+            checkbox.setChecked(item[self.ENABLED] == 'True')
+            tree.setItemWidget(pluginTreeWidget, 2, checkbox)
         versionLabel = QLabel()
         versionLabel.setText(item[self.VERSION])
-        tree.setItemWidget(plugin_widget, 3, versionLabel)
+        tree.setItemWidget(pluginTreeWidget, 3, versionLabel)
         supportedVersionLabel = QLabel()
         supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
         supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
-        tree.setItemWidget(plugin_widget, 4, supportedVersionLabel)
+        tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
         typeLabel = QLabel()
         typeLabel.setText(item[self.PLUGINTYPE])
-        tree.setItemWidget(plugin_widget, 5, typeLabel)
+        tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
         previewFileTypesLabel = QLabel()
         previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
         previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])
-        tree.setItemWidget(plugin_widget, 6, previewFileTypesLabel)
+        tree.setItemWidget(pluginTreeWidget, 6, previewFileTypesLabel)
         descriptionLabel = QLabel()
         description = item[self.DESCRIPTION]
         if description is not None:
             descriptionLabel.setText(description.splitlines()[0][:100] )
             descriptionLabel.setToolTip(description)
-        tree.setItemWidget(plugin_widget, 7, descriptionLabel)
+        tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
 
     def closePlugins(self, reload=False):
         """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
