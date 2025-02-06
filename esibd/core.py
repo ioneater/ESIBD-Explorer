@@ -265,9 +265,11 @@ class PluginManager():
         if hasattr(self, 'Text'):
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Text))) # move Text to end to have lowest priority to handle files
         if hasattr(self, 'PID'):
-            self.plugins.append(self.plugins.pop(self.plugins.index(self.PID))) # move PID to end to connectAllSources after all devices are initialized
+            if self.PID in self.plugins:
+                self.plugins.append(self.plugins.pop(self.plugins.index(self.PID))) # move PID to end to connectAllSources after all devices are initialized
         if hasattr(self, 'UCM'):
-            self.plugins.append(self.plugins.pop(self.plugins.index(self.UCM))) # move UCM to end to connectAllSources after all devices and PID are initialized
+            if self.UCM in self.plugins:
+                self.plugins.append(self.plugins.pop(self.plugins.index(self.UCM))) # move UCM to end to connectAllSources after all devices and PID are initialized
         self.loading = False
         self.finalizing = True
         self.finalizeInit()
@@ -456,7 +458,7 @@ class PluginManager():
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
-        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description'])
+        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tool tips!)'])
         tree.setColumnCount(8)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -505,6 +507,7 @@ class PluginManager():
         checkbox = CheckBox()
         checkbox.setChecked(item[self.ENABLED] == 'True')
         checkbox.setEnabled(item[self.OPTIONAL] == 'True')
+        # checkbox.setVisible(item[self.OPTIONAL] == 'True') # TODO fix
         tree.setItemWidget(plugin_widget, 2, checkbox)
         versionLabel = QLabel()
         versionLabel.setText(item[self.VERSION])
@@ -2778,6 +2781,7 @@ class DockWidget(QDockWidget):
     """DockWidget with custom title bar allows to intercept the close and float events triggered by user."""
     # future desired features:
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
+    # floating windows should not disappear when dragged below taskbar but jump back as normal windows
     # - some of these are possible with pyqtgraph but this introduces other limitations and bugs
     # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
 
@@ -2829,6 +2833,8 @@ class DockWidget(QDockWidget):
                             for i in range(tabBar.count()):
                                 if tabBar.tabText(i) == self.title:
                                     tabBar.setTabIcon(i, QIcon() if getIconMode() == 'Labels' else self.plugin.getIcon())
+                                    # if getIconMode() == 'Icons':
+                                    #     tabBar.tabIcon(i).setToolTip(self.title) cannot assign tooltip
                 if not isinstance(self.parent(), QMainWindow):
                     self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
 

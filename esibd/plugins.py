@@ -334,7 +334,7 @@ class Plugin(QWidget):
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
         self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
-        self.floatAction = self.addStateAction(lambda: self.setFloat(), 'Float.', self.makeCoreIcon('application.png'), 'Dock.', self.makeCoreIcon('applications.png')
+        self.floatAction = self.addStateAction(lambda: self.setFloat(), f'Float {self.name}.', self.makeCoreIcon('application.png'), f'Dock {self.name}.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
@@ -1066,8 +1066,9 @@ plt.show()
 # import pyqtgraph.multiprocess as mp
 
 class LiveDisplay(Plugin):
-    """Live displays show the history of measured data over time. The toolbar
-    provides icons to initialize, start, pause, stop acquisition, optionally
+    """Live displays show the history of measured data over time.
+    Use start/pause icon in corresponding device control. The toolbar
+    provides icons to initialize and stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
     Data is only collected if the corresponding live display is visible.
     The length of the displayed history is determined by the display time
@@ -1080,8 +1081,9 @@ class LiveDisplay(Plugin):
     consistent subset of data points for a smooth visualization. While
     PyQtGraph provides its own algorithms for down sampling data (accessible
     via the context menu), they tend to cause a flicker when updating data."""
-    documentation = """Live displays show the history of measured data over time. The toolbar
-    provides icons to initialize, start, pause, stop acquisition, optionally
+    documentation = """Live displays show the history of measured data over time.
+    Use start/pause icon in corresponding device control. The toolbar
+    provides icons to initialize and stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
     Data is only collected if the corresponding live display is visible.
     The length of the displayed history is determined by the display time
@@ -1549,6 +1551,9 @@ class ChannelManager(Plugin):
         def finalizeInit(self, aboutFunc=None):
             super().finalizeInit(aboutFunc)
             self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+
+        def getIcon(self, desaturate=False):
+            return self.makeCoreIcon(self.iconFile)
 
         def runTestParallel(self):
             if self.initializedDock:
@@ -3920,7 +3925,7 @@ class Console(Plugin):
     also enable writing status messages to a log file, that can be shared
     with a developer for debugging. All features implemented in the user
     interface and more can be accessed directly from this console. Use at
-    your own Risk! You can select some commonly used commands directly from
+    your own Risk! You can select some commonly used examples directly from
     the combo box to get started."""
     documentation = """The console should typically not be needed, unless you are a developer
     or assist in debugging an issue. It is activated from the tool bar of
@@ -3928,7 +3933,7 @@ class Console(Plugin):
     also enable writing status messages to a log file, that can be shared
     with a developer for debugging. All features implemented in the user
     interface and more can be accessed directly from this console. Use at
-    your own Risk! You can select some commonly used commands directly from
+    your own Risk! You can select some commonly used examples directly from
     the combo box to get started."""
 
     pluginType = PluginManager.TYPE.CONSOLE
@@ -3994,7 +3999,7 @@ class Console(Plugin):
         super().finalizeInit(aboutFunc)
         namespace = {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'sys':sys, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
                     'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'importlib':importlib,
-                      'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow}
+                      'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow, 'help':lambda: self.help()}
         for plugin in self.pluginManager.plugins: # direct access to plugins
             namespace[plugin.name] = plugin
         self.mainConsole.localNamespace=namespace
@@ -4060,6 +4065,9 @@ class Console(Plugin):
             self.mainConsole.input.setText('Enter object to be inspected here first.')
         else:
             self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
+
+    def help(self):
+        self.print('Please refer to online (http://esibd-explorer.rtfd.io/) or offline documentation (book in browser) as well as tool tips to get help.')
 
     @synchronized(timeout=1)
     def execute(self, command):
@@ -5218,6 +5226,8 @@ class Explorer(Plugin):
     def populateTree(self, clear=False):
         """Populates or updates fileTree."""
         self.populating = True
+        for action in [self.backAction, self.forwardAction, self.upAction, self.refreshAction]:
+            action.setEnabled(False)
         if clear: # otherwise existing tree will be updated (much more efficient)
             self.tree.clear()
         # update navigation arrows
@@ -5242,6 +5252,8 @@ class Explorer(Plugin):
                 self.load_project_structure(startPath=it.value().path_info, tree=it.value(), _filter=self.filterLineEdit.text(), clear=clear) # populate expanded dirs, independent of recursion depth
             it +=1
         self.populating = False
+        for action in [self.backAction, self.forwardAction, self.upAction, self.refreshAction]:
+            action.setEnabled(True)
 
     def browseDir(self):
         newPath = Path(QFileDialog.getExistingDirectory(parent=None, caption=self.SELECTPATH, directory=self.root.as_posix(),
