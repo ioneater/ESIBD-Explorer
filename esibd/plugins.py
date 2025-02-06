@@ -36,7 +36,7 @@ from matplotlib.backend_bases import MouseButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
-                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter)
+                            QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter, QDockWidget)
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor #, QPixmap # ,QScreen , QColor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -4605,6 +4605,7 @@ class DeviceManager(Plugin):
     def initDock(self):
         """:meta private:"""
         super().initDock()
+        self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
         self.dock.setMaximumHeight(22) # GUI will only consist of titleBar
 
     def finalizeInit(self, aboutFunc=None):
@@ -4614,6 +4615,8 @@ class DeviceManager(Plugin):
         if hasattr(self.pluginManager, 'Settings') and self.pluginManager.Settings.sessionPath == '': # keep existing session path when restarting
             self.pluginManager.Settings.updateSessionPath()
         super().finalizeInit(aboutFunc)
+        self.floatAction.deleteLater()
+        delattr(self, 'floatAction')
         self.displayTimeComboBox = EsibdCore.RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr='displayTime',
                                                         event=lambda: self.updateDisplayTime(), _min=.2, _max=3600,
                                                         toolTip='Length of displayed history in min. When -1, all history is shown.')
