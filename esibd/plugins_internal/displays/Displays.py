@@ -322,7 +322,7 @@ class LINE(Plugin):
     version = '1.0'
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.txt']
-    iconFile = 'chart.png'
+    iconFile = 'line.png'
 
     def initGUI(self):
         self.profile = None

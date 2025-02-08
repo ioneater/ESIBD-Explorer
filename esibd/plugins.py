@@ -4579,7 +4579,7 @@ class DeviceManager(Plugin):
     pluginType = PluginManager.TYPE.DEVICEMGR
     previewFileTypes = ['_combi.dat.h5']
     optional = False
-    iconFile = 'current.png'
+    iconFile = 'DeviceManager.png'
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Object that bundles pyqtSignals."""
