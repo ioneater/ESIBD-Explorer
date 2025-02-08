@@ -67,8 +67,3 @@ DeviceController
 
 .. automodule:: esibd.core.DeviceController
    :noindex:
-
-
-
-
-

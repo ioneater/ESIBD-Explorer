@@ -55,7 +55,8 @@
 <li class="toctree-l2"><a class="reference internal" href="install.html#standalone-windows-installer">1.1. Standalone Windows installer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="install.html#from-pypi">1.2. From PyPi</a></li>
 <li class="toctree-l2"><a class="reference internal" href="install.html#from-source-miniconda">1.3. From source (Miniconda)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="install.html#from-source-other">1.4. From source (other)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#from-pypi-linux">1.4. From PyPi (Linux)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#from-source-other">1.5. From source (other)</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="esibd.html">2. Electrospray ion-beam deposition</a></li>
@@ -159,6 +160,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.previewFileTypes"><code class="docutils literal notranslate"><span class="pre">ChannelManager.previewFileTypes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.runDataThread"><code class="docutils literal notranslate"><span class="pre">ChannelManager.runDataThread()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.staticDisplay"><code class="docutils literal notranslate"><span class="pre">ChannelManager.staticDisplay</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.supportsFile"><code class="docutils literal notranslate"><span class="pre">ChannelManager.supportsFile()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.toggleRecording"><code class="docutils literal notranslate"><span class="pre">ChannelManager.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.updateChannelConfig"><code class="docutils literal notranslate"><span class="pre">ChannelManager.updateChannelConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.useBackgrounds"><code class="docutils literal notranslate"><span class="pre">ChannelManager.useBackgrounds</span></code></a></li>
@@ -190,7 +192,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.setBackground"><code class="docutils literal notranslate"><span class="pre">Device.setBackground()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.startAcquisition"><code class="docutils literal notranslate"><span class="pre">Device.startAcquisition()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.stopAcquisition"><code class="docutils literal notranslate"><span class="pre">Device.stopAcquisition()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.supportsFile"><code class="docutils literal notranslate"><span class="pre">Device.supportsFile()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Device.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.unit"><code class="docutils literal notranslate"><span class="pre">Device.unit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Device.updateValues"><code class="docutils literal notranslate"><span class="pre">Device.updateValues()</span></code></a></li>
@@ -203,6 +204,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.closeCommunication"><code class="docutils literal notranslate"><span class="pre">DeviceManager.closeCommunication()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.documentation"><code class="docutils literal notranslate"><span class="pre">DeviceManager.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.getChannelByName"><code class="docutils literal notranslate"><span class="pre">DeviceManager.getChannelByName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.iconFile"><code class="docutils literal notranslate"><span class="pre">DeviceManager.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.name"><code class="docutils literal notranslate"><span class="pre">DeviceManager.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.optional"><code class="docutils literal notranslate"><span class="pre">DeviceManager.optional</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.pluginType"><code class="docutils literal notranslate"><span class="pre">DeviceManager.pluginType</span></code></a></li>
@@ -227,8 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.PIDChannel"><code class="docutils literal notranslate"><span class="pre">PID.PIDChannel</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">PID.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.channelType"><code class="docutils literal notranslate"><span class="pre">PID.channelType</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.getIcon"><code class="docutils literal notranslate"><span class="pre">PID.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.iconFile"><code class="docutils literal notranslate"><span class="pre">PID.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">PID.loadConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.loadData"><code class="docutils literal notranslate"><span class="pre">PID.loadData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.moveChannel"><code class="docutils literal notranslate"><span class="pre">PID.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.name"><code class="docutils literal notranslate"><span class="pre">PID.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.optional"><code class="docutils literal notranslate"><span class="pre">PID.optional</span></code></a></li>
@@ -260,6 +263,8 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.finalizeInit"><code class="docutils literal notranslate"><span class="pre">Plugin.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.getDefaultSettings"><code class="docutils literal notranslate"><span class="pre">Plugin.getDefaultSettings()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.getIcon"><code class="docutils literal notranslate"><span class="pre">Plugin.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.iconFile"><code class="docutils literal notranslate"><span class="pre">Plugin.iconFile</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.iconFileDark"><code class="docutils literal notranslate"><span class="pre">Plugin.iconFileDark</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.initDock"><code class="docutils literal notranslate"><span class="pre">Plugin.initDock()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.initFig"><code class="docutils literal notranslate"><span class="pre">Plugin.initFig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Plugin.initGUI"><code class="docutils literal notranslate"><span class="pre">Plugin.initGUI()</span></code></a></li>
@@ -301,6 +306,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.plugins.Scan"><code class="docutils literal notranslate"><span class="pre">Scan</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.ScanChannel"><code class="docutils literal notranslate"><span class="pre">Scan.ScanChannel</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">Scan.SignalCommunicate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.TreeSplitter"><code class="docutils literal notranslate"><span class="pre">Scan.TreeSplitter</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.addInputChannel"><code class="docutils literal notranslate"><span class="pre">Scan.addInputChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">Scan.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.channels"><code class="docutils literal notranslate"><span class="pre">Scan.channels</span></code></a></li>
@@ -328,10 +334,12 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.saveScanParallel"><code class="docutils literal notranslate"><span class="pre">Scan.saveScanParallel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Scan.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.useDisplayChannel"><code class="docutils literal notranslate"><span class="pre">Scan.useDisplayChannel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.useDisplayParameter"><code class="docutils literal notranslate"><span class="pre">Scan.useDisplayParameter</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.plugins.Settings"><code class="docutils literal notranslate"><span class="pre">Settings</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Settings.getDefaultSettings"><code class="docutils literal notranslate"><span class="pre">Settings.getDefaultSettings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Settings.iconFile"><code class="docutils literal notranslate"><span class="pre">Settings.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Settings.incrementMeasurementNumber"><code class="docutils literal notranslate"><span class="pre">Settings.incrementMeasurementNumber()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Settings.init"><code class="docutils literal notranslate"><span class="pre">Settings.init()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Settings.loadSettings"><code class="docutils literal notranslate"><span class="pre">Settings.loadSettings()</span></code></a></li>
@@ -365,9 +373,10 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">UCM.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.channelType"><code class="docutils literal notranslate"><span class="pre">UCM.channelType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.documentation"><code class="docutils literal notranslate"><span class="pre">UCM.documentation</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.getIcon"><code class="docutils literal notranslate"><span class="pre">UCM.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.iconFile"><code class="docutils literal notranslate"><span class="pre">UCM.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.initGUI"><code class="docutils literal notranslate"><span class="pre">UCM.initGUI()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">UCM.loadConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.loadData"><code class="docutils literal notranslate"><span class="pre">UCM.loadData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.moveChannel"><code class="docutils literal notranslate"><span class="pre">UCM.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.name"><code class="docutils literal notranslate"><span class="pre">UCM.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.UCM.optional"><code class="docutils literal notranslate"><span class="pre">UCM.optional</span></code></a></li>
@@ -476,6 +485,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.LineEdit"><code class="docutils literal notranslate"><span class="pre">LineEdit</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.LineEdit.sizeHint"><code class="docutils literal notranslate"><span class="pre">LineEdit.sizeHint()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.LineEdit.userEditingFinished"><code class="docutils literal notranslate"><span class="pre">LineEdit.userEditingFinished</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.LineEdit.validateInput"><code class="docutils literal notranslate"><span class="pre">LineEdit.validateInput()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.Logger"><code class="docutils literal notranslate"><span class="pre">Logger</span></code></a><ul>
@@ -636,14 +646,16 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeSettingWrapper"><code class="docutils literal notranslate"><span class="pre">makeSettingWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeStateWrapper"><code class="docutils literal notranslate"><span class="pre">makeStateWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.smooth"><code class="docutils literal notranslate"><span class="pre">smooth()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.validatePath"><code class="docutils literal notranslate"><span class="pre">validatePath()</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">6. Acknowledgments</a></li>
-<li class="toctree-l1"><a class="reference internal" href="references.html">7. References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">6. Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">7. Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">8. References</a></li>
 </ul>
 
         </div>
@@ -941,8 +953,7 @@ outputs. In the advanced mode, channels can be duplicated, moved, or
 deleted. You may also edit channels directly in the corresponding .ini
 file in the config path.</p>
 <p>Channels are accessible from any plugin using <a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.getChannelByName" title="esibd.plugins.DeviceManager.getChannelByName"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getChannelByName()</span></code></a>.
-This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
-Please avoid using very short names, and names that are a subset of names of other channels.</p>
+This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.</p>
 <p>The following defines basic channel properties.</p>
 <dl class="simple">
 <dt>Select</dt><dd><p>In the advanced mode, this is used to select a channel to be
@@ -1216,8 +1227,9 @@ Interactive 3D surface plots with density thresholds allow for efficient visuali
 </section>
 <section id="live-displays">
 <span id="sec-live-displays"></span><h2><span class="section-number">3.12. </span>Live displays<a class="headerlink" href="#live-displays" title="Link to this heading"></a></h2>
-<p>Live displays show the history of measured data over time. The toolbar
-provides icons to initialize, start, pause, stop acquisition, optionally
+<p>Live displays show the history of measured data over time.
+Use start/pause icon in corresponding device control. The toolbar
+provides icons to initialize and stop acquisition, optionally
 subtract backgrounds, or export displayed data to the current session.
 Data is only collected if the corresponding live display is visible.
 The length of the displayed history is determined by the display time
@@ -1252,7 +1264,7 @@ the <a class="reference internal" href="#sec-settings"><span class="std std-ref"
 also enable writing status messages to a log file, that can be shared
 with a developer for debugging. All features implemented in the user
 interface and more can be accessed directly from this console. Use at
-your own Risk! You can select some commonly used commands directly from
+your own Risk! You can select some commonly used examples directly from
 the combo box to get started.</p>
 </section>
 </section>

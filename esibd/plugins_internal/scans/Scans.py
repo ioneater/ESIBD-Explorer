@@ -1017,7 +1017,7 @@ class Depo(Scan):
             self.fig.set_constrained_layout_pads(h_pad=-4.0) # reduce space between axes
             rows = len(self.scan.getExtraUnits()) + 2
             self.axes.append(self.fig.add_subplot(rows, 1, 1)) # current axis
-            self.axes.append(self.fig.add_subplot(rows ,1, 2, sharex = self.axes[0])) # charge axis
+            self.axes.append(self.fig.add_subplot(rows, 1, 2, sharex = self.axes[0])) # charge axis
             for i, unit in enumerate(self.scan.getExtraUnits()):
                 self.axes.append(self.fig.add_subplot(rows, 1, 3+i, sharex = self.axes[0]))
                 self.axes[2+i].set_ylabel(unit)
@@ -1262,7 +1262,7 @@ rows = len(getExtraUnits()) + 2
 axes = []
 axes.append(fig.add_subplot(rows, 1, 1)) # current axis
 axes[0].set_ylabel('pA')
-axes.append(fig.add_subplot(rows ,1, 2, sharex = axes[0])) # charge axis
+axes.append(fig.add_subplot(rows, 1, 2, sharex = axes[0])) # charge axis
 axes[1].set_ylabel('pAh')
 
 for i, unit in enumerate(getExtraUnits()):

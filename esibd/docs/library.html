@@ -25,7 +25,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="6. Acknowledgments" href="pages/acknowledgments.html" />
+    <link rel="next" title="6. Changelog" href="pages/changelog.html" />
     <link rel="prev" title="4. Plugin development" href="pages/plugin-development.html" /> 
 </head>
 
@@ -55,7 +55,8 @@
 <li class="toctree-l2"><a class="reference internal" href="pages/install.html#standalone-windows-installer">1.1. Standalone Windows installer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/install.html#from-pypi">1.2. From PyPi</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/install.html#from-source-miniconda">1.3. From source (Miniconda)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="pages/install.html#from-source-other">1.4. From source (other)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pages/install.html#from-pypi-linux">1.4. From PyPi (Linux)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pages/install.html#from-source-other">1.5. From source (other)</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="pages/esibd.html">2. Electrospray ion-beam deposition</a></li>
@@ -159,6 +160,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.previewFileTypes"><code class="docutils literal notranslate"><span class="pre">ChannelManager.previewFileTypes</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.runDataThread"><code class="docutils literal notranslate"><span class="pre">ChannelManager.runDataThread()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.staticDisplay"><code class="docutils literal notranslate"><span class="pre">ChannelManager.staticDisplay</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.supportsFile"><code class="docutils literal notranslate"><span class="pre">ChannelManager.supportsFile()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.toggleRecording"><code class="docutils literal notranslate"><span class="pre">ChannelManager.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.updateChannelConfig"><code class="docutils literal notranslate"><span class="pre">ChannelManager.updateChannelConfig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.ChannelManager.useBackgrounds"><code class="docutils literal notranslate"><span class="pre">ChannelManager.useBackgrounds</span></code></a></li>
@@ -190,7 +192,6 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.setBackground"><code class="docutils literal notranslate"><span class="pre">Device.setBackground()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.startAcquisition"><code class="docutils literal notranslate"><span class="pre">Device.startAcquisition()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.stopAcquisition"><code class="docutils literal notranslate"><span class="pre">Device.stopAcquisition()</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.supportsFile"><code class="docutils literal notranslate"><span class="pre">Device.supportsFile()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Device.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.unit"><code class="docutils literal notranslate"><span class="pre">Device.unit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.updateValues"><code class="docutils literal notranslate"><span class="pre">Device.updateValues()</span></code></a></li>
@@ -203,6 +204,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.closeCommunication"><code class="docutils literal notranslate"><span class="pre">DeviceManager.closeCommunication()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.documentation"><code class="docutils literal notranslate"><span class="pre">DeviceManager.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.getChannelByName"><code class="docutils literal notranslate"><span class="pre">DeviceManager.getChannelByName()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.iconFile"><code class="docutils literal notranslate"><span class="pre">DeviceManager.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.name"><code class="docutils literal notranslate"><span class="pre">DeviceManager.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.optional"><code class="docutils literal notranslate"><span class="pre">DeviceManager.optional</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.DeviceManager.pluginType"><code class="docutils literal notranslate"><span class="pre">DeviceManager.pluginType</span></code></a></li>
@@ -227,8 +229,9 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.PIDChannel"><code class="docutils literal notranslate"><span class="pre">PID.PIDChannel</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">PID.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.channelType"><code class="docutils literal notranslate"><span class="pre">PID.channelType</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.getIcon"><code class="docutils literal notranslate"><span class="pre">PID.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.iconFile"><code class="docutils literal notranslate"><span class="pre">PID.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">PID.loadConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.loadData"><code class="docutils literal notranslate"><span class="pre">PID.loadData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.moveChannel"><code class="docutils literal notranslate"><span class="pre">PID.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.name"><code class="docutils literal notranslate"><span class="pre">PID.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.optional"><code class="docutils literal notranslate"><span class="pre">PID.optional</span></code></a></li>
@@ -260,6 +263,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.finalizeInit"><code class="docutils literal notranslate"><span class="pre">Plugin.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.getDefaultSettings"><code class="docutils literal notranslate"><span class="pre">Plugin.getDefaultSettings()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.getIcon"><code class="docutils literal notranslate"><span class="pre">Plugin.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.iconFile"><code class="docutils literal notranslate"><span class="pre">Plugin.iconFile</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.iconFileDark"><code class="docutils literal notranslate"><span class="pre">Plugin.iconFileDark</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.initDock"><code class="docutils literal notranslate"><span class="pre">Plugin.initDock()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.initFig"><code class="docutils literal notranslate"><span class="pre">Plugin.initFig()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Plugin.initGUI"><code class="docutils literal notranslate"><span class="pre">Plugin.initGUI()</span></code></a></li>
@@ -301,6 +306,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.plugins.Scan"><code class="docutils literal notranslate"><span class="pre">Scan</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.ScanChannel"><code class="docutils literal notranslate"><span class="pre">Scan.ScanChannel</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.SignalCommunicate"><code class="docutils literal notranslate"><span class="pre">Scan.SignalCommunicate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.TreeSplitter"><code class="docutils literal notranslate"><span class="pre">Scan.TreeSplitter</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.addInputChannel"><code class="docutils literal notranslate"><span class="pre">Scan.addInputChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">Scan.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.channels"><code class="docutils literal notranslate"><span class="pre">Scan.channels</span></code></a></li>
@@ -328,10 +334,12 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.saveScanParallel"><code class="docutils literal notranslate"><span class="pre">Scan.saveScanParallel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Scan.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.useDisplayChannel"><code class="docutils literal notranslate"><span class="pre">Scan.useDisplayChannel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.useDisplayParameter"><code class="docutils literal notranslate"><span class="pre">Scan.useDisplayParameter</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.plugins.Settings"><code class="docutils literal notranslate"><span class="pre">Settings</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Settings.getDefaultSettings"><code class="docutils literal notranslate"><span class="pre">Settings.getDefaultSettings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Settings.iconFile"><code class="docutils literal notranslate"><span class="pre">Settings.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Settings.incrementMeasurementNumber"><code class="docutils literal notranslate"><span class="pre">Settings.incrementMeasurementNumber()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Settings.init"><code class="docutils literal notranslate"><span class="pre">Settings.init()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Settings.loadSettings"><code class="docutils literal notranslate"><span class="pre">Settings.loadSettings()</span></code></a></li>
@@ -365,9 +373,10 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.afterFinalizeInit"><code class="docutils literal notranslate"><span class="pre">UCM.afterFinalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.channelType"><code class="docutils literal notranslate"><span class="pre">UCM.channelType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.documentation"><code class="docutils literal notranslate"><span class="pre">UCM.documentation</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.getIcon"><code class="docutils literal notranslate"><span class="pre">UCM.getIcon()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.iconFile"><code class="docutils literal notranslate"><span class="pre">UCM.iconFile</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.initGUI"><code class="docutils literal notranslate"><span class="pre">UCM.initGUI()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.loadConfiguration"><code class="docutils literal notranslate"><span class="pre">UCM.loadConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.loadData"><code class="docutils literal notranslate"><span class="pre">UCM.loadData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.moveChannel"><code class="docutils literal notranslate"><span class="pre">UCM.moveChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.name"><code class="docutils literal notranslate"><span class="pre">UCM.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.UCM.optional"><code class="docutils literal notranslate"><span class="pre">UCM.optional</span></code></a></li>
@@ -476,6 +485,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.LineEdit"><code class="docutils literal notranslate"><span class="pre">LineEdit</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.LineEdit.sizeHint"><code class="docutils literal notranslate"><span class="pre">LineEdit.sizeHint()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.LineEdit.userEditingFinished"><code class="docutils literal notranslate"><span class="pre">LineEdit.userEditingFinished</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.LineEdit.validateInput"><code class="docutils literal notranslate"><span class="pre">LineEdit.validateInput()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.core.Logger"><code class="docutils literal notranslate"><span class="pre">Logger</span></code></a><ul>
@@ -636,14 +646,16 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeSettingWrapper"><code class="docutils literal notranslate"><span class="pre">makeSettingWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeStateWrapper"><code class="docutils literal notranslate"><span class="pre">makeStateWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.smooth"><code class="docutils literal notranslate"><span class="pre">smooth()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.validatePath"><code class="docutils literal notranslate"><span class="pre">validatePath()</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="pages/acknowledgments.html">6. Acknowledgments</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pages/references.html">7. References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pages/changelog.html">6. Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pages/acknowledgments.html">7. Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pages/references.html">8. References</a></li>
 </ul>
 
         </div>
@@ -666,7 +678,7 @@
       </li>
   </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
         <a href="pages/plugin-development.html" class="btn btn-neutral float-left" title="4. Plugin development" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="pages/acknowledgments.html" class="btn btn-neutral float-right" title="6. Acknowledgments" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="pages/changelog.html" class="btn btn-neutral float-right" title="6. Changelog" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
   </div>
   <hr/>
 </div>
@@ -710,9 +722,9 @@ that modifies other <a class="reference internal" href="#esibd.plugins.Plugin" t
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.ChannelManager.ChannelPlot.getIcon">
-<span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.ChannelPlot.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
+<span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">desaturate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.ChannelPlot.getIcon" title="Link to this definition"></a></dt>
+<dd><p>Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+Overwrite only if definition of iconFile and iconFileDark is not sufficient.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Icon</p>
@@ -721,6 +733,12 @@ Consider using a themed icon that works in dark and light modes.</p>
 <dd class="field-even"><p><a class="reference internal" href="#esibd.core.Icon" title="esibd.core.Icon"><code class="xref py py-class docutils literal notranslate"><span class="pre">Icon</span></code></a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.ChannelManager.ChannelPlot.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'chart.png'</span></em><a class="headerlink" href="#esibd.plugins.ChannelManager.ChannelPlot.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1010,6 +1028,23 @@ Overwrite to add logic for appending data to channels.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.ChannelManager.supportsFile">
+<span class="sig-name descname"><span class="pre">supportsFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.supportsFile" title="Link to this definition"></a></dt>
+<dd><p>Tests if a file is supported by the plugin, based on file name or content.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>pathlib.Path</em>) – File that has been selected by the user.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Returns True if the file is supported by the plugin. Test if supported based on file extension or content.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.ChannelManager.toggleRecording">
 <span class="sig-name descname"><span class="pre">toggleRecording</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manual</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.ChannelManager.toggleRecording" title="Link to this definition"></a></dt>
 <dd><p>Toggle plotting of data in <a class="reference internal" href="#esibd.plugins.LiveDisplay" title="esibd.plugins.LiveDisplay"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveDisplay</span></code></a>.
@@ -1251,23 +1286,6 @@ Default implementation works when using <a class="reference internal" href="#esi
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="esibd.plugins.Device.supportsFile">
-<span class="sig-name descname"><span class="pre">supportsFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.supportsFile" title="Link to this definition"></a></dt>
-<dd><p>Tests if a file is supported by the plugin, based on file name or content.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>file</strong> (<em>pathlib.Path</em>) – File that has been selected by the user.</p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Returns True if the file is supported by the plugin. Test if supported based on file extension or content.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>bool</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Device.toggleRecording">
 <span class="sig-name descname"><span class="pre">toggleRecording</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">manual</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Device.toggleRecording" title="Link to this definition"></a></dt>
 <dd><p>Toggle recoding of data in <a class="reference internal" href="#esibd.plugins.LiveDisplay" title="esibd.plugins.LiveDisplay"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiveDisplay</span></code></a>.</p>
@@ -1338,7 +1356,7 @@ signals as a function of any number of input signals.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.DeviceManager.closeCommunication">
-<span class="sig-name descname"><span class="pre">closeCommunication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">manual</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.DeviceManager.closeCommunication" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">closeCommunication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">manual</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">closing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Stopping</span> <span class="pre">communication.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.DeviceManager.closeCommunication" title="Link to this definition"></a></dt>
 <dd><p>Close all communication</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1372,6 +1390,12 @@ If None, the doc string <em>__doc__</em> will be used instead.</p>
 <dd class="field-odd"><p><a class="reference internal" href="#esibd.core.Channel" title="esibd.core.Channel"><code class="xref py py-class docutils literal notranslate"><span class="pre">Channel</span></code></a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.DeviceManager.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'DeviceManager.png'</span></em><a class="headerlink" href="#esibd.plugins.DeviceManager.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -1426,8 +1450,9 @@ require independent versioning and documentation.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="esibd.plugins.LiveDisplay">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">esibd.plugins.</span></span><span class="sig-name descname"><span class="pre">LiveDisplay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.LiveDisplay" title="Link to this definition"></a></dt>
-<dd><p>Live displays show the history of measured data over time. The toolbar
-provides icons to initialize, start, pause, stop acquisition, optionally
+<dd><p>Live displays show the history of measured data over time.
+Use start/pause icon in corresponding device control. The toolbar
+provides icons to initialize and stop acquisition, optionally
 subtract backgrounds, or export displayed data to the current session.
 Data is only collected if the corresponding live display is visible.
 The length of the displayed history is determined by the display time
@@ -1454,7 +1479,7 @@ To be recreated if needed.</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.plugins.LiveDisplay.documentation">
-<span class="sig-name descname"><span class="pre">documentation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Live</span> <span class="pre">displays</span> <span class="pre">show</span> <span class="pre">the</span> <span class="pre">history</span> <span class="pre">of</span> <span class="pre">measured</span> <span class="pre">data</span> <span class="pre">over</span> <span class="pre">time.</span> <span class="pre">The</span> <span class="pre">toolbar\n</span>&#160;&#160;&#160; <span class="pre">provides</span> <span class="pre">icons</span> <span class="pre">to</span> <span class="pre">initialize,</span> <span class="pre">start,</span> <span class="pre">pause,</span> <span class="pre">stop</span> <span class="pre">acquisition,</span> <span class="pre">optionally\n</span>&#160;&#160;&#160; <span class="pre">subtract</span> <span class="pre">backgrounds,</span> <span class="pre">or</span> <span class="pre">export</span> <span class="pre">displayed</span> <span class="pre">data</span> <span class="pre">to</span> <span class="pre">the</span> <span class="pre">current</span> <span class="pre">session.\n</span>&#160;&#160;&#160; <span class="pre">Data</span> <span class="pre">is</span> <span class="pre">only</span> <span class="pre">collected</span> <span class="pre">if</span> <span class="pre">the</span> <span class="pre">corresponding</span> <span class="pre">live</span> <span class="pre">display</span> <span class="pre">is</span> <span class="pre">visible.\n</span>&#160;&#160;&#160; <span class="pre">The</span> <span class="pre">length</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">displayed</span> <span class="pre">history</span> <span class="pre">is</span> <span class="pre">determined</span> <span class="pre">by</span> <span class="pre">the</span> <span class="pre">display</span> <span class="pre">time\n</span>&#160;&#160;&#160; <span class="pre">control</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">tool</span> <span class="pre">bar.\n\n</span>&#160;&#160;&#160; <span class="pre">Frequently</span> <span class="pre">updating</span> <span class="pre">those</span> <span class="pre">plots</span> <span class="pre">is</span> <span class="pre">typically</span> <span class="pre">the</span> <span class="pre">computationally</span> <span class="pre">most\n</span>&#160;&#160;&#160; <span class="pre">expensive</span> <span class="pre">action.</span> <span class="pre">Thus</span> <span class="pre">you</span> <span class="pre">might</span> <span class="pre">want</span> <span class="pre">to</span> <span class="pre">reduce\n</span>&#160;&#160;&#160; <span class="pre">the</span> <span class="pre">number</span> <span class="pre">of</span> <span class="pre">displayed</span> <span class="pre">data</span> <span class="pre">points</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">Settings.</span> <span class="pre">This</span> <span class="pre">will</span> <span class="pre">make</span> <span class="pre">sure</span> <span class="pre">that\n</span>&#160;&#160;&#160; <span class="pre">the</span> <span class="pre">graphs</span> <span class="pre">are</span> <span class="pre">updated</span> <span class="pre">less</span> <span class="pre">frequently</span> <span class="pre">and</span> <span class="pre">select</span> <span class="pre">a</span> <span class="pre">smaller</span> <span class="pre">but\n</span>&#160;&#160;&#160; <span class="pre">consistent</span> <span class="pre">subset</span> <span class="pre">of</span> <span class="pre">data</span> <span class="pre">points</span> <span class="pre">for</span> <span class="pre">a</span> <span class="pre">smooth</span> <span class="pre">visualization.</span> <span class="pre">While\n</span>&#160;&#160;&#160; <span class="pre">PyQtGraph</span> <span class="pre">provides</span> <span class="pre">its</span> <span class="pre">own</span> <span class="pre">algorithms</span> <span class="pre">for</span> <span class="pre">down</span> <span class="pre">sampling</span> <span class="pre">data</span> <span class="pre">(accessible\n</span>&#160;&#160;&#160; <span class="pre">via</span> <span class="pre">the</span> <span class="pre">context</span> <span class="pre">menu),</span> <span class="pre">they</span> <span class="pre">tend</span> <span class="pre">to</span> <span class="pre">cause</span> <span class="pre">a</span> <span class="pre">flicker</span> <span class="pre">when</span> <span class="pre">updating</span> <span class="pre">data.'</span></em><a class="headerlink" href="#esibd.plugins.LiveDisplay.documentation" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">documentation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Live</span> <span class="pre">displays</span> <span class="pre">show</span> <span class="pre">the</span> <span class="pre">history</span> <span class="pre">of</span> <span class="pre">measured</span> <span class="pre">data</span> <span class="pre">over</span> <span class="pre">time.\n</span>&#160;&#160;&#160; <span class="pre">Use</span> <span class="pre">start/pause</span> <span class="pre">icon</span> <span class="pre">in</span> <span class="pre">corresponding</span> <span class="pre">device</span> <span class="pre">control.</span> <span class="pre">The</span> <span class="pre">toolbar\n</span>&#160;&#160;&#160; <span class="pre">provides</span> <span class="pre">icons</span> <span class="pre">to</span> <span class="pre">initialize</span> <span class="pre">and</span> <span class="pre">stop</span> <span class="pre">acquisition,</span> <span class="pre">optionally\n</span>&#160;&#160;&#160; <span class="pre">subtract</span> <span class="pre">backgrounds,</span> <span class="pre">or</span> <span class="pre">export</span> <span class="pre">displayed</span> <span class="pre">data</span> <span class="pre">to</span> <span class="pre">the</span> <span class="pre">current</span> <span class="pre">session.\n</span>&#160;&#160;&#160; <span class="pre">Data</span> <span class="pre">is</span> <span class="pre">only</span> <span class="pre">collected</span> <span class="pre">if</span> <span class="pre">the</span> <span class="pre">corresponding</span> <span class="pre">live</span> <span class="pre">display</span> <span class="pre">is</span> <span class="pre">visible.\n</span>&#160;&#160;&#160; <span class="pre">The</span> <span class="pre">length</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">displayed</span> <span class="pre">history</span> <span class="pre">is</span> <span class="pre">determined</span> <span class="pre">by</span> <span class="pre">the</span> <span class="pre">display</span> <span class="pre">time\n</span>&#160;&#160;&#160; <span class="pre">control</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">tool</span> <span class="pre">bar.\n\n</span>&#160;&#160;&#160; <span class="pre">Frequently</span> <span class="pre">updating</span> <span class="pre">those</span> <span class="pre">plots</span> <span class="pre">is</span> <span class="pre">typically</span> <span class="pre">the</span> <span class="pre">computationally</span> <span class="pre">most\n</span>&#160;&#160;&#160; <span class="pre">expensive</span> <span class="pre">action.</span> <span class="pre">Thus</span> <span class="pre">you</span> <span class="pre">might</span> <span class="pre">want</span> <span class="pre">to</span> <span class="pre">reduce\n</span>&#160;&#160;&#160; <span class="pre">the</span> <span class="pre">number</span> <span class="pre">of</span> <span class="pre">displayed</span> <span class="pre">data</span> <span class="pre">points</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">Settings.</span> <span class="pre">This</span> <span class="pre">will</span> <span class="pre">make</span> <span class="pre">sure</span> <span class="pre">that\n</span>&#160;&#160;&#160; <span class="pre">the</span> <span class="pre">graphs</span> <span class="pre">are</span> <span class="pre">updated</span> <span class="pre">less</span> <span class="pre">frequently</span> <span class="pre">and</span> <span class="pre">select</span> <span class="pre">a</span> <span class="pre">smaller</span> <span class="pre">but\n</span>&#160;&#160;&#160; <span class="pre">consistent</span> <span class="pre">subset</span> <span class="pre">of</span> <span class="pre">data</span> <span class="pre">points</span> <span class="pre">for</span> <span class="pre">a</span> <span class="pre">smooth</span> <span class="pre">visualization.</span> <span class="pre">While\n</span>&#160;&#160;&#160; <span class="pre">PyQtGraph</span> <span class="pre">provides</span> <span class="pre">its</span> <span class="pre">own</span> <span class="pre">algorithms</span> <span class="pre">for</span> <span class="pre">down</span> <span class="pre">sampling</span> <span class="pre">data</span> <span class="pre">(accessible\n</span>&#160;&#160;&#160; <span class="pre">via</span> <span class="pre">the</span> <span class="pre">context</span> <span class="pre">menu),</span> <span class="pre">they</span> <span class="pre">tend</span> <span class="pre">to</span> <span class="pre">cause</span> <span class="pre">a</span> <span class="pre">flicker</span> <span class="pre">when</span> <span class="pre">updating</span> <span class="pre">data.'</span></em><a class="headerlink" href="#esibd.plugins.LiveDisplay.documentation" title="Link to this definition"></a></dt>
 <dd><p>The plugin documentation used in the internal about dialog in the <a class="reference internal" href="pages/users-guide.html#sec-browser"><span class="std std-ref">Browser</span></a>.
 If None, the doc string <em>__doc__</em> will be used instead.</p>
 </dd></dl>
@@ -1468,8 +1493,8 @@ If None, the doc string <em>__doc__</em> will be used instead.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.LiveDisplay.getIcon">
 <span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.LiveDisplay.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
+<dd><p>Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+Overwrite only if definition of iconFile and iconFileDark is not sufficient.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Icon</p>
@@ -1578,19 +1603,10 @@ Extend using <a class="reference internal" href="#esibd.core.Channel.insertDispl
 <dd><p>alias of <a class="reference internal" href="#esibd.plugins.PID.PIDChannel" title="esibd.plugins.PID.PIDChannel"><code class="xref py py-class docutils literal notranslate"><span class="pre">PIDChannel</span></code></a></p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="esibd.plugins.PID.getIcon">
-<span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.PID.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Icon</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#esibd.core.Icon" title="esibd.core.Icon"><code class="xref py py-class docutils literal notranslate"><span class="pre">Icon</span></code></a></p>
-</dd>
-</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.PID.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'PID.png'</span></em><a class="headerlink" href="#esibd.plugins.PID.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1603,6 +1619,22 @@ If only values should be loaded without complete reinitialization, use <code cla
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>file</strong> (<em>pathlib.Path</em><em>, </em><em>optional</em>) – File from which to load configuration, defaults to None</p></li>
 <li><p><strong>default</strong> (<em>bool</em><em>, </em><em>optional</em>) – Use internal configuration file if True, defaults to False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.PID.loadData">
+<span class="sig-name descname"><span class="pre">loadData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.PID.loadData" title="Link to this definition"></a></dt>
+<dd><p>Loads and displays data from file.
+This should only be called for files where <a class="reference internal" href="#esibd.plugins.Plugin.supportsFile" title="esibd.plugins.Plugin.supportsFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">supportsFile()</span></code></a> returns True.
+Overwrite depending on data supported by the plugin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<em>pathlib.Path</em>) – File from which to load data.</p></li>
+<li><p><strong>_show</strong> (<em>bool</em><em>, </em><em>optional</em>) – Show plugin after loading data, defaults to True. Some files are handled by multiple plugins and only one of them should be shown by default.</p></li>
 </ul>
 </dd>
 </dl>
@@ -1885,8 +1917,8 @@ Overwrite or extend as needed to define specific settings that will be added to 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.getIcon">
 <span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">desaturate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Plugin.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
+<dd><p>Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+Overwrite only if definition of iconFile and iconFileDark is not sufficient.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Icon</p>
@@ -1895,6 +1927,18 @@ Consider using a themed icon that works in dark and light modes.</p>
 <dd class="field-even"><p><a class="reference internal" href="#esibd.core.Icon" title="esibd.core.Icon"><code class="xref py py-class docutils literal notranslate"><span class="pre">Icon</span></code></a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Plugin.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#esibd.plugins.Plugin.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Plugin.iconFileDark">
+<span class="sig-name descname"><span class="pre">iconFileDark</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#esibd.plugins.Plugin.iconFileDark" title="Link to this definition"></a></dt>
+<dd><p>Default icon file for dark mode. Expected to be in dependencyPath. Will fallback to iconFile.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -2109,7 +2153,7 @@ Extend and add call to super().runTestParallel() to the end to make sure testing
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.plugins.Plugin.supportedVersion">
-<span class="sig-name descname"><span class="pre">supportedVersion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'0.7.0'</span></em><a class="headerlink" href="#esibd.plugins.Plugin.supportedVersion" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">supportedVersion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'0.7'</span></em><a class="headerlink" href="#esibd.plugins.Plugin.supportedVersion" title="Link to this definition"></a></dt>
 <dd><p>By default the current program version is used. You can
 define a fixed plugin version and future program versions will
 state that they are incompatible with this plugin. This can be used to
@@ -2287,6 +2331,11 @@ Extend using <a class="reference internal" href="#esibd.core.Channel.insertDispl
 </dd></dl>
 
 </dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="esibd.plugins.Scan.TreeSplitter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TreeSplitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Scan.TreeSplitter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Scan.addInputChannel">
@@ -2479,6 +2528,12 @@ Executed in runThread. Will likely need to be adapted for custom scans.</p>
 channel data should be displayed.</p>
 </dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Scan.useDisplayParameter">
+<span class="sig-name descname"><span class="pre">useDisplayParameter</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#esibd.plugins.Scan.useDisplayParameter" title="Link to this definition"></a></dt>
+<dd><p>Use display parameter to control which scan channels are displayed.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -2497,6 +2552,12 @@ In addition, the plugin manager and console can be opened from here.</p>
 <dt class="sig sig-object py" id="esibd.plugins.Settings.getDefaultSettings">
 <span class="sig-name descname"><span class="pre">getDefaultSettings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Settings.getDefaultSettings" title="Link to this definition"></a></dt>
 <dd><p>Defines general default settings</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.Settings.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'gear.png'</span></em><a class="headerlink" href="#esibd.plugins.Settings.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -2622,8 +2683,8 @@ require independent versioning and documentation.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.StaticDisplay.getIcon">
 <span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.StaticDisplay.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
+<dd><p>Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+Overwrite only if definition of iconFile and iconFileDark is not sufficient.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Icon</p>
@@ -2729,19 +2790,10 @@ Extend using <a class="reference internal" href="#esibd.core.Channel.insertDispl
 If None, the doc string <em>__doc__</em> will be used instead.</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="esibd.plugins.UCM.getIcon">
-<span class="sig-name descname"><span class="pre">getIcon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.UCM.getIcon" title="Link to this definition"></a></dt>
-<dd><p>Gets the plugin icon. Overwrite to introduce custom icons.
-Consider using a themed icon that works in dark and light modes.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Icon</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#esibd.core.Icon" title="esibd.core.Icon"><code class="xref py py-class docutils literal notranslate"><span class="pre">Icon</span></code></a></p>
-</dd>
-</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="esibd.plugins.UCM.iconFile">
+<span class="sig-name descname"><span class="pre">iconFile</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'UCM.png'</span></em><a class="headerlink" href="#esibd.plugins.UCM.iconFile" title="Link to this definition"></a></dt>
+<dd><p>Default icon file. Expected to be in dependencyPath.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -2760,6 +2812,22 @@ If only values should be loaded without complete reinitialization, use <code cla
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>file</strong> (<em>pathlib.Path</em><em>, </em><em>optional</em>) – File from which to load configuration, defaults to None</p></li>
 <li><p><strong>default</strong> (<em>bool</em><em>, </em><em>optional</em>) – Use internal configuration file if True, defaults to False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.UCM.loadData">
+<span class="sig-name descname"><span class="pre">loadData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_show</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.UCM.loadData" title="Link to this definition"></a></dt>
+<dd><p>Loads and displays data from file.
+This should only be called for files where <a class="reference internal" href="#esibd.plugins.Plugin.supportsFile" title="esibd.plugins.Plugin.supportsFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">supportsFile()</span></code></a> returns True.
+Overwrite depending on data supported by the plugin.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<em>pathlib.Path</em>) – File from which to load data.</p></li>
+<li><p><strong>_show</strong> (<em>bool</em><em>, </em><em>optional</em>) – Show plugin after loading data, defaults to True. Some files are handled by multiple plugins and only one of them should be shown by default.</p></li>
 </ul>
 </dd>
 </dl>
@@ -2885,8 +2953,7 @@ outputs. In the advanced mode, channels can be duplicated, moved, or
 deleted. You may also edit channels directly in the corresponding .ini
 file in the config path.</p>
 <p>Channels are accessible from any plugin using <a class="reference internal" href="#esibd.plugins.DeviceManager.getChannelByName" title="esibd.plugins.DeviceManager.getChannelByName"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getChannelByName()</span></code></a>.
-This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
-Please avoid using very short names, and names that are a subset of names of other channels.</p>
+This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="esibd.core.Channel.SignalCommunicate">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SignalCommunicate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Channel.SignalCommunicate" title="Link to this definition"></a></dt>
@@ -2914,7 +2981,7 @@ Please avoid using very short names, and names that are a subset of names of oth
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Channel.asDict">
-<span class="sig-name descname"><span class="pre">asDict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Channel.asDict" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">asDict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formatValue</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Channel.asDict" title="Link to this definition"></a></dt>
 <dd><p>Returns a dictionary containing all channel parameters and their values.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -3453,6 +3520,12 @@ All high level logic is provided by <a class="reference internal" href="#module-
 <dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.LineEdit.validateInput">
+<span class="sig-name descname"><span class="pre">validateInput</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.LineEdit.validateInput" title="Link to this definition"></a></dt>
+<dd><p>Validate the text and remove invalid characters</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -3487,7 +3560,7 @@ Use <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esib
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Logger.print">
-<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.7.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.7.1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
 <dd><p>Augments messages and redirects to log file, statusbar, and console.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -3926,7 +3999,7 @@ It allows plugins to interact by using unique plugin names as attributes, e.g.
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.PluginManager.addPluginTreeWidgetItem">
-<span class="sig-name descname"><span class="pre">addPluginTreeWidgetItem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enabled</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version_</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supportedVersion</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pluginType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">previewFileTypes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optional</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.PluginManager.addPluginTreeWidgetItem" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">addPluginTreeWidgetItem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tree</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">item</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.PluginManager.addPluginTreeWidgetItem" title="Link to this definition"></a></dt>
 <dd><p>Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox.</p>
 </dd></dl>
 
@@ -4042,7 +4115,7 @@ Enabled state is saved and restored from an independent file and can also be edi
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.PluginManager.resetMainDisplayWidgetLimits">
 <span class="sig-name descname"><span class="pre">resetMainDisplayWidgetLimits</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.PluginManager.resetMainDisplayWidgetLimits" title="Link to this definition"></a></dt>
-<dd><p>Resets limits to allow for user scaling if plugin sizes.</p>
+<dd><p>Resets limits to allow for user scaling of plugin sizes.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -4487,6 +4560,17 @@ If you need to handle events on value change, link these directly to the events 
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="esibd.const.openInDefaultApplication">
+<span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">openInDefaultApplication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.const.openInDefaultApplication" title="Link to this definition"></a></dt>
+<dd><p>Opens file in system default application for file type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>str / pathlib.Path</em>) – Path to the file to open.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="esibd.const.smooth">
 <span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">smooth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.const.smooth" title="Link to this definition"></a></dt>
 <dd><p>Smooths a 1D array while keeping edges meaningful.
@@ -4521,7 +4605,7 @@ This method is robust if array contains np.nan.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="pages/plugin-development.html" class="btn btn-neutral float-left" title="4. Plugin development" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="pages/acknowledgments.html" class="btn btn-neutral float-right" title="6. Acknowledgments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="pages/changelog.html" class="btn btn-neutral float-right" title="6. Changelog" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

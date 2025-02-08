@@ -8,30 +8,30 @@ that were either used directly or adapted:
 | Author            | Class, library, function, or resource           |
 +===================+=================================================+
 | rauschi           | LabVIEW based precursor *ES-IBD control* which  |
-|                   | established some of the core concepts.          |
+|                   | established some of the core concepts           |
 +-------------------+-------------------------------------------------+
 | Softmixt          | `Recursion                                      |
 |                   | function <h                                     |
 |                   | ttps://stackoverflow.com/a/44077263/5032953>`__ |
-|                   | to display files and folders in QTreeWidget.    |
+|                   | to display files and folders in QTreeWidget     |
 +-------------------+-------------------------------------------------+
 | Owen              | `Arraylist                                      |
 |                   | implementation <h                               |
 |                   | ttps://stackoverflow.com/a/7134033/5032953>`__  |
-|                   | for NumPy.                                      |
+|                   | for NumPy                                       |
 +-------------------+-------------------------------------------------+
 | jdreaver          | `Scientific                                     |
 |                   | QDoubleSpinBox <https://gis                     |
-|                   | t.github.com/jdreaver/0be2e44981159d0854f5>`__. |
+|                   | t.github.com/jdreaver/0be2e44981159d0854f5>`__  |
 +-------------------+-------------------------------------------------+
 | JonB              | `Compact                                        |
 |                   | JComboBox <https://forum.qt.io/post/542594>`__  |
-|                   | for long items.                                 |
+|                   | for long items                                  |
 +-------------------+-------------------------------------------------+
 | nlamprian         | Custom `LED                                     |
 |                   | indicator <h                                    |
 |                   | ttps://github.com/nlamprian/pyqt5-led-indicato  |
-|                   | r-widget/blob/master/LedIndicatorWidget.py>`__. |
+|                   | r-widget/blob/master/LedIndicatorWidget.py>`__  |
 +-------------------+-------------------------------------------------+
 | Axel-Erfurt       | `TextEdit with line                             |
 |                   | numbers <https://gist.github.com/A              |

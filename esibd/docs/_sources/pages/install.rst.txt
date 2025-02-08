@@ -4,7 +4,7 @@ Installation
 Standalone Windows installer
 ----------------------------
 
-A `standalone installer for windows <https://github.com/ioneater/ESIBD-Explorer/releases>`_ 
+A `standalone installer for windows <https://github.com/ioneater/ESIBD-Explorer/releases>`_
 allows for a simple and fast installation, but may require more disk space, does
 not allow to overwrite internal plugins, and does not allow to add additional python libraries.
 You will still be able to include custom plugins and inherit from internal plugins.
@@ -34,6 +34,28 @@ Download the source from github, go to the setup folder, and run create_env.bat
 to install all dependencies. Later, update_env.bat can be used to update
 dependencies. Start the program using *start.bat*. If desired, you can add
 a shortcut to start.bat to the start menu.
+
+From PyPi (Linux)
+-----------------
+
+While ESIBD Explorer is not developed for Linux, most features should work just as on Windows.
+Installation on Ubuntu 24.04.1 was possible using the following commands.
+Some additional dependencies and configurations may be necessary depending on your Linux distribution.
+
+.. code-block:: python3
+
+   sudo apt update
+   sudo apt-get install python3.12-venv
+   sudo apt install libxcb-cursor0
+   python3.12 -m venv esibd
+
+Set the include-system-site-packages to true in esibd/pyvenv.cfg
+
+.. code-block:: python3
+
+   source esibd/bin/activate
+   pip install esibd-explorer --user
+   python -m esibd.explorer --disable-gpu
 
 From source (other)
 -------------------

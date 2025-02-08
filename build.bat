@@ -6,8 +6,16 @@ REM run individual blocks manually and only proceed if successful
 exit
 
 ::::::::::::::
+REM Formatting
+::::::::::::::
+
+REM use the following regex to fix common formating errors
+REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :
+
+::::::::::::::
 REM Change Log
 ::::::::::::::
+REM update changelog in changelog.rst
 REM Often, writing the change log inspires some last minute changes!
 REM Content: start bullet points with capitals and dot at the end
 REM - will be replaced by bullet points on github
@@ -24,7 +32,7 @@ REM Performance for speed improvements
 REM Environment setup
 :::::::::::::::::::::
 
-REM If applicable perform clean install of virtual environment 
+REM If applicable perform clean install of virtual environment
 REM start from ESIBD Explorer
 cd setup
 call create_env.bat REM make sure no other environments (including VSCode) are active during this step
@@ -39,12 +47,13 @@ REM Bump version
 :::::::::::::::::::::::::::
 
 REM update version in pyproject.toml
+REM update version in EsibdExplorer.ifp in the General tab
 REM update PROGRAM_VERSION in config.py
 REM if applicable update year in license file
 REM update copyright year and release version also in docs/conf.py
 
 REM Note that the program has to access the version during development and after deployment to test for plugin compatibility
-REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases, 
+REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases,
 REM requiring to update the version in both files
 REM bumpversion / bump-my-version seems overkill
 
@@ -65,7 +74,6 @@ REM NOTE disable script blocker to properly test documentation offline
 REM offline version for in app documentation (instrument computers often have no internet access)
 call xcopy /i /y /e docs\_build esibd\docs
 REM call docs\make.bat html
-
 
 :::::::
 REM git
@@ -95,13 +103,14 @@ REM pip install . REM test installation locally
 REM python -m esibd.explorer # start gui using module
 
 twine check dist/*
+REM safer to use normal terminal instead of vscode to avoid issues when pasting token
 twine upload -r testpypi dist/*
 
 REM test on pypitest
 conda create -y -n "estest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
-REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi 
+REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
 REM python -m esibd.reset # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
@@ -110,6 +119,7 @@ REM test software using PluginManager.test() with hardware!
 REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing
 
 REM only upload on real pypi after testing!
+REM safer to use normal terminal instead of vscode to avoid issues when pasting token
 twine upload dist/*
 
 :::::::::::::::
@@ -123,10 +133,10 @@ call rm -r pyinstaller_dist
 conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
 REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
-pip install esibd-explorer==0.7.0
+pip install esibd-explorer==0.7.1
 pip install pyinstaller
 REM test software
-python -m esibd.explorer 
+python -m esibd.explorer
 
 REM Run the following line to create initial spec file
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
@@ -136,7 +146,6 @@ REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins m
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --copy-metadata nidaqmx is needed to avoid "No package metadata was found for nidaqmx"
 REM do not modify spec file, will be overwritten
-
 
 ::::::::::::::::
 REM InstallForge
@@ -158,11 +167,12 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git tag -a v0.7.0 -m "Realeasing version v0.7.0"
+git commit -a -m "Realeasing version v0.7.1"
+git tag -a v0.7.1 -m "Realeasing version v0.7.1"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
-REM Title: Version v0.7.0
+REM Title: Version v0.7.1
 REM attach ESIBD_Explorer-setup.exe to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

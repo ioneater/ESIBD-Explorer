@@ -35,7 +35,7 @@ backing up their own data and configuration files.
 
 .. toctree::
    :numbered:
-   :maxdepth: 3
+   :maxdepth: 2
    :caption: Contents:
 
    pages/install
@@ -43,6 +43,7 @@ backing up their own data and configuration files.
    pages/users-guide
    pages/plugin-development
    library
+   pages/changelog
    pages/acknowledgments
    pages/references
 

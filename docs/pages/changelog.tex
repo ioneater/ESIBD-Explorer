@@ -1,11 +1,11 @@
 \documentclass[a4paper,11pt,DIV=13]{scrartcl}
 \usepackage[scaled]{helvet}
-\usepackage[utf8]{inputenc} 
+\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx,textcomp,booktabs,pdflscape}
 \usepackage{amsmath,mathptmx,courier,mhchem,siunitx}
 \usepackage[usenames,dvipsnames]{xcolor}
-\usepackage[%  
+\usepackage[%
   bookmarks,                   %% PDF-Lesezeichen
   bookmarksopen=true,          %% Lesezeichenbaum aufgeklappt...
   bookmarksopenlevel=2,        %% ...um eine Ebene
@@ -23,12 +23,12 @@
   anchorcolor = black,
 	citecolor = ForestGreen,
 	filecolor = magenta,
-	menucolor = blue ,	
-	urlcolor = cyan, 
+	menucolor = blue ,
+	urlcolor = cyan,
   linkbordercolor={0 1 1},     %% Rahmenfarbe interne Links
   menubordercolor={0 1 1},     %% Rahmenfarbe Literaturlinks
   urlbordercolor={1 0 0}       %% Rahmenfarbe externe Links
-]{hyperref}                    %% Hyperlinks und Lesezeichen in PDF 
+]{hyperref}                    %% Hyperlinks und Lesezeichen in PDF
 \usepackage{nameref}
 % \usepackage{prettyref}
 % \newrefformat{sec}{\hyperref[#1]{Sec.~\ref*{#1}}}
@@ -69,16 +69,15 @@
 \item Note, the file formats have not been altered or altered in a backwards compatible way that automatically adds default values for parameters that do not exist in old files.
 % \ifverboose \item this is only for coders \else \fi
 % \item \ifdefined\verboose it is defined \else it is not \fi
-\item 
+\item
 \end{itemize}
-
 
 \subsection{Version 0.5}
 Update notes: For a save update, backup and remove all files from your config folder. These files will be automatically generated in the correct format. You may then adjust them as necessary based on your backed up files, while sticking to the new format.
 All device and display code is now organized as plugins. See \ref{sec:plugins} for details.
 
 \subsection{Version 0.4}
-Update notes: You need to delete settings.ini and config.h5 from your settings folder. Updated versions will be generated on the first start after the update. You can then manualy restore your settings. In the future, file format changes during updates will be automated. 
+Update notes: You need to delete settings.ini and config.h5 from your settings folder. Updated versions will be generated on the first start after the update. You can then manualy restore your settings. In the future, file format changes during updates will be automated.
 In this release, the definition of lens and name in the current tab were changed to name and deviceName to increase consistency. Please adjust your settings accordingly after the first start.
 
 \paragraph{New features}
@@ -102,7 +101,7 @@ In this release, the definition of lens and name in the current tab were changed
 \item The Testmode can now be activated directly from the settings menu and stays active if the application is restarted
 \item All device settings is saved together with the measurement data in a single .h5 file. Values can be loaded by right clicking the file or importing from the corresponding device tab.
 \item The performance and error messages of the equation evaluation routine have been improved. Standard math functions can be used and there are no special requirements for spaces or brackets.
-\item 
+\item
 \end{itemize}
 
 \paragraph{Bug fixes}
@@ -115,14 +114,14 @@ In this release, the definition of lens and name in the current tab were changed
 \item The file labels on top of figures are scaled to the figure width to be always visible.
 \item Changing the display channel during and after scanning is now more reliable.
 \item Mass spec data display interpolates data before down sampling for more accurate display.
-\item 
+\item
 \end{itemize}
 
 \paragraph{Performance improvements}
 \begin{itemize}
 \item Explorer will only index files as the tree is expanded.
 \item If possible, scan plots only update data to improve performance.
-\item 
+\item
 \end{itemize}
 
 \subsection{2022-03-08 Version 0.1}

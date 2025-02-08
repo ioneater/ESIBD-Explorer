@@ -142,9 +142,9 @@ class TemperatureController(DeviceController):
                 self.temperatures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, t in enumerate(self.temperatures):
+        for i, temperature in enumerate(self.temperatures):
             # exponentially approach target or room temp + small fluctuation
-            self.temperatures[i] = np.random.randint(1, 300) if np.isnan(t) else t*np.random.uniform(.99, 1.01) # allow for small fluctuation
+            self.temperatures[i] = np.random.randint(1, 300) if np.isnan(temperature) else temperature*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndTemperature(self):
         return np.random.uniform(0, 400)

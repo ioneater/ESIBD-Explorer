@@ -2092,13 +2092,12 @@ class Channel(QTreeWidgetItem):
 
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
-        self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
+        self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller is not None and self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
 
     def updateWarningState(self, warn):
         if warn != self.warningState:
             self.warningState = warn
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet if warn else self.defaultStyleSheet)
-
 
     def initGUI(self, item):
         """Call after item has been added to tree.

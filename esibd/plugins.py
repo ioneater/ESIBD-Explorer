@@ -37,7 +37,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
                             QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter, QDockWidget)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor #, QPixmap # ,QScreen , QColor
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor #, QPixmap, QScreen, QColor
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -1932,7 +1932,7 @@ class ChannelManager(Plugin):
                         self.tree.setUpdatesEnabled(True)
                         self.loading = False
                         return
-                    self.updateChannelConfig([i for n, i in confParser.items() if n not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file)
+                    self.updateChannelConfig([item for name, item in confParser.items() if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file)
                 else: # Generate default settings file if file was not found.
                     # To update files with new parameters, simply delete the old file and the new one will be generated.
                     if self.channels == []:
@@ -5059,7 +5059,7 @@ class Explorer(Plugin):
                     if not file.is_dir():
                         if not self.testing:
                             break
-                        self.print(f"Loading file {shorten_text(file.name,50)}.")
+                        self.print(f"Loading file {shorten_text(file.name, 50)}.")
                         self.activeFileFullPath = file
                         self.displayContentSignal.emit() # call displayContent in main thread
                         self.loadingContent = True
@@ -5380,7 +5380,7 @@ class Explorer(Plugin):
             self.print(f'{startPath} is not a valid directory', PRINT.ERROR)
 
     def getFileIcon(self, file):
-        plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file) if plugin not in [self.pluginManager.Tree,self.pluginManager.Text]), None)
+        plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file) if plugin not in [self.pluginManager.Tree, self.pluginManager.Text]), None)
         if plugin is None: # only use Tree or Text if no other supporting Plugin has been found
             plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)), None)
         if plugin is not None:

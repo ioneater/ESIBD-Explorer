@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2. Electrospray ion-beam deposition &mdash; ESIBD Explorer 0.7 documentation</title>
+  <title>6. Changelog &mdash; ESIBD Explorer 0.7 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -25,8 +25,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="3. User’s Guide" href="users-guide.html" />
-    <link rel="prev" title="1. Installation" href="install.html" /> 
+    <link rel="next" title="7. Acknowledgments" href="acknowledgments.html" />
+    <link rel="prev" title="5. Library Reference" href="../library.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -59,7 +59,7 @@
 <li class="toctree-l2"><a class="reference internal" href="install.html#from-source-other">1.5. From source (other)</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">2. Electrospray ion-beam deposition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="esibd.html">2. Electrospray ion-beam deposition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="users-guide.html">3. User’s Guide</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="users-guide.html#getting-started">3.1. Getting started</a></li>
 <li class="toctree-l2"><a class="reference internal" href="users-guide.html#user-interface-overview">3.2. User interface overview</a></li>
@@ -653,7 +653,7 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="changelog.html">6. Changelog</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">6. Changelog</a></li>
 <li class="toctree-l1"><a class="reference internal" href="acknowledgments.html">7. Acknowledgments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="references.html">8. References</a></li>
 </ul>
@@ -672,13 +672,13 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active"><span class="section-number">2. </span>Electrospray ion-beam deposition</li>
+      <li class="breadcrumb-item active"><span class="section-number">6. </span>Changelog</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/pages/esibd.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/pages/changelog.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul><div class="rst-breadcrumbs-buttons" role="navigation" aria-label="Sequential page navigation">
-        <a href="install.html" class="btn btn-neutral float-left" title="1. Installation" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="users-guide.html" class="btn btn-neutral float-right" title="3. User’s Guide" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../library.html" class="btn btn-neutral float-left" title="5. Library Reference" accesskey="p"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="acknowledgments.html" class="btn btn-neutral float-right" title="7. Acknowledgments" accesskey="n">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
   </div>
   <hr/>
 </div>
@@ -692,66 +692,224 @@
 <style> .darkblue {color:#0070c0} </style>
 <style> .orange {color:#ffc000} </style>
 <style> .darkorange {color:#ed7d31} </style>
-<style> .purple {color:#b381d9} </style><section id="electrospray-ion-beam-deposition">
-<span id="sec-esibd"></span><h1><span class="section-number">2. </span>Electrospray ion-beam deposition<a class="headerlink" href="#electrospray-ion-beam-deposition" title="Link to this heading"></a></h1>
-<p>In electrospray ion-beam deposition (ESIBD, also known as soft/reactive
-landing or preparative mass spectrometry), molecules (small molecules, glycans, peptides, proteins, viruses, …) are transferred
-from solution to the gas-phase using electrospray ionization to form
-intense (if required <em>m/z</em>-filtered) molecular ion beams, which are then
-deposited with well defined energy onto various surfaces in vacuum.<span id="id1"><sup><a class="reference internal" href="references.html#id12" title="Grant E. Johnson, Don Gunaratne, and Julia Laskin. Soft- and reactive landing of ions onto surfaces: Concepts and applications. Mass Spectrom. Rev., 35(3):439–479, May 2016. doi:10.1002/mas.21451.">1</a>,<a class="reference internal" href="references.html#id4" title="Jobin Cyriac, T. Pradeep, H. Kang, R. Souda, and R. G. Cooks. Low-Energy Ionic Collisions at Molecular Solids. Chem. Rev., 112(10):5356–5411, October 2012. doi:10.1021/cr200384k.">2</a>,<a class="reference internal" href="references.html#id13" title="Lukas Krumbein, Kelvin Anggara, Martina Stella, Tomasz Michnowicz, Hannah Ochner, Sabine Abb, Gordon Rinke, André Portz, Michael Dürr, Uta Schlickum, Andrew Baldwin, Andrea Floris, Klaus Kern, and Stephan Rauschenbach. Fast Molecular Compression by a Hyperthermal Collision Gives Bond-Selective Mechanochemistry. Phys. Rev. Lett., 126(5):056001, February 2021. doi:10.1103/PhysRevLett.126.056001.">3</a></sup></span>
-It has been successfully enabling high-resolution imaging of complex
-molecules by scanning probe microscopy,<span id="id2"><sup><a class="reference internal" href="references.html#id11" title="C Hamann, R Woltmann, I-Po Hong, N. Hauptmann, S. Karan, and R. Berndt. Ultrahigh vacuum deposition of organic molecules by electrospray ionization. Review of Scientific Instruments, 82(3):033903, March 2011. doi:10.1063/1.3553010.">4</a>,<a class="reference internal" href="references.html#id20" title="Stephan Rauschenbach, Markus Ternes, Ludger Harnau, and Klaus Kern. Mass Spectrometry as a Preparative Tool for the Surface Science of Large Molecules. Annu. Rev. Anal. Chem., 9(1):473–498, 2016. doi:10.1146/annurev-anchem-071015-041633.">5</a>,<a class="reference internal" href="references.html#id2" title="Sabine Abb, Ludger Harnau, Rico Gutzler, Stephan Rauschenbach, and Klaus Kern. Two-dimensional honeycomb network through sequence-controlled self-assembly of oligopeptides. Nat Commun, 7(1):1–7, January 2016. doi:10.1038/ncomms10335.">6</a>,<a class="reference internal" href="references.html#id5" title="Zhitao Deng, Nicha Thontasen, Nikola Malinowski, Gordon Rinke, Ludger Harnau, Stephan Rauschenbach, and Klaus Kern. A Close Look at Proteins: Submolecular Resolution of Two- and Three-Dimensionally Folded Cytochrome c at Surfaces. Nano Lett., 12(5):2452–2458, May 2012. doi:10.1021/nl3005385.">7</a>,<a class="reference internal" href="references.html#id21" title="Gordon Rinke, Stephan Rauschenbach, Ludger Harnau, Alyazan Albarghash, Matthias Pauly, and Klaus Kern. Active Conformation Control of Unfolded Proteins by Hyperthermal Collision with a Metal Surface. Nano Letters, 14(10):5609–5615, October 2014. doi:10.1021/nl502122j.">8</a>,<a class="reference internal" href="references.html#id25" title="X. Wu, M. Delbianco, K. Anggara, T. Michnowicz, A. Pardo-Vargas, P. Bharate, S. Sen, M. Pristl, S. Rauschenbach, U. Schlickum, S. Abb, P. H. Seeberger, and K. Kern. Imaging single glycans. Nature, 582(7812):375–378, June 2020. doi:10.1038/s41586-020-2362-1.">9</a>,<a class="reference internal" href="references.html#id10" title="Paul Fremdling, Tim K. Esser, Bodhisattwa Saha, Alexander A. Makarov, Kyle L. Fort, Maria Reinhardt-Szyba, Joseph Gault, and Stephan Rauschenbach. A Preparative Mass Spectrometer to Deposit Intact Large Native Protein Complexes. ACS Nano, 16(9):14443–14455, August 2022. doi:10.1021/acsnano.2c04831.">10</a></sup></span>
-transmission electron microscopy,<span id="id3"><sup><a class="reference internal" href="references.html#id15" title="Victor A. Mikhailov, Todd H. Mize, Justin L. P. Benesch, and Carol V. Robinson. Mass-Selective Soft-Landing of Protein Assemblies with Controlled Landing Energies. Anal. Chem., 86(16):8321–8328, August 2014. doi:10.1021/ac5018327.">11</a>,<a class="reference internal" href="references.html#id18" title="Venkateshkumar Prabhakaran, B. Layla Mehdi, Jeffrey J. Ditto, Mark H. Engelhard, Bingbing Wang, K. Don D. Gunaratne, David C. Johnson, Nigel D. Browning, Grant E. Johnson, and Julia Laskin. Rational design of efficient electrode–electrolyte interfaces for solid-state energy storage using ion soft landing. Nat. Comm., 7:11399, April 2016. doi:10.1038/ncomms11399.">12</a>,<a class="reference internal" href="references.html#id22" title="N. Vats, S. Rauschenbach, W. Sigle, S. Sen, S. Abb, A. Portz, M. Dürr, M. Burghard, P. A. van Aken, and K. Kern. Electron microscopy of polyoxometalate ions on graphene by electrospray ion beam deposition. Nanoscale, 10(10):4952–4961, March 2018. doi:10.1039/C8NR00402A.">13</a></sup></span>
-cryo-EM,<span id="id4"><sup><a class="reference internal" href="references.html#id9" title="Tim K. Esser, Jan Boehning, Paul Fremdling, Mark T. Agasid, Adam Costin, Kyle Fort, Albert Konijnenberg, Alan Bahm, Alexander Makarov, Carol V. Robinson, Justin L. P. Benesch, Lindsay Baker, Tanmay A. M. Bharat, Joseph Gault, and Stephan Rauschenbach. Mass-selective and ice-free cryo-EM protein sample preparation via native electrospray ion-beam deposition. PNAS Nexus, 1(4):pgac153, August 2022. doi:10.1101/2021.10.18.464782.">14</a>,<a class="reference internal" href="references.html#id6" title="Tim K. Esser, Jan Böhning, Paul Fremdling, Tanmay Bharat, Joseph Gault, and Stephan Rauschenbach. Cryo-EM samples of gas-phase purified protein assemblies using native electrospray ion-beam deposition. Faraday Discuss., 240:67–80, September 2022. doi:10.1039/D2FD00065B.">15</a></sup></span>
-and low-energy electron holography.<span id="id5"><sup><a class="reference internal" href="references.html#id14" title="Jean-Nicolas Longchamp, Stephan Rauschenbach, Sabine Abb, Conrad Escher, Tatiana Latychevskaia, Klaus Kern, and Hans-Werner Fink. Imaging proteins at the single-molecule level. PNAS, 114(7):1474–1479, February 2017. doi:10.1073/pnas.1614519114.">16</a>,<a class="reference internal" href="references.html#id17" title="Hannah Ochner, Sven Szilagyi, Sabine Abb, Joseph Gault, Carol V. Robinson, Luigi Malavolti, Stephan Rauschenbach, and Klaus Kern. Low-energy electron holography imaging of conformational variability of single-antibody molecules from electrospray ion beam deposition. PNAS, 118(51):e2112651118, December 2021. doi:10.1073/pnas.2112651118.">17</a>,<a class="reference internal" href="references.html#id16" title="Hannah Ochner, Stephan Rauschenbach, and Luigi Malavolti. Electrospray ion beam deposition plus low-energy electron holography as a tool for imaging individual biomolecules. Essays in Biochemistry, 67(2):151–163, March 2023. doi:10.1042/EBC20220165.">18</a></sup></span>
-These experiments show that individual peptides, glycans, and proteins
-can be isolated from a mixture, separated from solvent and contaminants,
-deposited, and imaged. The ESIBD approach to sample fabrication has
-been used to address fundamental questions related to gas-phase structures,<span id="id6"><sup><a class="reference internal" href="references.html#id17" title="Hannah Ochner, Sven Szilagyi, Sabine Abb, Joseph Gault, Carol V. Robinson, Luigi Malavolti, Stephan Rauschenbach, and Klaus Kern. Low-energy electron holography imaging of conformational variability of single-antibody molecules from electrospray ion beam deposition. PNAS, 118(51):e2112651118, December 2021. doi:10.1073/pnas.2112651118.">17</a></sup></span>
-mechanical properties,<span id="id7"><sup><a class="reference internal" href="references.html#id21" title="Gordon Rinke, Stephan Rauschenbach, Ludger Harnau, Alyazan Albarghash, Matthias Pauly, and Klaus Kern. Active Conformation Control of Unfolded Proteins by Hyperthermal Collision with a Metal Surface. Nano Letters, 14(10):5609–5615, October 2014. doi:10.1021/nl502122j.">8</a>,<a class="reference internal" href="references.html#id3" title="Kelvin Anggara, Yuntao Zhu, Martina Delbianco, Stephan Rauschenbach, Sabine Abb, Peter H. Seeberger, and Klaus Kern. Exploring the Molecular Conformation Space by Soft Molecule–Surface Collision. J. Am. Chem. Soc., 142(51):21420–21427, November 2020. doi:10.1021/jacs.0c09933.">19</a></sup></span>
-and substrate interactions,<span id="id8"><sup><a class="reference internal" href="references.html#id24" title="Michael Volný, W. Timothy Elam, Andrew Branca, Buddy D. Ratner, and František Tureček. Preparative Soft and Reactive Landing of Multiply Charged Protein Ions on a Plasma-Treated Metal Surface. Analytical Chemistry, 77(15):4890–4896, August 2005. doi:10.1021/ac0507136.">20</a></sup></span>
-by direct observation of deformation,<span id="id9"><sup><a class="reference internal" href="references.html#id21" title="Gordon Rinke, Stephan Rauschenbach, Ludger Harnau, Alyazan Albarghash, Matthias Pauly, and Klaus Kern. Active Conformation Control of Unfolded Proteins by Hyperthermal Collision with a Metal Surface. Nano Letters, 14(10):5609–5615, October 2014. doi:10.1021/nl502122j.">8</a>,<a class="reference internal" href="references.html#id3" title="Kelvin Anggara, Yuntao Zhu, Martina Delbianco, Stephan Rauschenbach, Sabine Abb, Peter H. Seeberger, and Klaus Kern. Exploring the Molecular Conformation Space by Soft Molecule–Surface Collision. J. Am. Chem. Soc., 142(51):21420–21427, November 2020. doi:10.1021/jacs.0c09933.">19</a></sup></span>
-fragmentation,<span id="id10"><sup><a class="reference internal" href="references.html#id13" title="Lukas Krumbein, Kelvin Anggara, Martina Stella, Tomasz Michnowicz, Hannah Ochner, Sabine Abb, Gordon Rinke, André Portz, Michael Dürr, Uta Schlickum, Andrew Baldwin, Andrea Floris, Klaus Kern, and Stephan Rauschenbach. Fast Molecular Compression by a Hyperthermal Collision Gives Bond-Selective Mechanochemistry. Phys. Rev. Lett., 126(5):056001, February 2021. doi:10.1103/PhysRevLett.126.056001.">3</a>,<a class="reference internal" href="references.html#id21" title="Gordon Rinke, Stephan Rauschenbach, Ludger Harnau, Alyazan Albarghash, Matthias Pauly, and Klaus Kern. Active Conformation Control of Unfolded Proteins by Hyperthermal Collision with a Metal Surface. Nano Letters, 14(10):5609–5615, October 2014. doi:10.1021/nl502122j.">8</a></sup></span>
-and assembly at surfaces depending on ion-beam composition,<span id="id11"><sup><a class="reference internal" href="references.html#id2" title="Sabine Abb, Ludger Harnau, Rico Gutzler, Stephan Rauschenbach, and Klaus Kern. Two-dimensional honeycomb network through sequence-controlled self-assembly of oligopeptides. Nat Commun, 7(1):1–7, January 2016. doi:10.1038/ncomms10335.">6</a></sup></span>
-substrate,<span id="id12"><sup><a class="reference internal" href="references.html#id5" title="Zhitao Deng, Nicha Thontasen, Nikola Malinowski, Gordon Rinke, Ludger Harnau, Stephan Rauschenbach, and Klaus Kern. A Close Look at Proteins: Submolecular Resolution of Two- and Three-Dimensionally Folded Cytochrome c at Surfaces. Nano Lett., 12(5):2452–2458, May 2012. doi:10.1021/nl3005385.">7</a></sup></span>
-and landing energy.<span id="id13"><sup><a class="reference internal" href="references.html#id17" title="Hannah Ochner, Sven Szilagyi, Sabine Abb, Joseph Gault, Carol V. Robinson, Luigi Malavolti, Stephan Rauschenbach, and Klaus Kern. Low-energy electron holography imaging of conformational variability of single-antibody molecules from electrospray ion beam deposition. PNAS, 118(51):e2112651118, December 2021. doi:10.1073/pnas.2112651118.">17</a>,<a class="reference internal" href="references.html#id19" title="Stephan Rauschenbach, Ralf Vogelgesang, N. Malinowski, Jürgen W. Gerlach, Mohamed Benyoucef, Giovanni Costantini, Zhitao Deng, Nicha Thontasen, and Klaus Kern. Electrospray Ion Beam Deposition: Soft-Landing and Fragmentation of Functional Molecules at Solid Surfaces. ACS Nano, 3(10):2901–2910, October 2009. doi:10.1021/nn900022p.">21</a></sup></span></p>
-<figure class="align-default" id="id15">
-<span id="fig-setup"></span><img alt="../_images/2023-10_ESIBD_Setup.png" src="../_images/2023-10_ESIBD_Setup.png" />
-<figcaption>
-<p><span class="caption-number">Fig. 2.1 </span><span class="caption-text"><strong>Overview of the Oxford ESIBD setup.</strong> Colored boxes highlight selected
-hardware that is controlled by ESIBD Explorer plugins. <strong>Left</strong> <span class="blue">ESIBD Explorer</span>,
-<span class="green">current measurement</span> (RBD 9103), <span class="red">voltage supplies and distribution</span>
-(ISEG ECH 244, ISEG EBS 180 05). <strong>Right</strong> Custom <span class="purple">deposition stage</span>,
-independently controlled <span class="orange">commercial mass spectrometer</span>
-(Thermo Scientific <sup>TM</sup> Q Exactive <sup>TM</sup> UHMR instrument),
-<span class="darkblue">temperature measurement</span> (Sunpower CryoTel GTLT), <span class="darkorange">pressure measurement</span>
-(Edwards TIC, Pfeiffer TPG366). See references for more details.<span id="id14"><sup><a class="reference internal" href="references.html#id10" title="Paul Fremdling, Tim K. Esser, Bodhisattwa Saha, Alexander A. Makarov, Kyle L. Fort, Maria Reinhardt-Szyba, Joseph Gault, and Stephan Rauschenbach. A Preparative Mass Spectrometer to Deposit Intact Large Native Protein Complexes. ACS Nano, 16(9):14443–14455, August 2022. doi:10.1021/acsnano.2c04831.">10</a>,<a class="reference internal" href="references.html#id9" title="Tim K. Esser, Jan Boehning, Paul Fremdling, Mark T. Agasid, Adam Costin, Kyle Fort, Albert Konijnenberg, Alan Bahm, Alexander Makarov, Carol V. Robinson, Justin L. P. Benesch, Lindsay Baker, Tanmay A. M. Bharat, Joseph Gault, and Stephan Rauschenbach. Mass-selective and ice-free cryo-EM protein sample preparation via native electrospray ion-beam deposition. PNAS Nexus, 1(4):pgac153, August 2022. doi:10.1101/2021.10.18.464782.">14</a>,<a class="reference internal" href="references.html#id6" title="Tim K. Esser, Jan Böhning, Paul Fremdling, Tanmay Bharat, Joseph Gault, and Stephan Rauschenbach. Cryo-EM samples of gas-phase purified protein assemblies using native electrospray ion-beam deposition. Faraday Discuss., 240:67–80, September 2022. doi:10.1039/D2FD00065B.">15</a>,<a class="reference internal" href="references.html#id7" title="Tim K. Esser, Jan Böhning, Alpcan Önür, Dinesh K. Chinthapalli, Lukas Eriksson, Marko Grabarics, Paul Fremdling, Albert Konijnenberg, Alexander Makarov, Aurelien Botman, Christine Peter, Justin L. P. Benesch, Carol V. Robinson, Joseph Gault, Lindsay Baker, Tanmay A. M. Bharat, and Stephan Rauschenbach. Cryo-EM of soft-landed β-galactosidase: Gas-phase and native structures are remarkably similar. August 2023. doi:10.1101/2023.08.17.553673.">22</a></sup></span></span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
-</figcaption>
-</figure>
-<p><a class="reference internal" href="#fig-setup"><span class="std std-numref">Fig. 2.1</span></a> shows an overview of the Oxford ESIBD setup,
-which combines a commercial mass spectrometer with a custom deposition stage.
-Most ESIBD experiments comprise a variety of components including an ion
-source, ion guides, mass filters, deflectors, focusing lenses, and
-detectors. They require controlling or monitoring DC potentials, RF
-amplitudes and frequencies, pressures, temperatures, and ion-beam
-currents throughout the experimental setup. While each individual device
-is not very complicated, the number of available parameters that have to
-be adjusted and documented can quickly result in a massive overhead
-where researchers spend more time on documentation than on thinking
-about the science, or even the need to repeat experiments due to
-incomplete manual documentation. The need for a robust and consistent
-interface that allows to perform all elements of the ESIBD workflow with
-only a few clicks, while documenting all relevant information
-automatically in the background, lead to the creation of the <em>ESIBD
-Explorer</em>.</p>
+<style> .purple {color:#b381d9} </style><section id="changelog">
+<h1><span class="section-number">6. </span>Changelog<a class="headerlink" href="#changelog" title="Link to this heading"></a></h1>
+<section id="version-0-7-1-2025-02-08">
+<h2><span class="section-number">6.1. </span>Version 0.7.1 2025-02-08<a class="headerlink" href="#version-0-7-1-2025-02-08" title="Link to this heading"></a></h2>
+<section id="added">
+<h3><span class="section-number">6.1.1. </span>Added<a class="headerlink" href="#added" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Added new icons for UCM, Line, and DeviceManager.</p></li>
+<li><p>Added change log to readthedocs.</p></li>
+<li><p>Added Linux installation instructions.</p></li>
+<li><p>Generalized opening files and storing settings to work on Linux.</p></li>
+<li><p>Limiting valid characters for channel names.</p></li>
+<li><p>Adding messages emitted during initialization to Console.</p></li>
+<li><p>Added itemFile and itemFileDark to simplify specification of icons and show icons in PluginManager</p></li>
+<li><p>Added program info to plugins.ini</p></li>
+</ul>
+</section>
+<section id="changed">
+<h3><span class="section-number">6.1.2. </span>Changed<a class="headerlink" href="#changed" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Removed checkbox for non optional plugins in plugin dialog.</p></li>
+<li><p>Prevent device manager from moving or floating.</p></li>
+<li><p>Disable navigation icons in explorer while loading directory to avoid inconsistent behavior.</p></li>
+<li><p>Plugin dialog can be accessed while devices are communicating. Communication will only be stopped when reloading plugins.</p></li>
+<li><p>Improved formatting of values in .ini files and change logs.</p></li>
+<li><p>Prevent loading of channels while recording.</p></li>
+<li><p>PICO only loads SDK if user has explicitly enabled this plugin.</p></li>
+<li><p>Using dark mode background instead of black for scans.</p></li>
+<li><p>Devices only store data regularly if they are actively recording new data.</p></li>
+<li><p>Waiting for scans to finish when closing.</p></li>
+<li><p>UCM, PID, and Scan channels show background corrected values if applicable.</p></li>
+<li><p>Depo scan is using color of selected current channel.</p></li>
+</ul>
+</section>
+<section id="fixed">
+<h3><span class="section-number">6.1.3. </span>Fixed<a class="headerlink" href="#fixed" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Reconnecting source channels after loading device configuration.</p></li>
+<li><p>Fixed error caused by missing console history file.</p></li>
+<li><p>Fixed copyClipboard in light theme</p></li>
+<li><p>Fixed repeated plotting when loading scans</p></li>
+<li><p>Fixed scan channel initialization for Depo Scan.</p></li>
+<li><p>Using display parameter for Omni scan.</p></li>
+<li><p>Removed display parameter for other scans.</p></li>
+<li><p>Implemented proper file handling for UCM and PID.</p></li>
+<li><p>Fixed incomplete status messages</p></li>
+<li><p>RSPD3303C only sets values for enabled channels.</p></li>
+</ul>
+</section>
+</section>
+<section id="version-0-7-0-2025-01-19">
+<h2><span class="section-number">6.2. </span>Version 0.7.0 2025-01-19<a class="headerlink" href="#version-0-7-0-2025-01-19" title="Link to this heading"></a></h2>
+<p>This version brings multiple improvements to the user interface and messages. The main new features include the Universal Channel Manager (UCM), PID Plugin, and a channel interface for scans. The data and config file formats remain unchanged. The plugin file format is significantly simplified but requires adjustments to use old plugins with the current version!</p>
+<section id="id1">
+<h3><span class="section-number">6.2.1. </span>Added<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Universal Channel Manager (UCM) plugin: This plugin allows to reference arbitrary channels from other devices to create a central list of the most important information. All referenced channels can be controlled from here. The corresponding display allows to see recorded data from multiple devices in one central location. For most users this should result in improved performance and less complexity as the individual device tabs and corresponding displays will rarely be needed once the channels in the UCM are configured.</p></li>
+<li><p>PID Plugin: Allows to establish a PID control loop between two arbitrary channels.</p></li>
+<li><p>Added option to collapse channels of same color to focus on the most relevant channels.</p></li>
+<li><p>Channels now allow to change Line Style and Group for plotting.</p></li>
+<li><p>Channels now allow to change Scaling to highlight important channels (and to see them from the other side of the lab!).</p></li>
+<li><p>Added channel interface for scans.</p></li>
+<li><p>Added option to inspect the object currently in the Console input.</p></li>
+<li><p>Option to use icons instead of labels in tab bars (active by default).</p></li>
+<li><p>Live Displays allow to sort plot curves by device, unit, or group (new channel parameter), and arrange them horizontally, vertically, or stacked.</p></li>
+<li><p>Added plugins for KEITHLEY 6487, GAA MIPS, NI9263, Pfeiffer Omnicontrol, RSPD3303C, and pico PT-104.</p></li>
+<li><p>Added option to generate plot files for displays including MS, Line, PDB, Holo.</p></li>
+<li><p>Plugin Manager now shows the supported version of plugins and highlights if they are compatible with the current program or not.</p></li>
+</ul>
+</section>
+<section id="id2">
+<h3><span class="section-number">6.2.2. </span>Changed<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Plugin format: Much of the functionally has been moved to the base class allowing developers to use standard functionality by using a flag (useMonitors, useDisplays, useBackgrounds, useOnOffLogic) instead of implementing it in the specific plugin file. Some functions have been renamed to be more descriptive and consistent. Most important examples are: stop -&gt; closeCommunication, init -&gt; initializeCommunication, apply -&gt; applyValues. Make sure to compare to build in examples and test your plugins when updating your custom plugins for the current version. Documentation in CustomDevice has been improved to demonstrate and explain the current plugin format.</p></li>
+<li><p>Depo scan can now record data from arbitrary additional channels.</p></li>
+<li><p>Logging is now enabled by default. More informative status, warning, and error messages. A lot more messages in debug mode.</p></li>
+<li><p>Using icons for messages, warnings, and errors in status bar, log file, and Console</p></li>
+<li><p>Old logs are regularly removed from the log file</p></li>
+<li><p>Reorganized internal device plugins in dedicated folders</p></li>
+<li><p>Temporary parameters like monitors or other device states are now saved but not restored.</p></li>
+<li><p>Parameters that are undefined before communication to the corresponding device is established are set to NaN to emphasize that there is no up to date value available.</p></li>
+</ul>
+</section>
+<section id="deprecated">
+<h3><span class="section-number">6.2.3. </span>Deprecated<a class="headerlink" href="#deprecated" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Splitting Pressure plugin into dedicated TIC and MAXIGAUGE plugins. If necessary channels can be combined using UCM. Pressure plugin is now deprecated and will be removed in the future.</p></li>
+</ul>
+</section>
+<section id="id3">
+<h3><span class="section-number">6.2.4. </span>Fixed<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Replaced deprecated <code class="code docutils literal notranslate"><span class="pre">numpy.bool8</span></code> with <code class="code docutils literal notranslate"><span class="pre">numpy.bool_</span></code></p></li>
+<li><p>Various minor bug fixes</p></li>
+</ul>
+</section>
+<section id="performance">
+<h3><span class="section-number">6.2.5. </span>Performance<a class="headerlink" href="#performance" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Various performance improvements</p></li>
+<li><p>Improved speed and stability of tests. Time is logged during testing if in debug mode.</p></li>
+</ul>
+</section>
+</section>
+<section id="version-0-6-18-2024-06-10">
+<h2><span class="section-number">6.3. </span>Version 0.6.18 2024-06-10<a class="headerlink" href="#version-0-6-18-2024-06-10" title="Link to this heading"></a></h2>
+<section id="id4">
+<h3><span class="section-number">6.3.1. </span>Added<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Tree.inspect now shows values if applicable</p></li>
+<li><p>Console restores history of used commands after restart</p></li>
+<li><p>Introduced setDisplayDecimals to customize display of floats including scientific notation</p></li>
+<li><p>Added variable aspect ratio option for beam scan (varAxesAspect in autogenerated plot file)</p></li>
+<li><p>Added new scan mode “Spectra” for a series of 1D spectra based on Beam scan</p></li>
+<li><p>Added new UI tool MultiStateAction</p></li>
+<li><p>Added dedicated channelPlot to display channel data instead of using Line plugin</p></li>
+<li><p>Added msSpectra mode for simple mass spectra</p></li>
+<li><p>Added PluginManager.testing flag to avoid interaction of parallel testing thread with UI diolog boxes leading to rare crash during testing</p></li>
+</ul>
+</section>
+<section id="id5">
+<h3><span class="section-number">6.3.2. </span>Changed<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Communication has to be stopped before channels can be moved (increase stability)</p></li>
+<li><p>Default ini files are scanned for changes when closing and only overwritten if necessary</p></li>
+<li><p>Using last 10 s instead of last 10 data points to define background signal</p></li>
+<li><p>Scans now respect the subtractBackgound states defined by the devices of the relevant channels</p></li>
+<li><p>Virtual channels do not need to be active to be included in scans</p></li>
+</ul>
+</section>
+<section id="id6">
+<h3><span class="section-number">6.3.3. </span>Fixed<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Update to pyqtgraph==0.13.7 after replacing depricated api</p></li>
+</ul>
+</section>
+<section id="id7">
+<h3><span class="section-number">6.3.4. </span>Performance<a class="headerlink" href="#id7" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Plotting performance improved by reusing figures (figure recreation still needed if theme is changing)</p></li>
+</ul>
+</section>
+</section>
+<section id="version-0-6-17-2024-03-18">
+<h2><span class="section-number">6.4. </span>Version 0.6.17 2024-03-18<a class="headerlink" href="#version-0-6-17-2024-03-18" title="Link to this heading"></a></h2>
+<section id="id8">
+<h3><span class="section-number">6.4.1. </span>Added<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Added pupup to show errors while importing plugins (before the Console plugin is ready to display those errors.)</p></li>
+<li><p>Added Smooth parameter to all channels to reduce noise using running average.</p></li>
+</ul>
+</section>
+<section id="id9">
+<h3><span class="section-number">6.4.2. </span>Changed<a class="headerlink" href="#id9" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Live displays are visible by default</p></li>
+<li><p>Test mode active by default</p></li>
+<li><p>Stop all communication and recording from DeviceManager, now requires explicit confirmation</p></li>
+<li><p>Added warnings for output channels that are not enabled, or their device is not initialized or not recording</p></li>
+<li><p>Pressure plugin: init TIC and TPG decoupled so you can use it with only one of them or both.</p></li>
+</ul>
+</section>
+<section id="removed">
+<h3><span class="section-number">6.4.3. </span>Removed<a class="headerlink" href="#removed" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Removed explicit save of settings on program termination (settings are saved in real time)</p></li>
+</ul>
+</section>
+</section>
+<section id="version-0-6-16-2023-12-17">
+<h2><span class="section-number">6.5. </span>Version 0.6.16 2023-12-17<a class="headerlink" href="#version-0-6-16-2023-12-17" title="Link to this heading"></a></h2>
+<p>First stable release on pipy</p>
+<section id="id10">
+<h3><span class="section-number">6.5.1. </span>Added<a class="headerlink" href="#id10" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>the deposition plugin now shows a checklist for validation before it starts recording</p></li>
+<li><p>added option to use dark or light theme when copying graphs to clipboard</p></li>
+<li><p>added getting started section in docs</p></li>
+<li><p>added PluginManager.showThreads() function for debugging</p></li>
+<li><p>added minimal support to restore plugin dimensions after restart</p></li>
+<li><p>added exponential temperature change for Temperature plugin in test mode</p></li>
+<li><p>added option to reset local settings using python -m esibd.reset</p></li>
+</ul>
+</section>
+<section id="id11">
+<h3><span class="section-number">6.5.2. </span>Changed<a class="headerlink" href="#id11" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>channels can now only be enabled and disabled in advanced mode</p></li>
+<li><p>live displays are now visible by default after initial installation</p></li>
+</ul>
+</section>
+<section id="id12">
+<h3><span class="section-number">6.5.3. </span>Fixed<a class="headerlink" href="#id12" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>acquisition is no longer stopped when loading scan or device settings</p></li>
+<li><p>added input validation of session path</p></li>
+<li><p>fixed issue with autoscaling in static displays</p></li>
+</ul>
+</section>
+<section id="id13">
+<h3><span class="section-number">6.5.4. </span>Performance<a class="headerlink" href="#id13" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>increased speed of TIC pressure communication by using correct EOL character</p></li>
+</ul>
+</section>
+</section>
+<section id="version-0-6-14-2023-11-07">
+<h2><span class="section-number">6.6. </span>Version 0.6.14 2023-11-07<a class="headerlink" href="#version-0-6-14-2023-11-07" title="Link to this heading"></a></h2>
+<p>First release public on PyPi</p>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="install.html" class="btn btn-neutral float-left" title="1. Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="users-guide.html" class="btn btn-neutral float-right" title="3. User’s Guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="../library.html" class="btn btn-neutral float-left" title="5. Library Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="acknowledgments.html" class="btn btn-neutral float-right" title="7. Acknowledgments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
