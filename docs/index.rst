@@ -43,6 +43,7 @@ backing up their own data and configuration files.
    pages/users-guide
    pages/plugin-development
    library
+   pages/changelog
    pages/acknowledgments
    pages/references
 
