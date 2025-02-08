@@ -173,7 +173,7 @@ ISEG
 
 RBD
 ~~~
-.. automodule:: esibd.plugins_internal.RBD.RBD.Current
+.. automodule:: esibd.plugins_internal.RBD.RBD.RBD
    :noindex:
 
 Pressure

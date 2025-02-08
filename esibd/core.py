@@ -106,7 +106,7 @@ class EsibdExplorer(QMainWindow):
     def closeEvent(self, event):
         """Triggers :class:`~esibd.core.PluginManager` to close all plugins and all related communication."""
         if not self.pluginManager.loading:
-            if self.pluginManager.DeviceManager.recording:
+            if self.pluginManager.DeviceManager.initialized():
                 if CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
                     self.pluginManager.DeviceManager.closeCommunication(closing=True)
                 else:
@@ -447,11 +447,6 @@ class PluginManager():
 
     def managePlugins(self):
         """A dialog to select which plugins should be enabled."""
-        # if self.DeviceManager.recording:
-        #     if CloseDialog(title='Stop Acquisition?', ok='Stop Acquisition', prompt='Acquisition is still running. Stop acquisition before changing plugins!').exec():
-        #         self.DeviceManager.closeCommunication()
-        #     else:
-        #         return
         dlg = QDialog(self.mainWindow)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
@@ -471,7 +466,7 @@ class PluginManager():
         root = tree.invisibleRootItem()
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText('Stop communication and reload plugins' if self.DeviceManager.recording else 'Reload plugins')
+        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText('Stop communication and reload plugins' if self.DeviceManager.initialized() else 'Reload plugins')
         buttonBox.accepted.connect(dlg.accept)
         buttonBox.rejected.connect(dlg.reject)
         lay.addWidget(buttonBox)
@@ -485,8 +480,7 @@ class PluginManager():
 
         dlg.setLayout(lay)
         if dlg.exec():
-            if self.DeviceManager.recording:
-                self.DeviceManager.closeCommunication(closing=True)
+            self.DeviceManager.closeCommunication(closing=True, message='Stopping communication before reloading plugins.')
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             for child in [root.child(i) for i in range(root.childCount())]:
                 name = child.text(1)
@@ -568,15 +562,15 @@ class PluginManager():
         self.Console.toggleVisible()
         QApplication.processEvents()
 
-        width = qSet.value(SETTINGSWIDTH)
+        width = qSet.value(SETTINGSWIDTH, self.Settings.mainDisplayWidget.width())
         if width is not None:
             self.Settings.mainDisplayWidget.setMinimumWidth(width)
             self.Settings.mainDisplayWidget.setMaximumWidth(width)
-        height = qSet.value(SETTINGSHEIGHT)
+        height = qSet.value(SETTINGSHEIGHT, self.Settings.mainDisplayWidget.height())
         if height is not None:
             self.Settings.mainDisplayWidget.setMinimumHeight(height)
             self.Settings.mainDisplayWidget.setMaximumHeight(height)
-        height = qSet.value(CONSOLEHEIGHT)
+        height = qSet.value(CONSOLEHEIGHT, self.Console.mainDisplayWidget.height())
         if height is not None and self.Settings.showConsoleAction.state:
             self.Console.mainDisplayWidget.setMinimumHeight(height)
             self.Console.mainDisplayWidget.setMaximumHeight(height)
@@ -585,7 +579,7 @@ class PluginManager():
         self.Browser.raiseDock()
 
     def resetMainDisplayWidgetLimits(self):
-        """Resets limits to allow for user scaling if plugin sizes."""
+        """Resets limits to allow for user scaling of plugin sizes."""
         # Needs to be called after releasing event loop or changes will not be applied.
         # QApplication.processEvents() is not sufficient
         self.Settings.mainDisplayWidget.setMinimumWidth(100)
@@ -735,7 +729,7 @@ class Logger(QObject):
         self.timer.setInterval(3600000) # every 1 hour
         self.printFromThreadSignal.connect(self.print)
         self.backLog = [] # stores messages to be displayed later if console is not initialized
-        if qSet.value(LOGGING, 'true') == 'true':
+        if qSet.value(LOGGING, defaultValue='true', type=bool):
             self.open()
 
     def open(self):
@@ -752,7 +746,7 @@ class Logger(QObject):
     def openLog(self):
         """Opens the log file in an external program."""
         if self.logFileName.exists():
-            subprocess.Popen(f'explorer {self.logFileName}')
+            openInDefaultApplication(self.logFileName)
         else:
             self.print('Start logging to create log file.')
 
@@ -1844,7 +1838,7 @@ class Channel(QTreeWidgetItem):
                                     header='A', toolTip='If not active, value will be determined from equation.',
                                     event=lambda: self.activeChanged(), attr='active')
         channel[self.REAL    ] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
-                                    header='R', toolTip='Set to real for physically exiting channels.',
+                                    header='R', toolTip='Check for physically exiting channels.',
                                     event=lambda: self.realChanged(), attr='real')
         channel[self.SCALING ] = parameterDict(value='normal', default='normal', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
                                                        items='small, normal, large, larger, huge', toolTip='Scaling used to display channels.')
@@ -2650,7 +2644,7 @@ class StateAction(Action):
         if event is not None:
             self.triggered.connect(event)
         if restore and self.fullName is not None:
-            self.state = qSet.value(self.fullName, default) == 'true'
+            self.state = qSet.value(self.fullName, defaultValue=default, type=bool)
         else:
             self.state = False # init
         if before is None:
@@ -3026,7 +3020,7 @@ class LineEdit(QLineEdit):
         super().__init__(parent)
         self._edited = False
         # Regular expression to allow only letters (both upper and lower case), digits, and spaces + mathematical symbols and brackets for equations
-        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\.*\+\\/]*$'
+        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+\\/,~!@#$%&]*$'
         self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)

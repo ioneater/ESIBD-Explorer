@@ -1307,7 +1307,7 @@ class LiveDisplay(Plugin):
         """:meta private:"""
         if self.initializedDock:
             self.raiseDock(True)
-            # init, start, pause, stop acquisition will be tested by instManager
+            # init, start, pause, stop acquisition will be tested by DeviceManager
             self.testControl(self.copyAction, True)
             # self.testControl(self.clearHistoryAction, True) # keep history, test manually if applicable
             if hasattr(self, 'exportAction'):
@@ -2443,11 +2443,10 @@ class Device(ChannelManager):
                 else:
                     channel.background = np.nan
 
-
     def subtractBackgroundActive(self):
         return self.subtractBackgroundAction.state if self.useBackgrounds else False
         # independent of GUI
-        # return self.useBackgrounds and qSet.value(f'{self.name}/subtractBackground', 'false') == 'true'
+        # return self.useBackgrounds and qSet.value(f'{self.name}/subtractBackground', 'false', type=bool)
 
     def estimateStorage(self):
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
@@ -2628,7 +2627,7 @@ class Device(ChannelManager):
                 if self.lagging == 2*self.lag_limit:
                     self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
                                ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
-                    self.pluginManager.DeviceManager.closeCommunication()
+                    self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication due to unresponsive user interface.')
         else:
             # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
             # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
@@ -4008,7 +4007,7 @@ class Console(Plugin):
         self.mainConsole.localNamespace = namespace
         self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
-                                              before=self.aboutAction, event=lambda: self.toggleLogging())
+                                              before=self.aboutAction, event=lambda: self.toggleLogging(), default='true')
         self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
         self.inspectAction = self.addAction(toolTip='Inspect object.',
                         icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'), before=self.toggleLoggingAction, event=lambda: self.inspect())
@@ -4477,9 +4476,8 @@ class Settings(SettingsManager):
         return ds
 
     def loadSettings(self, file=None, default=False):
-        if self.pluginManager.DeviceManager.recording:
-            if EsibdCore.CloseDialog(title='Stop acquisition?', ok='Stop acquisition', prompt='Acquisition is still running. Stop acquisition before loading settings!').exec():
-                # ! settings necessary for acquisitions will temporarily be unavailable during loading
+        if self.pluginManager.DeviceManager.initialized():
+            if EsibdCore.CloseDialog(title='Stop communication?', ok='Stop communication', prompt='Communication is still running. Stop communication before loading settings!').exec():
                 self.pluginManager.DeviceManager.closeCommunication()
             else:
                 return
@@ -4487,12 +4485,14 @@ class Settings(SettingsManager):
 
     def updateDataPath(self):
         if not self.pluginManager.loading:
+            self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication before changing data path.')
             self.updateSessionPath()
             self.pluginManager.Explorer.updateRoot(self.dataPath)
 
     def updateConfigPath(self): # load settings from new conf path
         self.defaultFile = self.configPath / self.confINI
         if not self.pluginManager.loading:
+            self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication before changing config path.')
             splash = EsibdCore.SplashScreen()
             splash.show()
             self.loadSettings(self.defaultFile)
@@ -4662,6 +4662,12 @@ class DeviceManager(Plugin):
         # allow output widgets to react to change if acquisition state
         self.recordingAction.state = recording
 
+    def initialized(self):
+        if self.pluginManager.loading:
+            return False
+        else:
+            return any([plugin.initialized() for plugin in self.pluginManager.getPluginsByClass(Device)])
+
     def loadData(self, file, _show=True):
         """:meta private:"""
         for device in self.getDevices():
@@ -4747,13 +4753,16 @@ class DeviceManager(Plugin):
         elif self.recording:
             self.recordingAction.state = self.recording
 
-    def closeCommunication(self, manual=False, closing=False):
+    def closeCommunication(self, manual=False, closing=False, message='Stopping communication.'):
         """Close all communication
 
         :param manual: Indicates if triggered by user, defaults to False
         :type manual: bool, optional
         """
+        if not self.initialized():
+            return # already closed
         if not manual or self.testing or EsibdCore.CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+            self.print(message)
             self.recording = False
             self.stopScans(closing=closing)
             for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
@@ -5149,11 +5158,11 @@ class Explorer(Plugin):
         explorerContextMenuAction = explorerContextMenu.exec(self.tree.mapToGlobal(pos))
         if explorerContextMenuAction is not None:
             if explorerContextMenuAction is openContainingDirAction:
-                subprocess.Popen(f'explorer {self.activeFileFullPath.parent}')
+                openInDefaultApplication(self.activeFileFullPath.parent)
             elif explorerContextMenuAction is openDirAction:
-                subprocess.Popen(f'explorer {self.getItemFullPath(item)}')
+                openInDefaultApplication(self.getItemFullPath(item))
             elif explorerContextMenuAction is openFileAction:
-                subprocess.Popen(f'explorer {self.activeFileFullPath}')
+                openInDefaultApplication(self.activeFileFullPath)
             elif explorerContextMenuAction is copyFileNameAction:
                 pyperclip.copy(self.activeFileFullPath.name)
             elif explorerContextMenuAction is copyFullPathAction:
@@ -5195,7 +5204,7 @@ class Explorer(Plugin):
         if self.getItemFullPath(item).is_dir():
             self.updateRoot(self.getItemFullPath(item), addHistory=True)
         else: # treeItemDoubleClicked
-            subprocess.Popen(f'explorer {self.activeFileFullPath}')
+            openInDefaultApplication(self.activeFileFullPath)
 
     def getItemFullPath(self, item):
         out = item.text(0)

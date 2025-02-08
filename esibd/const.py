@@ -1,6 +1,8 @@
 """ Defines constants used throughout the package."""
 
 from enum import Enum
+import sys
+import subprocess
 import importlib
 import numpy as np
 import traceback
@@ -151,7 +153,7 @@ def getShowDebug():
     :return: Debug mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{DEBUG}', 'true') == 'true'
+    return qSet.value(f'{GENERAL}/{DEBUG}', defaultValue='true', type=bool)
 
 def getDarkMode():
     """Gets the dark mode from :ref:`sec:settings`.
@@ -159,7 +161,7 @@ def getDarkMode():
     :return: Dark mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{DARKMODE}', 'true') == 'true'
+    return qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
 
 def getClipboardTheme():
     """Gets the dark clipboard mode from :ref:`sec:settings`.
@@ -167,7 +169,7 @@ def getClipboardTheme():
     :return: Dark clipboard mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{CLIPBOARDTHEME}', 'true') == 'true'
+    return qSet.value(f'{GENERAL}/{CLIPBOARDTHEME}', defaultValue='true', type=bool)
 
 def getDPI():
     """Gets the DPI from :ref:`sec:settings`.
@@ -191,7 +193,7 @@ def getTestMode():
     :return: Test mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{TESTMODE}', 'false') == 'true'
+    return qSet.value(f'{GENERAL}/{TESTMODE}', defaultValue='false', type=bool)
 
 def infoDict(name):
     return {PROGRAM : PROGRAM_NAME, VERSION : str(PROGRAM_VERSION), PLUGIN : name, TIMESTAMP : datetime.now().strftime('%Y-%m-%d %H:%M')}
@@ -251,3 +253,14 @@ def synchronized(timeout=5):
                 return None
         return wrapper
     return decorator
+
+def openInDefaultApplication(file):
+    """Opens file in system default application for file type.
+
+    :param file: Path to the file to open.
+    :type file: str / pathlib.Path
+    """
+    if sys.platform == 'win32':
+        subprocess.Popen(f'explorer {file}')
+    else:
+        subprocess.Popen(['xdg-open', file])
