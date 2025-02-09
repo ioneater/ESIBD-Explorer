@@ -54,7 +54,7 @@ Fixed
 Version 0.7.0 2025-01-19
 ========================
 
-This version brings multiple improvements to the user interface and messages. The main new features include the Universal Channel Manager (UCM), PID Plugin, and a channel interface for scans. The data and config file formats remain unchanged. The plugin file format is significantly simplified but requires adjustments to use old plugins with the current version!
+This version brings multiple improvements to the user interface and messages. The main new features include the Universal Channel Manager (UCM), PID Plugin, and a channel interface for scans. The data and config file formats remain unchanged. The plugin file format is significantly simplified but requires adjustments (see below) to use old plugins with the current version!
 
 Added
 ~~~~~
@@ -65,6 +65,7 @@ Added
 - Channels now allow to change Line Style and Group for plotting.
 - Channels now allow to change Scaling to highlight important channels (and to see them from the other side of the lab!).
 - Added channel interface for scans.
+- Depo scan can now record data from arbitrary additional channels.
 - Added option to inspect the object currently in the Console input.
 - Option to use icons instead of labels in tab bars (active by default).
 - Live Displays allow to sort plot curves by device, unit, or group (new channel parameter), and arrange them horizontally, vertically, or stacked.
@@ -76,7 +77,6 @@ Changed
 ~~~~~~~
 
 - Plugin format: Much of the functionally has been moved to the base class allowing developers to use standard functionality by using a flag (useMonitors, useDisplays, useBackgrounds, useOnOffLogic) instead of implementing it in the specific plugin file. Some functions have been renamed to be more descriptive and consistent. Most important examples are: stop -> closeCommunication, init -> initializeCommunication, apply -> applyValues. Make sure to compare to build in examples and test your plugins when updating your custom plugins for the current version. Documentation in CustomDevice has been improved to demonstrate and explain the current plugin format.
-- Depo scan can now record data from arbitrary additional channels.
 - Logging is now enabled by default. More informative status, warning, and error messages. A lot more messages in debug mode.
 - Using icons for messages, warnings, and errors in status bar, log file, and Console
 - Old logs are regularly removed from the log file

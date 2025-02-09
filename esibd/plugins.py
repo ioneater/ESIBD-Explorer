@@ -10,6 +10,7 @@ import os
 import io
 import ast
 import itertools
+import requests
 from itertools import islice
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
@@ -17,7 +18,6 @@ from typing import List
 import timeit
 import time
 import inspect
-import subprocess
 from datetime import datetime
 import configparser
 # import traceback
@@ -3557,8 +3557,18 @@ class Browser(Plugin):
 
     def openAbout(self):
         """Simple dialog displaying program purpose, version, and creators"""
+        updateHTML = '(Offline)'
+        try:
+            response = requests.get('https://github.com/ioneater/ESIBD-Explorer/releases/latest')
+            onlineVersion = version.parse(response.url.split('/').pop())
+            if PROGRAM_VERSION == onlineVersion:
+                updateHTML = '(<span style="color: green">Up to date!</span>)'
+            else:
+                updateHTML = f'(<a href="https://github.com/ioneater/ESIBD-Explorer/releases/latest">Version {onlineVersion.base_version} available!</a>)'
+        except requests.exceptions.ConnectionError:
+            pass
         self.setHtml(title=f'About {PROGRAM_NAME}', html=f"""
-        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION}</h1>{ABOUTHTML}""")
+        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title, html):
         self.provideDock()
@@ -4000,7 +4010,7 @@ class Console(Plugin):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
         namespace = {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'sys':sys, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
-                    'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'importlib':importlib,
+                    'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'importlib':importlib, 'version': version,
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow, 'help':lambda: self.help()}
         for plugin in self.pluginManager.plugins: # direct access to plugins
             namespace[plugin.name] = plugin

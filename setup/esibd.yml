@@ -9,6 +9,7 @@ dependencies:
   - configparser
   - keyboard
   - numpy
+  - requests
   - pyinstaller
   - pyperclip
   - python-socketio

@@ -47,7 +47,7 @@ REM Bump version
 :::::::::::::::::::::::::::
 
 REM update version in pyproject.toml
-REM update version in EsibdExplorer.ifp in the General tab
+REM update Product Version in EsibdExplorer.ifp in the General tab
 REM update PROGRAM_VERSION in config.py
 REM if applicable update year in license file
 REM update copyright year and release version also in docs/conf.py
@@ -81,6 +81,7 @@ REM git
 REM git config --global user.email "XXX@XXX.com" # setup email
 REM git config --global user.name "ioneater" # setup user name
 
+REM git-init # (re)initialize current folder as git repository
 REM git remote add origin https://github.com/ioneater/ESIBD-Explorer
 
 REM git add .
@@ -174,5 +175,6 @@ git push origin main --tags REM to include tags (otherwise tags are ignored)
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
 REM Title: Version v0.7.1
-REM attach ESIBD_Explorer-setup.exe to release
+REM Copy change log from changelog.rst
+REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
