@@ -1318,25 +1318,38 @@ class LiveDisplay(Plugin):
     def copyClipboard(self):
         self.print('copyClipboard', flag=PRINT.DEBUG)
         """Extends matplotlib based version to add support for pyqtgraph."""
+        # Test in light mode with and without mouse enabled
+        # Test in dark mode with and without mouse enabled, with and without
         if len(self.livePlotWidgets) == 0:
             self.print('Plot not initialized', flag=PRINT.WARNING)
             return
         if getDarkMode() and not getClipboardTheme():
-            qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
-            restoreAutoRange = False
-            viewRange = self.livePlotWidgets[0].viewRange()
-            sizes = self.plotSplitter.sizes()
-            self.updateTheme() # use default light theme for clipboard
-            self.processEvents()
-            self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1])
-            self.plotSplitter.setSizes(sizes)
-            self.processEvents()
-            QApplication.clipboard().setPixmap(self.plotSplitter.grab())
-            qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
-            self.updateTheme() # restore dark theme
-            self.plotSplitter.setSizes(sizes)
-            if restoreAutoRange: # restore auto ranging if applicable
-                self.livePlotWidgets[0].getViewBox().enableAutoRange(x=restoreAutoRange)
+            try:
+                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false') # temporary switch to light mode
+                restoreAutoRange = all([not livePlotWidget.getViewBox().mouseEnabled()[0] # all have x mouse disabled
+                    for livePlotWidget in self.livePlotWidgets if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget))])
+                viewRange = self.livePlotWidgets[0].viewRange()
+                sizes = self.plotSplitter.sizes()
+                self.parentPlugin.clearPlot()
+                self.initFig()
+                self.plotSplitter.setSizes(sizes)
+                self.livePlotWidgets[0].setMouseEnabled(x=True, y=True) # prevents autoscaling
+                self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                self.plot()
+                self.processEvents() # update GUI before grabbing
+                QApplication.clipboard().setPixmap(self.plotSplitter.grab())
+            except Exception as e:
+                self.print(f'Error while plotting in light theme: {e}')
+            finally: # make sure darkmode is restored even after errors
+                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true') # restore dark theme
+                self.parentPlugin.clearPlot()
+                self.initFig()
+                self.plotSplitter.setSizes(sizes)
+                if not restoreAutoRange:
+                    # self.livePlotWidgets[0].getViewBox().enableAutoRange(x=False)
+                    self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)
+                    self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                self.plot()
         else:
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
 

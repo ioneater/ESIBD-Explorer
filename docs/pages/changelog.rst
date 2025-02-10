@@ -3,8 +3,17 @@
 Changelog
 ---------
 
-.. Latest
-.. ======
+Latest
+======
+
+Added
+~~~~~
+
+- Added update information on starting screen.
+
+Fixed
+~~~~~
+- Fixed scaling when copy image to clipboard in live displays
 
 Version 0.7.1 2025-02-08
 ========================
@@ -115,7 +124,7 @@ Added
 - Added new UI tool MultiStateAction
 - Added dedicated channelPlot to display channel data instead of using Line plugin
 - Added msSpectra mode for simple mass spectra
-- Added PluginManager.testing flag to avoid interaction of parallel testing thread with UI diolog boxes leading to rare crash during testing
+- Added PluginManager.testing flag to avoid interaction of parallel testing thread with UI dialog boxes leading to rare crash during testing
 
 Changed
 ~~~~~~~
@@ -123,13 +132,13 @@ Changed
 - Communication has to be stopped before channels can be moved (increase stability)
 - Default ini files are scanned for changes when closing and only overwritten if necessary
 - Using last 10 s instead of last 10 data points to define background signal
-- Scans now respect the subtractBackgound states defined by the devices of the relevant channels
+- Scans now respect the subtractBackground states defined by the devices of the relevant channels
 - Virtual channels do not need to be active to be included in scans
 
 Fixed
 ~~~~~
 
-- Update to pyqtgraph==0.13.7 after replacing depricated api
+- Update to pyqtgraph==0.13.7 after replacing deprecated api
 
 Performance
 ~~~~~~~~~~~
@@ -142,7 +151,7 @@ Version 0.6.17 2024-03-18
 Added
 ~~~~~
 
-- Added pupup to show errors while importing plugins (before the Console plugin is ready to display those errors.)
+- Added popup to show errors while importing plugins (before the Console plugin is ready to display those errors.)
 - Added Smooth parameter to all channels to reduce noise using running average.
 
 Changed
