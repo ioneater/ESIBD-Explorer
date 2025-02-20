@@ -29,7 +29,7 @@ class KEITHLEY(Device):
 
     def initGUI(self):
         super().initGUI()
-        self.addAction(event=lambda: self.resetCharge(), toolTip='Reset accumulated charge.', icon='battery-empty.png')
+        self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
         """ Define device specific settings that will be added to the general settings tab.

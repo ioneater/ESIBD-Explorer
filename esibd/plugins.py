@@ -798,7 +798,7 @@ class StaticDisplay(Plugin):
 
     def __init__(self, parentPlugin, **kwargs):
         self.parentPlugin = parentPlugin # another Plugin
-        self.name = f'{parentPlugin.name} StaticDisplay'
+        self.name = f'{parentPlugin.name} Static Display'
         self.file = None
         self.previewFileTypes = [] # extend in derived classes, define here to avoid cross talk between instances
         super().__init__(**kwargs)
@@ -854,7 +854,7 @@ class StaticDisplay(Plugin):
         # for a in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
         #     self.titleBar.addAction(a)
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.plotEfficientAction = self.addStateAction(event=lambda: self.togglePlotType(), toolTipFalse='Use matplotlib plot.', iconFalse=self.makeCoreIcon('mpl.png'),
                                                        toolTipTrue='Use pyqtgraph plot.', iconTrue=self.makeCoreIcon('pyqt.png'), attr='plotEfficient', before=self.copyAction)
         self.togglePlotType()
@@ -1101,7 +1101,7 @@ class LiveDisplay(Plugin):
 
     def __init__(self, parentPlugin=None, **kwargs):
         self.parentPlugin = parentPlugin # should be a device that will define which channel to plot
-        self.name = f'{parentPlugin.name} LiveDisplay'
+        self.name = f'{parentPlugin.name} Live Display'
         self.dataFileType = f'_{self.parentPlugin.name.lower()}.dat.h5'
         self.previewFileTypes = [self.dataFileType]
         self.stackedGraphicsLayoutWidget = None
@@ -1116,12 +1116,12 @@ class LiveDisplay(Plugin):
         super().initGUI()
         self.plotSplitter = None
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE]:
-            self.addAction(event=lambda: self.parentPlugin.closeCommunication(), toolTip='Close communication.', icon=self.makeCoreIcon('stop.png'))
-            self.addAction(event=lambda: self.parentPlugin.initializeCommunication(), toolTip='Initialize communication.', icon=self.makeCoreIcon('rocket-fly.png'))
-            self.clearHistoryAction = self.addAction(event=lambda: self.parentPlugin.clearHistory(), toolTip='Clear history.', icon=self.makeCoreIcon('clipboard-empty.png'))
+            self.addAction(event=lambda: self.parentPlugin.closeCommunication(), toolTip=f'Close {self.parentPlugin.name} communication.', icon=self.makeCoreIcon('stop.png'))
+            self.addAction(event=lambda: self.parentPlugin.initializeCommunication(), toolTip=f'Initialize {self.parentPlugin.name} communication.', icon=self.makeCoreIcon('rocket-fly.png'))
+            self.clearHistoryAction = self.addAction(event=lambda: self.parentPlugin.clearHistory(), toolTip=f'Clear {self.parentPlugin.name} history.', icon=self.makeCoreIcon('clipboard-empty.png'))
             self.clearHistoryAction.setVisible(False) # usually not required as number of data points is already limited. only show in advanced mode
             if self.parentPlugin.useBackgrounds:
-                self.addAction(event=lambda: self.parentPlugin.setBackground(), toolTip='Set current value as background.', icon=self.makeCoreIcon('eraser--pencil.png'))
+                self.addAction(event=lambda: self.parentPlugin.setBackground(), toolTip=f'Set current value as background for {self.parentPlugin.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
             self.exportAction = self.addAction(event=lambda: self.parentPlugin.exportOutputData(), toolTip=f'Save visible {self.parentPlugin.name} data to current session.', # pylint: disable=unnecessary-lambda
                            icon=self.makeCoreIcon('database-export.png'))
         self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally', self.makeCoreIcon('stack_horizontal.png')),
@@ -1135,12 +1135,12 @@ class LiveDisplay(Plugin):
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='groupMode')
         self.displayTimeComboBox = EsibdCore.RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=lambda: self.displayTimeChanged(), _min=.2, _max=3600,
-                                                        toolTip='Length of displayed history in min. When -1, all history is shown.')
+                                                        toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
         self.plot(apply=True)
 
@@ -1562,7 +1562,7 @@ class ChannelManager(Plugin):
 
         def finalizeInit(self, aboutFunc=None):
             super().finalizeInit(aboutFunc)
-            self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} channel plot to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
         def getIcon(self, desaturate=False):
             return self.makeCoreIcon(self.iconFile)
@@ -1605,18 +1605,18 @@ class ChannelManager(Plugin):
 
     def initGUI(self):
         super().initGUI()
-        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), 'Show advanced options and virtual channels.', self.makeCoreIcon('toolbox.png'),
-                                                  'Hide advanced options and virtual channels.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
+        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), f'Show advanced options and virtual channels for {self.name}.', self.makeCoreIcon('toolbox.png'),
+                                                  f'Hide advanced options and virtual channels for {self.name}.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
         self.advancedAction.state = False # always off on start
-        self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), 'Import channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.exportAction = self.addAction(lambda: self.exportConfiguration(file=None), 'Export channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
-        self.saveAction = self.addAction(lambda: self.saveConfiguration(), 'Save channels in current session.', icon=self.makeCoreIcon('database-export.png'))
+        self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), f'Import {self.name} channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.exportAction = self.addAction(lambda: self.exportConfiguration(file=None), f'Export {self.name} channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.saveAction = self.addAction(lambda: self.saveConfiguration(), f'Save {self.name} channels in current session.', icon=self.makeCoreIcon('database-export.png'))
         self.duplicateChannelAction = self.addAction(event=lambda: self.duplicateChannel(), toolTip='Insert copy of selected channel.', icon=self.makeCoreIcon('table-insert-row.png'))
         self.deleteChannelAction    = self.addAction(event=lambda: self.deleteChannel(), toolTip='Delete selected channel.', icon=self.makeCoreIcon('table-delete-row.png'))
         self.moveChannelUpAction    = self.addAction(event=lambda: self.moveChannel(up=True), toolTip='Move selected channel up.', icon=self.makeCoreIcon('table-up.png'))
         self.moveChannelDownAction  = self.addAction(event=lambda: self.moveChannel(up=False), toolTip='Move selected channel down.', icon=self.makeCoreIcon('table-down.png'))
         if self.useDisplays:
-            self.channelPlotAction = self.addAction(lambda: self.showChannelPlot(), 'Plot values.', icon=self.makeCoreIcon('chart.png'))
+            self.channelPlotAction = self.addAction(lambda: self.showChannelPlot(), f'Plot {self.name} values.', icon=self.makeCoreIcon('chart.png'))
             self.toggleLiveDisplayAction = self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
                                               toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
                                               attr='showLiveDisplay', event=lambda: self.toggleLiveDisplay(), default='true')
@@ -1630,7 +1630,7 @@ class ChannelManager(Plugin):
                                                                   toolTipTrue=f'{self.name} off.', iconTrue=self.getIcon(),
                                                                  before=self.pluginManager.DeviceManager.aboutAction)
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} channel image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.toggleLiveDisplay()
 
     def isOn(self):
@@ -2330,18 +2330,18 @@ class Device(ChannelManager):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(), toolTip='Close communication.', icon=self.makeCoreIcon('stop.png'))
-        self.initAction = self.addAction(event=lambda: self.initializeCommunication(), toolTip='Initialize communication.', icon=self.makeCoreIcon('rocket-fly.png'))
-        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), 'Start data acquisition.', self.makeCoreIcon('play.png'),
+        self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(), toolTip=f'Close {self.name} communication.', icon=self.makeCoreIcon('stop.png'))
+        self.initAction = self.addAction(event=lambda: self.initializeCommunication(), toolTip=f'Initialize {self.name} communication.', icon=self.makeCoreIcon('rocket-fly.png'))
+        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), f'Start {self.name} data acquisition.', self.makeCoreIcon('play.png'),
                                                    'Stop data acquisition.', self.makeCoreIcon('pause.png'))
         if self.useBackgrounds:
-            self.subtractBackgroundAction = self.addStateAction(toolTipFalse='Subtract background.', iconFalse=self.makeCoreIcon('eraser.png'),
-                                                        toolTipTrue='Ignore background.', iconTrue=self.makeCoreIcon('eraser.png'),
+            self.subtractBackgroundAction = self.addStateAction(toolTipFalse=f'Subtract background for {self.name}.', iconFalse=self.makeCoreIcon('eraser.png'),
+                                                        toolTipTrue=f'Ignore background for {self.name}.', iconTrue=self.makeCoreIcon('eraser.png'),
                                                         attr='subtractBackground', event=lambda: self.plot(apply=True))
-            self.addAction(event=lambda: self.setBackground(), toolTip='Set current value as background.', icon=self.makeCoreIcon('eraser--pencil.png'))
+            self.addAction(event=lambda: self.setBackground(), toolTip=f'Set current value as background for {self.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
         self.estimateStorage()
         if self.inout == INOUT.IN:
-            self.addAction(lambda: self.loadValues(None), 'Load values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
+            self.addAction(lambda: self.loadValues(None), f'Load {self.name} values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
         if self.pluginManager.DeviceManager.restoreData:
             self.restoreOutputData()
 
@@ -2841,7 +2841,7 @@ class Scan(Plugin):
         def finalizeInit(self, aboutFunc=None):
             """:meta private:"""
             super().finalizeInit(aboutFunc)
-            self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
             if self.scan.useDisplayChannel:
                 self.loading = True
                 self.scan.loading = True
@@ -2957,11 +2957,11 @@ class Scan(Plugin):
         self.settingsMgr.init()
         self.expandTree(self.settingsMgr.tree)
         self.notes = '' # should always have current notes or no notes
-        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), 'Show advanced options.', self.makeCoreIcon('toolbox.png'),
-                                                  'Hide advanced options.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
-        self.addAction(lambda: self.loadSettings(file=None), 'Load settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.addAction(lambda: self.saveSettings(file=None), 'Export settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
-        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(), 'Start.', self.makeCoreIcon('play.png'), 'Stop.', self.makeCoreIcon('stop.png'))
+        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), f'Show advanced options for {self.name}.', self.makeCoreIcon('toolbox.png'),
+                                                  f'Hide advanced options for {self.name}.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
+        self.addAction(lambda: self.loadSettings(file=None), f'Load {self.name} settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.addAction(lambda: self.saveSettings(file=None), f'Export {self.name} settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(), f'Start {self.name} scan.', self.makeCoreIcon('play.png'), 'Stop.', self.makeCoreIcon('stop.png'))
         self.estimateScanTime()
         self.addOutputChannels()
         self.loading = False
@@ -4427,9 +4427,9 @@ class Settings(SettingsManager):
         """:meta private:"""
         super().initGUI()
         self.addContentWidget(self.tree)
-        self.addAction(lambda: self.loadSettings(None), 'Load Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.addAction(lambda: self.saveSettings(None), 'Export Settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
-        self.addAction(lambda: self.pluginManager.managePlugins(), 'Manage Plugins.', icon=self.makeCoreIcon('block--pencil.png'))
+        self.addAction(lambda: self.loadSettings(None), f'Load {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.addAction(lambda: self.saveSettings(None), f'Export {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.addAction(lambda: self.pluginManager.managePlugins(), f'Manage {PROGRAM_NAME} Plugins.', icon=self.makeCoreIcon('block--pencil.png'))
         self.showConsoleAction = self.addStateAction(event=lambda: self.pluginManager.Console.toggleVisible(), toolTipFalse='Show Console.', iconFalse=self.makeCoreIcon('terminal.png'),
                                                  toolTipTrue='Hide Console.', iconTrue=self.makeCoreIcon('terminal--minus.png'), attr='showConsole')
 
@@ -5622,9 +5622,9 @@ class UCM(ChannelManager):
 
     def initGUI(self):
         super().initGUI()
-        self.importAction.setToolTip('Import channels.')
-        self.exportAction.setToolTip('Export channels.')
-        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), 'Start data acquisition.', self.makeCoreIcon('play.png'),
+        self.importAction.setToolTip(f'Import {self.name} channels.')
+        self.exportAction.setToolTip(f'Export {self.name} channels.')
+        self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), f'Start {self.name} data acquisition.', self.makeCoreIcon('play.png'),
                                                    'Stop data acquisition.', self.makeCoreIcon('pause.png'))
 
     def afterFinalizeInit(self):

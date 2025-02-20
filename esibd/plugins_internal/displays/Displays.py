@@ -63,8 +63,8 @@ class MS(Plugin):
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(event=lambda: self.plot(), toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
@@ -341,8 +341,8 @@ class LINE(Plugin):
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), 'Image to Clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.line), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.line), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
     def runTestParallel(self):
         if self.initializedDock:
