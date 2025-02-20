@@ -6,7 +6,6 @@ For now, English is the only supported language and use of hard coded error mess
 import re
 import sys
 import traceback
-import subprocess
 from threading import Timer, Thread, current_thread, main_thread
 import threading
 import time
@@ -1827,7 +1826,7 @@ class Channel(QTreeWidgetItem):
                                     header= 'E', toolTip='If enabled, channel will communicate with the device.',
                                     event=lambda: self.enabledChanged(), attr='enabled')
         channel[self.NAME    ] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name',
-                                               event=self.updateDisplay if self.inout == INOUT.OUT else None)
+                                               event=lambda: self.nameChanged())
         channel[self.VALUE   ] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0,
                                                widgetType=Parameter.TYPE.EXP if hasattr(self.device, 'logY') and self.device.logY else Parameter.TYPE.FLOAT,
                                                advanced=False, header='Unit', attr='value',
@@ -2083,6 +2082,11 @@ class Channel(QTreeWidgetItem):
                 self.device.appendData(nan=True) # prevent interpolation to old data
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
+
+    def nameChanged(self):
+        if self.inout == INOUT.OUT:
+            self.updateDisplay()
+        self.device.pluginManager.connectAllSources()
 
     def updateDisplay(self):
         if not self.device.loading and self.useDisplays:
