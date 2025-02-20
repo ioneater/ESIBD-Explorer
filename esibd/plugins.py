@@ -854,7 +854,7 @@ class StaticDisplay(Plugin):
         # for a in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
         #     self.titleBar.addAction(a)
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.plotEfficientAction = self.addStateAction(event=lambda: self.togglePlotType(), toolTipFalse='Use matplotlib plot.', iconFalse=self.makeCoreIcon('mpl.png'),
                                                        toolTipTrue='Use pyqtgraph plot.', iconTrue=self.makeCoreIcon('pyqt.png'), attr='plotEfficient', before=self.copyAction)
         self.togglePlotType()
@@ -1140,7 +1140,7 @@ class LiveDisplay(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
         self.plot(apply=True)
 
@@ -2841,7 +2841,7 @@ class Scan(Plugin):
         def finalizeInit(self, aboutFunc=None):
             """:meta private:"""
             super().finalizeInit(aboutFunc)
-            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} scan to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
             if self.scan.useDisplayChannel:
                 self.loading = True
                 self.scan.loading = True
@@ -4645,10 +4645,6 @@ class DeviceManager(Plugin):
         super().finalizeInit(aboutFunc)
         self.floatAction.deleteLater()
         delattr(self, 'floatAction')
-        self.displayTimeComboBox = EsibdCore.RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr='displayTime',
-                                                        event=lambda: self.updateDisplayTime(), _min=.2, _max=3600,
-                                                        toolTip='Length of displayed history in min. When -1, all history is shown.')
-        self.titleBar.insertWidget(self.aboutAction, self.displayTimeComboBox)
         if hasattr(self, 'titleBarLabel'):
             self.titleBarLabel.deleteLater()
             self.titleBarLabel = None
@@ -4819,11 +4815,6 @@ class DeviceManager(Plugin):
     def updateStaticPlot(self):
         for staticDisplay in self.getActiveStaticDisplays():
             staticDisplay.updateStaticPlot()
-
-    def updateDisplayTime(self):
-        if hasattr(self, 'displayTimeComboBox'): # ignore while initializing
-            for liveDisplay in self.getActiveLiveDisplays():
-                liveDisplay.displayTimeComboBox.setCurrentText(self.displayTimeComboBox.currentText())
 
     def exportConfiguration(self, file=None, default=False, inout=INOUT.BOTH):
         for device in self.getDevices(inout):
