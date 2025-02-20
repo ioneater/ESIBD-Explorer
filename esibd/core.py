@@ -447,7 +447,7 @@ class PluginManager():
 
     def managePlugins(self):
         """A dialog to select which plugins should be enabled."""
-        dlg = QDialog(self.mainWindow)
+        dlg = QDialog(self.mainWindow, Qt.WindowType.WindowStaysOnTopHint)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
@@ -845,6 +845,7 @@ class CloseDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle(title)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.setModal(True)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(ok)

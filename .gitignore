@@ -12,7 +12,7 @@ build/
 dist/
 
 # for testing of plugins from external developers
-external_plugins/
+plugins_external/
 
 # Sphinx documentation
 docs/_build/

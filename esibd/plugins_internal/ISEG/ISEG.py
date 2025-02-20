@@ -92,8 +92,9 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
+        self.updateWarningState(self.enabled and self.device.controller.acquiring
+                                and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self):
         self.getParameterByName(self.MODULE).getWidget().setVisible(self.real)

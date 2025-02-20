@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel, QSizePolicy
+from PyQt6.QtCore import Qt
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
@@ -40,7 +41,7 @@ class CustomControl(Plugin):
 
     def onClick(self):
         """Execute your custom code"""
-        dlg = QDialog(self)
+        dlg = QDialog(self, Qt.WindowType.WindowStaysOnTopHint)
         dlg.setWindowTitle('Custom Dialog')
         lbl = QLabel('This could run your custom code.')
         lay = QGridLayout()

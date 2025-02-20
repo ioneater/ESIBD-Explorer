@@ -3455,6 +3455,7 @@ class Browser(Plugin):
     """The Browser is used to display various file formats. In addition, it
     provides access to the program description and documentation. Finally, it shows
     the about content of other plugins when clicking on their respective question mark icons."""
+    # Should show caret when mouse over selectable text but only shows pointer.
 
     name = 'Browser'
     version = '1.0'
@@ -3488,6 +3489,7 @@ class Browser(Plugin):
         # self.webEngineView.page().settings().setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
         self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         self.webEngineView.settings().setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True) # required to open local PDFs
+
         self.webEngineView.loadFinished.connect(self.adjustLocation)
 
         self.titleBar.setIconSize(QSize(16, 16)) # match size of other titleBar elements

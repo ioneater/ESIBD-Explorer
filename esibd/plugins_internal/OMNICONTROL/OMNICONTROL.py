@@ -93,6 +93,7 @@ class PressureController(DeviceController):
                     self.pressures[i] = np.nan if pressure == 0 else pressure*1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')
+                    self.errorCount += 1
                     self.pressures[i] = np.nan
 
     def fakeNumbers(self):
