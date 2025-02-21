@@ -452,7 +452,7 @@ class PluginManager():
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         tree = QTreeWidget()
-        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tool tips!)'])
+        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
         tree.setColumnCount(8)
         tree.setRootIsDecorated(False)
         tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -2793,7 +2793,11 @@ class DockWidget(QDockWidget):
 
     def __init__(self, plugin):
         self.plugin = plugin
-        self.title = self.plugin.parentPlugin.name if hasattr(self.plugin, 'parentPlugin') else self.plugin.name
+        self.title = self.plugin.name
+        if hasattr(self.plugin, 'parentPlugin'):
+            self.title = self.plugin.parentPlugin.name
+        if hasattr(self.plugin, 'scan') and self.plugin.scan is not None:
+            self.title = self.plugin.scan.name
         super().__init__(self.title, QApplication.instance().mainWindow)
         self.signalComm = self.SignalCommunicate()
         self.signalComm.dockClosingSignal.connect(self.plugin.closeGUI)

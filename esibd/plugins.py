@@ -332,12 +332,12 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc, f'About {self.name}', self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc(), f'About {self.name}', self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
         self.floatAction = self.addStateAction(lambda: self.setFloat(), f'Float {self.name}.', self.makeCoreIcon('application.png'), f'Dock {self.name}.', self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
-            self.closeAction = self.addAction(lambda: self.closeUserGUI(), 'Close.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
+            self.closeAction = self.addAction(lambda: self.closeUserGUI(), f'Close {self.name}.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
         self.updateTheme()
         self.loading = False
         # extend or overwrite to add code that should be executed after all other plugins have been initialized, e.g. modifications of other plugins
@@ -765,6 +765,9 @@ class Plugin(QWidget):
         ds = {}
         # ds[f'{self.name}/SettingName'] = parameterDict(...)
         return ds
+
+    def displayActive(self):
+        return self.display is not None and self.display.initializedDock
 
     def close(self):
         """Closes plugin cleanly without leaving any data or communication
@@ -1537,7 +1540,6 @@ class ChannelManager(Plugin):
     class ChannelPlot(Plugin):
         """Simplified version of the Line plugin for plotting channels."""
 
-        name = 'Line'
         version = '1.0'
         pluginType = PluginManager.TYPE.DISPLAY
         iconFile = 'chart.png'
@@ -1545,7 +1547,7 @@ class ChannelManager(Plugin):
         def __init__(self, parentPlugin, pluginManager=None, dependencyPath=None):
             super().__init__(pluginManager, dependencyPath)
             self.parentPlugin = parentPlugin
-            self.name = self.parentPlugin.name
+            self.name = f'{parentPlugin.name} Channel Plot'
 
         def initGUI(self):
             super().initGUI()
@@ -2053,7 +2055,8 @@ class ChannelManager(Plugin):
             if np.mod(len(self.channels), 5) == 0:
                 self.processEvents()
                 #print(f'{self.name} {len(self.channels)} channels')
-        self.pluginManager.connectAllSources() # previous channels have become invalid
+        if not self.pluginManager.loading:
+            self.pluginManager.connectAllSources() # previous channels have become invalid
 
     def compareItemsConfig(self, items, ignoreIndicators=False):
         """Compares channel items from file with current configuration.
@@ -2818,7 +2821,7 @@ class Scan(Plugin):
 
         def __init__(self, scan, **kwargs):
             self.scan = scan
-            self.name = self.scan.name
+            self.name = f'{self.scan.name} Display'
             self.plot = self.scan.plot
             super().__init__(**kwargs)
 
@@ -2841,7 +2844,7 @@ class Scan(Plugin):
         def finalizeInit(self, aboutFunc=None):
             """:meta private:"""
             super().finalizeInit(aboutFunc)
-            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} scan to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
+            self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
             if self.scan.useDisplayChannel:
                 self.loading = True
                 self.scan.loading = True
@@ -3442,13 +3445,13 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
             if self.display is None or not self.display.initializedDock:
                 self.display = self.Display(scan=self, pluginManager=self.pluginManager)
                 self.display.provideDock()
-        elif self.display is not None and self.display.initializedDock:
+        elif self.displayActive():
             self.display.closeGUI()
 
     def updateTheme(self):
         """:meta private:"""
         super().updateTheme()
-        if self.display is not None and self.display.initializedDock:
+        if self.displayActive():
             self.display.updateTheme()
 
 class Browser(Plugin):
@@ -3945,6 +3948,54 @@ class Tree(Plugin):
         except KeyError as e:
             self.print(e)
 
+    def iconOverview(self):
+        self.provideDock()
+        self.tree.clear()
+        self.tree.setHeaderHidden(False)
+        self.tree.setHeaderLabels(['Icon','Tooltip'])
+        self.tree.setColumnCount(2)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        for plugin in self.pluginManager.plugins:
+            plugin_widget = QTreeWidgetItem(self.tree, [plugin.name])
+            plugin_widget.setIcon(0, plugin.getIcon())
+            self.tree.setFirstColumnSpanned(self.tree.indexOfTopLevelItem(plugin_widget), self.tree.rootIndex(), True)  # Spans all columns
+            # description = plugin.documentation if plugin.documentation is not None else plugin.__doc__
+            # plugin_widget.setText(1, description.splitlines()[0][:100] )
+            # plugin_widget.setToolTip(1, description)
+            self.addActionWidgets(plugin_widget, plugin)
+            if hasattr(plugin, 'liveDisplay') and plugin.liveDisplayActive():
+                widget = QTreeWidgetItem(plugin_widget, [plugin.liveDisplay.name])
+                widget.setIcon(0, plugin.liveDisplay.getIcon())
+                widget.setFirstColumnSpanned(True)
+                self.addActionWidgets(widget, plugin.liveDisplay)
+            if hasattr(plugin, 'staticDisplay') and plugin.staticDisplayActive():
+                widget = QTreeWidgetItem(plugin_widget, [plugin.staticDisplay.name])
+                widget.setIcon(0, plugin.staticDisplay.getIcon())
+                widget.setFirstColumnSpanned(True)
+                self.addActionWidgets(widget, plugin.staticDisplay)
+            if hasattr(plugin, 'channelPlot') and plugin.channelPlotActive():
+                widget = QTreeWidgetItem(plugin_widget, [plugin.channelPlot.name])
+                widget.setIcon(0, plugin.channelPlot.getIcon())
+                widget.setFirstColumnSpanned(True)
+                self.addActionWidgets(widget, plugin.channelPlot)
+            if hasattr(plugin, 'display') and plugin.displayActive():
+                widget = QTreeWidgetItem(plugin_widget, [plugin.display.name])
+                widget.setIcon(0, plugin.display.getIcon())
+                widget.setFirstColumnSpanned(True)
+                self.addActionWidgets(widget, plugin.display)
+            plugin_widget.setExpanded(True)
+
+        # self.expandTree(self.tree)
+        self.raiseDock(True)
+
+    def addActionWidgets(self, tree, plugin):
+        if hasattr(plugin, 'titleBar'):
+            for action in plugin.titleBar.actions():
+                if action.iconText() != '':
+                    action_widget = QTreeWidgetItem(tree)
+                    action_widget.setIcon(0, action.icon())
+                    action_widget.setText(1, action.iconText())
+
 class Console(Plugin):
     """The console should typically not be needed, unless you are a developer
     or assist in debugging an issue. It is activated from the tool bar of
@@ -3988,6 +4039,7 @@ class Console(Plugin):
         self.commonCommandsComboBox.wheelEvent = lambda event: None
         self.commonCommandsComboBox.addItems([
             "select command",
+            "Tree.iconOverview() # Show icon overview.",
             "Browser.previewFileTypes # access plugin properties directly using plugin name",
             "ISEG.controller # get device specific hardware manager",
             "RBD.channels # get channels of a device",
@@ -4034,8 +4086,8 @@ class Console(Plugin):
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
                                               before=self.aboutAction, event=lambda: self.toggleLogging(), default='true')
         self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
-        self.inspectAction = self.addAction(toolTip='Inspect object.',
-                        icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'), before=self.toggleLoggingAction, event=lambda: self.inspect())
+        self.inspectAction = self.addAction(toolTip='Inspect object.', icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'),
+                                            before=self.toggleLoggingAction, event=lambda: self.inspect())
         self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
     def addToNamespace(self, key, value):
@@ -4094,7 +4146,7 @@ class Console(Plugin):
             self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
 
     def help(self):
-        self.print('Please refer to online (http://esibd-explorer.rtfd.io/) or offline documentation (book in browser) as well as tool tips to get help.')
+        self.print('Please refer to online (http://esibd-explorer.rtfd.io/) or offline documentation (book in browser) as well as tooltips to get help.')
 
     @synchronized(timeout=1)
     def execute(self, command):

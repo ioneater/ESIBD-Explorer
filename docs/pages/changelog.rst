@@ -13,7 +13,17 @@ Added
 
 Fixed
 ~~~~~
-- Fixed scaling when copy image to clipboard in live displays
+- Fixed scaling when copy image to clipboard in live displays.
+- Updating linked channels when renaming source channels.
+- Dialogs stay on top of all windows.
+
+Changed
+~~~~~~~
+- Using plugin names more consistently in tooltips.
+
+Removed
+~~~~~~~
+- Removed display time control for device manager (use UCM to see multiple channels with consistent time).
 
 Version 0.7.1 2025-02-08
 ========================
