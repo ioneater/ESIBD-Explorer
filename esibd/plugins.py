@@ -943,14 +943,12 @@ class StaticDisplay(Plugin):
         else:
             self.staticPlotWidget.clear()
             self.legend = self.staticPlotWidget.addLegend(labelTextColor=colors.fg) # before adding plots
-
         for output in self.outputs:
             length = min(self.inputs[0].getRecordingData().shape[0], output.getRecordingData().shape[0])
             x = self.inputs[0].getRecordingData()[-length:]
             y = self.parentPlugin.convertDataDisplay((output.getRecordingData()-output.recordingBackground)[:length]
                                            if self.parentPlugin.useBackgrounds and self.parentPlugin.subtractBackgroundActive()
                                            else output.getRecordingData()[:length])
-
             if output.sourceChannel is None:
                 if self.plotEfficientAction.state:
                     self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.name} ({output.unit})')
@@ -1119,14 +1117,22 @@ class LiveDisplay(Plugin):
         super().initGUI()
         self.plotSplitter = None
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE]:
+            self.exportAction = self.addAction(event=lambda: self.parentPlugin.exportOutputData(), toolTip=f'Save visible {self.parentPlugin.name} data to current session.', # pylint: disable=unnecessary-lambda
+                           icon=self.makeCoreIcon('database-export.png'))
             self.addAction(event=lambda: self.parentPlugin.closeCommunication(), toolTip=f'Close {self.parentPlugin.name} communication.', icon=self.makeCoreIcon('stop.png'))
             self.addAction(event=lambda: self.parentPlugin.initializeCommunication(), toolTip=f'Initialize {self.parentPlugin.name} communication.', icon=self.makeCoreIcon('rocket-fly.png'))
+        self.recordingAction = self.addStateAction(lambda: self.parentPlugin.toggleRecording(manual=True), f'Start {self.parentPlugin.name} data acquisition.', self.makeCoreIcon('play.png'),
+                                                   f'Pause {self.parentPlugin.name} data acquisition.', self.makeCoreIcon('pause.png'))
+        self.recordingAction.state = self.parentPlugin.recordingAction.state
+        if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE]:
             self.clearHistoryAction = self.addAction(event=lambda: self.parentPlugin.clearHistory(), toolTip=f'Clear {self.parentPlugin.name} history.', icon=self.makeCoreIcon('clipboard-empty.png'))
             self.clearHistoryAction.setVisible(False) # usually not required as number of data points is already limited. only show in advanced mode
             if self.parentPlugin.useBackgrounds:
+                self.subtractBackgroundAction = self.addStateAction(toolTipFalse=f'Subtract background for {self.parentPlugin.name}.', iconFalse=self.makeCoreIcon('eraser.png'),
+                                                        toolTipTrue=f'Ignore background for {self.parentPlugin.name}.', iconTrue=self.makeCoreIcon('eraser.png'),
+                                                        event=lambda: self.subtractBackgroundChanged())
+                self.subtractBackgroundAction.state = self.parentPlugin.subtractBackgroundAction.state
                 self.addAction(event=lambda: self.parentPlugin.setBackground(), toolTip=f'Set current value as background for {self.parentPlugin.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
-            self.exportAction = self.addAction(event=lambda: self.parentPlugin.exportOutputData(), toolTip=f'Save visible {self.parentPlugin.name} data to current session.', # pylint: disable=unnecessary-lambda
-                           icon=self.makeCoreIcon('database-export.png'))
         self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally', self.makeCoreIcon('stack_horizontal.png')),
                                                             MultiState('horizontal', 'Stack axes on top of each other.', self.makeCoreIcon('stack_top.png')),
                                                             MultiState('stacked', 'Stack axes vertically.', self.makeCoreIcon('stack_vertical.png'))],
@@ -1154,6 +1160,11 @@ class LiveDisplay(Plugin):
                 if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0]:
                     livePlotWidget.setMouseEnabled(x=False, y=True)
         self.plot(apply=True)
+
+    def subtractBackgroundChanged(self):
+        # relay change to action in parentPlugin
+        self.parentPlugin.subtractBackgroundAction.state = self.subtractBackgroundAction.state
+        self.parentPlugin.subtractBackgroundAction.triggered.emit(self.subtractBackgroundAction.state)
 
     def getDisplayTime(self):
         """Gets displaytime independent of displayTimeComboBox"""
@@ -2180,6 +2191,8 @@ class ChannelManager(Plugin):
         # allow output widgets to react to change if acquisition state
         if hasattr(self, 'recordingAction'):
             self.recordingAction.state = self.recording
+            if self.liveDisplayActive():
+                self.liveDisplay.recordingAction.state = self.recording
 
     def supportsFile(self, file):
         return any(file.name.endswith(suffix) for suffix in (self.getSupportedFiles())) # does not support any files for preview, only when explicitly loading
@@ -2336,11 +2349,11 @@ class Device(ChannelManager):
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(), toolTip=f'Close {self.name} communication.', icon=self.makeCoreIcon('stop.png'))
         self.initAction = self.addAction(event=lambda: self.initializeCommunication(), toolTip=f'Initialize {self.name} communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         self.recordingAction = self.addStateAction(lambda: self.toggleRecording(manual=True), f'Start {self.name} data acquisition.', self.makeCoreIcon('play.png'),
-                                                   'Stop data acquisition.', self.makeCoreIcon('pause.png'))
+                                                   f'Pause {self.name} data acquisition.', self.makeCoreIcon('pause.png'))
         if self.useBackgrounds:
             self.subtractBackgroundAction = self.addStateAction(toolTipFalse=f'Subtract background for {self.name}.', iconFalse=self.makeCoreIcon('eraser.png'),
                                                         toolTipTrue=f'Ignore background for {self.name}.', iconTrue=self.makeCoreIcon('eraser.png'),
-                                                        attr='subtractBackground', event=lambda: self.plot(apply=True))
+                                                        attr='subtractBackground', event=lambda: self.subtractBackgroundChanged())
             self.addAction(event=lambda: self.setBackground(), toolTip=f'Set current value as background for {self.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
         self.estimateStorage()
         if self.inout == INOUT.IN:
@@ -2376,6 +2389,11 @@ class Device(ChannelManager):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
         super().intervalChanged()
         self.estimateStorage()
+
+    def subtractBackgroundChanged(self):
+        if self.liveDisplayActive():
+            self.liveDisplay.subtractBackgroundAction.state = self.subtractBackgroundAction.state
+        self.plot(apply=True)
 
     def startAcquisition(self):
         """Starts device Acquisition.

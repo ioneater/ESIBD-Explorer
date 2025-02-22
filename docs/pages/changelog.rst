@@ -22,7 +22,8 @@ Fixed
 Changed
 ~~~~~~~
 - Using plugin names more consistently in tooltips.
--
+- Using explicit tooltips for linked channels in UCM, PID, and scans.
+- Reintroduced start recording and subtractBackground actions for live displays (linked to corresponding action in parent Plugin).
 
 Removed
 ~~~~~~~
