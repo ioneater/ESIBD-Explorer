@@ -394,6 +394,7 @@ class CurrentController(DeviceController):
             x=float(x)
         except ValueError as e:
             self.print(f'Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
+            self.errorCount += 1
             return self.channel.value # keep last valid value
         match unit:
             case 'mA':

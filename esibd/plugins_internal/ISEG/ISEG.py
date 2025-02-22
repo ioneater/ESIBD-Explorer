@@ -174,6 +174,7 @@ class VoltageController(DeviceController):
                                     self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
                                 except (ValueError, TypeError) as e:
                                     self.print(f'Parsing error: {e} for {res}.')
+                                    self.errorCount += 1
                     self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 

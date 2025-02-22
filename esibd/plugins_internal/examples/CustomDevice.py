@@ -1,11 +1,11 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 import time
 import numpy as np
-# Users who add custom controls can use the build-in features at their own risk.
-# If you want your module to be more independent, implement your own replacement for the following imports.
 from PyQt6.QtWidgets import QMessageBox
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, DeviceController, getTestMode, PRINT
+
+# TODO It is recommended to edit a copy of this file using VS Code with the Better Comments extension installed to highlight the sections that need to be customized.
 
 def providePlugins():
     return [CustomDevice]
@@ -187,6 +187,8 @@ class CustomController(DeviceController):
                         self.monitors = [channel.value for channel in self.device.channels] # TODO implement fake feedback
                     else:
                         pass # TODO implement real feedback
+                        # TODO increment error count if you catch a communication error here
+                        # self.errorCount += 1
                     self.signalComm.updateValueSignal.emit()
             time.sleep(self.device.interval/1000) # release lock before waiting!
 

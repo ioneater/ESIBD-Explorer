@@ -139,6 +139,7 @@ class TemperatureController(DeviceController):
                     self.temperatures[i] = np.nan
             except ValueError as e:
                 self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                self.errorCount += 1
                 self.temperatures[i] = np.nan
 
     def fakeNumbers(self):

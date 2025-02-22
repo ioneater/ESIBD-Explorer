@@ -11,6 +11,7 @@ Added
 
 - Added update information on starting screen.
 - Added option to show an overview of all icons (enter Tree.iconOverview() in Console).
+- Added Error count setting for devices to stop communication after multiple consecutive errors.
 
 Fixed
 ~~~~~

@@ -180,7 +180,9 @@ class VoltageController(DeviceController):
                             for ID in range(8):
                                 try:
                                     self.voltages[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=lock_acquired))
-                                except ValueError:
+                                except ValueError as e:
+                                    self.print(f'Error while reading voltage {e}')
+                                    self.errorCount += 1
                                     self.voltages[i][ID] = np.nan
                     self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)

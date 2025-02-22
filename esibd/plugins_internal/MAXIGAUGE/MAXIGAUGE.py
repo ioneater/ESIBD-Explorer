@@ -113,6 +113,7 @@ class PressureController(DeviceController):
                             self.pressures[i] = np.nan
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
+                        self.errorCount += 1
                         self.pressures[i] = np.nan
                 else:
                     self.pressures[i] = np.nan

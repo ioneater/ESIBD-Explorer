@@ -104,6 +104,7 @@ class PressureController(DeviceController):
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
+                        self.errorCount += 1
                         self.pressures[i] = np.nan
                 else:
                     self.pressures[i] = np.nan

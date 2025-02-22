@@ -893,7 +893,7 @@ class StaticDisplay(Plugin):
     def provideDock(self):
         """:meta private:"""
         if super().provideDock():
-            self.finalizeInit(aboutFunc=self.parentPlugin.about)
+            self.finalizeInit()
 
     def supportsFile(self, file):
         """:meta private:"""
@@ -901,7 +901,7 @@ class StaticDisplay(Plugin):
             return True
         elif self.pluginManager.DeviceManager.supportsFile(file):
             with h5py.File(file, 'r') as h5File:
-                return self.name in h5File
+                return self.parentPlugin.name in h5File
         else:
             return False
 
@@ -2342,6 +2342,9 @@ class Device(ChannelManager):
         # implement a controller based on DeviceController(_parent=self). In some cases there is no controller for the device, but for every channel. Adjust
         self.controller = None
         self.subtractBackgroundAction = None
+        self.errorCountTimer = QTimer()
+        self.errorCountTimer.timeout.connect(self.resetErrorCount)
+        self.errorCountTimer.setInterval(600000) # 10 min i.e. 600000 msec TODO
 
     def initGUI(self):
         """:meta private:"""
@@ -2377,6 +2380,10 @@ class Device(ChannelManager):
         'If this is reached, older data will be thinned to allow to keep longer history.')
         defaultSettings[f'{self.name}/Logging'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           widgetType=Parameter.TYPE.BOOL, attr='log')
+        defaultSettings[f'{self.name}/Error count'] = parameterDict(value=0, toolTip='Communication errors within last 10 minutes.\n' +
+                                                                   'Communication will be stopped if this reaches 10.\n' +
+                                                                   'Will be reset after 10 minutes without errors or on initialization.',
+                                          widgetType=Parameter.TYPE.INT, attr='errorCount', indicator=True, event=lambda: self.errorCountChanged())
         return defaultSettings
 
     def runTestParallel(self):
@@ -2394,6 +2401,13 @@ class Device(ChannelManager):
         if self.liveDisplayActive():
             self.liveDisplay.subtractBackgroundAction.state = self.subtractBackgroundAction.state
         self.plot(apply=True)
+
+    def errorCountChanged(self):
+        if self.errorCount != 0:
+            self.errorCountTimer.start() # will reset in after interval unless another error happens before and restarts the timer
+
+    def resetErrorCount(self):
+        self.errorCount = 0
 
     def startAcquisition(self):
         """Starts device Acquisition.
@@ -3763,10 +3777,10 @@ class Text(Plugin):
 class Tree(Plugin):
     """The Tree plugin gives an overview of the content of .py, .hdf5, and
     .h5 files. This includes configuration or scan files and even python source code.
-    It can also help developers to inspect any object using Tree.inspect() from the :ref:`sec:console`."""
+    It can also help inspect any object using Tree.inspect() or give an overview of icons using Tree.iconOverview() from the :ref:`sec:console`."""
     documentation = """The Tree plugin gives an overview of the content of .py, .hdf5, and
     .h5 files. This includes configuration or scan files and even python source code.
-    It can also help developers to inspect any object using Tree.inspect() from the Console."""
+    It can also help inspect any object using Tree.inspect() or give an overview of icons using Tree.iconOverview() from the Console."""
 
     name = 'Tree'
     version = '1.0'
@@ -4283,7 +4297,6 @@ class SettingsManager(Plugin):
         # call this after creating the instance, as the instance is required during initialization
         # call after all defaultSettings have been added!
         self.loadSettings(default=True)
-        # QTimer.singleShot(100, lambda: self.tree.setColumnWidth(0, 200))
 
     def loadSettings(self, file=None, default=False):
         """Loads settings from hdf or ini file."""
@@ -4692,10 +4705,10 @@ class DeviceManager(Plugin):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
+        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(manual=True), toolTip='Close all communication.', icon=self.makeCoreIcon('stop.png'))
         self.addAction(event=lambda: self.initializeCommunication(), toolTip='Initialize all communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         # lambda needed to avoid "checked" parameter passed by QAction
-        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
         self.recordingAction = self.addStateAction(event=lambda: self.toggleRecording(), toolTipFalse='Start all data acquisition.',
                                                 iconFalse=self.makeCoreIcon('play.png'), toolTipTrue='Stop all data acquisition.', iconTrue=self.makeCoreIcon('pause.png'))
 

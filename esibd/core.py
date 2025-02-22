@@ -3654,7 +3654,6 @@ class DeviceController(QObject):
         self.device = _parent # overwrite with channel.getDevice() if applicable
         self.lock = TimeoutLock(_parent=self) # init here so each instance gets its own lock
         self.port = None
-        self.errorCount = 0
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValueSignal.connect(self.updateValue)
@@ -3663,6 +3662,13 @@ class DeviceController(QObject):
     @property
     def name(self):
         return self.device.name # initially set to _parent, may be overwritten with self.channel.getDevice()
+
+    @property
+    def errorCount(self):
+        return self.device.errorCount
+    @errorCount.setter
+    def errorCount(self, count):
+        self.device.errorCount = count
 
     def print(self, message, flag=PRINT.MESSAGE):
         controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'

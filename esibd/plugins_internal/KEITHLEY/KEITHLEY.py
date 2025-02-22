@@ -215,6 +215,6 @@ class CurrentController(DeviceController):
                 self.port.write("INIT")
                 self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
-                self.errorCount += 1
                 self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
+                self.errorCount += 1
                 self.signalComm.updateValueSignal.emit(np.nan)
