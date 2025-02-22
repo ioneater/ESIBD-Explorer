@@ -10,16 +10,19 @@ Added
 ~~~~~
 
 - Added update information on starting screen.
+- Added option to show an overview of all icons (enter Tree.iconOverview() in Console).
 
 Fixed
 ~~~~~
 - Fixed scaling when copy image to clipboard in live displays.
 - Updating linked channels when renaming source channels.
 - Dialogs stay on top of all windows.
+- Fixed help dialog for displays.
 
 Changed
 ~~~~~~~
 - Using plugin names more consistently in tooltips.
+-
 
 Removed
 ~~~~~~~

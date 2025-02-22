@@ -2345,8 +2345,7 @@ class Device(ChannelManager):
         self.estimateStorage()
         if self.inout == INOUT.IN:
             self.addAction(lambda: self.loadValues(None), f'Load {self.name} values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
-        if self.pluginManager.DeviceManager.restoreData:
-            self.restoreOutputData()
+        self.restoreOutputData()
 
     def getDefaultSettings(self):
         """ Define device specific settings that will be added to the general settings tab.
@@ -4797,8 +4796,6 @@ class DeviceManager(Plugin):
                                                                 event=lambda: self.livePlot(apply=True), widgetType=Parameter.TYPE.INT, _min=100, _max=100000, attr='max_display_size')
         defaultSettings['Acquisition/Limit display points'] = parameterDict(value=True, toolTip="Number of displayed data points will be limited to 'Max display points'", widgetType=Parameter.TYPE.BOOL,
                                                                event=lambda: self.livePlot(apply=True), attr='limit_display_size')
-        defaultSettings['Acquisition/Restore data'] = parameterDict(value=True, toolTip='Enable to store and restore data for all devices.',
-                                                        widgetType=Parameter.TYPE.BOOL, attr='restoreData')
         return defaultSettings
 
     def restoreConfiguration(self):
@@ -4888,14 +4885,13 @@ class DeviceManager(Plugin):
                 device.updateValues()
 
     def store(self):
-        """Regularly stores device settings and data to minimize loss in the event of a program crash.
-        Make sure that no GUI elements are accessed when running from parallel thread!"""
+        """Regularly stores device settings and data to minimize loss in the event of a program crash."""
+        # * Make sure that no GUI elements are accessed when running from parallel thread!
         # * deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
         # * scan and plugin settings are already saved as soon as they are changing
-        if self.restoreData:
-            for device in self.getDevices():
-                if device.recording:
-                    Thread(target=device.exportOutputData, kwargs={'default':True}, name=f'{device.name} exportOutputDataThread').start()
+        for device in self.getDevices():
+            if device.recording: # will be exported when program closes even if not recording, this is just for the regular exports while the program is running
+                Thread(target=device.exportOutputData, kwargs={'default':True}, name=f'{device.name} exportOutputDataThread').start()
 
     @synchronized()
     def toggleRecording(self):
