@@ -5506,15 +5506,17 @@ class UCM(ChannelManager):
                        if channel not in self.device.getChannels()
                        and channel.name.strip().lower() == self.name.strip().lower()]
             if len(sources) == 0:
-                 self.sourceChannel = None
-                 self.getValues = None
-                 self.notes = f'Could not find {self.name}'
-                 self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
-                 self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
-                 self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
+                self.sourceChannel = None
+                self.getValues = None
+                self.notes = f'Could not find {self.name}'
+                self.getParameterByName(self.DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+                self.getParameterByName(self.DEVICE).getWidget().setToolTip('Source: Unknown')
+                self.getParameterByName(self.VALUE).getWidget().setVisible(False) # value not needed (no setValues)
+                self.getParameterByName(self.MONITOR).getWidget().setVisible(False) # monitor not needed
             else:
                 self.sourceChannel = sources[0]
                 self.getParameterByName(self.DEVICE).getWidget().setIcon(self.sourceChannel.getDevice().getIcon())
+                self.getParameterByName(self.DEVICE).getWidget().setToolTip(f'Source: {self.sourceChannel.device.name}')
                 self.notes = f'Source: {self.sourceChannel.device.name}.{self.sourceChannel.name}'
                 if len(sources) > 1:
                     self.print(f'More than one channel named {self.name}. Using {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}. Use unique names to avoid this.', PRINT.WARNING)
@@ -5623,9 +5625,9 @@ class UCM(ChannelManager):
             channel.pop(Channel.LINEWIDTH)
             channel.pop(Channel.LINESTYLE)
             channel.pop(Channel.COLOR)
-            channel[self.VALUE][Parameter.HEADER]   = 'SetValue ' # channels can have different types of parameters and units
+            channel[self.VALUE][Parameter.HEADER]   = 'Set value ' # channels can have different types of parameters and units
             channel[self.VALUE][Parameter.EVENT] = lambda: self.setSourceChannelValue()
-            channel[self.MONITOR][Parameter.HEADER] = 'ReadValue' # channels can have different types of parameters and units
+            channel[self.MONITOR][Parameter.HEADER] = 'Read value' # channels can have different types of parameters and units
             channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Source device.', header='')
             channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='unit', header='Unit   ', indicator=True)
@@ -5668,6 +5670,7 @@ class UCM(ChannelManager):
 
     def afterFinalizeInit(self):
         self.connectAllSources(update=True)
+        self.clearPlot() # init fig after connecting sources
         self.liveDisplay.plot(apply=True)
 
     def getChannels(self):
@@ -5775,12 +5778,14 @@ class PID(ChannelManager):
             selectedChannel = None
             notes = ''
             if len(channels) == 0:
-                 notes = f'Could not find {name}'
-                 self.getParameterByName(DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+                notes = f'Could not find {name}'
+                self.getParameterByName(DEVICE).getWidget().setIcon(self.device.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+                self.getParameterByName(DEVICE).getWidget().setToolTip('Source: Unknown')
             else:
                 selectedChannel = channels[0]
                 notes = f'{selectedChannel.getDevice().name}.{selectedChannel.name}'
                 self.getParameterByName(DEVICE).getWidget().setIcon(selectedChannel.getDevice().getIcon())
+                self.getParameterByName(DEVICE).getWidget().setToolTip(f'Source: {selectedChannel.getDevice().name}')
                 if len(channels) > 1:
                     self.print(f'More than one channel named {name}. Using {selectedChannel.getDevice().name}.{selectedChannel.name}. Use unique names to avoid this.', PRINT.WARNING)
             return selectedChannel, notes

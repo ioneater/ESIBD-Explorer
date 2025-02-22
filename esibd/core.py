@@ -2235,7 +2235,7 @@ class ScanChannel(RelayChannel, Channel):
                                         header='D', toolTip='Display channel history.',
                                         event=lambda: self.updateDisplay(), attr='display')
         channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
-                                                 toolTip='Source device.', header='')
+                                                 toolTip='Source: Unknown.', header='')
         channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, attr='unit', header='Unit   ', indicator=True)
         channel[self.NOTES] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
         return channel
@@ -2283,6 +2283,7 @@ class ScanChannel(RelayChannel, Channel):
         if self.sourceChannel is not None:
             self.getParameterByName(self.DEVICE).getWidget().setIcon(
                 self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
+            self.getParameterByName(self.DEVICE).getWidget().setToolTip(f'Source: {self.sourceChannel.getDevice().name}')
             if self.sourceChannel.useMonitors:
                 self.getParameterByName(self.VALUE).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
                 self.getParameterByName(self.VALUE).applyWidget()
@@ -2298,6 +2299,7 @@ class ScanChannel(RelayChannel, Channel):
             self.notes = f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}'
         else:
             self.getParameterByName(self.DEVICE).getWidget().setIcon(self.scan.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+            self.getParameterByName(self.DEVICE).getWidget().setToolTip('Source: Unknown')
             self.notes = f'Could not find {self.name}'
         self.getParameterByName(self.DEVICE).setHeight()
         self.updateColor()
