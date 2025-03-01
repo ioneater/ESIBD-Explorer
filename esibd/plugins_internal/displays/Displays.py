@@ -60,6 +60,7 @@ class MS(Plugin):
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
@@ -70,7 +71,6 @@ class MS(Plugin):
 
     def runTestParallel(self):
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.copyAction, True)
             self.testControl(self.dataAction, True)
             self.testControl(self.paperAction, not self.paperAction.state)
@@ -219,6 +219,7 @@ class PDB(Plugin):
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def get_structure(self, pdb_file): # read PDB file
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
@@ -338,6 +339,7 @@ class LINE(Plugin):
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def finalizeInit(self, aboutFunc=None):
         super().finalizeInit(aboutFunc)
@@ -346,7 +348,6 @@ class LINE(Plugin):
 
     def runTestParallel(self):
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.copyAction, True)
             self.testControl(self.dataAction, True)
         super().runTestParallel()
@@ -443,6 +444,7 @@ class HOLO(Plugin):
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def supportsFile(self, file):
         if super().supportsFile(file):

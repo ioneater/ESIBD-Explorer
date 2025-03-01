@@ -182,8 +182,10 @@ class Plugin(QWidget):
 
     def test(self):
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
+        self.raiseDock(True)
         self.testing = True
         self.print(f'Starting testing for {self.name} {self.version}.')
+        self.pluginManager.Console.mainConsole.input.setText(f'{self.name}.stopTest()') # prepare to stop
         Timer(0, self.runTestParallel).start()
 
     def stopTest(self):
@@ -191,13 +193,16 @@ class Plugin(QWidget):
 
     def testControl(self, control, value, delay=0, label=None):
         """Changes control states and triggers corresponding events."""
+        if not self.testing:
+            return
+        widget = control
         if label is not None:
             message = label
         elif hasattr(control, 'toolTip') and not isinstance(control, (QAction)):
             # Actions already have tooltip in their objectName
-            message = f'Testing {control.objectName()} {control.toolTip() if callable(control.toolTip) else control.toolTip}'
+            message = f'Testing {control.objectName()} with value {value} {control.toolTip() if callable(control.toolTip) else control.toolTip}  '
         else:
-            message = f'Testing {control.objectName()}'
+            message = f'Testing {control.objectName()} with value {value}'
         message = message.replace('\n', '')
         message = message if len(message) <= 86 else f'{message[:83]}…' # limit length to keep log clean
         with self.lock.acquire_timeout(5, timeoutMessage=f'Could not acquire lock to test {message}') as lock_acquired: # allow any critical function to finish before testing next control
@@ -206,9 +211,13 @@ class Plugin(QWidget):
                 if hasattr(control, 'signalComm'):
                     control.signalComm.setValueFromThreadSignal.emit(value)
                 if isinstance(control, QAction):
+                    if isinstance(control, (EsibdCore.StateAction, EsibdCore.MultiStateAction)):
+                        control.state = value
                     control.triggered.emit(value) # c.isChecked()
+                    widget = control.associatedObjects()[1] # second object is associated QToolButton
                 elif isinstance(control, QComboBox):
                     index = control.findText(str(value))
+                    control.setCurrentIndex(index)
                     control.currentIndexChanged.emit(index) # c.currentIndex()
                 elif isinstance(control, (QLineEdit)):
                     control.editingFinished.emit()
@@ -216,6 +225,7 @@ class Plugin(QWidget):
                     control.valueChanged.emit(value)
                     control.editingFinished.emit()
                 elif isinstance(control, (QCheckBox)):
+                    control.setChecked(value)
                     control.stateChanged.emit(value) # c.isChecked()
                 elif isinstance(control, (QToolButton, QPushButton)):
                     control.clicked.emit()
@@ -225,10 +235,15 @@ class Plugin(QWidget):
                     pass # ignore labels as they are always indicators and not connected to events
                 else:
                     self.print(f'No test implemented for class {type(control)}')
+        if self.pluginManager.Settings.showMouseClicks and current_thread() is not main_thread():
+            main_center = widget.mapTo(self.pluginManager.mainWindow, widget.rect().center())
+            QApplication.instance().mouseInterceptor.rippleEffectSignal.emit(
+            main_center.x(), main_center.y(), QColor(colors.highlight))
+            time.sleep(.1)
         # Sleep after releasing lock!
         # Use minimal required delays to make sure event can be processed before triggering next one.
         # Ideally acquire lock to process event and make sure next one is triggered one lock is released, instead of using delay.
-        time.sleep(delay)
+        time.sleep(max(delay, 0.5) if self.pluginManager.Settings.showVideoRecorders else delay)
 
     def runTestParallel(self):
         """Runs a series of tests by changing values of selected controls and triggering the corresponding events.
@@ -236,7 +251,6 @@ class Plugin(QWidget):
         """
         # ... add sequence of spaced events to trigger and test all functionality
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.aboutAction, True)
         self.signalComm.testCompleteSignal.emit()
 
@@ -262,7 +276,7 @@ class Plugin(QWidget):
         This can be safer and easier to understand than using signals and locks.
         The flag not just blocks other functions but informs them and allows them to react instantly.
 
-        :param condition: will wait while condition returns True
+        :param condition: will wait for condition to return True
         :type condition: callable
         :param interval: wait interval seconds before checking condition
         :type interval: float
@@ -270,7 +284,7 @@ class Plugin(QWidget):
         :type timeout: float
         """
         start = time.time()
-        while condition():
+        while not condition():
             if time.time() - start < timeout:
                 time.sleep(interval)
                 if current_thread() is main_thread(): # do not block other events in main thread
@@ -332,8 +346,8 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(lambda: self.about() if aboutFunc is None else aboutFunc(), f'About {self.name}', self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
-        self.floatAction = self.addStateAction(lambda: self.setFloat(), f'Float {self.name}.', self.makeCoreIcon('application.png'), f'Dock {self.name}.', self.makeCoreIcon('applications.png')
+        self.aboutAction = self.addAction(event=lambda: self.about() if aboutFunc is None else aboutFunc(), toolTip=f'About {self.name}', icon=self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+        self.floatAction = self.addStateAction(event=lambda: self.setFloat(), toolTipFalse=f'Float {self.name}.', iconFalse=self.makeCoreIcon('application.png'), toolTipTrue=f'Dock {self.name}.', iconTrue=self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
@@ -344,6 +358,10 @@ class Plugin(QWidget):
 
     def afterFinalizeInit(self):
         """Execute after all other plugins are finalized"""
+        self.videoRecorderAction = self.addStateAction(event=lambda: self.toggleVideoRecorder(), toolTipFalse=f'Record video of {self.name}.',
+            iconFalse=self.makeCoreIcon('record_start.png'), toolTipTrue=f'Stop and save video of {self.name}.',
+            iconTrue=self.makeCoreIcon('record_stop.png'), before=self.aboutAction)
+        self.videoRecorderAction.setVisible(self.pluginManager.Settings.showVideoRecorders)
         pass
 
     def initDock(self):
@@ -385,6 +403,7 @@ class Plugin(QWidget):
             self.loading = False
             if not self.pluginManager.finalizing and not self.pluginManager.loading:
                 self.toggleTitleBarDelayed()
+            self.videoRecorder = EsibdCore.VideoRecorder(parentPlugin=self)
             return True # dock has been created
         return False # dock already exists
 
@@ -550,6 +569,12 @@ class Plugin(QWidget):
         while it.value():
             it.value().setExpanded(True)
             it +=1
+
+    def toggleVideoRecorder(self):
+        if self.videoRecorderAction.state:
+            self.videoRecorder.startRecording()
+        else:
+            self.videoRecorder.stopRecording()
 
     def about(self):
         """Displays the about dialog of the plugin using the :ref:`sec:browser`."""
@@ -869,7 +894,6 @@ class StaticDisplay(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.plotEfficientAction, not self.plotEfficientAction.state, 1)
         super().runTestParallel()
@@ -881,12 +905,19 @@ class StaticDisplay(Plugin):
             super().copyClipboard()
         else: # pyqt
             if getDarkMode() and not getClipboardTheme():
-                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false')
-                self.updateTheme() # use default light theme for clipboard
-                self.processEvents()
-                QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
-                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true')
-                self.updateTheme() # restore dark theme
+                try:
+                    setDarkMode(False) # temporary switch to light mode
+                    viewRange = self.staticPlotWidget.viewRange()
+                    self.updateTheme() # use default light theme for clipboard
+                    self.staticPlotWidget.setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                    self.processEvents() # update GUI before grabbing
+                    QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
+                except Exception as e:
+                    self.print(f'Error while plotting in light theme: {e}')
+                finally: # make sure darkmode is restored even after errors
+                    setDarkMode(True) # restore dark theme
+                    self.updateTheme() # restore dark theme
+                    self.staticPlotWidget.setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
             else:
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
 
@@ -894,6 +925,7 @@ class StaticDisplay(Plugin):
         """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def supportsFile(self, file):
         """:meta private:"""
@@ -1034,7 +1066,7 @@ subtract_backgrounds = False # switch to True to subtract background signals if 
 fig=plt.figure(constrained_layout=True, )
 ax = fig.add_subplot(111)
 ax.set_xlabel('Time')
-{"ax.set_yscale('log')" if self.logY else ''}
+{"ax.set_yscale('log')" if self.parentPlugin.logY else ''}
 
 for i, output in enumerate(outputs):
     length = min(inputs[0].recordingData.shape[0], output.recordingData.shape[0])
@@ -1067,7 +1099,7 @@ plt.show()
 
 class LiveDisplay(Plugin):
     """Live displays show the history of measured data over time.
-    Use start/pause icon in corresponding device control. The toolbar
+    Use the start/pause icon to control data recording. The toolbar
     provides icons to initialize and stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
     Data is only collected if the corresponding live display is visible.
@@ -1082,7 +1114,7 @@ class LiveDisplay(Plugin):
     PyQtGraph provides its own algorithms for down sampling data (accessible
     via the context menu), they tend to cause a flicker when updating data."""
     documentation = """Live displays show the history of measured data over time.
-    Use start/pause icon in corresponding device control. The toolbar
+    Use the start/pause icon to control data recording. The toolbar
     provides icons to initialize and stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
     Data is only collected if the corresponding live display is visible.
@@ -1220,7 +1252,7 @@ class LiveDisplay(Plugin):
 
     # @synchronized() called by updateTheme, copy clipboard, ... cannot decorate without causing deadlock
     def initFig(self):
-        if not self.waitForCondition(condition=lambda: self.plotting, timeoutMessage='Timeout while waiting to init figure.', timeout=1):
+        if not self.waitForCondition(condition=lambda: not self.plotting, timeoutMessage='Timeout while waiting to init figure.', timeout=1):
             return # NOTE: using the self.plotting flag instead of a lock, is more resilient as it works across multiple functions and nested calls
         self.print('initFig', flag=PRINT.DEBUG)
         self.plotting = True
@@ -1320,7 +1352,6 @@ class LiveDisplay(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.raiseDock(True)
             # init, start, pause, stop acquisition will be tested by DeviceManager
             self.testControl(self.copyAction, True)
             # self.testControl(self.clearHistoryAction, True) # keep history, test manually if applicable
@@ -1339,7 +1370,7 @@ class LiveDisplay(Plugin):
             return
         if getDarkMode() and not getClipboardTheme():
             try:
-                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'false') # temporary switch to light mode
+                setDarkMode(False) # temporary switch to light mode
                 restoreAutoRange = all([not livePlotWidget.getViewBox().mouseEnabled()[0] # all have x mouse disabled
                     for livePlotWidget in self.livePlotWidgets if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget))])
                 viewRange = self.livePlotWidgets[0].viewRange()
@@ -1355,7 +1386,7 @@ class LiveDisplay(Plugin):
             except Exception as e:
                 self.print(f'Error while plotting in light theme: {e}')
             finally: # make sure darkmode is restored even after errors
-                qSet.setValue(f'{GENERAL}/{DARKMODE}', 'true') # restore dark theme
+                setDarkMode(True) # restore dark theme
                 self.parentPlugin.clearPlot()
                 self.initFig()
                 self.plotSplitter.setSizes(sizes)
@@ -1366,6 +1397,12 @@ class LiveDisplay(Plugin):
                 self.plot()
         else:
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
+
+    def provideDock(self):
+        """:meta private:"""
+        if super().provideDock():
+            self.finalizeInit()
+            self.afterFinalizeInit()
 
     def getTimeAxes(self):
         timeAxes = {}
@@ -1553,7 +1590,6 @@ class ChannelManager(Plugin):
 
         version = '1.0'
         pluginType = PluginManager.TYPE.DISPLAY
-        iconFile = 'chart.png'
 
         def __init__(self, parentPlugin, pluginManager=None, dependencyPath=None):
             super().__init__(pluginManager, dependencyPath)
@@ -1572,17 +1608,17 @@ class ChannelManager(Plugin):
         def provideDock(self):
             if super().provideDock():
                 self.finalizeInit()
+                self.afterFinalizeInit()
 
         def finalizeInit(self, aboutFunc=None):
             super().finalizeInit(aboutFunc)
             self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} channel plot to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
         def getIcon(self, desaturate=False):
-            return self.makeCoreIcon(self.iconFile)
+            return self.parentPlugin.getIcon()
 
         def runTestParallel(self):
             if self.initializedDock:
-                self.raiseDock(True)
                 self.testControl(self.copyAction, True)
             # super().runTestParallel() handled by Channelmanager
 
@@ -1660,7 +1696,6 @@ class ChannelManager(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.raiseDock(True)
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
             if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
                 self.testControl(self.channelPlotAction, True)#, 1
@@ -1668,7 +1703,7 @@ class ChannelManager(Plugin):
             self.testControl(self.saveAction, True)
             self.testControl(self.copyAction, True)
             for parameter in self.channels[0].parameters:
-                if parameter.name not in [Channel.COLOR]: # color requires user interaction
+                if parameter.name not in [Channel.COLOR] and not parameter.indicator: # color requires user interaction, indicators do not trigger events
                     self.testControl(parameter.getWidget(), parameter.value, .1,
                                      label=f'Testing {self.channels[0].name}.{parameter.name} {parameter.toolTip if parameter.toolTip is not None else "No toolTip."}')
             self.testControl(self.channels[0].getParameterByName(Channel.SELECT).getWidget(), True, .1)
@@ -1676,19 +1711,21 @@ class ChannelManager(Plugin):
             self.testControl(self.moveChannelUpAction, True, 1)
             self.testControl(self.duplicateChannelAction, True, 1)
             self.testControl(self.deleteChannelAction, True, 1)
+            self.testControl(self.advancedAction, False)
             if self.useOnOffLogic: # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
                 self.testControl(self.onAction, True)
-            if self.useDisplays:
-                if self.toggleLiveDisplayAction is not None:
-                    self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
-                    self.testControl(self.toggleLiveDisplayAction, not self.toggleLiveDisplayAction.state, 1)
-                if self.initializedDock:
-                    if self.staticDisplayActive():
-                        self.staticDisplay.runTestParallel()
-                    if self.liveDisplayActive():
-                        self.liveDisplay.runTestParallel()
-            if self.channelPlot is not None:
-                self.channelPlot.runTestParallel()
+            # if self.useDisplays:
+            #     if self.initializedDock:
+            #         if self.staticDisplayActive():
+            #             self.staticDisplay.raiseDock(True)
+            #             self.testControl(self.staticDisplay.videoRecorderAction, True)
+            #             self.staticDisplay.runTestParallel()
+            #             self.testControl(self.staticDisplay.videoRecorderAction, False)
+            # if self.channelPlotActive():
+            #         self.channelPlot.raiseDock(True)
+            #         self.testControl(self.channelPlot.videoRecorderAction, True)
+            #         self.channelPlot.runTestParallel()
+            #         self.testControl(self.channelPlot.videoRecorderAction, False)
                 # init, start, pause, stop acquisition will be tested by DeviceManager
         super().runTestParallel()
 
@@ -2234,9 +2271,9 @@ class ChannelManager(Plugin):
     def toggleLiveDisplay(self, visible=None):
         if self.liveDisplay is None:
             return # liveDisplay not supported
-        if visible if visible is not None else self.toggleLiveDisplayAction.state:
-            self.liveDisplay.provideDock()
-            self.liveDisplay.finalizeInit()
+        if (visible if visible is not None else self.toggleLiveDisplayAction.state):
+            if not self.liveDisplayActive(): # only if not already visible
+                self.liveDisplay.provideDock()
             self.liveDisplay.raiseDock(True)
         else:
             if self.liveDisplayActive():
@@ -2249,7 +2286,8 @@ class ChannelManager(Plugin):
         if self.staticDisplay is None:
             return # staticDisplay not supported
         if visible:
-            self.staticDisplay.provideDock()
+            if not self.staticDisplayActive(): # only if not already visible
+                self.staticDisplay.provideDock()
             self.staticDisplay.raiseDock(True)
         elif self.staticDisplayActive():
             self.staticDisplay.closeGUI()
@@ -2870,7 +2908,8 @@ class Scan(Plugin):
         def provideDock(self):
             """:meta private:"""
             if super().provideDock():
-                self.finalizeInit(aboutFunc=self.scan.about)
+                self.finalizeInit()
+                self.afterFinalizeInit()
 
         def finalizeInit(self, aboutFunc=None):
             """:meta private:"""
@@ -2894,7 +2933,6 @@ class Scan(Plugin):
         def runTestParallel(self):
             """:meta private:"""
             if self.initializedDock:
-                self.raiseDock(True)
                 self.testControl(self.copyAction, True, .5)
             # super().runTestParallel() # handled by scan
 
@@ -2918,8 +2956,10 @@ class Scan(Plugin):
 
         def closeGUI(self):
             """:meta private:"""
-            self.scan.recording = False
-            return super().closeGUI()
+            if self.scan.finished:
+                return super().closeGUI()
+            else:
+                self.print('Cannot close while scan is recording.')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3021,9 +3061,11 @@ class Scan(Plugin):
         """:meta private:"""
         # * testing the scan itself is done by DeviceManager
         if self.initializedDock:
-            self.raiseDock(True)
             if self.display is not None:
+                self.display.raiseDock(True)
+                self.testControl(self.display.videoRecorderAction, True)
                 self.display.runTestParallel()
+                self.testControl(self.display.videoRecorderAction, False)
         super().runTestParallel()
 
     @property
@@ -3497,8 +3539,8 @@ class Browser(Plugin):
     pluginType = PluginManager.TYPE.DISPLAY
     iconFile = 'QWebEngine.png'
 
-    previewFileTypes = ['.pdf', '.html', '.htm', '.svg', '.wav', '.mp3', '.ogg'] # , '.mp4','.avi' only work with codec
-
+    previewFileTypes = ['.pdf', '.html', '.htm', '.svg', '.wav', '.mp3', '.ogg', '.mp4','.avi']
+    # '.mp4','.avi' only work with codec https://doc.qt.io/qt-5/qtwebengine-features.html#audio-and-video-codecs
     previewFileTypes.extend(['.jpg', '.jpeg', '.png', '.bmp', '.gif'])
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3561,7 +3603,6 @@ class Browser(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.docAction, True, .5)
             self.testControl(self.homeAction, True, .5)
             self.testControl(self.backAction, True, .5)
@@ -3578,6 +3619,8 @@ class Browser(Plugin):
         if any(file.name.endswith(fileType) for fileType in ['.html','.htm']):
             self.webEngineView.load(QUrl.fromLocalFile(file.as_posix()))
             # self.webEngineView.setUrl(QUrl(f'file:///{file.as_posix()}'))
+        elif any(file.name.endswith(fileType) for fileType in ['.mp4','.avi']):
+            self.webEngineView.setHtml('Note: .mp4 and .avi files are not supported due to licensing limitations as explained <a href="https://doc.qt.io/qt-5/qtwebengine-features.html#audio-and-video-codecs">here</a>.\nPlease open in external program.')
         elif file.name.endswith('.svg'):
             # self.webEngineView.setUrl(QUrl(f'file:///{file.as_posix()}')) # does not scale
             # does not work when using absolute path directly for src. also need to replace empty spaces to get valid url
@@ -3697,6 +3740,7 @@ class Text(Plugin):
         """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
@@ -3711,7 +3755,6 @@ class Text(Plugin):
     def runTestParallel(self):
         """:meta private:"""
         if self.initializedDock:
-            self.raiseDock(True)
             self.testControl(self.wordWrapAction, True)
             self.testControl(self.textClipboardAction, True)
         super().runTestParallel()
@@ -3813,6 +3856,7 @@ class Tree(Plugin):
         """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
+            self.afterFinalizeInit()
 
     def loadData(self, file, _show=True):
         """:meta private:"""
@@ -4022,12 +4066,13 @@ class Tree(Plugin):
     def addActionWidgets(self, tree, plugin):
         if hasattr(plugin, 'titleBar'):
             for action in plugin.titleBar.actions():
-                if action.iconText() != '':
+                if action.iconText() != '' and action.isVisible():
                     action_widget = QTreeWidgetItem(tree)
                     action_widget.setIcon(0, action.icon())
                     action_widget.setText(1, action.iconText())
 
 class Console(Plugin):
+    # ! Might need to switch to to more stable QtConsole eventually
     """The console should typically not be needed, unless you are a developer
     or assist in debugging an issue. It is activated from the tool bar of
     the :ref:`sec:settings`. Status messages will be logged here. In addition you can
@@ -4177,7 +4222,7 @@ class Console(Plugin):
             self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
 
     def help(self):
-        self.print('Please refer to online (http://esibd-explorer.rtfd.io/) or offline documentation (book in browser) as well as tooltips to get help.')
+        self.print(f'Read the docs online at http://esibd-explorer.rtfd.io/ or offline at {(Path(__file__).parent / "docs/index.html").resolve()} to get help.')
 
     @synchronized(timeout=1)
     def execute(self, command):
@@ -4497,7 +4542,6 @@ class Settings(SettingsManager):
 
     def runTestParallel(self):
         # cannot test file dialogs that require user interaction
-        self.raiseDock(True)
         self.testControl(self.showConsoleAction, True)
         for setting in self.settings.values():
             if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
@@ -4574,6 +4618,9 @@ class Settings(SettingsManager):
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
+        ds[f'{GENERAL}/Show video recorders']      = parameterDict(value=False, toolTip='Show icons to record videos of plugins.', event=lambda: self.pluginManager.toggleVideoRecorder(),
+                                                                internal=True, widgetType=Parameter.TYPE.BOOL, attr='showVideoRecorders')
+        ds[f'{GENERAL}/Highlight mouse clicks']    = parameterDict(value=False, toolTip='Highlight mouse clicks for screen cast creation.', internal=True, widgetType=Parameter.TYPE.BOOL, attr='showMouseClicks')
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, _min=0, _max=100000000, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
                                                                 instantUpdate=False, # only trigger event when changed by user!
@@ -4736,24 +4783,43 @@ class DeviceManager(Plugin):
         self.timer.setInterval(3600000) # every 1 hour
         self.timer.start()
 
+    def afterFinalizeInit(self):
+        super().afterFinalizeInit()
+        self.videoRecorderAction.toolTipFalse = f'Record video of {PROGRAM_NAME}.'
+        self.videoRecorderAction.toolTipTrue = f'Stop and save video of {PROGRAM_NAME}.'
+        self.videoRecorder.recordWidget = self.pluginManager.mainWindow # record entire window
+
     def runTestParallel(self):
         """:meta private:"""
-        if self.initializedDock:
-            self.testControl(self.recordingAction, True, 3) # even in test mode initialization time of up to 2 seconds is simulated
-            self.testControl(self.exportAction, True)#, 2
-            for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
-                if not self.testing:
-                    break
-                # has to run here while all plugins are recording
-                self.print(f'Starting scan {scan.name}.')
-                scan.raiseDock()
-                self.testControl(scan.recordingAction, True)
-                time.sleep(5) # scan for 5 seconds
-                self.print(f'Stopping scan {scan.name}.')
-                self.testControl(scan.recordingAction, False)
-                # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
-                self.waitForCondition(condition=lambda: not scan.finished, timeoutMessage=f'Timeout while stopping scan {scan.name}.')
-            self.testControl(self.closeCommunicationAction, True) # cannot use this as it requires user interaction to confirm prompt
+        self.testControl(self.recordingAction, True, 3) # even in test mode initialization time of up to 2 seconds is simulated
+        self.testControl(self.exportAction, True)#, 2
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+            if plugin.useDisplays:
+                initialState = plugin.toggleLiveDisplayAction.state
+                self.testControl(plugin.toggleLiveDisplayAction, True, 1)
+                self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
+                self.testControl(plugin.liveDisplay.videoRecorderAction, True)
+                plugin.liveDisplay.runTestParallel()
+                if self.pluginManager.Settings.showVideoRecorders:
+                    time.sleep(5) # record for 5 seconds
+                self.testControl(plugin.liveDisplay.videoRecorderAction, False)
+                self.testControl(plugin.toggleLiveDisplayAction, initialState, 1)
+        for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
+            if not self.testing:
+                break
+            # has to run here while all plugins are recording
+            self.print(f'Starting scan {scan.name}.')
+            scan.raiseDock(True)
+            self.testControl(scan.recordingAction, True)
+            self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'), timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.')
+            self.testControl(scan.display.videoRecorderAction, True)
+            time.sleep(5) # scan for 5 seconds
+            self.print(f'Stopping scan {scan.name}.')
+            self.testControl(scan.recordingAction, False)
+            # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
+            self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.')
+            self.testControl(scan.display.videoRecorderAction, False)
+        self.testControl(self.closeCommunicationAction, True) # cannot use this as it requires user interaction to confirm prompt
         super().runTestParallel()
 
     @property
@@ -4876,7 +4942,7 @@ class DeviceManager(Plugin):
             for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                 if not scan.finished: # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
                     self.print(f'Waiting for {scan.name} to finish.')
-                    self.waitForCondition(condition=lambda: not scan.finished, timeoutMessage=f'Timeout while stopping scan {scan.name}.', timeout=30, interval=0.5)
+                    self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping scan {scan.name}.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file=None):
@@ -5139,28 +5205,26 @@ class Explorer(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if self.initializedDock:
-            self.raiseDock(True)
-            for action in [self.sessionAction, self.upAction, self.backAction, self.forwardAction, self.dataPathAction, self.refreshAction]:
-                if not self.testing:
-                    break
-                self.populating = True
-                self.testControl(action, True)
-                self.waitForCondition(condition=lambda: self.populating, timeoutMessage=f'Timeout reached wile testing {action.objectName()}')
-                # NOTE: using self.populating flag makes sure further test are only run after populating has completed. using locks and signals is more error prone
-            testDir = self.pluginManager.Settings.dataPath / 'test_files'
-            if testDir.exists():
-                for file in testDir.iterdir():
-                    if not file.is_dir():
-                        if not self.testing:
-                            break
-                        self.print(f"Loading file {shorten_text(file.name, 50)}.")
-                        self.activeFileFullPath = file
-                        self.displayContentSignal.emit() # call displayContent in main thread
-                        self.loadingContent = True
-                        self.waitForCondition(condition=lambda: self.loadingContent, timeoutMessage=f'Timeout reached wile displaying content of {self.activeFileFullPath.name}')
-            else:
-                self.print(f'Could not find {testDir.as_posix()}. Please create and fill with files that should be loaded during testing.', flag=PRINT.WARNING)
+        for action in [self.sessionAction, self.upAction, self.backAction, self.forwardAction, self.dataPathAction, self.refreshAction]:
+            if not self.testing:
+                break
+            self.populating = True
+            self.testControl(action, True)
+            self.waitForCondition(condition=lambda: not self.populating, timeoutMessage=f'Timeout reached wile testing {action.objectName()}')
+            # NOTE: using self.populating flag makes sure further test are only run after populating has completed. using locks and signals is more error prone
+        testDir = self.pluginManager.Settings.dataPath / 'test_files'
+        if testDir.exists():
+            for file in testDir.iterdir():
+                if not file.is_dir():
+                    if not self.testing:
+                        break
+                    self.print(f"Loading file {shorten_text(file.name, 50)}.")
+                    self.activeFileFullPath = file
+                    self.displayContentSignal.emit() # call displayContent in main thread
+                    self.loadingContent = True
+                    self.waitForCondition(condition=lambda: not self.loadingContent, timeoutMessage=f'Timeout reached wile displaying content of {self.activeFileFullPath.name}')
+        else:
+            self.print(f'Could not find {testDir.as_posix()}. Please create and fill with files that should be loaded during testing.', flag=PRINT.WARNING)
         super().runTestParallel()
 
     def loadData(self, file, _show=True):
@@ -5700,6 +5764,7 @@ class UCM(ChannelManager):
                                                    'Stop data acquisition.', self.makeCoreIcon('pause.png'))
 
     def afterFinalizeInit(self):
+        super().afterFinalizeInit()
         self.connectAllSources(update=True)
         self.clearPlot() # init fig after connecting sources
         self.liveDisplay.plot(apply=True)
@@ -5941,6 +6006,7 @@ class PID(ChannelManager):
         super().__init__(**kwargs)
 
     def afterFinalizeInit(self):
+        super().afterFinalizeInit()
         self.connectAllSources(update=True)
 
     def loadConfiguration(self, file=None, default=False):

@@ -29,6 +29,9 @@ class PICO(Device):
         super().initGUI()
         self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
+    def runTestParallel(self):
+        self.testControl(self.unitAction, self.unitAction.state)
+        super().runTestParallel()
 
     def changeUnit(self):
         if self.liveDisplayActive():

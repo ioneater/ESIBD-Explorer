@@ -26,6 +26,7 @@ dependencies:
     - contourpy==1.2.1
     - lakeshore
     - nidaqmx
+    - opencv-python
     - openpyxl
     - pfeiffer-vacuum-protocol
     - picosdk

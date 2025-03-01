@@ -163,6 +163,16 @@ def getDarkMode():
     """
     return qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
 
+def setDarkMode(darkMode):
+    """Sets the dark mode from :ref:`sec:settings`.
+
+    :param darkMode: True if dark mode active
+    :type: bool
+    """
+    qSet.setValue(f'{GENERAL}/{DARKMODE}', darkMode)
+    # qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
+
+
 def getClipboardTheme():
     """Gets the dark clipboard mode from :ref:`sec:settings`.
 

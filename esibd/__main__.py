@@ -8,7 +8,7 @@ import matplotlib.backends.backend_pdf # pylint: disable = unused-import # requi
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSharedMemory
-from esibd.core import EsibdExplorer, PROGRAM_NAME, PROGRAM_VERSION
+from esibd.core import EsibdExplorer, MouseInterceptor, PROGRAM_NAME, PROGRAM_VERSION
 
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format
@@ -39,6 +39,10 @@ def main():
         sys.exit(0)
     app.mainWindow = EsibdExplorer()
     app.mainWindow.show()
+
+    app.mouseInterceptor = MouseInterceptor(app.mainWindow)
+    app.installEventFilter(app.mouseInterceptor)
+
     sys.exit(app.exec())
 
 if __name__ == '__main__':

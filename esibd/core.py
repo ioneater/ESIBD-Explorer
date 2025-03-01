@@ -21,6 +21,7 @@ import pyqtgraph as pg
 import pyqtgraph.console
 import keyboard as kb
 import matplotlib as mpl
+import cv2
 import matplotlib.pyplot as plt # pylint: disable = unused-import # need to import to access mpl.axes.Axes
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
@@ -32,8 +33,9 @@ from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QG
                              QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout, QInputDialog,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
                              QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QMenu)
-from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QSize #, QEvent #, QPoint
-from PyQt6.QtGui import QIcon, QBrush, QValidator, QColor, QPainter, QPen, QTextCursor, QRadialGradient, QPixmap, QPalette, QAction, QFont, QMouseEvent, QFontMetrics
+from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QSize, QPoint #, QEvent #
+from PyQt6.QtGui import (QIcon, QBrush, QGuiApplication, QValidator, QColor, QPainter, QCursor, QPen, QTextCursor, QRadialGradient, QPixmap,
+                          QPalette, QAction, QFont, QMouseEvent, QFontMetrics, QImage) #
 from esibd.const import * # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 class EsibdExplorer(QMainWindow):
@@ -65,6 +67,7 @@ class EsibdExplorer(QMainWindow):
         self.loadPluginsSignal.connect(self.loadPlugins)
         self.setStatusBar(IconStatusBar())
         QTimer.singleShot(0, self.loadPluginsSignal.emit) # let event loop start before loading plugins
+        self.installEventFilter(self)
 
     def loadPlugins(self):
         """Loads :class:`plugins<esibd.plugins.Plugin>` in main thread."""
@@ -116,12 +119,6 @@ class EsibdExplorer(QMainWindow):
             event.accept() # let the window close
         else:
             event.ignore() # keep running
-
-    # def eventFilter(self, source, event):
-    #     if (source is self.pluginManager.Console.mainConsole.repl.input and event.type() == QEvent.Type.KeyPress and
-    #         event.modifiers() & Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C):
-    #         self.pluginManager.Console.clear()
-    #     return super().eventFilter(source, event)
 
 class PluginManager():
     """The :class:`~esibd.core.PluginManager` is responsible for loading all internal and external
@@ -177,8 +174,8 @@ class PluginManager():
         self._testing = False # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
-        self.userPluginPath     = None
-        self.pluginFile         = None
+        self.userPluginPath = None
+        self.pluginFile     = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -273,6 +270,7 @@ class PluginManager():
         self.finalizing = True
         self.finalizeInit()
         self.afterFinalizeInit()
+        self.toggleVideoRecorder()
         self.mainWindow.setUpdatesEnabled(True)
         self.finalizing = False
         self.toggleTitleBarDelayed(update=True, delay=1000)
@@ -416,6 +414,7 @@ class PluginManager():
         """ Calls :meth:`~esibd.core.PluginManager.runTestParallel` to test most features of for all plugins."""
         self.testing = True
         self.Settings.updateSessionPath() # avoid interference with undefined files from previous test run
+        self.logger.print('Start testing.')
         time.sleep(1)
         timer = Timer(0, self.runTestParallel)
         timer.start()
@@ -431,14 +430,21 @@ class PluginManager():
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
         self.logger.print('Start testing all plugins.')
+        self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, True)
         for plugin in self.plugins:
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
+            plugin.raiseDock(True)
+            if plugin is not self.DeviceManager:
+                plugin.testControl(plugin.videoRecorderAction, True)
             plugin.runTestParallel()
-            if not plugin.waitForCondition(condition=lambda: plugin._testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
+            if not plugin.waitForCondition(condition=lambda: not plugin._testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
                 plugin.signalComm.testCompleteSignal.emit()
+            if plugin is not self.DeviceManager:
+                plugin.testControl(plugin.videoRecorderAction, False)
             if not self.testing:
                 break
+        self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, False)
         self.testing = False
 
     def showThreads(self):
@@ -702,6 +708,20 @@ class PluginManager():
             self.PID.connectAllSources(update=True)
         if hasattr(self, 'UCM'):
             self.UCM.connectAllSources(update=True)
+
+    def toggleVideoRecorder(self):
+        show = self.Settings.showVideoRecorders
+        for plugin in self.plugins:
+            if plugin.initializedDock and hasattr(plugin, 'videoRecorderAction'):
+                plugin.videoRecorderAction.setVisible(show)
+                if hasattr(plugin, 'liveDisplay') and plugin.liveDisplayActive():
+                    plugin.liveDisplay.videoRecorderAction.setVisible(show)
+                if hasattr(plugin, 'staticDisplay') and plugin.staticDisplayActive():
+                    plugin.staticDisplay.videoRecorderAction.setVisible(show)
+                if hasattr(plugin, 'channelPlot') and plugin.channelPlotActive():
+                    plugin.channelPlot.videoRecorderAction.setVisible(show)
+                if hasattr(plugin, 'display') and plugin.displayActive():
+                    plugin.display.videoRecorderAction.setVisible(show)
 
 class Logger(QObject):
     """Redirects stderr and stdout to logfile while still sending them to :ref:`sec:console` as well.
@@ -2893,7 +2913,12 @@ class TreeWidget(QTreeWidget):
         return total_height
 
     def itemWidth(self):
-        return self.visualItemRect(self.topLevelItem(0)).width() if self.topLevelItemCount() > 0 else 300
+        if self.topLevelItemCount() > 0:
+            for i in range(self.topLevelItemCount()):
+                if self.visualItemRect(self.topLevelItem(i)).width() > 0: # ignore hidden channels
+                    return self.visualItemRect(self.topLevelItem(i)).width()
+        else:
+            return 300
 
     def tree_height_hint_complete(self):
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
@@ -3868,3 +3893,169 @@ class SplashScreen(QSplashScreen):
         self.closed=True
         self.timer.stop()
         return super().close()
+
+class VideoRecorder():
+    """Allows to record videos of a plugin."""
+
+    def __init__(self, parentPlugin):
+        self.parentPlugin = parentPlugin
+        self.recordWidget = parentPlugin.dock
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.capture_frame)
+        self.fps = 10  # Frames per second
+        self.frameCount = 0
+        self.is_recording = False
+        self.cursor_pixmap = self.parentPlugin.makeCoreIcon('cursor.png').pixmap(32)
+        # cursor_img = self.cursor_pixmap.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
+        # self.cursor_width, self.cursor_height = self.cursor_pixmap.width(), self.cursor_pixmap.height()
+        # cursor_ptr = cursor_img.bits()
+        # cursor_ptr.setsize(self.cursor_height * self.cursor_width * 4)
+        # self.cursor_array = np.array(cursor_ptr, dtype=np.uint8).reshape((self.cursor_height, self.cursor_width, 4)).copy()
+
+    def startRecording(self):
+        # return
+        if self.parentPlugin.pluginManager.testing and not self.parentPlugin.pluginManager.Settings.showVideoRecorders:
+            return
+        self.frameCount = 0
+        self.is_recording = True
+        self.parentPlugin.pluginManager.Settings.incrementMeasurementNumber()
+        self.file = self.parentPlugin.pluginManager.Settings.getMeasurementFileName(f'_{self.parentPlugin.name}.mp4')
+        self.parentPlugin.print(f'Start recording {self.file.name}')
+        self.video_writer = None
+        self.parentPlugin.videoRecorderAction.state = True
+        self.parentPlugin.videoRecorderAction.setVisible(True)
+        self.timer.start(int(1000 / self.fps))
+
+    def capture_frame(self):
+        if not self.is_recording:
+            return
+        # full_screenshot = self.recordWidget.window().grab()  # Capture the widget
+        screen = QGuiApplication.screenAt(self.recordWidget.mapToGlobal(QPoint(0, 0)))
+        # Get screen details
+        screen_geometry = screen.geometry()
+        dpr = screen.devicePixelRatio()
+        full_screenshot = screen.grabWindow(0)
+
+        # Capture the current mouse position
+        cursor_pos_global  = QCursor().pos()
+        # Overlay the cursor on the full-screen image
+        painter = QPainter(full_screenshot)
+        # painter.drawPixmap(int((cursor_pos_global.x() - screen_geometry.x()) * dpr), int((cursor_pos_global.y() - screen_geometry.y()) * dpr), self.cursor_pixmap)
+        painter.drawPixmap(int((cursor_pos_global.x() - screen_geometry.x())), int((cursor_pos_global.y() - screen_geometry.y())), self.cursor_pixmap)
+        # painter.drawPixmap(int((cursor_pos_global.x()) * dpr), int((cursor_pos_global.y()) * dpr), self.cursor_pixmap)
+        painter.end()
+
+        global_pos = self.recordWidget.mapToGlobal(QPoint(0, 0))  # Widget's global position
+        screen_x = global_pos.x() - screen_geometry.x()
+        screen_y = global_pos.y() - screen_geometry.y()
+
+        # Define cropping rectangle in local screen coordinates
+        rect = QRect(int(screen_x * dpr), int(screen_y * dpr), int(self.recordWidget.width() * dpr), int(self.recordWidget.height() * dpr))
+        cropped_screenshot = full_screenshot.copy(rect)
+
+        image = cropped_screenshot.toImage().convertToFormat(QImage.Format.Format_RGBA8888)  # Ensure correct format
+        if self.frameCount == 0:
+            self.width, self.height = image.width(), image.height()
+            # Note cv2.VideoWriter_fourcc(*'H264') H.264 codec (MPEG-4 AVC) would achieve smaller file sizes,
+            # but requires independent codec installation and would not work out of the box
+            self.video_writer = cv2.VideoWriter(self.file, cv2.VideoWriter_fourcc(*"mp4v"), self.fps, (self.width, self.height))
+        elif (image.width(), image.height()) != (self.width, self.height):
+            self.parentPlugin.print('Resizing during video recording not supported. Stopping recording.', flag=PRINT.WARNING)
+            self.stopRecording()
+            return
+        elif self.frameCount > 600*self.fps: # limit recording to 10 minutes
+            self.parentPlugin.print('Stopping video recording after reaching 5 minute limit.', flag=PRINT.WARNING)
+            self.stopRecording()
+            return
+
+        buffer = image.bits() # Get image data as a bytes object
+        buffer.setsize(image.sizeInBytes())
+        frame = np.frombuffer(buffer, dtype=np.uint8).reshape((self.height, self.width, 4)) # Convert to NumPy array
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR) # Convert RGBA to BGR for OpenCV
+        # Resize frame (Decrease resolution)
+        # target_size = (width // 2, height // 2)  # 50% smaller file only 25 % smaller and very poor quality
+        # frame_resized = cv2.resize(frame_bgr, target_size, interpolation=cv2.INTER_AREA)
+        # self.frames.append(frame_bgr)
+
+        # # Get the mouse cursor position in the widget's coordinate system
+        # cursor_local_pos = self.recordWidget.mapFromGlobal(QCursor.pos())
+        # x, y = int(cursor_local_pos.x() * dpr), int(cursor_local_pos.y() * dpr)
+        # # Ensure cursor stays inside the frame boundaries
+        # if 0 <= x < int((self.width - self.cursor_width) * dpr) and 0 <= y < int((self.height - self.cursor_height) * dpr):
+        #     # Extract cursor alpha channel
+        #     alpha = self.cursor_array[:, :, 3] / 255.0
+        #     # Blend cursor with the background
+        #     for c in range(3):  # RGB channels
+        #         frame_bgr[y:y + int(self.cursor_height * dpr), x:x + int(self.cursor_width * dpr), c] = (
+        #             frame_bgr[y:y + int(self.cursor_height * dpr), x:x + int(self.cursor_width * dpr), c] * (1.0 - alpha) +
+        #             self.cursor_array[:, :, c] * alpha
+        #         )
+
+        self.video_writer.write(frame_bgr)
+        self.frameCount += 1
+
+    def stopRecording(self):
+        if self.is_recording:
+            self.timer.stop()
+            self.parentPlugin.videoRecorderAction.state = False
+            if self.frameCount == 0:
+                self.parentPlugin.print('No frames have been recorded')
+                return
+            self.is_recording = False
+            self.video_writer.release()
+            self.parentPlugin.print(f'Saved {self.file.name}')
+            self.parentPlugin.pluginManager.Explorer.populateTree()
+
+class RippleEffect(QWidget):
+    """Creates a fading ripple effect at the clicked QAction."""
+    def __init__(self, parent, x, y, color=QColor(138, 180, 247)):
+        super().__init__(parent)
+        self.x, self.y = x, y
+        self.color = color
+        self.radius = 20  # Initial ripple size
+        self.opacity = 1.0  # Full opacity
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.expand)
+        self.timer.start(60)  # ms steps
+        self.setGeometry(parent.rect())
+        self.show()
+
+    def expand(self):
+        """Expands and fades the ripple effect."""
+        self.radius -= 2  # Increase size
+        self.opacity -= 0.04  # Reduce opacity
+        if self.opacity <= 0 or self.radius <= 0:
+            self.timer.stop()
+            self.deleteLater()  # Remove effect
+        self.update()  # Trigger repaint
+
+    def paintEvent(self, event):
+        """Draws the ripple effect."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = QColor(self.color.red(), self.color.green(), self.color.blue(), int(255 * self.opacity))
+        pen = QPen(color, 6)
+        painter.setPen(pen)
+        painter.drawEllipse(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+
+class MouseInterceptor(QObject):
+
+    rippleEffectSignal = pyqtSignal(int, int, QColor)
+
+    def __init__(self, window):
+        super().__init__()
+        self.window = window
+        self.rippleEffectSignal.connect(self.ripple)
+
+    def ripple(self, x, y, color):
+        RippleEffect(self.window, x, y, color)
+
+    def eventFilter(self, obj, event):
+        """Intercepts mouse clicks and applies ripple effect."""
+        if isinstance(event, QMouseEvent) and event.type() == QMouseEvent.Type.MouseButtonPress and self.window.pluginManager.Settings.showMouseClicks:
+            local_pos = self.window.mapFromGlobal(event.globalPosition().toPoint())
+            if event.button() == Qt.MouseButton.LeftButton:
+                QTimer.singleShot(200, lambda: self.rippleEffectSignal.emit(local_pos.x(), local_pos.y(), QColor(colors.highlight)))
+            elif event.button() == Qt.MouseButton.RightButton:
+                QTimer.singleShot(200, lambda: self.rippleEffectSignal.emit(local_pos.x(), local_pos.y(), QColor(255, 50, 50)))
+        return False

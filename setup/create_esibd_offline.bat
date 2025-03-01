@@ -1,4 +1,4 @@
-REM After installing ESIBD-Explorer using pip on a computer with internet, this file can be used to bundle all dependencies to create the esibd environment on a computer without internet connection
+REM After setting up the esibd environment using create_env.bat on a computer with internet, this file can be used to bundle all dependencies to create the esibd environment on a computer without internet connection
 REM After running this, proceed by installing miniconda on the offline computer and extract the content of esibd.tar.gz as a local environment (e.g. to \AppData\Local\miniconda3\envs\esibd)
 REM Then start the program using start_esibd_offline.bat
 

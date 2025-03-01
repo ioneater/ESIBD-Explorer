@@ -91,10 +91,9 @@ class Beam(Scan):
 
         def runTestParallel(self):
             if self.initializedDock:
-                self.raiseDock(True)
                 self.testControl(self.interpolateAction, not self.interpolateAction.state, 1)
                 self.testControl(self.axesAspectAction, not self.axesAspectAction.state, 1)
-            # super().runTestParallel() # handled by scan
+            super().runTestParallel()
 
         def updateTheme(self):
             if self.axesAspectAction is not None:
@@ -117,7 +116,6 @@ class Beam(Scan):
         self.centerAction = self.addAction(event=lambda: self.centerLimits(), toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
 
     def runTestParallel(self):
-        self.raiseDock(True)
         self.testControl(self.coupleAction, self.coupleAction.state)
         self.testControl(self.limitAction, True)
         self.testControl(self.centerAction, True)
@@ -1385,7 +1383,6 @@ class GA(Scan):
         self.initialAction = self.addStateAction(event=lambda: self.toggleInitial(), toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
                                                  toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
     def runTestParallel(self):
-        self.raiseDock(True)
         self.testControl(self.initialAction, self.initialAction.state)
         super().runTestParallel()
 

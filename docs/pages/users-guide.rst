@@ -255,9 +255,6 @@ Min
 Max
    Maximal limit for value. Values will be coerced to limits.
 
-Optimize
-   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
-
 .. _`equation`:
 
 Equation
@@ -278,6 +275,9 @@ Background
    corresponding background. Backgrounds can be optionally and temporarily subtracted
    without loosing the raw data.
 
+Optimize
+   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
+
 Display
    If selected, channel will be shown in the corresponding :ref:`live display<sec:live_displays>`.
 
@@ -293,9 +293,21 @@ Real
    elements can be controlled by virtual *offset, **up-down*, and *left-right*
    parameters.
 
-Linewidth
-   The linewidth is used to highlight the relative importance of channels in
+Line width
+   The line width is used to highlight the relative importance of channels in
    the :ref:`live display<sec:live_displays>`.
+
+Line style
+   The line style is used to further distinguish channels with similar color in
+   the :ref:`live display<sec:live_displays>`.
+
+Group
+   :ref:`Live displays<sec:live_displays>` allow channels to be grouped by this parameter.
+   This allows to group channels with different units and define the order in which they appear in
+   the :ref:`live display<sec:live_displays>`.
+
+Scaling
+   Scale channels to highlight importance and see them from the other side of the lab.
 
 Color
    The channel color can be used to visually group related channels
