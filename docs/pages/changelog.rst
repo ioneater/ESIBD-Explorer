@@ -15,6 +15,7 @@ Added
 - Added option to record videos of plugins.
 - Added option to highlight mouse clicks.
 - Added offline installation instructions.
+- Added option to run python files from explorer context menu.
 
 Fixed
 ~~~~~

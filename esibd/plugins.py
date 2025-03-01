@@ -5260,6 +5260,7 @@ class Explorer(Plugin):
         copyFileNameAction = None
         copyFullPathAction = None
         copyFolderNameAction = None
+        runPythonCodeAction = None
         copyPlotCodeAction = None
         loadValuesActions = []
         loadSettingsActions = []
@@ -5308,6 +5309,8 @@ class Explorer(Plugin):
                         for device in self.pluginManager.DeviceManager.getDevices(inout = INOUT.IN):
                             if device.name == fileType:
                                 loadValuesActions.append(explorerContextMenu.addAction(device.LOADVALUES))
+            elif self.activeFileFullPath.suffix == FILE_PY:
+                runPythonCodeAction = explorerContextMenu.addAction('Run file in python.')
             else:
                 for display in self.pluginManager.getPluginsByType(PluginManager.TYPE.DISPLAY):
                     if display.supportsFile(self.activeFileFullPath) and hasattr(display, 'generatePythonPlotCode'):
@@ -5331,6 +5334,8 @@ class Explorer(Plugin):
             elif explorerContextMenuAction is deleteFileAction:
                 send2trash(self.tree.selectedItems()[0].path_info)
                 self.populateTree(clear=False)
+            elif explorerContextMenuAction is runPythonCodeAction:
+                self.pluginManager.Console.execute(f"Module = EsibdCore.dynamicImport('ModuleName','{self.activeFileFullPath.as_posix()}')")
             elif explorerContextMenuAction is copyPlotCodeAction:
                 for device in self.pluginManager.DeviceManager.getDevices():
                     if device.liveDisplay.supportsFile(self.activeFileFullPath):

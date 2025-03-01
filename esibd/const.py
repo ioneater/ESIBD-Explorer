@@ -47,6 +47,7 @@ defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
 FILE_INI = '.ini'
 FILE_H5  = '.h5'
 FILE_PDF = '.pdf'
+FILE_PY  = '.py'
 
 # other
 UTF8    = 'utf-8'
