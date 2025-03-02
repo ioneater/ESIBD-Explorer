@@ -4,6 +4,7 @@ import time
 from random import choices
 import numpy as np
 import pyvisa
+from PyQt6.QtCore import QTimer
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
@@ -27,19 +28,29 @@ class RSPD3303C(Device):
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = VoltageChannel
+        self.shutDownTimer = QTimer(self)
+        self.shutDownTimer.timeout.connect(self.updateTimer)
 
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 
+    def finalizeInit(self, aboutFunc=None):
+        self.shutDownTime = 0
+        super().finalizeInit(aboutFunc)
+
     ADDRESS = 'Address'
+    SHUTDOWNTIMER = 'Shutdown timer'
 
     def getDefaultSettings(self):
         """:meta private:"""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
+        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, attr='shutDownTime',
+                                                                     toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
+                                                                     event=lambda: self.initTimer())
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return defaultSettings
 
@@ -60,6 +71,18 @@ class RSPD3303C(Device):
             self.controller.voltageON()
         elif self.isOn():
             self.initializeCommunication()
+
+    def initTimer(self):
+        if self.shutDownTime != 0:
+            self.print(f'Will turn off in {self.shutDownTime} minutes.')
+            self.shutDownTimer.start(60000)  # ms steps
+
+    def updateTimer(self):
+        self.shutDownTime = max(0, self.shutDownTime - 1)
+        if self.shutDownTime == 0:
+            self.print('Timer expired. Turning off.')
+            self.shutDownTimer.stop()
+            self.setOn(on=False)
 
 class VoltageChannel(Channel):
 

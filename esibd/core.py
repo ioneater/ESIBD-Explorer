@@ -1091,7 +1091,7 @@ class Parameter():
     tree : QTreeWidget
     """None, unless the parameter is used for settings."""
     itemWidget : QTreeWidgetItem
-    """If this is not None, parameter is part of a channel otherwise of a setting."""
+    """None if parameter is part of a channel, otherwise it is part of a setting."""
     extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 

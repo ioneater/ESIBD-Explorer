@@ -11,11 +11,12 @@ REM Formatting
 
 REM use the following regex to fix common formating errors
 REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :
+REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.txt,*.svg,*.sh,*.toml,LICENSE,Makefile
 
 ::::::::::::::
 REM Change Log
 ::::::::::::::
-REM update changelog in changelog.rst
+REM update changelog in changelog.rst (ideally update before each commit)
 REM Often, writing the change log inspires some last minute changes!
 REM Content: start bullet points with capitals and dot at the end
 REM - will be replaced by bullet points on github
@@ -27,6 +28,11 @@ REM Removed 	for now removed features.
 REM Fixed 		for any bug fixes.
 REM Security 	in case of vulnerabilities.
 REM Performance for speed improvements
+
+:::::::::::
+REM Testing
+:::::::::::
+REM make sure all test pass in development environment
 
 :::::::::::::::::::::
 REM Environment setup
@@ -78,6 +84,7 @@ REM call docs\make.bat html
 :::::::
 REM git
 :::::::
+
 REM git config --global user.email "XXX@XXX.com" # setup email
 REM git config --global user.name "ioneater" # setup user name
 
@@ -115,7 +122,7 @@ REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url
 REM python -m esibd.reset # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
-REM test software using PluginManager.test()
+REM test software using PluginManager.test() in testmode
 REM test software using PluginManager.test() with hardware!
 REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing
 
@@ -134,8 +141,7 @@ call rm -r pyinstaller_dist
 conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
 REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
-pip install esibd-explorer==0.7.1
-pip install pyinstaller
+pip install esibd-explorer==0.7.2 pyinstaller
 REM test software
 python -m esibd.explorer
 
@@ -154,8 +160,6 @@ REM InstallForge
 
 REM Next, create setup.exe using InstallForge
 REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable and update "Product Version" and update year in license section!
-REM C:\Users\tim.esser\Syncthing
-REM C:\DATA\Syncthing
 REM files:
 REM pyinstaller_dist\ESIBD Explorer\_internal
 REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
@@ -163,13 +167,15 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
+REM Test installation from exe before continuing
+
 ::::::::::::::::
 REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Realeasing version v0.7.1"
-git tag -a v0.7.1 -m "Realeasing version v0.7.1"
+git commit -a -m "Realeasing version v0.7.2"
+git tag -a v0.7.1 -m "Realeasing version v0.7.2"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections (have to be signed in!)

@@ -9,7 +9,7 @@ Enable a few devices, scans, and other plugins in the plugin manager.
 Select which live displays should be visible.
 Activate the test mode to simulate device communication while you familiarize yourself with the user interface.
 Record a few scans and inspect the generated file structure and files.
-Make use of tool tips and integrated documentation (question mark icons) to learn about the plugins and settings.
+Make use of tooltips and integrated documentation (question mark icons) to learn about the plugins and settings.
 
 User interface overview
 -----------------------
@@ -34,6 +34,7 @@ question mark in their toolbar.
 
 .. _`fig:overview`:
 .. figure:: 2023-10_ESIBD_GUI.png
+   :width: 100%
 
    **ESIBD Explorer user interface.** Colored boxes highlight the five main sections. :blue:`Live displays` showing
    data from several devices. Central :darkorange:`device manager`.
@@ -41,6 +42,12 @@ question mark in their toolbar.
    controls. :orange:`Displays` of supported files
    including saved and running scans. :green:`Console` for
    debugging and plugin development.
+
+.. _`fig:overview_video`:
+.. video:: 2025-02_ESIBD_GUI.mp4
+   :width: 100%
+   :align: center
+   :caption: This video was created as part of automated testing and shows many plugins and their interactions. Simulated mouse clicks are indicated by blue circles. While this cannot replace a structured video tutorial, it gives a better idea about what to expect before installing ESIBD Explorer.
 
 .. _`sec:settings`:
 
@@ -255,9 +262,6 @@ Min
 Max
    Maximal limit for value. Values will be coerced to limits.
 
-Optimize
-   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
-
 .. _`equation`:
 
 Equation
@@ -278,6 +282,9 @@ Background
    corresponding background. Backgrounds can be optionally and temporarily subtracted
    without loosing the raw data.
 
+Optimize
+   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
+
 Display
    If selected, channel will be shown in the corresponding :ref:`live display<sec:live_displays>`.
 
@@ -293,9 +300,21 @@ Real
    elements can be controlled by virtual *offset, **up-down*, and *left-right*
    parameters.
 
-Linewidth
-   The linewidth is used to highlight the relative importance of channels in
+Line width
+   The line width is used to highlight the relative importance of channels in
    the :ref:`live display<sec:live_displays>`.
+
+Line style
+   The line style is used to further distinguish channels with similar color in
+   the :ref:`live display<sec:live_displays>`.
+
+Group
+   :ref:`Live displays<sec:live_displays>` allow channels to be grouped by this parameter.
+   This allows to group channels with different units and define the order in which they appear in
+   the :ref:`live display<sec:live_displays>`.
+
+Scaling
+   Scale channels to highlight importance and see them from the other side of the lab.
 
 Color
    The channel color can be used to visually group related channels

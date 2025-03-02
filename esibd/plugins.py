@@ -3670,9 +3670,9 @@ class Browser(Plugin):
         try:
             response = requests.get('https://github.com/ioneater/ESIBD-Explorer/releases/latest')
             onlineVersion = version.parse(response.url.split('/').pop())
-            if PROGRAM_VERSION == onlineVersion:
+            if PROGRAM_VERSION >= onlineVersion:
                 updateHTML = '(<span style="color: green">Up to date!</span>)'
-            else:
+            elif PROGRAM_VERSION > onlineVersion:
                 updateHTML = f'(<a href="https://github.com/ioneater/ESIBD-Explorer/releases/latest">Version {onlineVersion.base_version} available!</a>)'
         except requests.exceptions.ConnectionError:
             pass
@@ -4595,7 +4595,10 @@ class Settings(SettingsManager):
         for plugin in self.pluginManager.plugins:
             if hasattr(plugin, 'getDefaultSettings') and not isinstance(plugin, Scan):
                 # only if plugin has specified settings that are not handled by separate settingsMgr within the plugin
-                self.addDefaultSettings(plugin=plugin)
+                try:
+                    self.addDefaultSettings(plugin=plugin)
+                except Exception as e:
+                    self.print(f'Error loading settings for {plugin.name}: {e}')
         super().init() # call again to load all settings from all other plugins
         self.settings[f'{self.SESSION}/{self.MEASUREMENTNUMBER}']._valueChanged = False # make sure sessionpath is not updated after restoring measurement number
 

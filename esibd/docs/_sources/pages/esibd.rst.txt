@@ -1,4 +1,4 @@
-	
+
 .. _`sec:ESIBD`:
 
 Electrospray ion-beam deposition
@@ -26,13 +26,12 @@ and assembly at surfaces depending on ion-beam composition,\ :cite:`abb_two-dime
 substrate,\ :cite:`deng_close_2012`
 and landing energy.\ :cite:`ochner_low-energy_2021,rauschenbach_electrospray_2009`
 
-
 .. _`fig:setup`:
 .. figure:: 2023-10_ESIBD_Setup.png
 
-   **Overview of the Oxford ESIBD setup.** Colored boxes highlight selected 
+   **Overview of the Oxford ESIBD setup.** Colored boxes highlight selected
    hardware that is controlled by ESIBD Explorer plugins. **Left** :blue:`ESIBD Explorer`,
-   :green:`current measurement` (RBD 9103), :red:`voltage supplies and distribution` 
+   :green:`current measurement` (RBD 9103), :red:`voltage supplies and distribution`
    (ISEG ECH 244, ISEG EBS 180 05). **Right** Custom :purple:`deposition stage`,
    independently controlled :orange:`commercial mass spectrometer`
    (Thermo Scientific :sup:`TM` Q Exactive :sup:`TM` UHMR instrument),
@@ -40,7 +39,7 @@ and landing energy.\ :cite:`ochner_low-energy_2021,rauschenbach_electrospray_200
    (Edwards TIC, Pfeiffer TPG366). See references for more details.\ :cite:`fremdling_preparative_2022,esser_mass-selective_2022,esser_cryo-em_2022,esser_cryo-em_2023`
 
 :numref:`fig:setup` shows an overview of the Oxford ESIBD setup,
-which combines a commercial mass spectrometer with a custom deposition stage. 
+which combines a commercial mass spectrometer with a custom deposition stage.
 Most ESIBD experiments comprise a variety of components including an ion
 source, ion guides, mass filters, deflectors, focusing lenses, and
 detectors. They require controlling or monitoring DC potentials, RF
@@ -55,8 +54,3 @@ interface that allows to perform all elements of the ESIBD workflow with
 only a few clicks, while documenting all relevant information
 automatically in the background, lead to the creation of the *ESIBD
 Explorer*.
-
-
-
-
-

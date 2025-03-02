@@ -40,7 +40,6 @@ UNIT            = 'Unit'
 SELECTFILE      = 'Select File'
 SELECTPATH  = 'Select Path'
 
-
 # * default paths should not be in software folder as this might not have write access after installation
 defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
 defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/'
@@ -175,7 +174,6 @@ def setDarkMode(darkMode):
     """
     qSet.setValue(f'{GENERAL}/{DARKMODE}', darkMode)
     # qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
-
 
 def getClipboardTheme():
     """Gets the dark clipboard mode from :ref:`sec:settings`.
