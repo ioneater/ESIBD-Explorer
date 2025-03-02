@@ -34,6 +34,7 @@ question mark in their toolbar.
 
 .. _`fig:overview`:
 .. figure:: 2023-10_ESIBD_GUI.png
+   :width: 100%
 
    **ESIBD Explorer user interface.** Colored boxes highlight the five main sections. :blue:`Live displays` showing
    data from several devices. Central :darkorange:`device manager`.
@@ -41,6 +42,12 @@ question mark in their toolbar.
    controls. :orange:`Displays` of supported files
    including saved and running scans. :green:`Console` for
    debugging and plugin development.
+
+.. _`fig:overview_video`:
+.. video:: 2025-02_ESIBD_GUI.mp4
+   :width: 100%
+   :align: center
+   :caption: This video was created as part of automated testing and shows many plugins and their interactions. Simulated mouse clicks are indicated by blue circles. While this cannot replace a structured video tutorial, it gives a better idea about what to expect before installing ESIBD Explorer.
 
 .. _`sec:settings`:
 

@@ -16,6 +16,9 @@ Added
 - Added option to highlight mouse clicks.
 - Added offline installation instructions.
 - Added option to run python files from explorer context menu.
+- Added options to load all device values from file context menu instead of one device at a time.
+- Added option to load all device channels and values from advanced device manager instead of one device at a time.
+- Added simple video example to the documentation.
 
 Fixed
 ~~~~~

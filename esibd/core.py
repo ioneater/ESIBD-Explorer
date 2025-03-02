@@ -430,21 +430,24 @@ class PluginManager():
     def runTestParallel(self):
         """Runs test of all plugins from parallel thread."""
         self.logger.print('Start testing all plugins.')
+        # this will record the entire test session, consider compressing the file with third party software before publication
         self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, True)
         for plugin in self.plugins:
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
             plugin.raiseDock(True)
-            if plugin is not self.DeviceManager:
-                plugin.testControl(plugin.videoRecorderAction, True)
+            plugin.waitForCondition(condition=lambda: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'Timeout reached while for {plugin.name}')
+            # if plugin is not self.DeviceManager:
+            #     plugin.testControl(plugin.videoRecorderAction, True) # record manually -> more suitable for website
             plugin.runTestParallel()
             if not plugin.waitForCondition(condition=lambda: not plugin._testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
                 plugin.signalComm.testCompleteSignal.emit()
-            if plugin is not self.DeviceManager:
-                plugin.testControl(plugin.videoRecorderAction, False)
+            # if plugin is not self.DeviceManager:
+            #     plugin.testControl(plugin.videoRecorderAction, False)
             if not self.testing:
                 break
         self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, False)
+        self.Console.testControl(self.Console.openLogAction, True, 1)
         self.testing = False
 
     def showThreads(self):
@@ -963,13 +966,14 @@ class DynamicNp():
         # if n is increased to get similar performance than the code above, the curves are flickering as the displayed points can change (roll) while new data comes in.
 
 def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, fixedItems=False, tree=None, widgetType=None, advanced=False, header=None,
-                    widget=None, event=None, internal=False, attr=None, indicator=False, instantUpdate=True):
+                    widget=None, event=None, internal=False, attr=None, indicator=False, instantUpdate=True, displayDecimals=2):
     """Provides default values for all properties of a parameter.
     See :class:`~esibd.core.Parameter` for definitions.
     """
     return {Parameter.NAME : name, Parameter.VALUE : value, Parameter.DEFAULT : default if default is not None else value, Parameter.MIN : _min, Parameter.MAX : _max, Parameter.ADVANCED : advanced,
             Parameter.HEADER : header, Parameter.TOOLTIP : toolTip, Parameter.ITEMS : items, Parameter.FIXEDITEMS : fixedItems, Parameter.TREE : tree, Parameter.WIDGETTYPE : widgetType,
-            Parameter.WIDGET : widget, Parameter.EVENT : event, Parameter.INTERNAL : internal, Parameter.ATTR : attr, Parameter.INDICATOR : indicator, Parameter.INSTANTUPDATE : instantUpdate}
+            Parameter.WIDGET : widget, Parameter.EVENT : event, Parameter.INTERNAL : internal, Parameter.ATTR : attr, Parameter.INDICATOR : indicator, Parameter.INSTANTUPDATE : instantUpdate,
+            Parameter.DISPLAYDECIMALS : displayDecimals}
 
 class Parameter():
     """Parameters are used by settings and channels. They take care
@@ -996,6 +1000,7 @@ class Parameter():
     INDICATOR   = 'Indicator'
     INSTANTUPDATE = 'InstantUpdate'
     WIDGETTYPE  = 'WIDGETTYPE'
+    DISPLAYDECIMALS  = 'DISPLAYDECIMALS'
     WIDGET      = 'WIDGET'
 
     class TYPE(Enum):
@@ -1077,6 +1082,8 @@ class Parameter():
     """By default, events are triggered as soon as the value changes. If set
     to False, certain events will only be triggered if editing is
     finished by the *enter* key or if the widget loses focus."""
+    displayDecimals : int
+    """Number of decimal places to display if applicable."""
     print : callable
     """Reference to :meth:`~esibd.plugins.Plugin.print`."""
     fullName : str
@@ -1089,7 +1096,7 @@ class Parameter():
     """Used to add internal events on top of the user assigned ones."""
 
     def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, fixedItems=False, widget=None, internal=False,
-                    tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, instantUpdate=True):
+                    tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, instantUpdate=True, displayDecimals=2):
         self._parent = _parent
         self.widgetType = widgetType if widgetType is not None else self.TYPE.LABEL
         self.index = index
@@ -1108,6 +1115,7 @@ class Parameter():
         self.internal = internal
         self.indicator = indicator
         self.instantUpdate = instantUpdate
+        self.displayDecimals = displayDecimals
         self.rowHeight = self._parent.rowHeight if hasattr(self._parent, 'rowHeight') else QLineEdit().sizeHint().height() - 4
         self.check = None
         self.min = _min
@@ -1302,9 +1310,9 @@ class Parameter():
                 if self.widgetType == self.TYPE.INT:
                     self.spin = QLabviewSpinBox(indicator=self.indicator)
                 elif self.widgetType == self.TYPE.FLOAT:
-                    self.spin = QLabviewDoubleSpinBox(indicator=self.indicator)
+                    self.spin = QLabviewDoubleSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
                 else: # self.TYPE.EXP
-                    self.spin = QLabviewSciSpinBox(indicator=self.indicator)
+                    self.spin = QLabviewSciSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
                 self.spin.lineEdit().setObjectName(self.fullName)
             else:
                 self.spin = self.widget
@@ -1455,9 +1463,9 @@ class Parameter():
         elif self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
             return self.value == int(value)
         elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.FLOATCOMBO]:
-            return self.value == float(value)
+            return f'{self.value:.{self.displayDecimals}f}' == f'{float(value):.{self.displayDecimals}f}'
         elif self.widgetType == self.TYPE.EXP:
-            return f'{self.value:.2e}' == f'{float(value):.2e}'
+            return f'{self.value:.{self.displayDecimals}e}' == f'{float(value):.{self.displayDecimals}e}'
         elif self.widgetType == self.TYPE.COLOR:
             return self.value == value.name() if isinstance(value, QColor) else self.value == value
         elif self.widgetType in [self.TYPE.TEXT, self.TYPE.LABEL, self.TYPE.PATH]:
@@ -1472,13 +1480,10 @@ class Parameter():
         if self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
             return f'{int(value)}'
         elif self.widgetType in [self.TYPE.FLOAT, self.TYPE.FLOATCOMBO, self.TYPE.EXP]:
-            displayDecimals = 2
-            if hasattr(self, 'spin') and hasattr(self.spin, 'displayDecimals'):
-                displayDecimals = self.spin.displayDecimals
             if self.widgetType == self.TYPE.EXP:
-                return f'{float(value):.{displayDecimals}e}'
+                return f'{float(value):.{self.displayDecimals}e}'
             else:
-                return f'{float(value):.{displayDecimals}f}'
+                return f'{float(value):.{self.displayDecimals}f}'
         else:
             return str(value)
 
@@ -1778,6 +1783,7 @@ class Channel(QTreeWidgetItem):
                                                     internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                                                     indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
                                                     instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
+                                                    displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                                                     itemWidget=self, index=i, tree=self.tree,
                                                     event=default[Parameter.EVENT] if Parameter.EVENT in default else None))
     HEADER      = 'HEADER'
@@ -2402,12 +2408,12 @@ class QLabviewSpinBox(QSpinBox):
 
 class QLabviewDoubleSpinBox(QDoubleSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
-    def __init__(self, parent=None, indicator=False):
+    def __init__(self, parent=None, indicator=False, displayDecimals=2):
         super().__init__(parent)
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf) # limit explicitly if needed, this seems more useful than the [0, 100] default range
-        self.displayDecimals = 2
+        self.setDisplayDecimals(displayDecimals)
         self.NAN = 'NaN'
         if indicator:
             self.setReadOnly(True)
@@ -2422,7 +2428,8 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
     def setDisplayDecimals(self, prec):
         # decimals used for display.
         self.displayDecimals = prec
-        self.setDecimals(max(self.displayDecimals, self.decimals())) # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
+        # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
+        self.setDecimals(max(self.displayDecimals, self.decimals()))
         self.value = self.value
 
     def valueFromText(self, text):
@@ -2515,9 +2522,9 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
             match = self._float_re.search(text)
             return match.groups()[0] if match else ''
 
-    def __init__(self, parent=None, indicator=False):
-        super().__init__(parent, indicator)
+    def __init__(self, parent=None, indicator=False, displayDecimals=2):
         self.validator = self.FloatValidator()
+        super().__init__(parent, indicator=indicator, displayDecimals=displayDecimals)
         self.setDecimals(1000) # need this to allow internal handling of data as floats 1E-20 = 0.0000000000000000001
 
     def validate(self, text, position):
@@ -3905,54 +3912,46 @@ class VideoRecorder():
         self.fps = 10  # Frames per second
         self.frameCount = 0
         self.is_recording = False
+        # TODO capture real contextual cursor instead of drawing fixed cursor
         self.cursor_pixmap = self.parentPlugin.makeCoreIcon('cursor.png').pixmap(32)
-        # cursor_img = self.cursor_pixmap.toImage().convertToFormat(QImage.Format.Format_RGBA8888)
-        # self.cursor_width, self.cursor_height = self.cursor_pixmap.width(), self.cursor_pixmap.height()
-        # cursor_ptr = cursor_img.bits()
-        # cursor_ptr.setsize(self.cursor_height * self.cursor_width * 4)
-        # self.cursor_array = np.array(cursor_ptr, dtype=np.uint8).reshape((self.cursor_height, self.cursor_width, 4)).copy()
 
     def startRecording(self):
         # return
         if self.parentPlugin.pluginManager.testing and not self.parentPlugin.pluginManager.Settings.showVideoRecorders:
             return
         self.frameCount = 0
-        self.is_recording = True
-        self.parentPlugin.pluginManager.Settings.incrementMeasurementNumber()
-        self.file = self.parentPlugin.pluginManager.Settings.getMeasurementFileName(f'_{self.parentPlugin.name}.mp4')
-        self.parentPlugin.print(f'Start recording {self.file.name}')
         self.video_writer = None
-        self.parentPlugin.videoRecorderAction.state = True
-        self.parentPlugin.videoRecorderAction.setVisible(True)
-        self.timer.start(int(1000 / self.fps))
+        self.screen = QGuiApplication.screenAt(self.recordWidget.mapToGlobal(QPoint(0, 0)))
+        if self.screen is not None:
+            self.is_recording = True
+            self.parentPlugin.pluginManager.Settings.incrementMeasurementNumber()
+            self.file = self.parentPlugin.pluginManager.Settings.getMeasurementFileName(f'_{self.parentPlugin.name}.mp4')
+            self.parentPlugin.videoRecorderAction.state = True
+            self.parentPlugin.videoRecorderAction.setVisible(True)
+            self.screen_geometry = self.screen.geometry()
+            self.dpr = self.screen.devicePixelRatio()
+            self.timer.start(int(1000 / self.fps))
+            self.parentPlugin.print(f'Start recording {self.file.name}')
+        else:
+            self.parentPlugin.print('Cannot start recording. Screen not found.', flag=PRINT.ERROR)
 
     def capture_frame(self):
         if not self.is_recording:
             return
-        # full_screenshot = self.recordWidget.window().grab()  # Capture the widget
-        screen = QGuiApplication.screenAt(self.recordWidget.mapToGlobal(QPoint(0, 0)))
-        # Get screen details
-        screen_geometry = screen.geometry()
-        dpr = screen.devicePixelRatio()
-        full_screenshot = screen.grabWindow(0)
+        full_screenshot = self.screen.grabWindow(0) # should be called from main thread
 
         # Capture the current mouse position
         cursor_pos_global  = QCursor().pos()
         # Overlay the cursor on the full-screen image
         painter = QPainter(full_screenshot)
-        # painter.drawPixmap(int((cursor_pos_global.x() - screen_geometry.x()) * dpr), int((cursor_pos_global.y() - screen_geometry.y()) * dpr), self.cursor_pixmap)
-        painter.drawPixmap(int((cursor_pos_global.x() - screen_geometry.x())), int((cursor_pos_global.y() - screen_geometry.y())), self.cursor_pixmap)
-        # painter.drawPixmap(int((cursor_pos_global.x()) * dpr), int((cursor_pos_global.y()) * dpr), self.cursor_pixmap)
+        painter.drawPixmap(int((cursor_pos_global.x() - self.screen_geometry.x())), int((cursor_pos_global.y() - self.screen_geometry.y())), self.cursor_pixmap)
         painter.end()
-
         global_pos = self.recordWidget.mapToGlobal(QPoint(0, 0))  # Widget's global position
-        screen_x = global_pos.x() - screen_geometry.x()
-        screen_y = global_pos.y() - screen_geometry.y()
-
+        screen_x = global_pos.x() - self.screen_geometry.x()
+        screen_y = global_pos.y() - self.screen_geometry.y()
         # Define cropping rectangle in local screen coordinates
-        rect = QRect(int(screen_x * dpr), int(screen_y * dpr), int(self.recordWidget.width() * dpr), int(self.recordWidget.height() * dpr))
+        rect = QRect(int(screen_x * self.dpr), int(screen_y * self.dpr), int(self.recordWidget.width() * self.dpr), int(self.recordWidget.height() * self.dpr))
         cropped_screenshot = full_screenshot.copy(rect)
-
         image = cropped_screenshot.toImage().convertToFormat(QImage.Format.Format_RGBA8888)  # Ensure correct format
         if self.frameCount == 0:
             self.width, self.height = image.width(), image.height()
@@ -3967,30 +3966,10 @@ class VideoRecorder():
             self.parentPlugin.print('Stopping video recording after reaching 5 minute limit.', flag=PRINT.WARNING)
             self.stopRecording()
             return
-
         buffer = image.bits() # Get image data as a bytes object
         buffer.setsize(image.sizeInBytes())
         frame = np.frombuffer(buffer, dtype=np.uint8).reshape((self.height, self.width, 4)) # Convert to NumPy array
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR) # Convert RGBA to BGR for OpenCV
-        # Resize frame (Decrease resolution)
-        # target_size = (width // 2, height // 2)  # 50% smaller file only 25 % smaller and very poor quality
-        # frame_resized = cv2.resize(frame_bgr, target_size, interpolation=cv2.INTER_AREA)
-        # self.frames.append(frame_bgr)
-
-        # # Get the mouse cursor position in the widget's coordinate system
-        # cursor_local_pos = self.recordWidget.mapFromGlobal(QCursor.pos())
-        # x, y = int(cursor_local_pos.x() * dpr), int(cursor_local_pos.y() * dpr)
-        # # Ensure cursor stays inside the frame boundaries
-        # if 0 <= x < int((self.width - self.cursor_width) * dpr) and 0 <= y < int((self.height - self.cursor_height) * dpr):
-        #     # Extract cursor alpha channel
-        #     alpha = self.cursor_array[:, :, 3] / 255.0
-        #     # Blend cursor with the background
-        #     for c in range(3):  # RGB channels
-        #         frame_bgr[y:y + int(self.cursor_height * dpr), x:x + int(self.cursor_width * dpr), c] = (
-        #             frame_bgr[y:y + int(self.cursor_height * dpr), x:x + int(self.cursor_width * dpr), c] * (1.0 - alpha) +
-        #             self.cursor_array[:, :, c] * alpha
-        #         )
-
         self.video_writer.write(frame_bgr)
         self.frameCount += 1
 
@@ -4008,6 +3987,7 @@ class VideoRecorder():
 
 class RippleEffect(QWidget):
     """Creates a fading ripple effect at the clicked QAction."""
+
     def __init__(self, parent, x, y, color=QColor(138, 180, 247)):
         super().__init__(parent)
         self.x, self.y = x, y
@@ -4016,14 +3996,14 @@ class RippleEffect(QWidget):
         self.opacity = 1.0  # Full opacity
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.expand)
-        self.timer.start(60)  # ms steps
+        self.timer.start(80)  # ms steps
         self.setGeometry(parent.rect())
         self.show()
 
     def expand(self):
         """Expands and fades the ripple effect."""
-        self.radius -= 2  # Increase size
-        self.opacity -= 0.04  # Reduce opacity
+        self.radius -= 4  # Increase size
+        self.opacity -= 0.1  # Reduce opacity
         if self.opacity <= 0 or self.radius <= 0:
             self.timer.stop()
             self.deleteLater()  # Remove effect

@@ -42,7 +42,8 @@ extensions = ['sphinx_rtd_theme', 'sphinx.ext.coverage', 'sphinxcontrib.bibtex',
 # 'autoapi.extension',
 # "sphinx_rtd_dark_mode", not supported for python 3.11
 'sphinx_copybutton',
-'sphinx.ext.autodoc'
+'sphinx.ext.autodoc',
+'sphinxcontrib.video'
 ]
 
 bibtex_reference_style = 'super'

@@ -125,6 +125,8 @@ class Plugin(QWidget):
     """Default icon file. Expected to be in dependencyPath."""
     iconFileDark : str = ''
     """Default icon file for dark mode. Expected to be in dependencyPath. Will fallback to iconFile."""
+    useAdvancedOptions : bool = False
+    """Adds toolbox icon to show advanced plugin options."""
 
     class SignalCommunicate(QObject): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
@@ -235,11 +237,11 @@ class Plugin(QWidget):
                     pass # ignore labels as they are always indicators and not connected to events
                 else:
                     self.print(f'No test implemented for class {type(control)}')
-        if self.pluginManager.Settings.showMouseClicks and current_thread() is not main_thread():
-            main_center = widget.mapTo(self.pluginManager.mainWindow, widget.rect().center())
-            QApplication.instance().mouseInterceptor.rippleEffectSignal.emit(
-            main_center.x(), main_center.y(), QColor(colors.highlight))
-            time.sleep(.1)
+                if self.pluginManager.Settings.showMouseClicks and current_thread() is not main_thread():
+                    main_center = widget.mapTo(self.pluginManager.mainWindow, widget.rect().center())
+                    QApplication.instance().mouseInterceptor.rippleEffectSignal.emit(
+                    main_center.x(), main_center.y(), QColor(colors.highlight))
+                    time.sleep(.1)
         # Sleep after releasing lock!
         # Use minimal required delays to make sure event can be processed before triggering next one.
         # Ideally acquire lock to process event and make sure next one is triggered one lock is released, instead of using delay.
@@ -332,6 +334,10 @@ class Plugin(QWidget):
             self.titleBar.setIconSize(QSize(16, 16))
             self.titleBarLabel = QLabel('')
             self.titleBar.addWidget(self.titleBarLabel)
+            if self.useAdvancedOptions:
+                self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), f'Show advanced options for {self.name}.', self.makeCoreIcon('toolbox.png'),
+                                                  f'Hide advanced options for {self.name}.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
+                self.advancedAction.state = False # always off on start
             self.initializedGUI = True
 
     def finalizeInit(self, aboutFunc=None):
@@ -362,7 +368,6 @@ class Plugin(QWidget):
             iconFalse=self.makeCoreIcon('record_start.png'), toolTipTrue=f'Stop and save video of {self.name}.',
             iconTrue=self.makeCoreIcon('record_stop.png'), before=self.aboutAction)
         self.videoRecorderAction.setVisible(self.pluginManager.Settings.showVideoRecorders)
-        pass
 
     def initDock(self):
         """Initializes the :class:`~esibd.core.DockWidget`."""
@@ -412,6 +417,10 @@ class Plugin(QWidget):
         if _show:
             QTimer.singleShot(0, self.dock.raise_) # give time for UI to draw before raising the dock
         # self.loading = False
+
+    def toggleAdvanced(self, advanced=None):
+        """Overwrite to show advanced options."""
+        self.print('toggleAdvanced not implemented')
 
     def requiredPlugin(self, name):
         """Displays error message if required plugin is not available."""
@@ -986,7 +995,7 @@ class StaticDisplay(Plugin):
                     self.axes[0].plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{output.name} ({output.unit})')
                 else:
                     self.staticPlotWidget.plot(x, y, name=f'{output.name} ({output.unit})') # initialize empty plots
-            elif output.display:
+            elif output.sourceChannel.display:
                 if output.smooth != 0:
                     # y = uniform_filter1d(y, output.smooth) # revert to this if nan_policy becomes https://github.com/scipy/scipy/pull/17393
                     y = smooth(y, output.smooth)
@@ -1130,6 +1139,7 @@ class LiveDisplay(Plugin):
     via the context menu), they tend to cause a flicker when updating data."""
 
     pluginType = PluginManager.TYPE.LIVEDISPLAY
+    useAdvancedOptions = True
     DISPLAYTIME = 'displayTime'
 
     def __init__(self, parentPlugin=None, **kwargs):
@@ -1184,6 +1194,10 @@ class LiveDisplay(Plugin):
         self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
         self.plot(apply=True)
+
+    def toggleAdvanced(self, advanced=None):
+        if hasattr(self, 'clearHistoryAction'):
+            self.clearHistoryAction.setVisible(self.advancedAction.state)
 
     def displayTimeChanged(self):
         if len(self.livePlotWidgets) > 0:
@@ -1552,6 +1566,7 @@ class ChannelManager(Plugin):
     pluginType = PluginManager.TYPE.CONTROL  # overwrite after inheriting
     previewFileTypes = []
     optional = False
+    useAdvancedOptions = True
 
     class SignalCommunicate(Plugin.SignalCommunicate): # signals that can be emitted by external threads
         """Object than bundles pyqtSignals for the Channelmanager"""
@@ -1654,9 +1669,9 @@ class ChannelManager(Plugin):
 
     def initGUI(self):
         super().initGUI()
-        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), f'Show advanced options and virtual channels for {self.name}.', self.makeCoreIcon('toolbox.png'),
-                                                  f'Hide advanced options and virtual channels for {self.name}.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
-        self.advancedAction.state = False # always off on start
+        self.advancedAction.toolTipFalse = f'Show advanced options and virtual channels for {self.name}.'
+        self.advancedAction.toolTipTrue = f'Hide advanced options and virtual channels for {self.name}.'
+        self.advancedAction.setToolTip(self.advancedAction.toolTipFalse)
         self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), f'Import {self.name} channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
         self.exportAction = self.addAction(lambda: self.exportConfiguration(file=None), f'Export {self.name} channels and values.', icon=self.makeCoreIcon('blue-folder-export.png'))
         self.saveAction = self.addAction(lambda: self.saveConfiguration(), f'Save {self.name} channels in current session.', icon=self.makeCoreIcon('database-export.png'))
@@ -1714,17 +1729,17 @@ class ChannelManager(Plugin):
             self.testControl(self.advancedAction, False)
             if self.useOnOffLogic: # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
                 self.testControl(self.onAction, True)
-            # if self.useDisplays:
-            #     if self.initializedDock:
-            #         if self.staticDisplayActive():
-            #             self.staticDisplay.raiseDock(True)
+            if self.useDisplays:
+                if self.initializedDock:
+                    if self.staticDisplayActive():
+                        self.staticDisplay.raiseDock(True)
             #             self.testControl(self.staticDisplay.videoRecorderAction, True)
-            #             self.staticDisplay.runTestParallel()
+                        self.staticDisplay.runTestParallel()
             #             self.testControl(self.staticDisplay.videoRecorderAction, False)
-            # if self.channelPlotActive():
-            #         self.channelPlot.raiseDock(True)
+            if self.channelPlotActive():
+                    self.channelPlot.raiseDock(True)
             #         self.testControl(self.channelPlot.videoRecorderAction, True)
-            #         self.channelPlot.runTestParallel()
+                    self.channelPlot.runTestParallel()
             #         self.testControl(self.channelPlot.videoRecorderAction, False)
                 # init, start, pause, stop acquisition will be tested by DeviceManager
         super().runTestParallel()
@@ -1876,7 +1891,6 @@ class ChannelManager(Plugin):
         self.print(f'Saved {file.name}')
 
     CHANNEL = 'Channel'
-    SELECTFILE = 'Select File'
 
     def exportConfiguration(self, file=None, default=False):
         """Saves an .ini or .h5 file which contains the configuration for this :class:`~esibd.plugins.Device`.
@@ -1887,7 +1901,7 @@ class ChannelManager(Plugin):
         if default:
             file = self.customConfigFile(self.confINI)
         if file is None: # get file via dialog
-            file = Path(QFileDialog.getSaveFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
+            file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
             if file.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
@@ -1957,14 +1971,12 @@ class ChannelManager(Plugin):
                     channel.setHidden(True)
                     break
                 index = index-1
-        if self.liveDisplayActive() and hasattr(self.liveDisplay, 'clearHistoryAction'):
-            self.liveDisplay.clearHistoryAction.setVisible(self.advancedAction.state)
 
     def intervalChanged(self):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
         pass
 
-    def loadConfiguration(self, file=None, default=False):
+    def loadConfiguration(self, file=None, default=False, append=False):
         """Loads :class:`channel<esibd.core.Channel>` configuration from file.
         If only values should be loaded without complete reinitialization, use :attr:`loadValues<esibd.plugins.Device.loadValues>` instead.
 
@@ -1979,7 +1991,8 @@ class ChannelManager(Plugin):
             if hasattr(self, 'initialized') and self.initialized():
                 self.print('Stop communication to load channels.', flag=PRINT.WARNING)
                 return
-            file = Path(QFileDialog.getOpenFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
+            file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
+                                                    directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
         if file != Path('.'):
             self.loading = True
             self.tree.setUpdatesEnabled(False)
@@ -1995,7 +2008,7 @@ class ChannelManager(Plugin):
                         self.tree.setUpdatesEnabled(True)
                         self.loading = False
                         return
-                    self.updateChannelConfig([item for name, item in confParser.items() if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file)
+                    self.updateChannelConfig([item for name, item in confParser.items() if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file, append=append)
                 else: # Generate default settings file if file was not found.
                     # To update files with new parameters, simply delete the old file and the new one will be generated.
                     if self.channels == []:
@@ -2022,7 +2035,7 @@ class ChannelManager(Plugin):
                             values = group[name].asstr()
                         for i, value in enumerate(values):
                             items[i][name] = value
-                    self.updateChannelConfig(items, file)
+                    self.updateChannelConfig(items, file, append=append)
 
             self.tree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
                                                     for name, dict in self.channels[0].getSortedDefaultChannel().items()])
@@ -2045,12 +2058,12 @@ class ChannelManager(Plugin):
     def LOADVALUES(self):
         return f'Load {self.name} values.'
 
-    def loadValues(self, file = None):
+    def loadValues(self, file=None, append=False):
         """Loads values only, instead of entire configuration, for :class:`channels<esibd.core.Channel>` matching in file and current configuration.
         Channels that exist in the file but not in the current configuration will be ignored.
         Only used by input devices."""
         if file is None: # get file via dialog
-            file = Path(QFileDialog.getOpenFileName(parent=None, caption=self.SELECTFILE, filter=self.FILTER_INI_H5)[0])
+            file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
             self.changeLog = [f'Change log for loading values for {self.name} from {file.name}:']
             if file.suffix == EsibdCore.FILE_INI:
@@ -2066,7 +2079,7 @@ class ChannelManager(Plugin):
                         self.updateChannelValue(name, value)
             if len(self.changeLog) == 1:
                 self.changeLog.append('No changes.')
-            self.pluginManager.Text.setText('\n'.join(self.changeLog), False)
+            self.pluginManager.Text.setText('\n'.join(self.changeLog) + '\n', _show=False, append=append)
             self.print('Values updated. Change log available in Text plugin.')
 
     def updateChannelValue(self, name, value):
@@ -2080,7 +2093,7 @@ class ChannelManager(Plugin):
         else:
             self.print(f'Could not find channel {name}.', PRINT.WARNING)
 
-    def updateChannelConfig(self, items, file):
+    def updateChannelConfig(self, items, file, append=False):
         """Scans for changes when loading configuration and displays change log
         before overwriting old channel configuration.
 
@@ -2093,9 +2106,11 @@ class ChannelManager(Plugin):
         if not self.pluginManager.loading:
             self.changeLog = [f'Change log for loading channels for {self.name} from {file.name}:']
             self.changeLog += self.compareItemsConfig(items)[0]
-            self.pluginManager.Text.setText('\n'.join(self.changeLog), False) # show changelog
+            self.pluginManager.Text.setText('\n'.join(self.changeLog) + '\n', _show=False, append=append) # show changelog
             self.print('Configuration updated. Change log available in Text plugin.')
         # clear and load new channels
+        for channel in self.channels:
+            channel.onDelete()
         self.channels=[]
         self.tree.clear()
         for item in items:
@@ -2188,7 +2203,7 @@ class ChannelManager(Plugin):
         self.clearPlot() # update legend in case channels have changed
         self.recording = True
         self.lagging = 0
-        self.dataThread = Thread(target=self.runDataThread, args =(lambda: self.recording,), name=f'{self.name} dataThread')
+        self.dataThread = Thread(target=self.runDataThread, args=(lambda: self.recording,), name=f'{self.name} dataThread')
         self.dataThread.daemon = True # Terminate with main app independent of stop condition
         self.dataThread.start()
 
@@ -2813,6 +2828,9 @@ class Scan(Plugin):
     context menu of a scan file to create a template plot file using h5py
     and adjust it to your needs."""
 
+    pluginType = PluginManager.TYPE.SCAN
+    useAdvancedOptions = True
+
     PARAMETER   = 'Parameter'
     VERSION     = 'Version'
     VALUE       = 'Value'
@@ -3031,8 +3049,6 @@ class Scan(Plugin):
         self.settingsMgr.init()
         self.expandTree(self.settingsMgr.tree)
         self.notes = '' # should always have current notes or no notes
-        self.advancedAction = self.addStateAction(lambda: self.toggleAdvanced(None), f'Show advanced options for {self.name}.', self.makeCoreIcon('toolbox.png'),
-                                                  f'Hide advanced options for {self.name}.', self.makeCoreIcon('toolbox--pencil.png'), attr='advanced')
         self.addAction(lambda: self.loadSettings(file=None), f'Load {self.name} settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
         self.addAction(lambda: self.saveSettings(file=None), f'Export {self.name} settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
         self.recordingAction = self.addStateAction(lambda: self.toggleRecording(), f'Start {self.name} scan.', self.makeCoreIcon('play.png'), 'Stop.', self.makeCoreIcon('stop.png'))
@@ -3041,6 +3057,7 @@ class Scan(Plugin):
         self.loading = False
 
     def afterFinalizeInit(self):
+        super().afterFinalizeInit()
         self.connectAllSources()
 
     def connectAllSources(self):
@@ -3063,9 +3080,9 @@ class Scan(Plugin):
         if self.initializedDock:
             if self.display is not None:
                 self.display.raiseDock(True)
-                self.testControl(self.display.videoRecorderAction, True)
+                # self.testControl(self.display.videoRecorderAction, True) # done by device manager
                 self.display.runTestParallel()
-                self.testControl(self.display.videoRecorderAction, False)
+                # self.testControl(self.display.videoRecorderAction, False)
         super().runTestParallel()
 
     @property
@@ -3714,7 +3731,6 @@ class Text(Plugin):
     optional = False
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.txt', '.dat', '.ter', '.cur', '.tt', '.log', '.py', '.star', '.pdb1', '.css', '.js', '.html', '.tex', '.ini', '.bat']
-    SELECTFILE = 'Select File'
     iconFile = 'text.png'
     iconFileDark = 'text_dark.png'
 
@@ -3768,9 +3784,9 @@ class Text(Plugin):
     def saveFile(self):
         file = None
         if self.pluginManager.Explorer.activeFileFullPath is not None:
-            file = Path(QFileDialog.getSaveFileName(parent=None, caption=self.SELECTFILE, directory=self.pluginManager.Explorer.activeFileFullPath.as_posix())[0])
+            file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE, directory=self.pluginManager.Explorer.activeFileFullPath.as_posix())[0])
         else:
-            file = Path(QFileDialog.getSaveFileName(parent=None, caption=self.SELECTFILE)[0])
+            file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE)[0])
         if file != Path('.'):
             with open(file, 'w', encoding=self.UTF8) as textFile:
                 textFile.write(self.editor.toPlainText())
@@ -3790,9 +3806,12 @@ class Text(Plugin):
         self.editor.verticalScrollBar().triggerAction(QScrollBar.SliderAction.SliderToMinimum)   # scroll to top
         self.raiseDock(_show)
 
-    def setText(self, text, _show=False):
+    def setText(self, text, _show=False, append=False):
         self.provideDock()
-        self.editor.setPlainText(text)
+        if append:
+            self.editor.appendPlainText(text)
+        else:
+            self.editor.setPlainText(text)
         tc = self.editor.textCursor()
         tc.setPosition(0)
         self.editor.setTextCursor(tc)
@@ -4171,8 +4190,8 @@ class Console(Plugin):
 
     def runTestParallel(self):
         """:meta private:"""
-        if self.initializedDock:
-            self.testControl(self.openLogAction, True)
+        # if self.initializedDock:
+            # self.testControl(self.openLogAction, True) # will be opened at the end as to not interfere with video recording
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
         for i in range(self.commonCommandsComboBox.count())[1:]:
             if not self.testing:
@@ -4271,12 +4290,12 @@ class SettingsManager(Plugin):
 
     def initSettingsContextMenu(self, pos):
         try:
-            self.initSettingsContextMenuBase(self.settings[self.tree.itemAt(pos).fullName], self.tree.mapToGlobal(pos))
+            if hasattr(self.tree.itemAt(pos), 'fullName'):
+                self.initSettingsContextMenuBase(self.settings[self.tree.itemAt(pos).fullName], self.tree.mapToGlobal(pos))
         except KeyError as e: # setting could not be identified
             self.print(e)
 
-    SELECTPATH  = 'Select Path'
-    SELECTFILE  = 'Select File'
+    OPENPATH  = 'Open Path'
     SETTINGS    = 'Settings'
     ADDSETTOCONSOLE  = 'Add Setting to Console'
 
@@ -4284,6 +4303,7 @@ class SettingsManager(Plugin):
         """General implementation of a context menu.
         The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Setting`."""
         settingsContextMenu = QMenu(self.tree)
+        openPathAction = None
         changePathAction = None
         addItemAction = None
         editItemAction = None
@@ -4295,7 +4315,8 @@ class SettingsManager(Plugin):
         if getShowDebug():
             addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
         if setting.widgetType == Parameter.TYPE.PATH:
-            changePathAction = settingsContextMenu.addAction(self.SELECTPATH)
+            openPathAction = settingsContextMenu.addAction(self.OPENPATH)
+            changePathAction = settingsContextMenu.addAction(SELECTPATH)
         elif (setting.widgetType in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]
                 and not isinstance(setting.parent, Channel) and not setting.fixedItems):
             # Channels are part of Devices which define items centrally
@@ -4321,9 +4342,11 @@ class SettingsManager(Plugin):
                 setting.setToDefault()
             elif settingsContextMenuAction is makeDefaultAction:
                 setting.makeDefault()
+            elif settingsContextMenuAction is openPathAction:
+                openInDefaultApplication(setting.value)
             elif settingsContextMenuAction is changePathAction:
                 startPath = setting.value
-                newPath = Path(QFileDialog.getExistingDirectory(self.pluginManager.mainWindow, self.SELECTPATH, startPath.as_posix(),
+                newPath = Path(QFileDialog.getExistingDirectory(self.pluginManager.mainWindow, SELECTPATH, startPath.as_posix(),
                                                                 QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks))
                 if newPath != Path('.'): # directory has been selected successfully
                     setting.value = newPath
@@ -4349,7 +4372,7 @@ class SettingsManager(Plugin):
         if default:
             file = self.defaultFile
         if file is None: # get file via dialog
-            file = Path(QFileDialog.getOpenFileName(parent=self.pluginManager.mainWindow, caption=self.SELECTFILE,
+            file = Path(QFileDialog.getOpenFileName(parent=self.pluginManager.mainWindow, caption=SELECTFILE,
                                                     directory=self.pluginManager.Settings.configPath.as_posix(), filter=self.FILTER_INI_H5)[0])
         if file == Path('.'):
             return
@@ -4378,6 +4401,7 @@ class SettingsManager(Plugin):
                     internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                     indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
                     instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
+                    displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                     toolTip=default[Parameter.TOOLTIP],
                     tree=self.tree if default[Parameter.WIDGET] is None else None,
                     widgetType=default[Parameter.WIDGETTYPE], widget=default[Parameter.WIDGET],
@@ -4403,6 +4427,7 @@ class SettingsManager(Plugin):
                             internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                             indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
                             instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
+                            displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                             toolTip=default[Parameter.TOOLTIP],
                             tree=self.tree if default[Parameter.WIDGET] is None else None, # dont use tree if widget is provided independently
                             widgetType=default[Parameter.WIDGETTYPE], widget=default[Parameter.WIDGET],
@@ -4448,7 +4473,7 @@ class SettingsManager(Plugin):
     def addSetting(self, item):
         self.settings[item[Parameter.NAME]] = EsibdCore.Setting(_parent=self, name=item[Parameter.NAME], value=item[Parameter.VALUE], default=item[Parameter.DEFAULT],
                             items=item[Parameter.ITEMS], fixedItems=item[Parameter.FIXEDITEMS], _min=item[Parameter.MIN], _max=item[Parameter.MAX], internal=item[Parameter.INTERNAL],
-                            indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], toolTip=item[Parameter.TOOLTIP],
+                            indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], displayDecimals=item[Parameter.DISPLAYDECIMALS], toolTip=item[Parameter.TOOLTIP],
                             tree=item[Parameter.TREE], widgetType=item[Parameter.WIDGETTYPE], widget=item[Parameter.WIDGET], event=item[Parameter.EVENT],
                             parentItem=self.hdfRequireParentItem(item[Parameter.NAME], self.tree.invisibleRootItem()))
 
@@ -4469,7 +4494,7 @@ class SettingsManager(Plugin):
         if default:
             file = self.defaultFile
         if file is None: # get file via dialog
-            file = Path(QFileDialog.getSaveFileName(parent=self.pluginManager.mainWindow, caption=self.SELECTFILE,
+            file = Path(QFileDialog.getSaveFileName(parent=self.pluginManager.mainWindow, caption=SELECTFILE,
                                                     directory=self.pluginManager.Settings.configPath.as_posix(), filter=self.FILTER_INI_H5)[0])
         if file == Path('.'):
             return
@@ -4527,6 +4552,7 @@ class Settings(SettingsManager):
     optional = False
     showConsoleAction = None
     iconFile = 'gear.png'
+    useAdvancedOptions = True
 
     def __init__(self, pluginManager, **kwargs):
         self.tree = QTreeWidget() # Note. If settings will become closable in the future, tree will need to be recreated when it reopens
@@ -4543,6 +4569,7 @@ class Settings(SettingsManager):
     def runTestParallel(self):
         # cannot test file dialogs that require user interaction
         self.testControl(self.showConsoleAction, True)
+        self.expandTree(self.tree)
         for setting in self.settings.values():
             if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
                 if f'{self.SESSION}/' not in setting.fullName: # do not change session path unintentionally during testing
@@ -4553,8 +4580,10 @@ class Settings(SettingsManager):
         """:meta private:"""
         super().initGUI()
         self.addContentWidget(self.tree)
-        self.addAction(lambda: self.loadSettings(None), f'Load {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
-        self.addAction(lambda: self.saveSettings(None), f'Export {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.loadSettingsAction = self.addAction(lambda: self.loadSettings(None), f'Load {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.loadSettingsAction.setVisible(False)
+        self.saveSettingsAction = self.addAction(lambda: self.saveSettings(None), f'Export {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-export.png'))
+        self.saveSettingsAction.setVisible(False)
         self.addAction(lambda: self.pluginManager.managePlugins(), f'Manage {PROGRAM_NAME} Plugins.', icon=self.makeCoreIcon('block--pencil.png'))
         self.showConsoleAction = self.addStateAction(event=lambda: self.pluginManager.Console.toggleVisible(), toolTipFalse='Show Console.', iconFalse=self.makeCoreIcon('terminal.png'),
                                                  toolTipTrue='Hide Console.', iconTrue=self.makeCoreIcon('terminal--minus.png'), attr='showConsole')
@@ -4575,6 +4604,10 @@ class Settings(SettingsManager):
         super().finalizeInit(aboutFunc)
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
+
+    def toggleAdvanced(self, advanced=None):
+        self.loadSettingsAction.setVisible(self.advancedAction.state)
+        self.saveSettingsAction.setVisible(self.advancedAction.state)
 
     def loadData(self, file, _show=False):
         """:meta private:"""
@@ -4687,10 +4720,13 @@ class Settings(SettingsManager):
                 plugin.fig.set_dpi(getDPI())
                 plugin.plot()
 
-    def getMeasurementFileName(self, extension):
+    def getFullSessionPath(self):
         fullSessionPath = Path(*[self.dataPath, self.sessionPath])
         fullSessionPath.mkdir(parents=True, exist_ok=True) # create if not already existing
-        return fullSessionPath / f'{fullSessionPath.name}_{self.measurementNumber:03d}{extension}'
+        return fullSessionPath
+
+    def getMeasurementFileName(self, extension):
+        return self.getFullSessionPath() / f'{self.getFullSessionPath().name}_{self.measurementNumber:03d}{extension}'
 
     def componentInputValidation(self, c):
         illegal_characters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
@@ -4734,6 +4770,7 @@ class DeviceManager(Plugin):
     previewFileTypes = ['_combi.dat.h5']
     optional = False
     iconFile = 'DeviceManager.png'
+    useAdvancedOptions = True
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Object that bundles pyqtSignals."""
@@ -4752,7 +4789,9 @@ class DeviceManager(Plugin):
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
-        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
+        self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), 'Import all device channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.importAction.setVisible(False)
+        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history and all channels to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(manual=True), toolTip='Close all communication.', icon=self.makeCoreIcon('stop.png'))
         self.addAction(event=lambda: self.initializeCommunication(), toolTip='Initialize all communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         # lambda needed to avoid "checked" parameter passed by QAction
@@ -4787,7 +4826,29 @@ class DeviceManager(Plugin):
         super().afterFinalizeInit()
         self.videoRecorderAction.toolTipFalse = f'Record video of {PROGRAM_NAME}.'
         self.videoRecorderAction.toolTipTrue = f'Stop and save video of {PROGRAM_NAME}.'
+        self.videoRecorderAction.setToolTip(self.videoRecorderAction.toolTipFalse)
         self.videoRecorder.recordWidget = self.pluginManager.mainWindow # record entire window
+
+    def toggleAdvanced(self, advanced=None):
+        self.importAction.setVisible(self.advancedAction.state)
+
+    def loadConfiguration(self, file=None):
+        if self.initialized():
+            if EsibdCore.CloseDialog(title='Stop communication?', ok='Stop communication', prompt='Communication is still running. Stop communication before loading all configurations!').exec():
+                self.closeCommunication()
+            else:
+                return
+        file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
+                    directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
+        first=True
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+            load = False
+            with h5py.File(name=file, mode='r', track_order=True) as h5file:
+                if plugin.name in h5file:
+                    load=True
+            if load:
+                plugin.loadConfiguration(file=file, append=not first)
+                first = False
 
     def runTestParallel(self):
         """:meta private:"""
@@ -4797,12 +4858,13 @@ class DeviceManager(Plugin):
             if plugin.useDisplays:
                 initialState = plugin.toggleLiveDisplayAction.state
                 self.testControl(plugin.toggleLiveDisplayAction, True, 1)
+                self.waitForCondition(condition=lambda: plugin.liveDisplayActive() and hasattr(plugin.liveDisplay, 'displayTimeComboBox'), timeoutMessage=f'Timeout while waiting for live display of {plugin.name}.')
                 self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
-                self.testControl(plugin.liveDisplay.videoRecorderAction, True)
+                # self.testControl(plugin.liveDisplay.videoRecorderAction, True)
                 plugin.liveDisplay.runTestParallel()
-                if self.pluginManager.Settings.showVideoRecorders:
-                    time.sleep(5) # record for 5 seconds
-                self.testControl(plugin.liveDisplay.videoRecorderAction, False)
+                # if self.pluginManager.Settings.showVideoRecorders:
+                #     time.sleep(5) # record for 5 seconds
+                # self.testControl(plugin.liveDisplay.videoRecorderAction, False)
                 self.testControl(plugin.toggleLiveDisplayAction, initialState, 1)
         for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             if not self.testing:
@@ -4811,14 +4873,14 @@ class DeviceManager(Plugin):
             self.print(f'Starting scan {scan.name}.')
             scan.raiseDock(True)
             self.testControl(scan.recordingAction, True)
-            self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'), timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.')
-            self.testControl(scan.display.videoRecorderAction, True)
-            time.sleep(5) # scan for 5 seconds
-            self.print(f'Stopping scan {scan.name}.')
-            self.testControl(scan.recordingAction, False)
-            # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
-            self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.')
-            self.testControl(scan.display.videoRecorderAction, False)
+            if self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'), timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.'):
+                # self.testControl(scan.display.videoRecorderAction, True)
+                time.sleep(5) # scan for 5 seconds
+                self.print(f'Stopping scan {scan.name}.')
+                self.testControl(scan.recordingAction, False)
+                # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
+                self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.')
+                # self.testControl(scan.display.videoRecorderAction, False)
         self.testControl(self.closeCommunicationAction, True) # cannot use this as it requires user interaction to confirm prompt
         super().runTestParallel()
 
@@ -4963,11 +5025,11 @@ class DeviceManager(Plugin):
             staticDisplay.updateStaticPlot()
 
     def exportConfiguration(self, file=None, default=False, inout=INOUT.BOTH):
-        for device in self.getDevices(inout):
-            device.exportConfiguration(file=file, default=default)
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+            plugin.exportConfiguration(file=file, default=default)
 
     def initializeCommunication(self):
-        for plugin  in self.pluginManager.getPluginsByClass(ChannelManager):
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             plugin.initializeCommunication()
 
     def globalUpdate(self, apply=False, inout=INOUT.BOTH):
@@ -5130,7 +5192,6 @@ class Explorer(Plugin):
     version = '1.0'
     pluginType = PluginManager.TYPE.CONTROL
     previewFileTypes = ['.lnk']
-    SELECTPATH          = 'Select Path'
     optional = False
     iconFile = 'folder.png'
     displayContentSignal = pyqtSignal()
@@ -5248,6 +5309,8 @@ class Explorer(Plugin):
         else: # PLUGINSCAN, ...
             return f'Load {p.name} settings.'
 
+    LOADALLVALUES = 'Load all device values.'
+
     def initExplorerContextMenu(self, pos):
         """Context menu for items in Explorer"""
         item = self.tree.itemAt(pos)
@@ -5281,6 +5344,10 @@ class Explorer(Plugin):
                         for device in self.pluginManager.DeviceManager.getDevices():
                             if device.name in h5File and device.pluginType == PluginManager.TYPE.INPUTDEVICE:
                                 loadValuesActions.append(explorerContextMenu.addAction(device.LOADVALUES))
+                        if len(loadValuesActions) > 1:
+                            loadAllValuesAction = QAction(self.LOADALLVALUES)
+                            explorerContextMenu.insertAction(loadValuesActions[0], loadAllValuesAction)
+                            loadValuesActions.insert(0, loadAllValuesAction)
                         for plugin in self.pluginManager.getMainPlugins():
                             if plugin.pluginType == PluginManager.TYPE.SCAN and plugin.name in h5File: # not used very frequently for devices -> only show for scans
                                 loadSettingsActions.append(explorerContextMenu.addAction(self.LOADSETTINGS(plugin)))
@@ -5359,6 +5426,13 @@ class Explorer(Plugin):
             if explorerContextMenuAction in loadValuesActions:
                 if explorerContextMenuAction.text() == self.pluginManager.Settings.loadGeneralSettings:
                     self.pluginManager.Settings.loadSettings(file=self.activeFileFullPath)
+                elif explorerContextMenuAction.text() == self.LOADALLVALUES:
+                    first = True
+                    with h5py.File(name=self.activeFileFullPath, mode='r') as h5File:
+                        for device in self.pluginManager.DeviceManager.getDevices():
+                            if device.name in h5File and device.pluginType == PluginManager.TYPE.INPUTDEVICE:
+                                device.loadValues(self.activeFileFullPath, append=not first)
+                                first = False
                 else:
                     for device in self.pluginManager.DeviceManager.getDevices(inout=INOUT.IN):
                         if explorerContextMenuAction.text() == device.LOADVALUES:
@@ -5435,15 +5509,13 @@ class Explorer(Plugin):
             action.setEnabled(True)
 
     def browseDir(self):
-        newPath = Path(QFileDialog.getExistingDirectory(parent=None, caption=self.SELECTPATH, directory=self.root.as_posix(),
+        newPath = Path(QFileDialog.getExistingDirectory(parent=None, caption=SELECTPATH, directory=self.root.as_posix(),
                                                         options=QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks))
         if newPath != Path('.'):
             self.updateRoot(newPath, addHistory=True)
 
     def goToCurrentSession(self):
-        fullSessionPath = Path(*[self.pluginManager.Settings.dataPath, self.pluginManager.Settings.sessionPath])
-        fullSessionPath.mkdir(parents=True, exist_ok=True) # create if not already existing
-        self.updateRoot(fullSessionPath, addHistory=True)
+        self.updateRoot(self.pluginManager.Settings.getFullSessionPath(), addHistory=True)
 
     def goToDataPath(self):
         self.updateRoot(self.pluginManager.Settings.dataPath, addHistory=True)
@@ -5793,8 +5865,8 @@ class UCM(ChannelManager):
             for device in list(set([channel.getDevice() for channel in self.getChannels()])):
                 device.toggleRecording(on=self.recording, manual=manual)
 
-    def loadConfiguration(self, file=None, default=False):
-        super().loadConfiguration(file, default)
+    def loadConfiguration(self, file=None, default=False, append=False):
+        super().loadConfiguration(file, default, append=append)
         if not self.pluginManager.loading:
             self.connectAllSources(update=True)
 
@@ -5892,11 +5964,6 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
-            # if any([np.isnan(value) for value in self.pid.components]):
-            #     self.device.setOn(False)
-            #     self.inputChannel.value = 0
-            #     self.print(f'Stopped PID regulation. Reset {self.inputChannel.name} to 0', flag=PRINT.ERROR)
-            #     return
             try:
                 if self.sourceChannel.useMonitors:
                     self.monitor = self.sourceChannel.monitor
@@ -6014,8 +6081,8 @@ class PID(ChannelManager):
         super().afterFinalizeInit()
         self.connectAllSources(update=True)
 
-    def loadConfiguration(self, file=None, default=False):
-        super().loadConfiguration(file, default)
+    def loadConfiguration(self, file=None, default=False, append=False):
+        super().loadConfiguration(file, default, append=append)
         if not self.pluginManager.loading:
             self.connectAllSources(update=True)
 

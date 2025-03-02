@@ -37,6 +37,9 @@ CONSOLEHEIGHT   = 'ConsoleHeight'
 INPUTCHANNELS   = 'Input Channels'
 OUTPUTCHANNELS  = 'Output Channels'
 UNIT            = 'Unit'
+SELECTFILE      = 'Select File'
+SELECTPATH  = 'Select Path'
+
 
 # * default paths should not be in software folder as this might not have write access after installation
 defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'

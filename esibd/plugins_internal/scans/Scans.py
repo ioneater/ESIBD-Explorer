@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QSlider, QTextEdit #, QSizePolicy # QLabel, QMessage
 from PyQt6.QtCore import QObject, Qt
 from PyQt6.QtGui import QFontMetrics
 import numpy as np
-from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PluginManager, PRINT,
+from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PRINT,
     pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState, MZCalculator, ScanChannel)
 from esibd.plugins import Scan
 winsound = None
@@ -49,7 +49,6 @@ class Beam(Scan):
     UPDOWN = 'Up-Down'
     name = 'Beam'
     version = '1.0'
-    pluginType = PluginManager.TYPE.SCAN
     iconFile = 'beam.png'
 
     class Display(Scan.Display):
@@ -545,7 +544,6 @@ class Energy(Scan):
 
     name = 'Energy'
     version = '1.0'
-    pluginType = PluginManager.TYPE.SCAN
     iconFile = 'energy.png'
 
     class Display(Scan.Display):
@@ -757,7 +755,6 @@ class Omni(Scan):
 
     name = 'Omni'
     version = '1.0'
-    pluginType = PluginManager.TYPE.SCAN
     useDisplayParameter = True
     iconFile = 'omni.png'
 
@@ -949,7 +946,6 @@ class Depo(Scan):
 
     name = 'Depo'
     version = '1.0'
-    pluginType = PluginManager.TYPE.SCAN
     CHARGE = 'Charge'
     useDisplayParameter = True
     iconFile = 'depo.png'
@@ -1348,7 +1344,6 @@ class GA(Scan):
 
     name = 'GA'
     version = '1.0'
-    pluginType = PluginManager.TYPE.SCAN
     iconFile = 'GA_light.png'
     iconFileDark = 'GA_dark.png'
 
@@ -1545,7 +1540,6 @@ class MassSpec(Scan):
     name = 'msScan'
     version = '1.1'
     supportedVersion = '0.7'
-    pluginType = PluginManager.TYPE.SCAN
     iconFile = 'ms_light.png'
     iconFileDark = 'ms_dark.png'
 

@@ -44,6 +44,7 @@ dependencies:
     - sphinx_rtd_theme
     - sphinxcontrib-bibtex
     - sphinx-copybutton
+    - sphinxcontrib-video
     - docutils
     - readthedocs-sphinx-search
     - twine
