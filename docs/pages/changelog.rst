@@ -9,6 +9,14 @@ Latest
 Added
 ~~~~~
 
+- Added icon legend in about dialogs.
+
+Version 0.7.2 2025-03-02
+========================
+
+Added
+~~~~~
+
 - Added update information on starting screen.
 - Added option to show an overview of all icons (enter Tree.iconOverview() in Console).
 - Added Error count setting for devices to stop communication after multiple consecutive errors.

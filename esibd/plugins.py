@@ -352,7 +352,7 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(event=lambda: self.about() if aboutFunc is None else aboutFunc(), toolTip=f'About {self.name}', icon=self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+        self.aboutAction = self.addAction(event=lambda: self.about() if aboutFunc is None else aboutFunc(), toolTip=f'About {self.name}.', icon=self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
         self.floatAction = self.addStateAction(event=lambda: self.setFloat(), toolTipFalse=f'Float {self.name}.', iconFalse=self.makeCoreIcon('application.png'), toolTipTrue=f'Dock {self.name}.', iconTrue=self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
@@ -592,11 +592,27 @@ class Plugin(QWidget):
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
             Supported version: {self.supportedVersion}<br></p>"""
             + # add programmer info in testmode, otherwise only show user info
-            (f"""<p>Plugin type: {self.pluginType.value}<br>
+            f"""<p>Plugin type: {self.pluginType.value}<br>
             Optional: {self.optional}<br>
             Dependency path: {self.dependencyPath.resolve()}<br></p>"""
-            if getTestMode() else '')
+            +
+            self.getToolBarActionsHTML()
             )
+
+    def getToolBarActionsHTML(self):
+        if not hasattr(self, 'titleBar'):
+            return ''
+        actionsHTML = '<p>Icon Legend:<br>'
+        for action in self.titleBar.actions():
+            if action.iconText() != '':
+                if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)):
+                    actionsHTML += f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n"
+                elif hasattr(action, 'fileName'):
+                    actionsHTML += f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n"
+                else:
+                    self.print(f'QAction with iconText {action.iconText()} has no attribute fileName', flag=PRINT.WARNING) # assign fileName if missing
+        actionsHTML += f'</p>'
+        return actionsHTML
 
     def makeFigureCanvasWithToolbar(self, figure):
         """Creates :meth:`~esibd.plugins.Plugin.canvas`, which can be added to the user interface, and
@@ -1175,7 +1191,7 @@ class LiveDisplay(Plugin):
                                                         event=lambda: self.subtractBackgroundChanged())
                 self.subtractBackgroundAction.state = self.parentPlugin.subtractBackgroundAction.state
                 self.addAction(event=lambda: self.parentPlugin.setBackground(), toolTip=f'Set current value as background for {self.parentPlugin.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
-        self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally', self.makeCoreIcon('stack_horizontal.png')),
+        self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally.', self.makeCoreIcon('stack_horizontal.png')),
                                                             MultiState('horizontal', 'Stack axes on top of each other.', self.makeCoreIcon('stack_top.png')),
                                                             MultiState('stacked', 'Stack axes vertically.', self.makeCoreIcon('stack_vertical.png'))],
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='stackMode')
@@ -3589,18 +3605,22 @@ class Browser(Plugin):
         self.backAction = self.webEngineView.pageAction(QWebEnginePage.WebAction.Back)
         self.backAction.setIcon(self.ICON_BACK)
         self.backAction.setObjectName('backAction')
+        self.backAction.fileName = self.ICON_BACK.fileName
         self.titleBar.addAction(self.backAction)
         self.forwardAction = self.webEngineView.pageAction(QWebEnginePage.WebAction.Forward)
         self.forwardAction.setIcon(self.ICON_FORWARD)
         self.forwardAction.setObjectName('forwardAction')
+        self.forwardAction.fileName = self.ICON_FORWARD.fileName
         self.titleBar.addAction(self.forwardAction)
         self.reloadAction = self.webEngineView.pageAction(QWebEnginePage.WebAction.Reload)
         self.reloadAction.setIcon(self.ICON_RELOAD)
         self.reloadAction.setObjectName('reloadAction')
+        self.reloadAction.fileName = self.ICON_RELOAD.fileName
         self.titleBar.addAction(self.reloadAction)
         self.stopAction = self.webEngineView.pageAction(QWebEnginePage.WebAction.Stop)
         self.stopAction.setIcon(self.ICON_STOP)
         self.stopAction.setObjectName('stopAction')
+        self.stopAction.fileName = self.ICON_STOP.fileName
         self.titleBar.addAction(self.stopAction)
         self.homeAction = self.addAction(self.openAbout, 'Home', self.ICON_HOME)
         self.locationEdit = QLineEdit()
@@ -3676,7 +3696,7 @@ class Browser(Plugin):
                 updateHTML = f'(<a href="https://github.com/ioneater/ESIBD-Explorer/releases/latest">Version {onlineVersion.base_version} available!</a>)'
         except requests.exceptions.ConnectionError:
             pass
-        self.setHtml(title=f'About {PROGRAM_NAME}', html=f"""
+        self.setHtml(title=f'About {PROGRAM_NAME}.', html=f"""
         <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title, html):

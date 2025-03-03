@@ -2643,8 +2643,16 @@ class Action(QAction):
 
     def __init__(self, icon, toolTip, parent):
         super().__init__(icon, toolTip, parent)
+        self.icon = icon
+        self.toolTip = toolTip
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
+
+    def getIcon(self):
+        return self.icon
+
+    def getToolTip(self):
+        return self.toolTip
 
     def setValue(self, value):
         self.setChecked(value)
@@ -2692,7 +2700,6 @@ class StateAction(Action):
     @property
     def state(self):
         return self.isChecked()
-
     @state.setter
     def state(self, state):
         self.setChecked(state)
@@ -2702,6 +2709,12 @@ class StateAction(Action):
             qSet.setValue(self.fullName, self.state)
         self.setIcon(self.iconTrue if checked else self.iconFalse)
         self.setToolTip(self.toolTipTrue if checked else self.toolTipFalse)
+
+    def getIcon(self):
+        return self.iconTrue if self.state else self.iconFalse
+
+    def getToolTip(self):
+        return self.toolTipTrue if self.state else self.toolTipFalse
 
     def setValue(self, value):
         self.state = value
@@ -2775,8 +2788,14 @@ class MultiStateAction(Action):
     def updateIcon(self):
         if self.fullName is not None:
             qSet.setValue(self.fullName, self._state) # store state as int
-        self.setIcon(self.states[self._state].icon)
-        self.setToolTip(self.states[self._state].toolTip)
+        self.setIcon(self.getIcon())
+        self.setToolTip(self.getToolTip())
+
+    def getIcon(self):
+        return self.states[self._state].icon
+
+    def getToolTip(self):
+        return self.states[self._state].toolTip
 
     def setValue(self, value):
         # value should be a valid label corresponding to one of the defined states
@@ -3334,21 +3353,23 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
         for a in self.actions()[:-1]:
             match a.text():
                 case 'Home':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('home_large_dark.png' if dark else 'home_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('home_large_dark.png' if dark else 'home_large.png')
                 case 'Back':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('back_large_dark.png' if dark else 'back_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('back_large_dark.png' if dark else 'back_large.png')
                 case 'Forward':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('forward_large_dark.png' if dark else 'forward_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('forward_large_dark.png' if dark else 'forward_large.png')
                 case 'Pan':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('move_large_dark.png' if dark else 'move_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('move_large_dark.png' if dark else 'move_large.png')
                 case 'Zoom':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('zoom_to_rect_large_dark.png' if dark else 'zoom_to_rect_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('zoom_to_rect_large_dark.png' if dark else 'zoom_to_rect_large.png')
                 case 'Subplots':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('subplots_large_dark.png' if dark else 'subplots_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('subplots_large_dark.png' if dark else 'subplots_large.png')
                 case 'Customize':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('qt4_editor_options_large_dark.png' if dark else 'qt4_editor_options_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('qt4_editor_options_large_dark.png' if dark else 'qt4_editor_options_large.png')
                 case 'Save':
-                    a.setIcon(self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png'))
+                    icon = self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png')
+            a.setIcon(icon)
+            a.fileName = icon.fileName
 
     def save_figure(self, *args):
         limits = []

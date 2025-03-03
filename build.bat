@@ -17,6 +17,7 @@ REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.tx
 REM Change Log
 ::::::::::::::
 REM update changelog in changelog.rst (ideally update before each commit)
+REM update change log title with version and release date
 REM Often, writing the change log inspires some last minute changes!
 REM Content: start bullet points with capitals and dot at the end
 REM - will be replaced by bullet points on github
@@ -175,12 +176,12 @@ REM git release
 
 REM create tag used for releasing exe later
 git commit -a -m "Realeasing version v0.7.2"
-git tag -a v0.7.1 -m "Realeasing version v0.7.2"
+git tag -a v0.7.2 -m "Realeasing version v0.7.2"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
-REM Title: Version v0.7.1
+REM Title: Version v0.7.2
 REM Copy change log from changelog.rst
 REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
