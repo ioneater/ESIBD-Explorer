@@ -110,7 +110,7 @@ class TemperatureController(DeviceController):
     def runInitialization(self):
         try:
             self.pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
-            for channel in self.device.channels:
+            for channel in self.device.getChannels():
                 self.assert_pico_ok(self.pt104.UsbPt104SetChannel(self.chandle, self.pt104.PT104_CHANNELS[channel.channel],
                                                         self.pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
@@ -120,7 +120,7 @@ class TemperatureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.temperatures = [np.nan]*len(self.device.channels)
+        self.temperatures = [np.nan]*len(self.device.getChannels())
         super().initComplete()
 
     def runAcquisition(self, acquiring):
@@ -132,27 +132,30 @@ class TemperatureController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
-        for i, channel in enumerate(self.device.channels):
-            try:
-                meas = ctypes.c_int32()
-                self.pt104.UsbPt104GetValue(self.chandle, self.pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
-                if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
-                    self.temperatures[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
-                else:
+        for i, channel in enumerate(self.device.getChannels()):
+            if channel.enabled and channel.active and channel.real:
+                try:
+                    meas = ctypes.c_int32()
+                    self.pt104.UsbPt104GetValue(self.chandle, self.pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
+                    if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
+                        self.temperatures[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
+                    else:
+                        self.temperatures[i] = np.nan
+                except ValueError as e:
+                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.errorCount += 1
                     self.temperatures[i] = np.nan
-            except ValueError as e:
-                self.print(f'Error while reading temp: {e}', PRINT.ERROR)
-                self.errorCount += 1
-                self.temperatures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, temperature in enumerate(self.temperatures):
+        for i, channel in enumerate(self.device.getChannels()):
+            if channel.enabled and channel.active and channel.real:
             # exponentially approach target or room temp + small fluctuation
-            self.temperatures[i] = np.random.randint(1, 300) if np.isnan(temperature) else temperature*np.random.uniform(.99, 1.01) # allow for small fluctuation
+                self.temperatures[i] = np.random.randint(1, 300) if np.isnan(self.temperatures[i]) else self.temperatures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndTemperature(self):
         return np.random.uniform(0, 400)
 
     def updateValue(self):
-        for channel, pressure in zip(self.device.channels, self.temperatures):
-            channel.value = pressure
+        for channel, pressure in zip(self.device.getChannels(), self.temperatures):
+            if channel.enabled and channel.active and channel.real:
+                channel.value = pressure

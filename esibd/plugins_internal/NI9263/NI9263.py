@@ -107,9 +107,9 @@ class VoltageController(DeviceController):
                 self.voltageONFromThread()
 
     def voltageONFromThread(self):
-        for channel in self.device.channels:
+        for channel in self.device.getChannels():
             if channel.real:
                 self.applyVoltageFromThread(channel)
 
     def runAcquisition(self, acquiring):
-        pass # nothing to acquire, no read backs
+        pass # nothing to acquire, no readbacks

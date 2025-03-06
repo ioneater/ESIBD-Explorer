@@ -74,7 +74,7 @@ class PressureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.channels)
+        self.pressures = [np.nan]*len(self.device.getChannels())
         super().initComplete()
 
     def runAcquisition(self, acquiring):
@@ -86,8 +86,8 @@ class PressureController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
-        for i, channel in enumerate(self.device.channels):
-            if channel.enabled and channel.active:
+        for i, channel in enumerate(self.device.getChannels()):
+            if channel.enabled and channel.active and channel.real:
                 try:
                     pressure = pvp.read_pressure(self.port, channel.id)
                     self.pressures[i] = np.nan if pressure == 0 else pressure*1000
@@ -97,8 +97,9 @@ class PressureController(DeviceController):
                     self.pressures[i] = np.nan
 
     def fakeNumbers(self):
-        for i, pressure in enumerate(self.pressures):
-            self.pressures[i] = self.rndPressure() if np.isnan(pressure) else pressure*np.random.uniform(.99, 1.01) # allow for small fluctuation
+        for i, channel in enumerate(self.device.getChannels()):
+            if channel.enabled and channel.active and channel.real:
+                self.pressures[i] = self.rndPressure() if np.isnan(self.pressures[i]) else self.pressures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         exp = np.random.randint(-11, 3)
@@ -106,5 +107,6 @@ class PressureController(DeviceController):
         return significand * 10**exp
 
     def updateValue(self):
-        for channel, pressure in zip(self.device.channels, self.pressures):
-            channel.value = pressure
+        for channel, pressure in zip(self.device.getChannels(), self.pressures):
+            if channel.enabled and channel.active and channel.real:
+                channel.value = pressure

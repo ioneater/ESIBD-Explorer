@@ -1703,7 +1703,7 @@ class Channel(QTreeWidgetItem):
     Channels provide a consistent and structured interface to inputs and
     outputs. In the advanced mode, channels can be duplicated, moved, or
     deleted. You may also edit channels directly in the corresponding .ini
-    file in the config path.
+    file in the config path (import after edit or changes will be lost).
 
     Channels are accessible from any plugin using :meth:`~esibd.plugins.DeviceManager.getChannelByName`.
     This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.
@@ -3806,8 +3806,10 @@ class DeviceController(QObject):
     def stopAcquisition(self):
         """Terminates acquisition but leaves communication initialized."""
         self.print('stopAcquisition', PRINT.DEBUG)
-        if self.device.recording:
-            self.device.recording = False # stop recording if controller is stopping acquisition
+        if self.device.recording and self.channel is None:
+            # stop recording if controller is stopping acquisition
+            # continue if only a channel controller is stopping acquisition
+            self.device.recording = False
         if self.acquisitionThread is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
                 # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed

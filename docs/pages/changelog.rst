@@ -11,6 +11,17 @@ Added
 
 - Added icon legend in about dialogs.
 
+Fixed
+~~~~~
+
+- Fixed assignment of values to virtual channels in test mode for several internal plugins.
+
+Changed
+~~~~~~~
+
+- Improved the definition of the channel properties active and real in the documentation.
+
+
 Version 0.7.2 2025-03-02
 ========================
 

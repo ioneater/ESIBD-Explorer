@@ -171,7 +171,7 @@ class CustomController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.monitors = [np.nan]*len(self.device.channels)
+        self.monitors = [np.nan]*len(self.device.getChannels())
         super().initComplete()
         # TODO any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
 
@@ -184,7 +184,7 @@ class CustomController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.monitors = [channel.value for channel in self.device.channels] # TODO implement fake feedback
+                        self.monitors = [channel.value for channel in self.device.getChannels()] # TODO implement fake feedback
                     else:
                         pass # TODO implement real feedback
                         # TODO increment error count if you catch a communication error here

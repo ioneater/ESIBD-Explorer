@@ -132,8 +132,8 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        self.voltages   = [np.nan]*len(self.device.channels)
-        self.currents   = [np.nan]*len(self.device.channels)
+        self.voltages   = [np.nan]*len(self.device.getChannels())
+        self.currents   = [np.nan]*len(self.device.getChannels())
 
     def runInitialization(self):
         try:
@@ -164,8 +164,8 @@ class VoltageController(DeviceController):
         if getTestMode():
             self.fakeNumbers()
         else:
-            for i, channel in enumerate(self.device.channels):
-                if channel.real:
+            for i, channel in enumerate(self.device.getChannels()):
+                if channel.enabled and channel.real:
                     channel.monitor = self.voltages[i]
                     channel.current = self.currents[i]
                     channel.power = channel.monitor*channel.current
@@ -180,12 +180,12 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
 
     def voltageONFromThread(self):
-        for channel in self.device.channels:
+        for channel in self.device.getChannels():
             self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeNumbers(self):
-        for channel in self.device.channels:
-            if channel.real:
+        for channel in self.device.getChannels():
+            if channel.enabled and channel.real:
                 if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
@@ -199,7 +199,7 @@ class VoltageController(DeviceController):
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
-                        for i, channel in enumerate(self.device.channels):
+                        for i, channel in enumerate(self.device.getChannels()):
                             self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
                             self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=lock_acquired)
                     self.signalComm.updateValueSignal.emit() # signal main thread to update GUI

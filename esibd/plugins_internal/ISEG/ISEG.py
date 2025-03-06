@@ -138,7 +138,7 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
         else:
             for channel in self.device.getChannels():
-                if channel.real:
+                if channel.enabled and channel.real:
                     channel.monitor = self.voltages[channel.module][channel.id]
 
     def voltageON(self, parallel=True): # this can run in main thread
@@ -156,7 +156,7 @@ class VoltageController(DeviceController):
 
     def fakeNumbers(self):
         for channel in self.device.getChannels():
-            if channel.real:
+            if channel.enabled and channel.real:
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
                 channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (np.random.choice([0, 1], p=[0.98, 0.02])) + np.random.random() - 0.5
 

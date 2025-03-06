@@ -136,7 +136,7 @@ class TemperatureController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.temperatures = [channel.value for channel in self.device.channels] if getTestMode() else [np.nan]*len(self.device.channels)
+        self.temperatures = [channel.value for channel in self.device.getChannels()] if getTestMode() else [np.nan]*len(self.device.getChannels())
         super().initComplete()
         if self.device.isOn():
             self.cryoON()
@@ -152,13 +152,14 @@ class TemperatureController(DeviceController):
     toggleCounter = 0
     def readNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
-            value = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
-            try:
-                self.temperatures[i] = float(value)
-            except ValueError as e:
-                self.print(f'Error while reading temp: {e}', PRINT.ERROR)
-                self.errorCount += 1
-                self.temperatures[i] = np.nan
+            if channel.enabled and channel.real:
+                value = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
+                try:
+                    self.temperatures[i] = float(value)
+                except ValueError as e:
+                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.errorCount += 1
+                    self.temperatures[i] = np.nan
 
         # toggle cryo on off to stabilize at temperatures above what is possible with minimal power
         # temporary mode. to be replaced by temperature regulation using heater.
@@ -177,14 +178,16 @@ class TemperatureController(DeviceController):
     def fakeNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
             # exponentially approach target or room temp + small fluctuation
-            self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.temperatures[i]), 0)
+            if channel.enabled and channel.real:
+                self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.temperatures[i]), 0)
 
     def rndTemperature(self):
         return np.random.uniform(0, 400)
 
     def updateValue(self):
         for channel, temperature in zip(self.device.getChannels(), self.temperatures):
-            channel.monitor = temperature
+            if channel.enabled and channel.real:
+                channel.monitor = temperature
 
     def cryoON(self):
         if not getTestMode() and self.initialized:

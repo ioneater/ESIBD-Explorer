@@ -242,7 +242,7 @@ Select
    duplicated, moved, or deleted.
 
 Enabled
-   If enabled, the channel will communicate with the device.
+   If enabled and :ref:`real`, the channel will communicate with the physical device.
 
 Name
    Each channel should have a unique name that will be used to link to
@@ -266,14 +266,14 @@ Max
 
 Equation
    The equation is used to determine the value if the channel is not active.
-   For input devices, this can be used simplify the setup by reducing
+   For input devices, this can be used to simplify the setup by reducing
    the number of independent parameters. Any input channel from any
-   device can be linked. For output devices this could be used, e.g., to
+   device can be referenced. For output devices this could be used, e.g., to
    record differences between two channels. There are no special requirements for
    the format of the equation as long as it evaluates to a valid python
    expression after replacing the names with the values from the
    corresponding channels. Take care to avoid circular definitions and
-   non unique names!
+   non unique names! If the equation is empty it will be ignored.
 
 Background
    For output channels, background signals can be defined manually or
@@ -289,16 +289,31 @@ Display
    If selected, channel will be shown in the corresponding :ref:`live display<sec:live_displays>`.
 
 Active
-   See :ref:`equation`. If channels are not active, they will only be visible
-   in the advanced mode.
+   See :ref:`equation` and :ref:`real`.
+
+.. _`real`:
 
 Real
    Real channels correspond to a real physical input or output. A
-   channel that is not real is a virtual channel. It can be used to in
+   channel that is not real is a virtual channel. It can be used in
    combination with equations to create a more intuitive set of
    parameters for the user. For example, a deflector lens with four
    elements can be controlled by virtual *offset, **up-down*, and *left-right*
    parameters.
+
+   If a channel is active and real, the value will be requested from or send to the physical device.
+   This is the default.
+
+   If a channel is active and not real, the value will not be updated.
+   Use this e.g. to define a fixed offset.
+
+   If a channel is not active and real, the value will be determined by the equation and send to the physical device (if it accepts inputs).
+   Use this e.g. to add a fixed offset before sending the value to a physical device.
+   Note that monitors (readbacks) will still be read, even if the channel is not active.
+
+   If a channel is not active and not real, the value will be determined by the equation.
+   Use this e.g. for calculations with intermediate steps or just to display the result of an equation.
+
 
 Line width
    The line width is used to highlight the relative importance of channels in

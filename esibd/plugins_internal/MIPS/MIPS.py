@@ -100,7 +100,7 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         self.COMs       = COMs or ['COM1']
         self.ports      = [None]*len(self.COMs)
-        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.channels]) # used to query correct amount of monitors
+        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
         self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
@@ -144,8 +144,8 @@ class VoltageController(DeviceController):
         if getTestMode():
             self.fakeNumbers()
         else:
-            for channel in self.device.channels:
-                if channel.real:
+            for channel in self.device.getChannels():
+                if channel.enabled and channel.real:
                     channel.monitor = self.voltages[self.COMs.index(channel.com)][channel.id-1]
 
     def voltageON(self, parallel=True): # this can run in main thread
@@ -158,12 +158,12 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
 
     def voltageONFromThread(self):
-        for channel in self.device.channels:
+        for channel in self.device.getChannels():
             self.applyVoltageFromThread(channel)
 
     def fakeNumbers(self):
-        for channel in self.device.channels:
-            if channel.real:
+        for channel in self.device.getChannels():
+            if channel.enabled and channel.real:
                 if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()

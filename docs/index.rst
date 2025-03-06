@@ -25,7 +25,9 @@ a consistent user interface for your custom hardware and data, and takes
 care of saving and loading data and settings. It **does not** write
 device specific code for you, and it is recommended to create a
 standalone script for all required device communication before creating
-your custom plugin.
+your custom plugin. It **does not** eliminate the need to learn basic
+Python and PyQt independently if you want to create more advanced plugins,
+though the existing plugins can be a great resource to get started.
 
 *ESIBD Explorer* is implemented based on Python and PyQt. It is
 optimized for Microsoft Windows 10 or higher and distributed under the

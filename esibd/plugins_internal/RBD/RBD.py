@@ -232,7 +232,7 @@ class CurrentController(DeviceController):
         if self.channel.enabled and self.channel.active and self.channel.real:
             super().initializeCommunication()
         else:
-            self.stopAcquisition()
+            self.stopAcquisition() # as this is a channel controller it should only stop acquisition but not recording
 
     def closeCommunication(self):
         if self.port is not None:
@@ -282,9 +282,9 @@ class CurrentController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.channel.devicename}.') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.fakeSingleNum()
+                        self.fakeNumbers()
                     else:
-                        self.readSingleNum() # no sleep needed, timing controlled by waiting during readSingleNum
+                        self.readNumbers() # no sleep needed, timing controlled by waiting during readNumbers
                     self.updateParameters()
             if getTestMode():
                 time.sleep(self.channel.getDevice().interval/1000)
@@ -360,25 +360,27 @@ class CurrentController(DeviceController):
         # self.print(self.RBDRead()) # -> b'P, PID=TRACKSMURF\r\n'
         # self.print(self.RBDRead()) # -> b'P, PID=TRACKSMURF\r\n'
 
-    def fakeSingleNum(self):
+    def fakeNumbers(self):
         if not self.channel.getDevice().pluginManager.closing:
-            self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
+            if self.channel.enabled and self.channel.active and self.channel.real:
+                self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
 
-    def readSingleNum(self):
+    def readNumbers(self):
         if not self.channel.getDevice().pluginManager.closing:
-            msg = ''
-            msg=self.RBDRead()
-            if not self.acquiring: # may have changed while waiting on message
-                return
-            parsed = self.parse_message_for_sample(msg)
-            if any (sym in parsed for sym in ['<','>']):
-                self.signalComm.updateValueSignal.emit(0, True, False, parsed)
-            elif '*' in parsed:
-                self.signalComm.updateValueSignal.emit(0, False, True, parsed)
-            elif parsed == '':
-                self.signalComm.updateValueSignal.emit(0, False, False, 'got empty message')
-            else:
-                self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False, '')
+            if self.channel.enabled and self.channel.active and self.channel.real:
+                msg = ''
+                msg=self.RBDRead()
+                if not self.acquiring: # may have changed while waiting on message
+                    return
+                parsed = self.parse_message_for_sample(msg)
+                if any (sym in parsed for sym in ['<','>']):
+                    self.signalComm.updateValueSignal.emit(0, True, False, parsed)
+                elif '*' in parsed:
+                    self.signalComm.updateValueSignal.emit(0, False, True, parsed)
+                elif parsed == '':
+                    self.signalComm.updateValueSignal.emit(0, False, False, 'got empty message')
+                else:
+                    self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False, '')
 
     #Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg):

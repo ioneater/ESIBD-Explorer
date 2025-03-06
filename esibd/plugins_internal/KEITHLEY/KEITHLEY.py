@@ -99,7 +99,7 @@ class CurrentChannel(Channel):
         super().enabledChanged()
         if self.device.liveDisplayActive() and self.device.recording:
             if self.enabled:
-                self.controller.init()
+                self.controller.initializeCommunication()
             elif self.controller.acquiring:
                 self.controller.stopAcquisition()
 
@@ -180,10 +180,10 @@ class CurrentController(DeviceController):
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.fakeSingleNum()
+                        self.fakeNumbers()
                     else:
-                        self.readSingleNum()
-                        # no sleep needed, timing controlled by waiting during readSingleNum
+                        self.readNumbers()
+                        # no sleep needed, timing controlled by waiting during readNumbers
             if getTestMode():
                 time.sleep(self.channel.device.interval/1000)
 
@@ -205,16 +205,18 @@ class CurrentController(DeviceController):
     def voltageONFromThread(self):
         self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
-    def fakeSingleNum(self):
+    def fakeNumbers(self):
         if not self.channel.device.pluginManager.closing:
-            self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset)
+            if self.channel.enabled and self.channel.active and self.channel.real:
+                self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset)
 
-    def readSingleNum(self):
+    def readNumbers(self):
         if not self.channel.device.pluginManager.closing:
-            try:
-                self.port.write("INIT")
-                self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
-            except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
-                self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
-                self.errorCount += 1
-                self.signalComm.updateValueSignal.emit(np.nan)
+            if self.channel.enabled and self.channel.active and self.channel.real:
+                try:
+                    self.port.write("INIT")
+                    self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
+                except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
+                    self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
+                    self.errorCount += 1
+                    self.signalComm.updateValueSignal.emit(np.nan)
