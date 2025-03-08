@@ -542,7 +542,7 @@ class Plugin(QWidget):
         :return: Returns True if the file is supported by the plugin. Test if supported based on file extension or content.
         :rtype: bool
         """
-        return any(file.name.endswith(fileType) for fileType in self.previewFileTypes)
+        return any(file.name.lower().endswith(fileType.lower()) for fileType in self.previewFileTypes)
 
     def loadData(self, file, _show=True):
         """Loads and displays data from file.

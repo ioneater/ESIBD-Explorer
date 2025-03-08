@@ -20,6 +20,7 @@ Changed
 ~~~~~~~
 
 - Improved the definition of the channel properties active and real in the documentation.
+- Treating file types not case sensitive.
 
 
 Version 0.7.2 2025-03-02
