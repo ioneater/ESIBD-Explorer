@@ -59,9 +59,12 @@ qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 class Colors():
     """Provides dark mode dependent default colors."""
 
+    fg_dark = '#e4e7eb'
+    fg_light ='#000000'
+
     @property
     def fg(self):
-        return '#e4e7eb' if getDarkMode() else '#000000'
+        return self.fg_dark if getDarkMode() else self.fg_light
 
     bg_dark = '#202124'
     bg_light ='#ffffff'

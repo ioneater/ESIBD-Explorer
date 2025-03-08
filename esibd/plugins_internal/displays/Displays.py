@@ -6,10 +6,11 @@ import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from Bio.PDB import PDBParser
+import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt, QTimer
-from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8
+from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, colors, rgb_to_hex
 from esibd.plugins import Plugin
 
 def providePlugins():
@@ -35,8 +36,7 @@ class MS(Plugin):
     version = '1.0'
     pluginType = PluginManager.TYPE.DISPLAY
     previewFileTypes = ['.txt']
-    iconFile = 'ms_light.png'
-    iconFileDark = 'ms_dark.png'
+    iconFile = 'MS.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -104,7 +104,8 @@ class MS(Plugin):
         if self.paperAction.state:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
-            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)), color=QPalette().text().color().name())[0]
+            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)),
+                                            color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100+2])
             self.axes[0].set_yticks([1, 50, 100])

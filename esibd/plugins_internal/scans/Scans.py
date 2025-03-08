@@ -1540,8 +1540,7 @@ class MassSpec(Scan):
     name = 'msScan'
     version = '1.1'
     supportedVersion = '0.7'
-    iconFile = 'ms_light.png'
-    iconFileDark = 'ms_dark.png'
+    iconFile = 'msScan.png'
 
     class Display(Scan.Display):
 

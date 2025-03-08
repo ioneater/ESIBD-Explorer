@@ -689,6 +689,8 @@ class PluginManager():
         QApplication.setPalette(pal)
         self.mainWindow.setStyleSheet(self.styleSheet)
         plt.style.use('dark_background' if getDarkMode() else 'default')
+        plt.rcParams['figure.facecolor']  = colors.bg
+        plt.rcParams['axes.facecolor']  = colors.bg
         for plugin in self.plugins:
             if plugin.initializedDock:
                 try:
@@ -3385,6 +3387,7 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                 for i, ax in enumerate(self.parentPlugin.axes):
                     ax.set_xlim(limits[i][0])
                     ax.set_ylim(limits[i][1])
+                self.canvas.figure.set_facecolor(colors.bg_light)
                 self.canvas.draw_idle()
                 self.parentPlugin.processEvents()
                 super().save_figure(*args)

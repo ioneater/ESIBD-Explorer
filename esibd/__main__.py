@@ -8,11 +8,12 @@ import matplotlib.backends.backend_pdf # pylint: disable = unused-import # requi
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSharedMemory
-from esibd.core import EsibdExplorer, MouseInterceptor, PROGRAM_NAME, PROGRAM_VERSION
+from esibd.core import EsibdExplorer, MouseInterceptor, PROGRAM_NAME, PROGRAM_VERSION, colors
 
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format
 mpl.rcParams['savefig.bbox']  = 'tight' # trim white space by default (also when saving from toolBar)
+mpl.rcParams['savefig.facecolor']  = colors.fg_light
 mpl.rcParams['figure.max_open_warning']  = 50 # not uncommon to exceed the default of 20 when using multiple plugins
 warnings.filterwarnings("ignore" , message='constrained_layout') # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
 # TODO open bug with clearing shared log axis https://github.com/matplotlib/matplotlib/issues/9970

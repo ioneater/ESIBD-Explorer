@@ -605,7 +605,7 @@ class Plugin(QWidget):
         actionsHTML = '<p>Icon Legend:<br>'
         for action in self.titleBar.actions():
             if action.iconText() != '':
-                if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)):
+                if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)) and hasattr(action.getIcon(), 'fileName'):
                     actionsHTML += f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n"
                 elif hasattr(action, 'fileName'):
                     actionsHTML += f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n"
@@ -685,7 +685,7 @@ class Plugin(QWidget):
         iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
         if not iconPath.exists():
             self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.WARNING)
-            return None
+            return Icon(internalMediaPath / 'unicode_error.png')
         return Icon(iconPath, desaturate=desaturate)
 
     def updateTheme(self):
@@ -711,13 +711,12 @@ class Plugin(QWidget):
         self.canvas = None
 
     def provideFig(self):
-        if self.fig is not None and (rgb_to_hex(self.fig.get_facecolor()) != colors.bg):
+        if self.fig is not None and rgb_to_hex(self.fig.get_facecolor()) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
-            self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.addContentWidget(self.canvas)
         else:
@@ -884,15 +883,12 @@ class StaticDisplay(Plugin):
 
     def initFig(self):
         """:meta private:"""
-        if self.fig is not None and ((
-                plt.rcParams['axes.facecolor'] == 'black' and self.fig.get_facecolor() == (1.0, 1.0, 1.0, 1.0)) # should be black but is white
-                or (plt.rcParams['axes.facecolor'] == 'white' and self.fig.get_facecolor() == (0.0, 0.0, 0.0, 1.0))): # should be white but is black
+        if self.fig is not None and rgb_to_hex(self.fig.get_facecolor()) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
             self.fig = None
         if self.fig is None:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
-            self.fig.set_facecolor(colors.bg)
             self.makeFigureCanvasWithToolbar(self.fig)
             self.outputLayout.addWidget(self.canvas)
         else:
