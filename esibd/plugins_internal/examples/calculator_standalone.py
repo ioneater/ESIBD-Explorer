@@ -1,6 +1,8 @@
 import sys
+from asteval import Interpreter
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QPushButton, QLineEdit
 from PyQt6.QtCore import Qt
+aeval = Interpreter()
 
 class Calculator(QWidget):
     def __init__(self):
@@ -20,6 +22,7 @@ class Calculator(QWidget):
         self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
         #self.display.setReadOnly(True)
         self.display.setStyleSheet("font-size: 24px; padding: 10px;")
+        self.display.returnPressed.connect(self.evaluate)
         layout.addWidget(self.display)
 
         # Grid layout for buttons
@@ -44,16 +47,18 @@ class Calculator(QWidget):
     def onButtonClick(self, label):
         """Handle button clicks."""
         if label == "=":
-            try:
-                result = eval(self.display.text())
-                self.display.setText(str(result))
-            except Exception:
-                self.display.setText("Error")
+            self.evaluate()
         elif label == "C":
             self.display.clear()
         else:
             self.display.setText(self.display.text() + label)
 
+    def evaluate(self):
+        try:
+            result = aeval(self.display.text())
+            self.display.setText(str(result))
+        except Exception:
+            self.display.setText("Error")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

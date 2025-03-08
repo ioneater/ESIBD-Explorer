@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
+# pylint: disable=[missing-module-docstring] # see class docstrings
 import time
 import serial
 import numpy as np
@@ -29,13 +29,14 @@ class OMNICONTROL(Device):
     def getDefaultSettings(self):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
-        defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port of Omnicontrol.', items=','.join([f'COM{x}' for x in range(1, 25)]),
+        defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, attr='com')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return defaultSettings
 
     def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None) or self.getTestMode()) or not channel.active]
+        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None)
+                                                         or self.getTestMode()) or not channel.active]
 
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""
@@ -45,7 +46,6 @@ class PressureChannel(Channel):
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
-        # channel[self.VALUE][Parameter.INDICATOR] = False # overwrite existing parameter to change header
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
         return channel
@@ -69,7 +69,7 @@ class PressureController(DeviceController):
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
         except Exception as e: # pylint: disable=[broad-except]
-            self.print(f'Omnicontrol error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
 

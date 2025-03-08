@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
+# pylint: disable=[missing-module-docstring] # see class docstrings
 import serial
 from threading import Thread
 import time
@@ -86,8 +86,9 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
+        self.updateWarningState(self.enabled and self.device.controller.acquiring
+                                and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
+                                or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self):
         self.getParameterByName(self.COM).getWidget().setVisible(self.real)

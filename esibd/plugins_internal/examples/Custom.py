@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
+# pylint: disable=[missing-module-docstring] # see class docstrings
 
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt

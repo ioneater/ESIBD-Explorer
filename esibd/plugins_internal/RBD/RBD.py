@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
+# pylint: disable=[missing-module-docstring] # see class docstrings
 import time
 import h5py
 import serial

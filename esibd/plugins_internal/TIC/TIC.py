@@ -1,71 +1,30 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
-import time
+# pylint: disable=[missing-module-docstring] # see class docstrings
 import re
 import serial
 import numpy as np
-from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
+from esibd.plugins_internal.OMNICONTROL.OMNICONTROL import OMNICONTROL, PressureController
+from esibd.core import PRINT
 
 def providePlugins():
     return [TIC]
 
-class TIC(Device):
-    """Device that reads pressure values form an Edwards TIC."""
+class TIC(OMNICONTROL):
+    """Device that reads pressure values form an Edwards TIC.
 
-    documentation = None # use __doc__
+    This is inheriting many functions from the OMNICONTROL plugin.
+    Thus it exemplifies how to build a new plugin by only changing a few specific lines of code.
+    As an added advantage, all improvements and bug fixes made to the OMNICONTROL plugin will be inherited as well."""
+
     name = 'TIC'
-    version = '1.0'
-    supportedVersion = '0.7'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
-    unit = 'mbar'
     iconFile = 'edwards_tic.png'
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        self.channelType = PressureChannel
-        self.controller = PressureController(_parent=self)
-        self.logY = True
+        self.controller = TICPressureController(_parent=self)
 
-    def getDefaultSettings(self):
-        defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
-        defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='COM')
-        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
-        return defaultSettings
+class TICPressureController(PressureController):
 
-    def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None
-                                              or self.getTestMode())) or not channel.active]
-
-class PressureChannel(Channel):
-    """UI for pressure with integrated functionality"""
-
-    ID = 'ID'
-
-    def getDefaultChannel(self):
-        channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
-        channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
-                                        items='0, 1, 2, 3, 4, 5, 6', attr='id')
-        return channel
-
-    def setDisplayedParameters(self):
-        super().setDisplayedParameters()
-        self.displayedParameters.append(self.ID)
-
-class PressureController(DeviceController):
-
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        self.TICgaugeID = [913, 914, 915, 934, 935, 936]
-
-    def closeCommunication(self):
-        if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.port.close()
-                self.port = None
-        super().closeCommunication()
+    TICgaugeID = [913, 914, 915, 934, 935, 936]
 
     def runInitialization(self):
         try:
@@ -73,26 +32,14 @@ class PressureController(DeviceController):
                 f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
-            self.print(f"TIC Status: {TICStatus}") # query status
+            self.print(f"Status: {TICStatus}") # query status
             if TICStatus == '':
                 raise ValueError('TIC did not return status.')
             self.signalComm.initCompleteSignal.emit()
         except Exception as e: # pylint: disable=[broad-except]
-            self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
-
-    def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
-        super().initComplete()
-
-    def runAcquisition(self, acquiring):
-        while acquiring():
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValueSignal.emit()
-            time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
@@ -109,32 +56,12 @@ class PressureController(DeviceController):
                 else:
                     self.pressures[i] = np.nan
 
-    def fakeNumbers(self):
-        for i, channel in enumerate(self.device.getChannels()):
-            if channel.enabled and channel.active and channel.real:
-                self.pressures[i] = self.rndPressure() if np.isnan(self.pressures[i]) else self.pressures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
-
-    def rndPressure(self):
-        exp = np.random.randint(-11, 3)
-        significand = 0.9 * np.random.random() + 0.1
-        return significand * 10**exp
-
-    def updateValue(self):
-        for channel, pressure in zip(self.device.getChannels(), self.pressures):
-            if channel.enabled and channel.active and channel.real:
-                channel.value = pressure
-
-    def TICWrite(self, _id):
-        self.serialWrite(self.port, f'?V{_id}\r')
-
-    def TICRead(self):
-        # Note: unlike most other devices TIC terminates messages with \r and not \r\n
-        return self.serialRead(self.port, EOL='\r')
-
     def TICWriteRead(self, message, lock_acquired=False):
         response = ''
         with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:
                 self.TICWrite(message)
-                response = self.TICRead() # reads return value
+                self.serialWrite(self.port, f'?V{message}\r')
+                # Note: unlike most other devices TIC terminates messages with \r and not \r\n
+                response = self.serialRead(self.port, EOL='\r') # reads return value
         return response

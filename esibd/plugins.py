@@ -611,7 +611,7 @@ class Plugin(QWidget):
                     actionsHTML += f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n"
                 else:
                     self.print(f'QAction with iconText {action.iconText()} has no attribute fileName', flag=PRINT.WARNING) # assign fileName if missing
-        actionsHTML += f'</p>'
+        actionsHTML += '</p>'
         return actionsHTML
 
     def makeFigureCanvasWithToolbar(self, figure):

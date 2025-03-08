@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # only single class in module
+# pylint: disable=[missing-module-docstring] # see class docstrings
 import time
 import numpy as np
 from PyQt6.QtWidgets import QMessageBox
