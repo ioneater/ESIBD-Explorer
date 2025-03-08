@@ -1,0 +1,62 @@
+import sys
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QPushButton, QLineEdit
+from PyQt6.QtCore import Qt
+
+class Calculator(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("PyQt6 Calculator")
+        self.setGeometry(100, 100, 300, 400)
+
+        self.initUI()
+
+    def initUI(self):
+        """Initialize UI components."""
+        layout = QVBoxLayout()
+
+        # Display for input/output
+        self.display = QLineEdit()
+        self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
+        #self.display.setReadOnly(True)
+        self.display.setStyleSheet("font-size: 24px; padding: 10px;")
+        layout.addWidget(self.display)
+
+        # Grid layout for buttons
+        grid = QGridLayout()
+        buttons = [
+            ('7', '8', '9', '/'),
+            ('4', '5', '6', '*'),
+            ('1', '2', '3', '-'),
+            ('0', 'C', '=', '+')
+        ]
+
+        for row_idx, row in enumerate(buttons):
+            for col_idx, label in enumerate(row):
+                button = QPushButton(label)
+                button.setStyleSheet("font-size: 18px; padding: 15px;")
+                button.clicked.connect(lambda checked, text=label: self.onButtonClick(text))
+                grid.addWidget(button, row_idx, col_idx)
+
+        layout.addLayout(grid)
+        self.setLayout(layout)
+
+    def onButtonClick(self, label):
+        """Handle button clicks."""
+        if label == "=":
+            try:
+                result = eval(self.display.text())
+                self.display.setText(str(result))
+            except Exception:
+                self.display.setText("Error")
+        elif label == "C":
+            self.display.clear()
+        else:
+            self.display.setText(self.display.text() + label)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Calculator()
+    window.show()
+    sys.exit(app.exec())

@@ -10,17 +10,20 @@ Added
 ~~~~~
 
 - Added icon legend in about dialogs.
+- Added Calculator plugin as an example of embedding external GUI applications as plugins.
 
 Fixed
 ~~~~~
 
 - Fixed assignment of values to virtual channels in test mode for several internal plugins.
+- Improved colors of displays when copied to clipboard or saved as pdf.
 
 Changed
 ~~~~~~~
 
 - Improved the definition of the channel properties active and real in the documentation.
 - Treating file types not case sensitive.
+- New icons for msScan and MS.
 
 
 Version 0.7.2 2025-03-02
