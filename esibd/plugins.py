@@ -3586,6 +3586,11 @@ class Browser(Plugin):
         self.html = None
         self.plugin = None
 
+    def initDock(self):
+        """:meta private:"""
+        super().initDock()
+        self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
+
     def initGUI(self):
         """:meta private:"""
         super().initGUI()
@@ -3630,6 +3635,8 @@ class Browser(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
+        self.floatAction.deleteLater()
+        delattr(self, 'floatAction')
         self.stretch.deleteLater()
         self.openAbout()
 
@@ -4103,7 +4110,7 @@ class Tree(Plugin):
             for action in plugin.titleBar.actions():
                 if action.iconText() != '' and action.isVisible():
                     action_widget = QTreeWidgetItem(tree)
-                    action_widget.setIcon(0, action.icon())
+                    action_widget.setIcon(0, action.icon if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)) else action.icon())
                     action_widget.setText(1, action.iconText())
 
 class Console(Plugin):
@@ -4135,6 +4142,11 @@ class Console(Plugin):
     class SignalCommunicate(Plugin.SignalCommunicate):
         writeSignal = pyqtSignal(str)
         executeSignal = pyqtSignal(str)
+
+    def initDock(self):
+        """:meta private:"""
+        super().initDock()
+        self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
 
     def initGUI(self):
         """:meta private:"""
@@ -4187,6 +4199,8 @@ class Console(Plugin):
     def finalizeInit(self, aboutFunc=None):
         """:meta private:"""
         super().finalizeInit(aboutFunc)
+        self.floatAction.deleteLater()
+        delattr(self, 'floatAction')
         namespace = {'timeit':timeit, 'EsibdCore':EsibdCore, 'EsibdConst':EsibdConst, 'sys':sys, 'np':np, 'itertools':itertools, 'plt':plt, 'inspect':inspect, 'INOUT':INOUT, 'qSet':qSet,
                     'Parameter':Parameter, 'QtCore':QtCore, 'Path':Path, 'Qt':Qt, 'PluginManager':self.pluginManager, 'importlib':importlib, 'version': version,
                       'datetime':datetime, 'QApplication':QApplication, 'self':QApplication.instance().mainWindow, 'help':lambda: self.help()}
@@ -4582,15 +4596,10 @@ class Settings(SettingsManager):
                          defaultFile=validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
 
-    def runTestParallel(self):
-        # cannot test file dialogs that require user interaction
-        self.testControl(self.showConsoleAction, True)
-        self.expandTree(self.tree)
-        for setting in self.settings.values():
-            if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
-                if f'{self.SESSION}/' not in setting.fullName: # do not change session path unintentionally during testing
-                    self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
-        super().runTestParallel()
+    def initDock(self):
+        """:meta private:"""
+        super().initDock()
+        self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
 
     def initGUI(self):
         """:meta private:"""
@@ -4603,6 +4612,24 @@ class Settings(SettingsManager):
         self.addAction(lambda: self.pluginManager.managePlugins(), f'Manage {PROGRAM_NAME} Plugins.', icon=self.makeCoreIcon('block--pencil.png'))
         self.showConsoleAction = self.addStateAction(event=lambda: self.pluginManager.Console.toggleVisible(), toolTipFalse='Show Console.', iconFalse=self.makeCoreIcon('terminal.png'),
                                                  toolTipTrue='Hide Console.', iconTrue=self.makeCoreIcon('terminal--minus.png'), attr='showConsole')
+
+    def runTestParallel(self):
+        # cannot test file dialogs that require user interaction
+        self.testControl(self.showConsoleAction, True)
+        self.expandTree(self.tree)
+        for setting in self.settings.values():
+            if setting.name not in [DATAPATH, CONFIGPATH, PLUGINPATH, self.SESSIONPATH, DARKMODE, TESTMODE]:
+                if f'{self.SESSION}/' not in setting.fullName: # do not change session path unintentionally during testing
+                    self.testControl(setting.getWidget(), setting.value, label=f'Testing {setting.name} {setting.toolTip if setting.toolTip is not None else "No toolTip."}')
+        super().runTestParallel()
+
+    def finalizeInit(self, aboutFunc=None):
+        """:meta private:"""
+        super().finalizeInit(aboutFunc)
+        self.floatAction.deleteLater()
+        delattr(self, 'floatAction')
+        self.requiredPlugin('DeviceManager')
+        self.requiredPlugin('Explorer')
 
     def init(self):
         """Call externally to init all internal settings and those of all other plugins."""
@@ -4617,12 +4644,6 @@ class Settings(SettingsManager):
                     self.print(f'Error loading settings for {plugin.name}: {e}')
         super().init() # call again to load all settings from all other plugins
         self.settings[f'{self.SESSION}/{self.MEASUREMENTNUMBER}']._valueChanged = False # make sure sessionpath is not updated after restoring measurement number
-
-    def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
-        super().finalizeInit(aboutFunc)
-        self.requiredPlugin('DeviceManager')
-        self.requiredPlugin('Explorer')
 
     def toggleAdvanced(self, advanced=None):
         self.loadSettingsAction.setVisible(self.advancedAction.state)

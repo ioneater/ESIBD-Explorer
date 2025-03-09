@@ -25,7 +25,7 @@ Changed
 - Treating file types not case sensitive.
 - New icons for msScan and MS.
 - Simplified TIC plugin implementation by inheriting from OMNICONTROL.
-
+- Made layout more stable by preventing moving of Console, Settings, and Browser.
 
 Version 0.7.2 2025-03-02
 ========================

@@ -1,6 +1,6 @@
 import sys
 from asteval import Interpreter
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QPushButton, QLineEdit
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QPushButton, QLineEdit, QSizePolicy
 from PyQt6.QtCore import Qt
 aeval = Interpreter()
 
@@ -9,11 +9,9 @@ class Calculator(QWidget):
         super().__init__()
 
         self.setWindowTitle("PyQt6 Calculator")
-        self.setGeometry(100, 100, 300, 400)
+        self.setGeometry(100, 100, 200, 100)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        self.initUI()
-
-    def initUI(self):
         """Initialize UI components."""
         layout = QVBoxLayout()
 
@@ -21,7 +19,7 @@ class Calculator(QWidget):
         self.display = QLineEdit()
         self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
         #self.display.setReadOnly(True)
-        self.display.setStyleSheet("font-size: 24px; padding: 10px;")
+        self.display.setStyleSheet("font-size: 24px")
         self.display.returnPressed.connect(self.evaluate)
         layout.addWidget(self.display)
 
@@ -37,7 +35,9 @@ class Calculator(QWidget):
         for row_idx, row in enumerate(buttons):
             for col_idx, label in enumerate(row):
                 button = QPushButton(label)
-                button.setStyleSheet("font-size: 18px; padding: 15px;")
+                button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+                button.setMinimumSize(20, 20)
+                button.setStyleSheet("font-size: 18px")
                 button.clicked.connect(lambda checked, text=label: self.onButtonClick(text))
                 grid.addWidget(button, row_idx, col_idx)
 
