@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QSlider, QTextEdit #, QSizePolicy # QLabel, QMessage
 from PyQt6.QtCore import QObject, Qt
 from PyQt6.QtGui import QFontMetrics
 import numpy as np
-from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PRINT,
+from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, DynamicNp, PRINT, plotting,
     pyqtSignal, MetaChannel, colors, getDarkMode, dynamicImport, MultiState, MZCalculator, ScanChannel)
 from esibd.plugins import Scan
 winsound = None
@@ -59,14 +59,12 @@ class Beam(Scan):
         def finalizeInit(self, aboutFunc=None):
             self.mouseActive = True
             super().finalizeInit(aboutFunc)
-            self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'), toolTipTrue='Interpolation off.',
-                                                         iconTrue=self.scan.makeIcon('interpolate_off.png'), before=self.copyAction,
-                                                         event=lambda: self.scan.plot(update=False, done=True), attr='interpolate')
-            self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.',
-                                                        toolTipTrue='Fixed axes aspect ratio.',
-                                                        iconFalse=self.scan.getIcon(), iconTrue=self.scan.getIcon(), # defined in updateTheme
-                                                        before=self.copyAction,
-                                                        event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
+            self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'),
+                                                         toolTipTrue='Interpolation off.', iconTrue=self.scan.makeIcon('interpolate_off.png'),
+                                                         before=self.copyAction, event=lambda: self.scan.plot(update=False, done=True), attr='interpolate')
+            self.axesAspectAction = self.addStateAction(toolTipFalse='Variable axes aspect ratio.', iconFalse=self.scan.getIcon(),
+                                                        toolTipTrue='Fixed axes aspect ratio.', iconTrue=self.scan.getIcon(), # defined in updateTheme
+                                                        before=self.copyAction, event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
             self.updateTheme() # set icons for axesAspectActions
             self.initFig()
 
@@ -222,6 +220,7 @@ class Beam(Scan):
             self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
 
+    @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
         """Plots 2D scan data"""
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
@@ -387,6 +386,7 @@ class Spectra(Beam):
         else:
             return super(Beam, self).loadDataInternal()
 
+    @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
         """Plots 2D scan data"""
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
@@ -626,6 +626,7 @@ class Energy(Scan):
         # has to return a sequence as matplotlib now expects sequences for set_x(y)data
         return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x)) > 0 else [0]
 
+    @plotting
     def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
         """Plots energy scan data including metadata"""
         # use first that matches display setting, use first available if not found
@@ -838,6 +839,7 @@ class Omni(Scan):
         super().loadDataInternal()
         self.display.lines = None
 
+    @plotting
     def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
         """Plots omni scan data."""
         if len(self.outputs) > 0:
@@ -1170,6 +1172,7 @@ class Depo(Scan):
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 
+    @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
         """Plots depo data"""
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
@@ -1444,6 +1447,7 @@ class GA(Scan):
                                                     for name, dict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced()
 
+    @plotting
     def plot(self, update=False, **kwargs): # pylint:disable=unused-argument
         """Plots fitness data"""
         # timing test with 160 generations: update True: 25 ms, update False: 37 ms
@@ -1576,6 +1580,7 @@ class MassSpec(Scan):
     def initScan(self):
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
+    @plotting
     def plot(self, update=False, done=False, **kwargs): # pylint:disable=unused-argument
         """Plots mass spectrum including metadata"""
 

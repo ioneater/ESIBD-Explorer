@@ -414,7 +414,7 @@ class Plugin(QWidget):
 
     def raiseDock(self, _show=True):
         """Raises :attr:`dock<esibd.plugins.Plugin.dock>` if _show is True."""
-        if _show:
+        if _show and self.initializedDock:
             QTimer.singleShot(0, self.dock.raise_) # give time for UI to draw before raising the dock
         # self.loading = False
 
@@ -3006,6 +3006,7 @@ class Scan(Plugin):
         self.settingsTree = None
         self.channelTree = None
         self.initializing = False
+        self.plotting = False
         self.channels = []
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
@@ -3068,6 +3069,16 @@ class Scan(Plugin):
         self.addOutputChannels()
         self.loading = False
 
+    def finalizeInit(self, aboutFunc=None):
+        super().finalizeInit(aboutFunc)
+        self.statusAction = self.pluginManager.DeviceManager.addAction(event=lambda: self.statusActionEvent(), toolTip=f'{self.name} is running. Go to {self.name}.', icon=self.getIcon(),
+                                                                 before=self.pluginManager.DeviceManager.aboutAction)
+        self.statusAction.setVisible(False)
+
+    def statusActionEvent(self):
+        self.raiseDock(True)
+        self.display.raiseDock(True)
+
     def afterFinalizeInit(self):
         super().afterFinalizeInit()
         self.connectAllSources()
@@ -3102,18 +3113,17 @@ class Scan(Plugin):
         """True if currently recording.
         Set to False to stop recording and save available data."""
         return self.recordingAction.state
-
     @recording.setter
     def recording(self, recording):
         # make sure to only call from main thread as GUI is affected!
         self.recordingAction.state = recording
+        self.statusAction.setVisible(recording)
 
     @property
     def finished(self):
         """True before and after scanning. Even when :attr:`~esibd.plugins.Scan.recording` is set to False
         it will take time for the scan to complete and be ready to be started again."""
         return self._finished
-
     @finished.setter
     def finished(self, finished):
         self._finished = finished
@@ -3458,8 +3468,10 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
                 self.recordingAction.state = False
         else:
             self.print('Stopping scan.')
+        self.statusAction.setVisible(self.recordingAction.state)
 
     def scanUpdate(self, done=False):
+        # self.print(f"Plot time: {timeit.timeit('self.plot(update=not done, done=done)', number=1, globals={'self': self, 'done': done})}", flag=PRINT.DEBUG)
         self.plot(update=not done, done=done)
         if done: # save data
             self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,), name=f'{self.name} saveThread')
@@ -3482,10 +3494,13 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         if not self.pluginManager.closing:
             self.pluginManager.Explorer.populateTree()
             self.notes='' # reset after saved to last scan
-        self.finished = True # main thread waits for this on closing
+        self.finished = True # Main thread waits for this on closing. No new scan can be started before the previous one is finished
 
+    @plotting
     def plot(self, update=False, **kwargs): # pylint: disable = unused-argument # use **kwargs to allow child classed to extend the signature
-        """Plot showing a current or final state of the scan. Extend to add scan specific plot code.
+        """Plot showing a current or final state of the scan.
+        Extend to add scan specific plot code.
+        Make sure to also use the @plotting decorator when overwriting this function!
 
         :param update: If update is True, only data will be updates, otherwise entire figure will be initialized, defaults to False
         :type update: bool, optional
@@ -3512,13 +3527,13 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
                     waitLong=True
                 _input.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait)+self.average)/1000) # if step is larger than threshold use longer wait time
+
             for j, output in enumerate(self.outputs):
                 if len(self.inputs) == 1: # 1D scan
                     output.recordingData[i] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
                 else: # 2D scan, higher dimensions not jet supported
                     output.recordingData[i%len(self.inputs[1].getRecordingData()), i//len(self.inputs[1].getRecordingData())] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(),
                                                                                                                   length=self.measurementsPerStep))
-
             if i == len(steps)-1 or not recording(): # last step
                 for j, _input in enumerate(self.inputs):
                     _input.updateValueSignal.emit(_input.initialValue)
@@ -3527,6 +3542,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
                 self.signalComm.updateRecordingSignal.emit(False)
                 break # in case this is last step
             else:
+                # self.print('self.signalComm.scanUpdateSignal.emit(False)', flag=PRINT.DEBUG)
                 self.signalComm.scanUpdateSignal.emit(False) # update graph
 
     def close(self):

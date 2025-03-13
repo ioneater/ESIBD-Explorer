@@ -269,6 +269,22 @@ def synchronized(timeout=5):
         return wrapper
     return decorator
 
+def plotting(func):
+    """Decorator that checks for and sets the plotting flag to make sure func is not executed before previous call is processed.
+    Only use within a class that contains the plotting flag.
+    This is intended for Scans, but might be used elsewhere."""
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.plotting:
+            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.WARNING)
+            return
+        self.plotting = True
+        try:
+            return func(self, *args, **kwargs)
+        finally:
+            self.plotting = False
+    return wrapper
+
 def openInDefaultApplication(file):
     """Opens file in system default application for file type.
 

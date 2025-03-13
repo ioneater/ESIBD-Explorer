@@ -1439,6 +1439,7 @@ class Parameter():
     def editCurrentItem(self, value):
         if self.validateComboInput(value):
             self.combo.setItemText(self.combo.currentIndex(), str(value))
+            self.changedEvent() # is not triggered by setItemText
 
     def validateComboInput(self, value):
         """Validates input for comboboxes"""
