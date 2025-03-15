@@ -237,7 +237,7 @@ class Plugin(QWidget):
                     pass # ignore labels as they are always indicators and not connected to events
                 else:
                     self.print(f'No test implemented for class {type(control)}')
-                if self.pluginManager.Settings.showMouseClicks and current_thread() is not main_thread():
+                if current_thread() is not main_thread(): # self.pluginManager.Settings.showMouseClicks and
                     main_center = widget.mapTo(self.pluginManager.mainWindow, widget.rect().center())
                     QApplication.instance().mouseInterceptor.rippleEffectSignal.emit(
                     main_center.x(), main_center.y(), QColor(colors.highlight))
@@ -266,7 +266,6 @@ class Plugin(QWidget):
         return self.pluginManager.testing
     @testing.setter
     def testing(self, state):
-        # self.print(f'testing {state}', PRINT.DEBUG)
         self._testing = state
 
     def processEvents(self):
@@ -292,7 +291,7 @@ class Plugin(QWidget):
                 if current_thread() is main_thread(): # do not block other events in main thread
                     self.processEvents()
             else:
-                self.print(timeoutMessage)
+                self.print(timeoutMessage, flag=PRINT.ERROR)
                 return False
         return True
 
@@ -1815,15 +1814,15 @@ class ChannelManager(Plugin):
         selectedChannel = self.getSelectedChannel()
         if selectedChannel is None:
             self.print('No channel selected.')
+            return None
         else:
             return selectedChannel
-        return None
 
     @synchronized()
     def duplicateChannel(self):
         selectedChannel = self.modifyChannel()
-        self.print(f'duplicateChannel {selectedChannel.name}', flag=PRINT.DEBUG)
         if selectedChannel is not None:
+            self.print(f'duplicateChannel {selectedChannel.name}', flag=PRINT.DEBUG)
             index=self.channels.index(selectedChannel)
             newChannelDict = selectedChannel.asDict()
             newChannelDict[selectedChannel.NAME] = f'{selectedChannel.name}_copy'
@@ -1838,8 +1837,8 @@ class ChannelManager(Plugin):
     @synchronized()
     def deleteChannel(self):
         selectedChannel = self.modifyChannel()
-        self.print(f'deleteChannel {selectedChannel.name}', flag=PRINT.DEBUG)
         if selectedChannel is not None:
+            self.print(f'deleteChannel {selectedChannel.name}', flag=PRINT.DEBUG)
             if len(self.channels) == 1:
                 self.print('Need to keep at least one channel.')
                 return
@@ -1858,8 +1857,8 @@ class ChannelManager(Plugin):
         :type up: bool
         """
         selectedChannel = self.modifyChannel()
-        self.print(f'moveChannel {selectedChannel.name} {"up" if up else "down"}', flag=PRINT.DEBUG)
         if selectedChannel is not None:
+            self.print(f'moveChannel {selectedChannel.name} {"up" if up else "down"}', flag=PRINT.DEBUG)
             index = self.channels.index(selectedChannel)
             if index == 0 and up or index == len(self.channels)-1 and not up:
                 self.print(f"Cannot move channel further {'up' if up else 'down'}.")
@@ -2409,7 +2408,7 @@ class Device(ChannelManager):
         self.subtractBackgroundAction = None
         self.errorCountTimer = QTimer()
         self.errorCountTimer.timeout.connect(self.resetErrorCount)
-        self.errorCountTimer.setInterval(600000) # 10 min i.e. 600000 msec TODO
+        self.errorCountTimer.setInterval(600000) # 10 min i.e. 600000 msec
 
     def initGUI(self):
         """:meta private:"""
@@ -2782,20 +2781,26 @@ class Device(ChannelManager):
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     def duplicateChannel(self):
-        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to duplicate channel.", flag=PRINT.WARNING)
+        if self.modifyChannel() is None:
+            return
+        if self.initialized():
+            self.print(f"Stop communication for {self.name} to duplicate selected channel.", flag=PRINT.WARNING)
             return
         super().duplicateChannel()
 
     def deleteChannel(self):
-        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to delete channel.", flag=PRINT.WARNING)
+        if self.modifyChannel() is None:
+            return
+        if self.initialized():
+            self.print(f"Stop communication for {self.name} to delete selected channel.", flag=PRINT.WARNING)
             return
         super().deleteChannel()
 
     def moveChannel(self, up):
-        if self.modifyChannel() is not None and self.modifyChannel().getDevice().initialized():
-            self.print(f"Stop communication for {self.modifyChannel().getDevice().name} to move channel.", flag=PRINT.WARNING)
+        if self.modifyChannel() is None:
+            return
+        if self.initialized():
+            self.print(f"Stop communication for {self.name} to move selected channel.", flag=PRINT.WARNING)
             return
         super().moveChannel(up)
 
@@ -2804,7 +2809,6 @@ class Device(ChannelManager):
         return self.unit
 
 class Scan(Plugin):
-    # TODO: Running scans can make gui not responsive when running in VS Code debug mode.
     """:class:`Scans<esibd.plugins.Scan>` are all sort of measurements that record any number of outputs as a
     function of any number of inputs. The main interface consists of a list of
     scan settings. Each scan comes with a tailored display
@@ -2929,7 +2933,7 @@ class Scan(Plugin):
             super().initGUI()
             self.mouseMoving = False
             self.mouseActive = False
-            self.initFig()
+            self.initFig() # make sure that channel dependent parts of initFig are only called after channels are initialized.
 
         def initFig(self):
             # self.print('initFig', flag=PRINT.DEBUG)
@@ -4445,6 +4449,7 @@ class SettingsManager(Plugin):
                     fixedItems=default[Parameter.FIXEDITEMS],
                     _min=default[Parameter.MIN], _max=default[Parameter.MAX],
                     internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
+                    advanced=default[Parameter.ADVANCED] if Parameter.ADVANCED in default else False,
                     indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
                     instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
                     displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
@@ -4465,19 +4470,20 @@ class SettingsManager(Plugin):
                         self.print(f'Using default value {default[Parameter.VALUE]} for setting {name}.')
                         defaults_added = True
                     items.append(EsibdCore.parameterDict(name=name,
-                            value=group[name].attrs[Parameter.VALUE] if useFile and name in group and Parameter.VALUE in group[name].attrs else default[Parameter.VALUE],
-                            default=group[name].attrs[Parameter.DEFAULT] if useFile and name in group and Parameter.DEFAULT in group[name].attrs else default[Parameter.DEFAULT],
-                            items=group[name].attrs[Parameter.ITEMS] if useFile and name in group and Parameter.ITEMS in group[name].attrs else default[Parameter.ITEMS],
-                            fixedItems=default[Parameter.FIXEDITEMS],
-                            _min=default[Parameter.MIN], _max=default[Parameter.MAX],
-                            internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
-                            indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
-                            instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
-                            displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
-                            toolTip=default[Parameter.TOOLTIP],
-                            tree=self.tree if default[Parameter.WIDGET] is None else None, # dont use tree if widget is provided independently
-                            widgetType=default[Parameter.WIDGETTYPE], widget=default[Parameter.WIDGET],
-                            event=default[Parameter.EVENT]))
+                        value=group[name].attrs[Parameter.VALUE] if useFile and name in group and Parameter.VALUE in group[name].attrs else default[Parameter.VALUE],
+                        default=group[name].attrs[Parameter.DEFAULT] if useFile and name in group and Parameter.DEFAULT in group[name].attrs else default[Parameter.DEFAULT],
+                        items=group[name].attrs[Parameter.ITEMS] if useFile and name in group and Parameter.ITEMS in group[name].attrs else default[Parameter.ITEMS],
+                        fixedItems=default[Parameter.FIXEDITEMS],
+                        _min=default[Parameter.MIN], _max=default[Parameter.MAX],
+                        internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
+                        advanced=default[Parameter.ADVANCED] if Parameter.ADVANCED in default else False,
+                        indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
+                        instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
+                        displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
+                        toolTip=default[Parameter.TOOLTIP],
+                        tree=self.tree if default[Parameter.WIDGET] is None else None, # dont use tree if widget is provided independently
+                        widgetType=default[Parameter.WIDGETTYPE], widget=default[Parameter.WIDGET],
+                        event=default[Parameter.EVENT]))
         self.updateSettings(items, file)
         if not useFile: # create default if not exist
             self.print(f'Adding default settings in {file.name} for {self.parentPlugin.name}.')
@@ -4521,7 +4527,7 @@ class SettingsManager(Plugin):
                             items=item[Parameter.ITEMS], fixedItems=item[Parameter.FIXEDITEMS], _min=item[Parameter.MIN], _max=item[Parameter.MAX], internal=item[Parameter.INTERNAL],
                             indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], displayDecimals=item[Parameter.DISPLAYDECIMALS], toolTip=item[Parameter.TOOLTIP],
                             tree=item[Parameter.TREE], widgetType=item[Parameter.WIDGETTYPE], widget=item[Parameter.WIDGET], event=item[Parameter.EVENT],
-                            parentItem=self.hdfRequireParentItem(item[Parameter.NAME], self.tree.invisibleRootItem()))
+                            parentItem=self.hdfRequireParentItem(item[Parameter.NAME], self.tree.invisibleRootItem()), advanced=item[Parameter.ADVANCED])
 
     def hdfRequireParentItem(self, name, parentItem):
         names = name.split('/')
@@ -4646,6 +4652,7 @@ class Settings(SettingsManager):
         delattr(self, 'floatAction')
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
+        self.toggleAdvanced()
 
     def init(self):
         """Call externally to init all internal settings and those of all other plugins."""
@@ -4664,6 +4671,9 @@ class Settings(SettingsManager):
     def toggleAdvanced(self, advanced=None):
         self.loadSettingsAction.setVisible(self.advancedAction.state)
         self.saveSettingsAction.setVisible(self.advancedAction.state)
+        for setting in self.settings.values():
+            if setting.advanced:
+                setting.setHidden(not self.advancedAction.state)
 
     def loadData(self, file, _show=False):
         """:meta private:"""
@@ -4699,8 +4709,8 @@ class Settings(SettingsManager):
         # access using getTestMode()
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda: self.pluginManager.DeviceManager.closeCommunication() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
-                                    , internal=True)
-        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL)
+                                    , internal=True, advanced=True)
+        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL, advanced=True)
         ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=lambda: self.pluginManager.updateTheme(),
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
@@ -4708,8 +4718,9 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
         ds[f'{GENERAL}/Show video recorders']      = parameterDict(value=False, toolTip='Show icons to record videos of plugins.', event=lambda: self.pluginManager.toggleVideoRecorder(),
-                                                                internal=True, widgetType=Parameter.TYPE.BOOL, attr='showVideoRecorders')
-        ds[f'{GENERAL}/Highlight mouse clicks']    = parameterDict(value=False, toolTip='Highlight mouse clicks for screen cast creation.', internal=True, widgetType=Parameter.TYPE.BOOL, attr='showMouseClicks')
+                                                                internal=True, widgetType=Parameter.TYPE.BOOL, attr='showVideoRecorders', advanced=True)
+        ds[f'{GENERAL}/Highlight mouse clicks']    = parameterDict(value=False, toolTip='Highlight mouse clicks for screen cast creation.',
+                                                                   internal=True, widgetType=Parameter.TYPE.BOOL, attr='showMouseClicks', advanced=True)
         ds[f'{self.SESSION}/{self.MEASUREMENTNUMBER}'] = parameterDict(value=0, _min=0, _max=100000000, toolTip='Self incrementing measurement number. Set to 0 to start a new session.',
                                                                 widgetType=Parameter.TYPE.INT,
                                                                 instantUpdate=False, # only trigger event when changed by user!
@@ -4914,13 +4925,14 @@ class DeviceManager(Plugin):
             if plugin.useDisplays:
                 initialState = plugin.toggleLiveDisplayAction.state
                 self.testControl(plugin.toggleLiveDisplayAction, True, 1)
-                self.waitForCondition(condition=lambda: plugin.liveDisplayActive() and hasattr(plugin.liveDisplay, 'displayTimeComboBox'), timeoutMessage=f'Timeout while waiting for live display of {plugin.name}.')
-                self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
-                # self.testControl(plugin.liveDisplay.videoRecorderAction, True)
-                plugin.liveDisplay.runTestParallel()
-                # if self.pluginManager.Settings.showVideoRecorders:
-                #     time.sleep(5) # record for 5 seconds
-                # self.testControl(plugin.liveDisplay.videoRecorderAction, False)
+                if self.waitForCondition(condition=lambda: plugin.liveDisplayActive() and hasattr(plugin.liveDisplay, 'displayTimeComboBox'),
+                                         timeoutMessage=f'Timeout while waiting for live display of {plugin.name}.', timeout=10):
+                    self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
+                    # self.testControl(plugin.liveDisplay.videoRecorderAction, True)
+                    plugin.liveDisplay.runTestParallel()
+                    # if self.pluginManager.Settings.showVideoRecorders:
+                    #     time.sleep(5) # record for 5 seconds
+                    # self.testControl(plugin.liveDisplay.videoRecorderAction, False)
                 self.testControl(plugin.toggleLiveDisplayAction, initialState, 1)
         for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             if not self.testing:
@@ -4929,13 +4941,14 @@ class DeviceManager(Plugin):
             self.print(f'Starting scan {scan.name}.')
             scan.raiseDock(True)
             self.testControl(scan.recordingAction, True)
-            if self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'), timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.'):
+            if self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'),
+                                     timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.', timeout=10):
                 # self.testControl(scan.display.videoRecorderAction, True)
                 time.sleep(5) # scan for 5 seconds
                 self.print(f'Stopping scan {scan.name}.')
                 self.testControl(scan.recordingAction, False)
                 # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
-                self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.')
+                self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.', timeout=30)
                 # self.testControl(scan.display.videoRecorderAction, False)
         self.testControl(self.closeCommunicationAction, True) # cannot use this as it requires user interaction to confirm prompt
         super().runTestParallel()

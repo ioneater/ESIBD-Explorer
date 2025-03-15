@@ -50,7 +50,7 @@ class RSPD3303C(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
         defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, attr='shutDownTime',
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
-                                                                     event=lambda: self.initTimer())
+                                                                     event=lambda: self.initTimer(), internal=True)
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return defaultSettings
 
@@ -74,7 +74,11 @@ class RSPD3303C(Device):
 
     def initTimer(self):
         if self.shutDownTime != 0:
-            self.print(f'Will turn off in {self.shutDownTime} minutes.')
+            if (self.shutDownTime < 10 or
+            (self.shutDownTime < 60 and self.shutDownTime % 10 == 0) or
+            (self.shutDownTime < 600 and self.shutDownTime % 100 == 0) or
+            (self.shutDownTime % 1000 == 0)):
+                self.print(f'Will turn off in {self.shutDownTime} minutes.')
             self.shutDownTimer.start(60000)  # ms steps
 
     def updateTimer(self):

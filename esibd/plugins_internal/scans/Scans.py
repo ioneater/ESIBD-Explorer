@@ -66,7 +66,7 @@ class Beam(Scan):
                                                         toolTipTrue='Fixed axes aspect ratio.', iconTrue=self.scan.getIcon(), # defined in updateTheme
                                                         before=self.copyAction, event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='varAxesAspect')
             self.updateTheme() # set icons for axesAspectActions
-            self.initFig()
+            self.initFig() # axis aspect may have changed
 
         def initFig(self):
             if self.axesAspectAction is None:
@@ -341,7 +341,7 @@ class Spectra(Beam):
                                                                MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
                                                         event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
             self.updateTheme() # set icons
-            self.initFig() # call after finalizeInit completed
+            self.initFig() # axes aspect or plotMode may have changed
 
         def initFig(self):
             if self.plotModeAction is None:
@@ -1028,12 +1028,13 @@ class Depo(Scan):
                 legend = self.axes[2+i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
 
-            selected_output = self.scan.outputs[self.scan.getOutputIndex()]
-            self.currentLine        = self.axes[0].plot([[datetime.now()]],[0], color=selected_output.color)[0] # need to be initialized with datetime on x axis
             self.currentWarnLine    = self.axes[0].axhline(y=float(self.scan.warnLevel), color=self.scan.MYRED)
-            self.chargeLine         = self.axes[1].plot([[datetime.now()]],[0], color=selected_output.color)[0]
-            self.chargePredictionLine = self.axes[1].plot([[datetime.now()]],[0], '--', color=selected_output.color)[0]
             self.depoChargeTarget   = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
+            if len(self.scan.outputs) > 0:
+                selected_output = self.scan.outputs[self.scan.getOutputIndex()]
+                self.currentLine        = self.axes[0].plot([[datetime.now()]],[0], color=selected_output.color)[0] # need to be initialized with datetime on x axis
+                self.chargeLine         = self.axes[1].plot([[datetime.now()]],[0], color=selected_output.color)[0]
+                self.chargePredictionLine = self.axes[1].plot([[datetime.now()]],[0], '--', color=selected_output.color)[0]
             for i in range(len(self.axes)-1):
                 self.axes[i].tick_params(axis='x', which='both', bottom=False, labelbottom=False)
             for i in range(len(self.axes)):
@@ -1046,6 +1047,7 @@ class Depo(Scan):
             self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=6, ha='left', va='top',
                                                             bbox=dict(boxstyle='square, pad=.2', fc=plt.rcParams['axes.facecolor'], ec='none'))
             # self.fig.xticks(rotation = 30)
+            self.updateDepoTarget()
 
         def updateDepoTarget(self):
             if self.depoChargeTarget is not None:
@@ -1148,10 +1150,6 @@ class Depo(Scan):
         self.channelTree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
                                                 for name, dict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced(False)
-
-    def loadDataInternal(self):
-        super().loadDataInternal()
-        self.display.updateDepoTarget() # flip axes if needed before plotting
 
     def populateDisplayChannel(self):
         # overwrite parent to hide charge channels

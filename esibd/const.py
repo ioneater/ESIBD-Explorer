@@ -259,7 +259,7 @@ def synchronized(timeout=5):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             # self.print(f'Acquiring lock for {func.__name__}', flag=PRINT.DEBUG)
-            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
+            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired: #
                 if lock_acquired:
                     # self.print(f'Lock acquired for {func.__name__}', flag=PRINT.DEBUG)
                     result = func(self, *args, **kwargs)

@@ -1048,8 +1048,7 @@ class Parameter():
     widgetType : TYPE
     """They type determines which widget is used to represent the parameter in the user interface."""
     advanced : bool
-    """If True, parameter will only be visible in advanced mode.
-    Only applies to channel parameters."""
+    """If True, parameter will only be visible in advanced mode."""
     header : str
     """Header used for the corresponding column in list of channels.
     The parameter name is used if not specified.
@@ -1495,10 +1494,11 @@ class Parameter():
 
 class Setting(QTreeWidgetItem, Parameter):
     """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a channel."""
-    def __init__(self, value=None, parentItem=None,**kwargs):
+    def __init__(self, value=None, parentItem=None, advanced=False, **kwargs):
         # use keyword arguments rather than positional to avoid issues with multiple inheritance
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
+        self.advanced = advanced # only display this parameter in advanced mode
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem
             self.parentItem.addChild(self) # has to be added to parent before widgets can be added!
@@ -2837,7 +2837,7 @@ class DockWidget(QDockWidget):
     # - floating docks should be able to be maximized/minimized and appear as separate windows of the same software in task bar
     # floating windows should not disappear when dragged below taskbar but jump back as normal windows
     # - some of these are possible with pyqtgraph but this introduces other limitations and bugs
-    # TODO Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
+    # Open bug: https://bugreports.qt.io/browse/QTBUG-118578 see also  https://stackoverflow.com/questions/77340981/how-to-prevent-crash-with-qdockwidget-and-custom-titlebar
 
     class SignalCommunicate(QObject):
         dockClosingSignal = pyqtSignal()
@@ -3640,7 +3640,7 @@ class TimeoutLock(object):
         try:
             yield result
         except Exception as e:
-            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e}
+            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e} TODO traceback.format_exc()
             self._parent.errorCount += 1
         finally:
             if result and not lock_acquired:
@@ -3930,6 +3930,7 @@ class SplashScreen(QSplashScreen):
 
 class VideoRecorder():
     """Allows to record videos of a plugin."""
+    # ! capture real contextual cursor instead of drawing fixed cursor requires recording with external library FFmpeg
 
     def __init__(self, parentPlugin):
         self.parentPlugin = parentPlugin
@@ -3939,7 +3940,6 @@ class VideoRecorder():
         self.fps = 10  # Frames per second
         self.frameCount = 0
         self.is_recording = False
-        # TODO capture real contextual cursor instead of drawing fixed cursor
         self.cursor_pixmap = self.parentPlugin.makeCoreIcon('cursor.png').pixmap(32)
 
     def startRecording(self):
