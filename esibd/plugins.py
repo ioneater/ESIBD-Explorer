@@ -1869,6 +1869,9 @@ class ChannelManager(Plugin):
             self.tree.takeTopLevelItem(index)
             oldValues = selectedChannel.values.get()
             oldValue = selectedChannel.value
+            if selectedChannel.useBackgrounds:
+                oldBackgrounds = selectedChannel.backgrounds
+                oldBackground = selectedChannel.background
             if up:
                 self.addChannel(item=selectedChannel.asDict(), index=index - 1)
             else:
@@ -1877,6 +1880,9 @@ class ChannelManager(Plugin):
             if len(oldValues) > 0:
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
                 newChannel.value = oldValue
+                if newChannel.useBackgrounds:
+                    newChannel.backgrounds = oldBackgrounds
+                    newChannel.background = oldBackground
             self.loading = False
             self.pluginManager.reconnectSource(newChannel)
             self.tree.scheduleDelayedItemsLayout()

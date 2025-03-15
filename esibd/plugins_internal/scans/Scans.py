@@ -1128,7 +1128,7 @@ class Depo(Scan):
                 self.print(f'{sourceChannel.name} is not acquiring.', PRINT.WARNING)
         self.addOutputChannels()
         self.initializing = False
-        if len(self.outputs) > 0: # TODO: current channels!
+        if len([output for output in self.outputs if output.unit == 'pA']) > 0: # at least one current channel
             self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
             self.measurementsPerStep = max(int((self.average/self.interval))-1, 1)
             self.toggleDisplay(True)
@@ -1138,7 +1138,7 @@ class Depo(Scan):
             self.display.updateDepoTarget() # flip axes if needed
             return True
         else:
-            self.print('No initialized output channel found.', PRINT.WARNING)
+            self.print('No initialized current output channel found.', PRINT.WARNING)
             return False
 
     def addOutputChannels(self):

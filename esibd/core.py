@@ -3638,7 +3638,7 @@ class TimeoutLock(object):
         """
         result = lock_acquired or self._lock.acquire(timeout=timeout)
 
-        # use next three lines only temporary to get more information on errors TODO
+        # use next three lines only temporary to get more information on errors
         # yield result
         # if result and not lock_acquired:
         #     self._lock.release()

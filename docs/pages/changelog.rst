@@ -19,6 +19,7 @@ Fixed
 - Fixed assignment of values to virtual channels in test mode for several internal plugins.
 - Improved colors of displays when copied to clipboard or saved as pdf.
 - Renaming of settings is handled like any other setting change.
+- Restoring backgrounds after moving channels.
 
 Changed
 ~~~~~~~
