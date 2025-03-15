@@ -28,6 +28,8 @@ Changed
 - New icons for msScan and MS.
 - Simplified TIC plugin implementation by inheriting from OMNICONTROL.
 - Made layout more stable by preventing moving of Console, Settings, and Browser.
+- Some development specific settings are hidden by default and only visible in the advanced mode of the Settings plugin.
+- Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
 
 Version 0.7.2 2025-03-02
 ========================

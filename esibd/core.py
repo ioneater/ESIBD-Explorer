@@ -3637,10 +3637,16 @@ class TimeoutLock(object):
         :type lock_acquired: bool, optional
         """
         result = lock_acquired or self._lock.acquire(timeout=timeout)
+
+        # use next three lines only temporary to get more information on errors TODO
+        # yield result
+        # if result and not lock_acquired:
+        #     self._lock.release()
+
         try:
             yield result
         except Exception as e:
-            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e} TODO traceback.format_exc()
+            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e}
             self._parent.errorCount += 1
         finally:
             if result and not lock_acquired:

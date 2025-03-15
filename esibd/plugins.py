@@ -2721,7 +2721,7 @@ class Device(ChannelManager):
         # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
         # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
         self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
-        self.interval_tolerance = max(100, self.interval/10) # larger margin for error if interval is large.
+        self.interval_tolerance = max(100, self.interval/5) # larger margin for error if interval is large.
         self.lag_limit = max(10, int(10000/self.interval)) # 10 seconds, independent of interval (at least 10 steps)
         if abs(self.interval_measured - self.interval) < self.interval_tolerance:
             self.lagging = 0 # reset / ignore temporary lag if interval is within range
@@ -2777,7 +2777,13 @@ class Device(ChannelManager):
             # time.sleep precision in low ms range on windows -> will usually be a few ms late
             # e.g. 0.1 will not give a true 10 Hz repetition rate
             # if that becomes important and decreasing the interval to compensate for delay is not sufficient a better method is required
-            self.signalComm.appendDataSignal.emit()
+            interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
+            interval_tolerance = max(100, self.interval/5)
+            if interval_measured >= self.interval - interval_tolerance: # do only emit when at least self.interval has expired to prevent unresponsive application due to queue of multiple emissions
+                self.signalComm.appendDataSignal.emit()
+            else:
+                self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.WARNING)
+                self.lastIntervalTime = time.time()*1000 # reset reference for next interval
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     def duplicateChannel(self):
