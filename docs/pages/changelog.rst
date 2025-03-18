@@ -31,6 +31,7 @@ Changed
 - Made layout more stable by preventing moving of Console, Settings, and Browser.
 - Some development specific settings are hidden by default and only visible in the advanced mode of the Settings plugin.
 - Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
+- Channel backgrounds are only displayed and used for channels that are enabled, active, and real.
 
 Version 0.7.2 2025-03-02
 ========================

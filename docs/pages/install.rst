@@ -12,7 +12,9 @@ You will still be able to include custom plugins and inherit from internal plugi
 From PyPi
 -----------------------
 Install directly from the `Python Package Index <https://pypi.org/project/esibd-explorer>`_ using pip.
-It is highly recommended to use virtual environments, which isolate the installed packages from the system packages::
+It is highly recommended to use virtual environments, which isolate the installed packages from the system packages
+(follow instructions for your respective python distribution).
+Install using::
 
    pip install esibd-explorer
 
@@ -25,8 +27,15 @@ From source (Miniconda)
 
 | Install `Miniconda <https://docs.anaconda.com/miniconda/>`_
   or another conda distribution following the instructions on the
-  website. You may need to manually add the paths to the following
-  folders to the PATH environment variable.
+  website. You may need to manually add the following directories
+  to the PATH environment variable.
+
+.. code-block:: python3
+
+   Miniconda3
+   Miniconda3\Scripts
+   Miniconda3\Library\bin
+
 | The installation path may vary on your system. Also give the user
   account full write access in the Miniconda3 folder.
 

@@ -276,7 +276,7 @@ def plotting(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.plotting:
-            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.WARNING)
+            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
             return
         self.plotting = True
         try:

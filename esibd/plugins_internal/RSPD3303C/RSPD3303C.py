@@ -48,10 +48,10 @@ class RSPD3303C(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
-        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, attr='shutDownTime',
+        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, attr='shutDownTime',
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
                                                                      event=lambda: self.initTimer(), internal=True)
-        defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
+        defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, attr='address')
         return defaultSettings
 
     def closeCommunication(self):
@@ -83,6 +83,10 @@ class RSPD3303C(Device):
 
     def updateTimer(self):
         self.shutDownTime = max(0, self.shutDownTime - 1)
+        if self.shutDownTime == 1:
+            self.print('Timer expired. Setting to heater voltages to 0 V.')
+            for channel in self.channels:
+                channel.value = 0
         if self.shutDownTime == 0:
             self.print('Timer expired. Turning off.')
             self.shutDownTimer.stop()

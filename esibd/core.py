@@ -1971,6 +1971,7 @@ class Channel(QTreeWidgetItem):
         self.value = value # pylint: disable=[attribute-defined-outside-init] # attribute defined by makeWrapper
 
     def activeChanged(self):
+        self.toggleBackgroundVisible()
         self.updateColor()
         if not self.device.loading:
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
@@ -2096,7 +2097,9 @@ class Channel(QTreeWidgetItem):
         # return super().sizeHint(option, index)
 
     def realChanged(self):
+        """Extend as needed. Already linked to real checkbox."""
         self.getParameterByName(self.ENABLED).getWidget().setVisible(self.real)
+        self.toggleBackgroundVisible()
         if self.useMonitors:
             self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         if not self.device.loading:
@@ -2105,12 +2108,20 @@ class Channel(QTreeWidgetItem):
     def enabledChanged(self):
         """Extend as needed. Already linked to enabled checkbox."""
         if not self.device.loading:
+            self.toggleBackgroundVisible()
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
             self.clearPlotCurve()
             if self.enabled:
                 self.device.appendData(nan=True) # prevent interpolation to old data
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
+
+    def toggleBackgroundVisible(self):
+        if self.useBackgrounds:
+            backgroundVisible = self.enabled and self.active and self.real
+            self.getParameterByName(self.BACKGROUND).getWidget().setVisible(backgroundVisible)
+            if not backgroundVisible:
+                self.background = 0
 
     def nameChanged(self):
         if self.inout == INOUT.OUT:
@@ -3638,7 +3649,7 @@ class TimeoutLock(object):
         """
         result = lock_acquired or self._lock.acquire(timeout=timeout)
 
-        # use next three lines only temporary to get more information on errors
+        # use next three lines only temporary to get more information on errors (file and line number not available when using except)
         # yield result
         # if result and not lock_acquired:
         #     self._lock.release()

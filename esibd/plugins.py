@@ -2697,15 +2697,15 @@ class Device(ChannelManager):
                             self.print(f'Could not find channel {name} in equation of channel {channel.name}.', PRINT.WARNING)
                             error = True
                         else:
-                            equ = equ.replace(channel_equ.name, f'{channel_equ.value}')
+                            equ = equ.replace(channel_equ.name, f'{channel_equ.value-channel_equ.background if channel.useBackgrounds else channel_equ.value}')
                 if error:
-                    self.print(f'Could not resolve equation of channel {channel.name}.', PRINT.WARNING)
+                    self.print(f'Could not resolve equation of channel {channel.name}: {channel.equation}', PRINT.WARNING)
                 else:
                     result = aeval(equ) #  or 0 # evaluate # does catch exception internally so we cannot except them here
                     if result is not None:
                         channel.value = result
                     else:
-                        self.print(f'Error evaluating equation of {channel.name}')
+                        self.print(f'Could not evaluate equation of {channel.name}: {channel.equation}')
                         channel.value = np.nan
         if self.inout == INOUT.IN:
             self.applyValues(apply)
@@ -2734,14 +2734,19 @@ class Device(ChannelManager):
         elif self.interval_measured > self.interval + self.interval_tolerance: # increase self.lagging and react if interval is longer than expected
             if self.lagging < self.lag_limit:
                 self.lagging += 1
-            elif self.lagging < 2*self.lag_limit: # lagging 10 times in a row -> reduce data points
+            elif self.lagging < 6*self.lag_limit: # lagging 10 s in a row -> reduce data points
                 if self.lagging == self.lag_limit:
                     self.pluginManager.DeviceManager.limit_display_size = True
-                    self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, 1000) # keep if already smaller
-                    self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
+                    if self.pluginManager.DeviceManager.max_display_size > 1000:
+                        self.pluginManager.DeviceManager.max_display_size = 1000 # keep if already smaller
+                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
+                    else:
+                        self.print(f'Slow GUI detected.', flag=PRINT.WARNING)
+                elif self.lagging%self.lag_limit == 0:
+                    self.print(f'Slow GUI detected. Consider decreasing device interval, displayed channels, and other GUI intensive functions. Acquisition will be stopped in {10*(6-self.lagging/self.lag_limit)} s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                 self.lagging += 1
-            else: # lagging > 19 times in a row -> turn of acquisition
-                if self.lagging == 2*self.lag_limit:
+            else: # lagging 60 s in a row -> stop acquisition
+                if self.lagging == 6*self.lag_limit:
                     self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
                                ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
                     self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication due to unresponsive user interface.')
@@ -2788,7 +2793,7 @@ class Device(ChannelManager):
             if interval_measured >= self.interval - interval_tolerance: # do only emit when at least self.interval has expired to prevent unresponsive application due to queue of multiple emissions
                 self.signalComm.appendDataSignal.emit()
             else:
-                self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.WARNING)
+                self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.DEBUG)
                 self.lastIntervalTime = time.time()*1000 # reset reference for next interval
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
