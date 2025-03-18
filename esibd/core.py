@@ -176,6 +176,7 @@ class PluginManager():
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath = None
         self.pluginFile     = None
+        self.plotting = False
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -1981,7 +1982,7 @@ class Channel(QTreeWidgetItem):
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def collapseChanged(self, toggle=True):
-        self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
+        self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if toggle and not self.device.loading: # otherwise only update icon
             self.device.toggleAdvanced()
 

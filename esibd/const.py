@@ -275,14 +275,14 @@ def plotting(func):
     This is intended for Scans, but might be used elsewhere."""
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.plotting:
+        if self.pluginManager.plotting:
             self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
             return
-        self.plotting = True
+        self.pluginManager.plotting = True
         try:
             return func(self, *args, **kwargs)
         finally:
-            self.plotting = False
+            self.pluginManager.plotting = False
     return wrapper
 
 def openInDefaultApplication(file):

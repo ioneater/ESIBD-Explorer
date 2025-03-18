@@ -28,7 +28,7 @@ From source (Miniconda)
 | Install `Miniconda <https://docs.anaconda.com/miniconda/>`_
   or another conda distribution following the instructions on the
   website. You may need to manually add the following directories
-  to the PATH environment variable.
+  to the PATH environment variable:
 
 .. code-block:: python3
 

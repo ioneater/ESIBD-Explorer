@@ -12,6 +12,7 @@ Added
 - Added icon legend in about dialogs.
 - Added Calculator plugin as an example of embedding external GUI applications as plugins.
 - Running scans will be indicated by icons in the DeviceManager.
+- Added lagging indicator in advanced mode of device settings.
 
 Fixed
 ~~~~~

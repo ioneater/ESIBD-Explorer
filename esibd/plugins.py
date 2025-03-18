@@ -724,6 +724,7 @@ class Plugin(QWidget):
             self.fig.set_dpi(getDPI())
         self.axes = []
 
+    @plotting
     def plot(self):
         """If applicable, overwrite with a plugin specific plot method."""
 
@@ -1277,10 +1278,10 @@ class LiveDisplay(Plugin):
 
     # @synchronized() called by updateTheme, copy clipboard, ... cannot decorate without causing deadlock
     def initFig(self):
-        if not self.waitForCondition(condition=lambda: not self.plotting, timeoutMessage='Timeout while waiting to init figure.', timeout=1):
-            return # NOTE: using the self.plotting flag instead of a lock, is more resilient as it works across multiple functions and nested calls
+        if not self.waitForCondition(condition=lambda: not self.pluginManager.plotting, timeoutMessage='Timeout while waiting to init figure.', timeout=1):
+            return # NOTE: using the self.pluginManager.plotting flag instead of a lock, is more resilient as it works across multiple functions and nested calls
         self.print('initFig', flag=PRINT.DEBUG)
-        self.plotting = True
+        self.pluginManager.plotting = True
         self.clearPlot()
         self.plotWidgetFont = QFont()
         self.plotWidgetFont.setPixelSize(13)
@@ -1363,7 +1364,7 @@ class LiveDisplay(Plugin):
                 self.livePlotWidgets.append(livePlotWidget)
             if self.stackAction.state == self.stackAction.labels.stacked:
                 self.updateStackedViews() # call after all initialized
-        self.plotting = False
+        self.pluginManager.plotting = False
 
     def updateStackedViews(self):
         if self.stackAction.state == self.stackAction.labels.stacked:
@@ -1476,12 +1477,12 @@ class LiveDisplay(Plugin):
         if len(self.livePlotWidgets) == 0:
             return
         if (not self.initializedDock or self.parentPlugin.pluginManager.loading
-            or self.pluginManager.Settings.loading or self.plotting):
+            or self.pluginManager.Settings.loading or self.pluginManager.plotting):
             return # values not yet available
         if hasattr(self.parentPlugin, 'time') and self.parentPlugin.time.size < 1: # no data
             return
         # self.print('plot', flag=PRINT.DEBUG) only uncomment for specific testing to prevent spamming the console
-        self.plotting = True # protect from recursion
+        self.pluginManager.plotting = True # protect from recursion
         # flip array to speed up search of most recent data points
         # may return None if no value is older than displaytime
         timeAxes = self.getTimeAxes()
@@ -1508,7 +1509,7 @@ class LiveDisplay(Plugin):
 
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE] and self.parentPlugin.recording:
             self.parentPlugin.measureInterval()
-        self.plotting = False
+        self.pluginManager.plotting = False
 
     def plotGroup(self, livePlotWidget, timeAxes, channels, apply):
         for channel in channels[::-1]: # reverse order so channels on top of list are also plotted on top of others
@@ -2440,9 +2441,15 @@ class Device(ChannelManager):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True,
         toolTip=f'Measured plot interval for {self.name} in ms.\n'+
-                ' If this deviates multiple times in a row, the number of display points will be reduced and eventually acquisition\n'+
-                ' will be stopped to ensure the application remains responsive.',
+                'If this deviates multiple times in a row, the number of display points will be reduced and eventually acquisition\n'+
+                'will be stopped to ensure the application remains responsive.\n'+
+                f'Go to advanced mode to see how many seconds {self.name} has been lagging.',
                                                                 widgetType=Parameter.TYPE.INT, indicator=True, _min=0, _max=10000, attr='interval_measured')
+        defaultSettings[f'{self.name}/Lagging'] = parameterDict(value=0, internal=True, indicator=True, advanced=True,
+        toolTip='Shows for how many seconds the device has not been able to achieve the desired interval.\n'+
+                'After 10 seconds the number of displayed data points will be reduced.\n'+
+                'After 60 seconds the communication will be stopped to keep the application responsive.',
+                                                                widgetType=Parameter.TYPE.INT, _min=0, attr='lagging_seconds')
         defaultSettings[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, widgetType=Parameter.TYPE.INT, _min=5, _max=500, event=lambda: self.estimateStorage(),
                                                           toolTip='Maximum amount of storage used to store history in MB. Updated on next restart to prevent accidental data loss!', attr='maxStorage')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, widgetType=Parameter.TYPE.INT, attr='maxDataPoints',
@@ -2727,10 +2734,10 @@ class Device(ChannelManager):
         # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
         # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
         self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
-        self.interval_tolerance = max(100, self.interval/5) # larger margin for error if interval is large.
+        self.interval_tolerance = self.interval/5 # larger margin for error if interval is large.
         self.lag_limit = max(10, int(10000/self.interval)) # 10 seconds, independent of interval (at least 10 steps)
         if abs(self.interval_measured - self.interval) < self.interval_tolerance:
-            self.lagging = 0 # reset / ignore temporary lag if interval is within range
+            self.lagging = max(0, self.lagging-1) # decrease gradually, do not reset completely if a single iteration is on time
         elif self.interval_measured > self.interval + self.interval_tolerance: # increase self.lagging and react if interval is longer than expected
             if self.lagging < self.lag_limit:
                 self.lagging += 1
@@ -2739,22 +2746,24 @@ class Device(ChannelManager):
                     self.pluginManager.DeviceManager.limit_display_size = True
                     if self.pluginManager.DeviceManager.max_display_size > 1000:
                         self.pluginManager.DeviceManager.max_display_size = 1000 # keep if already smaller
-                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.', flag=PRINT.WARNING)
+                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel. Communication will be stopped in 50 s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                     else:
-                        self.print(f'Slow GUI detected.', flag=PRINT.WARNING)
+                        self.print('Slow GUI detected. Communication will be stopped in 50 s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                 elif self.lagging%self.lag_limit == 0:
-                    self.print(f'Slow GUI detected. Consider decreasing device interval, displayed channels, and other GUI intensive functions. Acquisition will be stopped in {10*(6-self.lagging/self.lag_limit)} s unless GUI becomes responsive again.', flag=PRINT.WARNING)
+                    self.print(f'Slow GUI detected. Consider decreasing device interval, displayed channels, and other GUI intensive functions. Communication will be stopped in {10*(6-self.lagging/self.lag_limit)} s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                 self.lagging += 1
             else: # lagging 60 s in a row -> stop acquisition
                 if self.lagging == 6*self.lag_limit:
                     self.print('Slow GUI detected, stopped acquisition. Reduce number of active channels or acquisition interval.'+
                                ' Identify which plugin(s) is(are) most resource intensive and contact plugin author.', flag=PRINT.WARNING)
-                    self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication due to unresponsive user interface.')
+                    # self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication due to unresponsive user interface.')
+                    self.closeCommunication()
         else:
             # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
             # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
             # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
             pass
+        self.lagging_seconds = int(self.lagging*self.interval/1000)
         self.lastIntervalTime = time.time()*1000
 
     def toggleRecording(self, on=None, manual=False):
