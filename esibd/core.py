@@ -437,11 +437,11 @@ class PluginManager():
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
             plugin.raiseDock(True)
-            plugin.waitForCondition(condition=lambda: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'Timeout reached while for {plugin.name}')
+            plugin.waitForCondition(condition=lambda: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'dock of {plugin.name}')
             # if plugin is not self.DeviceManager:
             #     plugin.testControl(plugin.videoRecorderAction, True) # record manually -> more suitable for website
             plugin.runTestParallel()
-            if not plugin.waitForCondition(condition=lambda: not plugin._testing, timeout=60, timeoutMessage=f'Timeout reached while testing {plugin.name}'):
+            if not plugin.waitForCondition(condition=lambda: not plugin._testing, timeout=60, timeoutMessage=f'testing {plugin.name}'):
                 plugin.signalComm.testCompleteSignal.emit()
             # if plugin is not self.DeviceManager:
             #     plugin.testControl(plugin.videoRecorderAction, False)

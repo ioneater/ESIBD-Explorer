@@ -283,15 +283,18 @@ class Plugin(QWidget):
         :type interval: float
         :param timeout: timeout in seconds
         :type timeout: float
+        :param timeoutMessage: message displayed if timeout is reached
+        :type timeoutMessage: str
         """
         start = time.time()
+        self.print(f'Waiting for {timeoutMessage}', flag=PRINT.DEBUG)
         while not condition():
             if time.time() - start < timeout:
                 time.sleep(interval)
                 if current_thread() is main_thread(): # do not block other events in main thread
                     self.processEvents()
             else:
-                self.print(timeoutMessage, flag=PRINT.ERROR)
+                self.print(f'Timeout reached while waiting for {timeoutMessage}', flag=PRINT.ERROR)
                 return False
         return True
 
@@ -1162,7 +1165,6 @@ class LiveDisplay(Plugin):
         self.stackedGraphicsLayoutWidget = None
         self.livePlotWidgets = []
         self.channelGroups = {}
-        self.plotting = False
         self._updateLegend = True
         super().__init__(**kwargs)
 
@@ -1278,7 +1280,7 @@ class LiveDisplay(Plugin):
 
     # @synchronized() called by updateTheme, copy clipboard, ... cannot decorate without causing deadlock
     def initFig(self):
-        if not self.waitForCondition(condition=lambda: not self.pluginManager.plotting, timeoutMessage='Timeout while waiting to init figure.', timeout=1):
+        if not self.waitForCondition(condition=lambda: not self.pluginManager.plotting, timeoutMessage='init figure.', timeout=1):
             return # NOTE: using the self.pluginManager.plotting flag instead of a lock, is more resilient as it works across multiple functions and nested calls
         self.print('initFig', flag=PRINT.DEBUG)
         self.pluginManager.plotting = True
@@ -3036,7 +3038,6 @@ class Scan(Plugin):
         self.settingsTree = None
         self.channelTree = None
         self.initializing = False
-        self.plotting = False
         self.channels = []
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
@@ -3316,6 +3317,9 @@ class Scan(Plugin):
         else:
             if _from == to:
                 self.print('Limits are equal.', PRINT.WARNING)
+                return False
+            elif channel.min > min(_from, to) or channel.max < max(_from, to):
+                self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
                 return False
             elif not channel.getDevice().initialized():
                 self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
@@ -4952,7 +4956,7 @@ class DeviceManager(Plugin):
                 initialState = plugin.toggleLiveDisplayAction.state
                 self.testControl(plugin.toggleLiveDisplayAction, True, 1)
                 if self.waitForCondition(condition=lambda: plugin.liveDisplayActive() and hasattr(plugin.liveDisplay, 'displayTimeComboBox'),
-                                         timeoutMessage=f'Timeout while waiting for live display of {plugin.name}.', timeout=10):
+                                         timeoutMessage=f'live display of {plugin.name}.', timeout=10):
                     self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
                     # self.testControl(plugin.liveDisplay.videoRecorderAction, True)
                     plugin.liveDisplay.runTestParallel()
@@ -4968,13 +4972,13 @@ class DeviceManager(Plugin):
             scan.raiseDock(True)
             self.testControl(scan.recordingAction, True)
             if self.waitForCondition(condition=lambda: scan.display is not None and hasattr(scan.display, 'videoRecorderAction'),
-                                     timeoutMessage=f'Timeout while waiting for display of {scan.name} scan.', timeout=10):
+                                     timeoutMessage=f'display of {scan.name} scan.', timeout=10):
                 # self.testControl(scan.display.videoRecorderAction, True)
                 time.sleep(5) # scan for 5 seconds
                 self.print(f'Stopping scan {scan.name}.')
                 self.testControl(scan.recordingAction, False)
                 # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
-                self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping {scan.name} scan.', timeout=30)
+                self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'stopping {scan.name} scan.', timeout=30)
                 # self.testControl(scan.display.videoRecorderAction, False)
         self.testControl(self.closeCommunicationAction, True) # cannot use this as it requires user interaction to confirm prompt
         super().runTestParallel()
@@ -5099,7 +5103,7 @@ class DeviceManager(Plugin):
             for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                 if not scan.finished: # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
                     self.print(f'Waiting for {scan.name} to finish.')
-                    self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'Timeout while stopping scan {scan.name}.', timeout=30, interval=0.5)
+                    self.waitForCondition(condition=lambda: scan.finished, timeoutMessage=f'stopping scan {scan.name}.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file=None):
@@ -5366,7 +5370,7 @@ class Explorer(Plugin):
                 break
             self.populating = True
             self.testControl(action, True)
-            self.waitForCondition(condition=lambda: not self.populating, timeoutMessage=f'Timeout reached wile testing {action.objectName()}')
+            self.waitForCondition(condition=lambda: not self.populating, timeoutMessage=f'testing {action.objectName()}')
             # NOTE: using self.populating flag makes sure further test are only run after populating has completed. using locks and signals is more error prone
         testDir = self.pluginManager.Settings.dataPath / 'test_files'
         if testDir.exists():
@@ -5378,7 +5382,7 @@ class Explorer(Plugin):
                     self.activeFileFullPath = file
                     self.displayContentSignal.emit() # call displayContent in main thread
                     self.loadingContent = True
-                    self.waitForCondition(condition=lambda: not self.loadingContent, timeoutMessage=f'Timeout reached wile displaying content of {self.activeFileFullPath.name}')
+                    self.waitForCondition(condition=lambda: not self.loadingContent, timeoutMessage=f'displaying content of {self.activeFileFullPath.name}')
         else:
             self.print(f'Could not find {testDir.as_posix()}. Please create and fill with files that should be loaded during testing.', flag=PRINT.WARNING)
         super().runTestParallel()
