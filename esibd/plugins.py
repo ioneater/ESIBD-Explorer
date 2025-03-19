@@ -4257,6 +4257,12 @@ class Console(Plugin):
         for plugin in self.pluginManager.plugins: # direct access to plugins
             namespace[plugin.name] = plugin
         self.mainConsole.localNamespace = namespace
+        self.errorFilterAction = self.addStateAction(toolTipFalse='Show only errors.', iconFalse=self.makeCoreIcon('unicode_error.png'),
+                                              toolTipTrue='Show all messages.', iconTrue=self.makeCoreIcon('unicode_error.png'),
+                                              before=self.aboutAction, event=lambda: self.toggleMessageFilter(error=True))
+        self.warningFilterAction = self.addStateAction(toolTipFalse='Show only warnings.', iconFalse=self.makeCoreIcon('unicode_warning.png'),
+                                              toolTipTrue='Show all messages.', iconTrue=self.makeCoreIcon('unicode_warning.png'),
+                                              before=self.aboutAction, event=lambda: self.toggleMessageFilter(error=False))
         self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
                                               before=self.aboutAction, event=lambda: self.toggleLogging(), default='true')
@@ -4301,8 +4307,30 @@ class Console(Plugin):
                 self.mainConsole.output.moveCursor(QTextCursor.MoveOperation.End)
                 self.mainConsole.output.insertPlainText(message)
                 self.mainConsole.scrollToBottom()
+                if '⚠️' in message: # 🪲⚠️❌ℹ️❖
+                    self.mainConsole.outputWarnings.moveCursor(QTextCursor.MoveOperation.End)
+                    self.mainConsole.outputWarnings.insertPlainText(message + '\n')
+                    sb = self.mainConsole.outputWarnings.verticalScrollBar()
+                    sb.setValue(sb.maximum())
+                elif '❌' in message:
+                    self.mainConsole.outputErrors.moveCursor(QTextCursor.MoveOperation.End)
+                    self.mainConsole.outputErrors.insertPlainText(message + '\n')
+                    sb = self.mainConsole.outputErrors.verticalScrollBar()
+                    sb.setValue(sb.maximum())
             else:
                 self.signalComm.writeSignal.emit(message)
+
+    def toggleMessageFilter(self, error=True):
+        if error:
+            self.warningFilterAction.state = False
+        else:
+            self.errorFilterAction.state = False
+        if self.warningFilterAction.state:
+            self.mainConsole.outputLayout.setCurrentIndex(1)
+        elif self.errorFilterAction.state:
+            self.mainConsole.outputLayout.setCurrentIndex(2)
+        else:
+            self.mainConsole.outputLayout.setCurrentIndex(0)
 
     def toggleVisible(self):
         self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state)

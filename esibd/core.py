@@ -30,9 +30,9 @@ from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt6.QtWebEngineWidgets import QWebEngineView # pylint: disable = unused-import # QtWebEngineWidgets must be imported or Qt.AA_ShareOpenGLContexts must be set before a QCoreApplication instance is created
 from PyQt6.QtWidgets import (QApplication, QVBoxLayout, QSizePolicy, QWidget, QGridLayout, QTreeWidgetItem, QToolButton, QDockWidget,
-                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, # QStyle, QLayout, QInputDialog,
+                             QMainWindow, QSplashScreen, QCompleter, QPlainTextEdit, QPushButton, QStatusBar, QStackedLayout, # QStyle, QLayout, QInputDialog,
                              QComboBox, QDoubleSpinBox, QSpinBox, QLineEdit, QLabel, QCheckBox, QAbstractSpinBox, QTabWidget, QAbstractButton,
-                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QMenu)
+                             QDialog, QHeaderView, QDialogButtonBox, QTreeWidget, QTabBar, QMessageBox, QMenu, QTextEdit)
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QPointF, pyqtProperty, QRect, QTimer, QSize, QPoint #, QEvent #
 from PyQt6.QtGui import (QIcon, QBrush, QGuiApplication, QValidator, QColor, QPainter, QCursor, QPen, QTextCursor, QRadialGradient, QPixmap,
                           QPalette, QAction, QFont, QMouseEvent, QFontMetrics, QImage) #
@@ -775,7 +775,7 @@ class Logger(QObject):
         else:
             self.print('Start logging to create log file.')
 
-    def write(self, message):
+    def write(self, message, flag=PRINT.MESSAGE):
         """Directs messages to terminal, log file, and :ref:`sec:console`.
         Called directly from stdout or stderr or indirectly via :meth:`~esibd.plugins.Plugin.print`."""
         if self.active:
@@ -3336,6 +3336,29 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
 
     def __init__(self, parent=None, namespace=None, historyFile=None, text=None, editor=None):
         super().__init__(parent, namespace, historyFile, text, editor)
+
+        font = QFont()
+        font.setFamily("Courier New")
+        font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+        self.outputWarnings = QTextEdit()
+        self.outputWarnings.setFont(font)
+        self.outputWarnings.setReadOnly(True)
+        self.outputErrors = QTextEdit()
+        self.outputErrors.setFont(font)
+        self.outputErrors.setReadOnly(True)
+        # self.outputDebug = QTextEdit()
+        # self.outputDebug.setFont(font)
+        # self.outputDebug.setReadOnly(True)
+        self.outputLayout = QStackedLayout()
+        self.outputLayout.addWidget(self.output)
+        self.outputLayout.addWidget(self.outputWarnings)
+        self.outputLayout.addWidget(self.outputErrors)
+        # self.outputLayout.addWidget(self.outputDebug)
+        outputWidget = QWidget()
+        outputWidget.setLayout(self.outputLayout)
+        self.splitter.insertWidget(0, outputWidget)#.repl.layout.addChildLayout(self.outputLayout)
+        self.splitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
+
         self.updateTheme()
 
     def updateTheme(self):
@@ -3352,6 +3375,12 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         except EOFError as e:
             print(f'Could not load history: {e}')
         return h
+
+    def _commandEntered(self, repl, cmd):
+        # make sure submitted code will be visible even if filters were active before
+        super()._commandEntered(repl, cmd)
+        self.outputLayout.setCurrentIndex(0)
+
 
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.

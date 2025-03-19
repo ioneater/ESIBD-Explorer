@@ -13,6 +13,7 @@ Added
 - Added Calculator plugin as an example of embedding external GUI applications as plugins.
 - Running scans will be indicated by icons in the DeviceManager.
 - Added lagging indicator in advanced mode of device settings.
+- Added option to filter warning and error messages in the Console.
 
 Fixed
 ~~~~~
