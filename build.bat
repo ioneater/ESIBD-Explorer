@@ -11,7 +11,7 @@ REM Formatting
 
 REM use the following regex to fix common formating errors
 REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :
-REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.txt,*.svg,*.sh,*.toml,LICENSE,Makefile
+REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.txt,*.svg,*.sh,LICENSE,Makefile
 
 ::::::::::::::
 REM Change Log
@@ -40,7 +40,7 @@ REM Environment setup
 :::::::::::::::::::::
 
 REM If applicable perform clean install of virtual environment
-REM start from ESIBD Explorer
+REM start from ESIBD Explorer folder
 cd setup
 call create_env.bat REM make sure no other environments (including VSCode) are active during this step
 cd ..
@@ -119,7 +119,7 @@ REM test on pypitest
 conda create -y -n "estest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
-REM ==0.6.15 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
+REM ==0.7.3 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
 REM python -m esibd.reset # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
@@ -142,7 +142,7 @@ call rm -r pyinstaller_dist
 conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
 REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
-pip install esibd-explorer==0.7.2 pyinstaller
+pip install esibd-explorer==0.7.3 pyinstaller
 REM test software
 python -m esibd.explorer
 
@@ -175,13 +175,13 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Realeasing version v0.7.2"
-git tag -a v0.7.2 -m "Realeasing version v0.7.2"
+git commit -a -m "Realeasing version v0.7.3"
+git tag -a v0.7.3 -m "Realeasing version v0.7.3"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
-REM Title: Version v0.7.2
+REM Title: Version v0.7.3
 REM Copy change log from changelog.rst
 REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

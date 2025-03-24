@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3. User’s Guide &mdash; ESIBD Explorer 0.7.2 documentation</title>
+  <title>3. User’s Guide &mdash; ESIBD Explorer 0.7.3 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -15,7 +15,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=6dfdf7c3"></script>
+      <script src="../_static/documentation_options.js?v=c98573da"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -324,6 +324,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.documentation"><code class="docutils literal notranslate"><span class="pre">Scan.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.estimateScanTime"><code class="docutils literal notranslate"><span class="pre">Scan.estimateScanTime()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.file"><code class="docutils literal notranslate"><span class="pre">Scan.file</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.finalizeInit"><code class="docutils literal notranslate"><span class="pre">Scan.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.finished"><code class="docutils literal notranslate"><span class="pre">Scan.finished</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.generatePythonPlotCode"><code class="docutils literal notranslate"><span class="pre">Scan.generatePythonPlotCode()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.Scan.getChannelByName"><code class="docutils literal notranslate"><span class="pre">Scan.getChannelByName</span></code></a></li>
@@ -431,6 +432,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.parameters"><code class="docutils literal notranslate"><span class="pre">Channel.parameters</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.plotCurve"><code class="docutils literal notranslate"><span class="pre">Channel.plotCurve</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.print"><code class="docutils literal notranslate"><span class="pre">Channel.print</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.realChanged"><code class="docutils literal notranslate"><span class="pre">Channel.realChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.setDisplayedParameters"><code class="docutils literal notranslate"><span class="pre">Channel.setDisplayedParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.tempParameters"><code class="docutils literal notranslate"><span class="pre">Channel.tempParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.tree"><code class="docutils literal notranslate"><span class="pre">Channel.tree</span></code></a></li>
@@ -674,6 +676,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeStateWrapper"><code class="docutils literal notranslate"><span class="pre">makeStateWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.plotting"><code class="docutils literal notranslate"><span class="pre">plotting()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.setDarkMode"><code class="docutils literal notranslate"><span class="pre">setDarkMode()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.smooth"><code class="docutils literal notranslate"><span class="pre">smooth()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.validatePath"><code class="docutils literal notranslate"><span class="pre">validatePath()</span></code></a></li>
@@ -937,6 +940,9 @@ a consistent list of channels. This demonstrates handling of values on a logarit
 <section id="tic">
 <h3><span class="section-number">3.7.6. </span>TIC<a class="headerlink" href="#tic" title="Link to this heading"></a></h3>
 <p>Device that reads pressure values form an Edwards TIC.</p>
+<p>This is inheriting many functions from the OMNICONTROL plugin.
+Thus it exemplifies how to build a new plugin by only changing a few specific lines of code.
+As an added advantage, all improvements and bug fixes made to the OMNICONTROL plugin will be inherited as well.</p>
 </section>
 <section id="maxigauge">
 <h3><span class="section-number">3.7.7. </span>MAXIGAUGE<a class="headerlink" href="#maxigauge" title="Link to this heading"></a></h3>
@@ -980,7 +986,7 @@ account for differences in the physical backend.</p>
 <p>Channels provide a consistent and structured interface to inputs and
 outputs. In the advanced mode, channels can be duplicated, moved, or
 deleted. You may also edit channels directly in the corresponding .ini
-file in the config path.</p>
+file in the config path (import after edit or changes will be lost).</p>
 <p>Channels are accessible from any plugin using <a class="reference internal" href="../library.html#esibd.plugins.DeviceManager.getChannelByName" title="esibd.plugins.DeviceManager.getChannelByName"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getChannelByName()</span></code></a>.
 This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.</p>
 <p>The following defines basic channel properties.</p>
@@ -988,7 +994,7 @@ This, and other features like linking channels by equations, depends on the usag
 <dt>Select</dt><dd><p>In the advanced mode, this is used to select a channel to be
 duplicated, moved, or deleted.</p>
 </dd>
-<dt>Enabled</dt><dd><p>If enabled, the channel will communicate with the device.</p>
+<dt>Enabled</dt><dd><p>If enabled and <a class="reference internal" href="#real"><span class="std std-ref">Real</span></a>, the channel will communicate with the physical device.</p>
 </dd>
 <dt>Name</dt><dd><p>Each channel should have a unique name that will be used to link to
 the channel from other plugins. The same name may be used for an
@@ -1006,14 +1012,14 @@ name is repeated.</p>
 </dl>
 <dl class="simple" id="equation">
 <dt>Equation</dt><dd><p>The equation is used to determine the value if the channel is not active.
-For input devices, this can be used simplify the setup by reducing
+For input devices, this can be used to simplify the setup by reducing
 the number of independent parameters. Any input channel from any
-device can be linked. For output devices this could be used, e.g., to
+device can be referenced. For output devices this could be used, e.g., to
 record differences between two channels. There are no special requirements for
 the format of the equation as long as it evaluates to a valid python
 expression after replacing the names with the values from the
 corresponding channels. Take care to avoid circular definitions and
-non unique names!</p>
+non unique names! If the equation is empty it will be ignored.</p>
 </dd>
 <dt>Background</dt><dd><p>For output channels, background signals can be defined manually or
 using the <em>set current value as background</em> option in the
@@ -1025,15 +1031,25 @@ without loosing the raw data.</p>
 </dd>
 <dt>Display</dt><dd><p>If selected, channel will be shown in the corresponding <a class="reference internal" href="#sec-live-displays"><span class="std std-ref">live display</span></a>.</p>
 </dd>
-<dt>Active</dt><dd><p>See <a class="reference internal" href="#equation"><span class="std std-ref">Equation</span></a>. If channels are not active, they will only be visible
-in the advanced mode.</p>
+<dt>Active</dt><dd><p>See <a class="reference internal" href="#equation"><span class="std std-ref">Equation</span></a> and <a class="reference internal" href="#real"><span class="std std-ref">Real</span></a>.</p>
 </dd>
+</dl>
+<dl id="real">
 <dt>Real</dt><dd><p>Real channels correspond to a real physical input or output. A
-channel that is not real is a virtual channel. It can be used to in
+channel that is not real is a virtual channel. It can be used in
 combination with equations to create a more intuitive set of
 parameters for the user. For example, a deflector lens with four
 elements can be controlled by virtual <em>offset, **up-down</em>, and <em>left-right</em>
 parameters.</p>
+<p>If a channel is active and real, the value will be requested from or send to the physical device.
+This is the default.</p>
+<p>If a channel is active and not real, the value will not be updated.
+Use this e.g. to define a fixed offset.</p>
+<p>If a channel is not active and real, the value will be determined by the equation and send to the physical device (if it accepts inputs).
+Use this e.g. to add a fixed offset before sending the value to a physical device.
+Note that monitors (readbacks) will still be read, even if the channel is not active.</p>
+<p>If a channel is not active and not real, the value will be determined by the equation.
+Use this e.g. for calculations with intermediate steps or just to display the result of an equation.</p>
 </dd>
 <dt>Line width</dt><dd><p>The line width is used to highlight the relative importance of channels in
 the <a class="reference internal" href="#sec-live-displays"><span class="std std-ref">live display</span></a>.</p>

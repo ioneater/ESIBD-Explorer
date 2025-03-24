@@ -3,8 +3,11 @@
 Changelog
 ---------
 
-Latest
-======
+.. Latest
+.. ======
+
+Version 0.7.3 2025-03-24
+========================
 
 Added
 ~~~~~
@@ -31,10 +34,10 @@ Changed
 - New icons for msScan and MS.
 - Simplified TIC plugin implementation by inheriting from OMNICONTROL.
 - Made layout more stable by preventing moving of Console, Settings, and Browser.
-- Some development specific settings are hidden by default and only visible in the advanced mode of the Settings plugin.
+- Some development specific settings are now hidden by default and only visible in the advanced mode of the Settings plugin.
 - Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
 - Channel backgrounds are only displayed and used for channels that are enabled, active, and real.
-- Scans will warn if scan limits exceed limits of scan channels.
+- Scans will warn and not start if scan limits exceed limits of scan channels.
 
 Version 0.7.2 2025-03-02
 ========================

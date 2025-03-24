@@ -22,7 +22,7 @@ sphinx = True # used for conditional doc strings (direct HTML vs. rst)
 project = 'ESIBD Explorer'
 project_copyright = '2025, Tim Esser'
 author = 'Tim Esser'
-release = '0.7.2'
+release = '0.7.3'
 
 # uncomment following to generate log while compiling
 # import logging

@@ -3,8 +3,44 @@
 Changelog
 ---------
 
-Latest
-======
+.. Latest
+.. ======
+
+Version 0.7.3 2025-03-24
+========================
+
+Added
+~~~~~
+
+- Added icon legend in about dialogs.
+- Added Calculator plugin as an example of embedding external GUI applications as plugins.
+- Running scans will be indicated by icons in the DeviceManager.
+- Added lagging indicator in advanced mode of device settings.
+- Added option to filter warning and error messages in the Console.
+
+Fixed
+~~~~~
+
+- Fixed assignment of values to virtual channels in test mode for several internal plugins.
+- Improved colors of displays when copied to clipboard or saved as pdf.
+- Renaming of settings is handled like any other setting change.
+- Restoring backgrounds after moving channels.
+
+Changed
+~~~~~~~
+
+- Improved the definition of the channel properties active and real in the documentation.
+- Treating file types not case sensitive.
+- New icons for msScan and MS.
+- Simplified TIC plugin implementation by inheriting from OMNICONTROL.
+- Made layout more stable by preventing moving of Console, Settings, and Browser.
+- Some development specific settings are now hidden by default and only visible in the advanced mode of the Settings plugin.
+- Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
+- Channel backgrounds are only displayed and used for channels that are enabled, active, and real.
+- Scans will warn and not start if scan limits exceed limits of scan channels.
+
+Version 0.7.2 2025-03-02
+========================
 
 Added
 ~~~~~

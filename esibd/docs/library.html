@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>5. Library Reference &mdash; ESIBD Explorer 0.7.2 documentation</title>
+  <title>5. Library Reference &mdash; ESIBD Explorer 0.7.3 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=6dfdf7c3"></script>
+      <script src="_static/documentation_options.js?v=c98573da"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -324,6 +324,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.documentation"><code class="docutils literal notranslate"><span class="pre">Scan.documentation</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.estimateScanTime"><code class="docutils literal notranslate"><span class="pre">Scan.estimateScanTime()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.file"><code class="docutils literal notranslate"><span class="pre">Scan.file</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.finalizeInit"><code class="docutils literal notranslate"><span class="pre">Scan.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.finished"><code class="docutils literal notranslate"><span class="pre">Scan.finished</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.generatePythonPlotCode"><code class="docutils literal notranslate"><span class="pre">Scan.generatePythonPlotCode()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Scan.getChannelByName"><code class="docutils literal notranslate"><span class="pre">Scan.getChannelByName</span></code></a></li>
@@ -431,6 +432,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.parameters"><code class="docutils literal notranslate"><span class="pre">Channel.parameters</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.plotCurve"><code class="docutils literal notranslate"><span class="pre">Channel.plotCurve</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.print"><code class="docutils literal notranslate"><span class="pre">Channel.print</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.realChanged"><code class="docutils literal notranslate"><span class="pre">Channel.realChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.setDisplayedParameters"><code class="docutils literal notranslate"><span class="pre">Channel.setDisplayedParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.tempParameters"><code class="docutils literal notranslate"><span class="pre">Channel.tempParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.tree"><code class="docutils literal notranslate"><span class="pre">Channel.tree</span></code></a></li>
@@ -674,6 +676,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeStateWrapper"><code class="docutils literal notranslate"><span class="pre">makeStateWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.const.plotting"><code class="docutils literal notranslate"><span class="pre">plotting()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.setDarkMode"><code class="docutils literal notranslate"><span class="pre">setDarkMode()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.smooth"><code class="docutils literal notranslate"><span class="pre">smooth()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.validatePath"><code class="docutils literal notranslate"><span class="pre">validatePath()</span></code></a></li>
@@ -2305,6 +2308,7 @@ The flag not just blocks other functions but informs them and allows them to rea
 <li><p><strong>condition</strong> (<em>callable</em>) – will wait for condition to return True</p></li>
 <li><p><strong>interval</strong> (<em>float</em>) – wait interval seconds before checking condition</p></li>
 <li><p><strong>timeout</strong> (<em>float</em>) – timeout in seconds</p></li>
+<li><p><strong>timeoutMessage</strong> (<em>str</em>) – message displayed if timeout is reached</p></li>
 </ul>
 </dd>
 </dl>
@@ -2448,6 +2452,19 @@ If None, the doc string <em>__doc__</em> will be used instead.</p>
 <dd><p>The scan file. Either existing file or file to be created when scan finishes.</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Scan.finalizeInit">
+<span class="sig-name descname"><span class="pre">finalizeInit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aboutFunc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Scan.finalizeInit" title="Link to this definition"></a></dt>
+<dd><p>Executed after all other Plugins are initialized. Use this for code
+that modifies other <a class="reference internal" href="#esibd.plugins.Plugin" title="esibd.plugins.Plugin"><code class="xref py py-class docutils literal notranslate"><span class="pre">Plugins</span></code></a>, e.g. adding an <a class="reference internal" href="#esibd.core.Action" title="esibd.core.Action"><code class="xref py py-class docutils literal notranslate"><span class="pre">Action</span></code></a> to the <a class="reference internal" href="#esibd.plugins.DeviceManager" title="esibd.plugins.DeviceManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">DeviceManager</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>aboutFunc</strong> (<em>method</em><em>, </em><em>optional</em>) – Function displaying the about dialog of the plugin, defaults to None.
+<a class="reference internal" href="#esibd.plugins.Plugin.about" title="esibd.plugins.Plugin.about"><code class="xref py py-meth docutils literal notranslate"><span class="pre">about()</span></code></a> is used if no other is provided.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="esibd.plugins.Scan.finished">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">finished</span></span><a class="headerlink" href="#esibd.plugins.Scan.finished" title="Link to this definition"></a></dt>
@@ -2535,7 +2552,9 @@ Extend to provide support for previous file formats.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Scan.plot">
 <span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">update</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.plugins.Scan.plot" title="Link to this definition"></a></dt>
-<dd><p>Plot showing a current or final state of the scan. Extend to add scan specific plot code.</p>
+<dd><p>Plot showing a current or final state of the scan.
+Extend to add scan specific plot code.
+Make sure to also use the &#64;plotting decorator when overwriting this function!</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>update</strong> (<em>bool</em><em>, </em><em>optional</em>) – If update is True, only data will be updates, otherwise entire figure will be initialized, defaults to False</p>
@@ -3050,7 +3069,7 @@ account for differences in the physical backend.</p>
 <p>Channels provide a consistent and structured interface to inputs and
 outputs. In the advanced mode, channels can be duplicated, moved, or
 deleted. You may also edit channels directly in the corresponding .ini
-file in the config path.</p>
+file in the config path (import after edit or changes will be lost).</p>
 <p>Channels are accessible from any plugin using <a class="reference internal" href="#esibd.plugins.DeviceManager.getChannelByName" title="esibd.plugins.DeviceManager.getChannelByName"><code class="xref py py-meth docutils literal notranslate"><span class="pre">getChannelByName()</span></code></a>.
 This, and other features like linking channels by equations, depends on the usage of unique and descriptive channel names.</p>
 <dl class="py class">
@@ -3206,6 +3225,12 @@ The relevant actions will be chosen based on the type and properties of the <a c
 <dt class="sig sig-object py" id="esibd.core.Channel.print">
 <span class="sig-name descname"><span class="pre">print</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">callable</span></em><a class="headerlink" href="#esibd.core.Channel.print" title="Link to this definition"></a></dt>
 <dd><p>Reference to <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esibd.plugins.Plugin.print"><code class="xref py py-meth docutils literal notranslate"><span class="pre">print()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.Channel.realChanged">
+<span class="sig-name descname"><span class="pre">realChanged</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Channel.realChanged" title="Link to this definition"></a></dt>
+<dd><p>Extend as needed. Already linked to real checkbox.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -3659,7 +3684,7 @@ Use <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esib
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Logger.print">
-<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.7.2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.7.3'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
 <dd><p>Augments messages and redirects to log file, statusbar, and console.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -3680,7 +3705,7 @@ Use <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esib
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Logger.write">
-<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.write" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.core.Logger.write" title="Link to this definition"></a></dt>
 <dd><p>Directs messages to terminal, log file, and <a class="reference internal" href="pages/users-guide.html#sec-console"><span class="std std-ref">Console</span></a>.
 Called directly from stdout or stderr or indirectly via <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esibd.plugins.Plugin.print"><code class="xref py py-meth docutils literal notranslate"><span class="pre">print()</span></code></a>.</p>
 </dd></dl>
@@ -3838,8 +3863,7 @@ from which settings and channels take the relevant information.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.core.Parameter.advanced">
 <span class="sig-name descname"><span class="pre">advanced</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#esibd.core.Parameter.advanced" title="Link to this definition"></a></dt>
-<dd><p>If True, parameter will only be visible in advanced mode.
-Only applies to channel parameters.</p>
+<dd><p>If True, parameter will only be visible in advanced mode.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -4714,6 +4738,14 @@ If you need to handle events on value change, link these directly to the events 
 <dd class="field-odd"><p><strong>file</strong> (<em>str / pathlib.Path</em>) – Path to the file to open.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="esibd.const.plotting">
+<span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">plotting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#esibd.const.plotting" title="Link to this definition"></a></dt>
+<dd><p>Decorator that checks for and sets the plotting flag to make sure func is not executed before previous call is processed.
+Only use within a class that contains the plotting flag.
+This is intended for Scans, but might be used elsewhere.</p>
 </dd></dl>
 
 <dl class="py function">

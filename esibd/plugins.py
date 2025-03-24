@@ -2430,7 +2430,7 @@ class Device(ChannelManager):
             self.subtractBackgroundAction = self.addStateAction(toolTipFalse=f'Subtract background for {self.name}.', iconFalse=self.makeCoreIcon('eraser.png'),
                                                         toolTipTrue=f'Ignore background for {self.name}.', iconTrue=self.makeCoreIcon('eraser.png'),
                                                         attr='subtractBackground', event=lambda: self.subtractBackgroundChanged())
-            self.addAction(event=lambda: self.setBackground(), toolTip=f'Set current value as background for {self.name}.', icon=self.makeCoreIcon('eraser--pencil.png'))
+            self.addAction(event=lambda: self.setBackground(), toolTip=f'Set current value as background for {self.name} based on last 5 s.', icon=self.makeCoreIcon('eraser--pencil.png'))
         self.estimateStorage()
         if self.inout == INOUT.IN:
             self.addAction(lambda: self.loadValues(None), f'Load {self.name} values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
@@ -2559,8 +2559,8 @@ class Device(ChannelManager):
         Only used by output devices."""
         if self.useBackgrounds:
             for channel in self.getChannels(): # save present signal as background
-                # use average of last 10 s if possible
-                length = min(int(10000/self.interval), len(channel.getValues(subtractBackground=False)))
+                # use average of last 5 s if possible
+                length = min(int(5000/self.interval), len(channel.getValues(subtractBackground=False)))
                 values = channel.getValues(subtractBackground=False)[-length:]
                 if not any([np.isnan(value) for value in values]):
                     channel.background = np.mean(values)
@@ -4205,7 +4205,7 @@ class Console(Plugin):
         self.historyFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'console_history.bin'
         # self.historyFile.touch(exist_ok=True) # will be created next time the program closes, touch creates an invalid file
         # self.historyFile = open(hf, 'w')
-        self.mainConsole    = EsibdCore.ThemedConsole(historyFile=self.historyFile)
+        self.mainConsole    = EsibdCore.ThemedConsole(parentPlugin=self, historyFile=self.historyFile)
         self.mainConsole.repl._lastCommandRow = 0 # not checking for None if uninitialized! -> initialize
         self.vertLayout.addWidget(self.mainConsole, 1) # https://github.com/pyqtgraph/pyqtgraph/issues/404 # add before hintsTextEdit
         self.commonCommandsComboBox = EsibdCore.CompactComboBox()

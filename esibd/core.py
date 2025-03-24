@@ -3334,9 +3334,9 @@ class NumberBar(QWidget):
 class ThemedConsole(pyqtgraph.console.ConsoleWidget):
     """pyqtgraph.console.ConsoleWidget with colors adjusting to theme."""
 
-    def __init__(self, parent=None, namespace=None, historyFile=None, text=None, editor=None):
+    def __init__(self, parentPlugin, parent=None, namespace=None, historyFile=None, text=None, editor=None):
         super().__init__(parent, namespace, historyFile, text, editor)
-
+        self.parentPlugin = parentPlugin
         font = QFont()
         font.setFamily("Courier New")
         font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
@@ -3380,6 +3380,8 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         # make sure submitted code will be visible even if filters were active before
         super()._commandEntered(repl, cmd)
         self.outputLayout.setCurrentIndex(0)
+        self.parentPlugin.warningFilterAction.state = False
+        self.parentPlugin.errorFilterAction.state = False
 
 
 class ThemedNavigationToolbar(NavigationToolbar2QT):
