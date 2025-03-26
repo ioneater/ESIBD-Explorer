@@ -4966,15 +4966,16 @@ class DeviceManager(Plugin):
                 return
         file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
                     directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
-        first=True
-        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
-            load = False
-            with h5py.File(name=file, mode='r', track_order=True) as h5file:
-                if plugin.name in h5file:
-                    load=True
-            if load:
-                plugin.loadConfiguration(file=file, append=not first)
-                first = False
+        if file != Path('.'):
+            first=True
+            for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+                load = False
+                with h5py.File(name=file, mode='r', track_order=True) as h5file:
+                    if plugin.name in h5file:
+                        load=True
+                if load:
+                    plugin.loadConfiguration(file=file, append=not first)
+                    first = False
 
     def runTestParallel(self):
         """:meta private:"""

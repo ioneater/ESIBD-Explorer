@@ -6,6 +6,11 @@ Changelog
 Latest
 ======
 
+Fixed
+~~~~~
+
+- Fixed error when canceling loading a file from DeviceManager.
+
 Changed
 ~~~~~~~
 
