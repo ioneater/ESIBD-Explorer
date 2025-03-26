@@ -2786,10 +2786,11 @@ class Device(ChannelManager):
                 self.startRecording()
 
     def clearHistory(self):
-        self.clearPlot()
-        for channel in self.getChannels():
-            channel.clearHistory(max_size=self.maxDataPoints)
-        self.time = DynamicNp(max_size=self.maxDataPoints, dtype=np.float64)
+        if EsibdCore.CloseDialog(title=f'Clear {self.name} History?', ok='Clear history', prompt=f'Clear all data history for {self.name}?').exec():
+            self.clearPlot()
+            for channel in self.getChannels():
+                channel.clearHistory(max_size=self.maxDataPoints)
+            self.time = DynamicNp(max_size=self.maxDataPoints, dtype=np.float64)
 
     def runDataThread(self, recording):
         """Regularly triggers reading and appending of data.

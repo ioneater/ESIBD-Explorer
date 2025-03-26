@@ -3,8 +3,13 @@
 Changelog
 ---------
 
-.. Latest
-.. ======
+Latest
+======
+
+Changed
+~~~~~~~
+
+- Added confirmation prompt before deleting all device history.
 
 Version 0.7.3 2025-03-24
 ========================

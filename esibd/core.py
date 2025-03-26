@@ -2184,7 +2184,7 @@ class Channel(QTreeWidgetItem):
             collapse.widget.setStyleSheet('QPushButton{border:none;}')
             collapse.applyWidget()
             collapse.value = initialValue
-            collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-small-expand.png' if self.collapse else 'toggle-small.png'))
+            collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if self.inout != INOUT.NONE:
             self.updateColor()
             self.realChanged()

@@ -139,6 +139,7 @@ call rmdir /q /s pyinstaller_build
 call rm -r pyinstaller_build
 call rmdir /q /s pyinstaller_dist
 call rm -r pyinstaller_dist
+REM make sure both folders have been deleted!
 conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibdtest
 REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
@@ -146,7 +147,7 @@ pip install esibd-explorer==0.7.3 pyinstaller
 REM test software
 python -m esibd.explorer
 
-REM Run the following line to create initial spec file
+REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
 pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
@@ -161,7 +162,7 @@ REM InstallForge
 
 REM Next, create setup.exe using InstallForge
 REM use EsibdExplorer.ifp and adjust absolute file paths for dependencies and setup file if applicable and update "Product Version" and update year in license section!
-REM files:
+REM files (only change if filepaths have been changed, e.g. when releasing from different computer):
 REM pyinstaller_dist\ESIBD Explorer\_internal
 REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 
