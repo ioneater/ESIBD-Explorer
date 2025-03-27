@@ -8,6 +8,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Temperature]
 
 class Temperature(Device):
@@ -59,7 +60,6 @@ class Temperature(Device):
         return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def closeCommunication(self):
-        """:meta private:"""
         self.setOn(False)
         self.controller.cryoON()
         super().closeCommunication()

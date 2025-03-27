@@ -8,6 +8,7 @@ from esibd.plugins import Device, StaticDisplay, Scan
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [RBD]
 
 class RBD(Device):

@@ -5,6 +5,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [NI9263]
 
 class NI9263(Device):
@@ -24,7 +25,6 @@ class NI9263(Device):
         self.channelType = VoltageChannel
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 

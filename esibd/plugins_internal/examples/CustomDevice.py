@@ -8,6 +8,7 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, DeviceC
 # TODO It is recommended to edit a copy of this file using VS Code with the Better Comments extension installed to highlight the sections that need to be customized.
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [CustomDevice]
 
 class CustomDevice(Device):

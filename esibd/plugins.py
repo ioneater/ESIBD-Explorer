@@ -10,7 +10,6 @@ import os
 import io
 import ast
 import itertools
-import requests
 from itertools import islice
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
@@ -20,6 +19,7 @@ import time
 import inspect
 from datetime import datetime
 import configparser
+import requests
 # import traceback
 import h5py
 import simple_pid
@@ -191,6 +191,7 @@ class Plugin(QWidget):
         Timer(0, self.runTestParallel).start()
 
     def stopTest(self):
+        """Stops testing"""
         self.signalComm.testCompleteSignal.emit()
 
     def testControl(self, control, value, delay=0, label=None):
@@ -258,6 +259,7 @@ class Plugin(QWidget):
 
     @synchronized()
     def testComplete(self):
+        """Resets testing flag after last test completed."""
         # queue this behind any other synchronized function that is still being tested
         self.testing = False
 
@@ -354,8 +356,10 @@ class Plugin(QWidget):
         self.loading = True
         self.print('finalizeInit', PRINT.DEBUG)
         self.addToolbarStretch()
-        self.aboutAction = self.addAction(event=lambda: self.about() if aboutFunc is None else aboutFunc(), toolTip=f'About {self.name}.', icon=self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
-        self.floatAction = self.addStateAction(event=lambda: self.setFloat(), toolTipFalse=f'Float {self.name}.', iconFalse=self.makeCoreIcon('application.png'), toolTipTrue=f'Dock {self.name}.', iconTrue=self.makeCoreIcon('applications.png')
+        self.aboutAction = self.addAction(event=lambda: self.about() if aboutFunc is None else aboutFunc(), toolTip=f'About {self.name}.',
+                                           icon=self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+        self.floatAction = self.addStateAction(event=lambda: self.setFloat(), toolTipFalse=f'Float {self.name}.', iconFalse=self.makeCoreIcon('application.png'),
+                                               toolTipTrue=f'Dock {self.name}.', iconTrue=self.makeCoreIcon('applications.png')
                             # , attr='floating' cannot use same attribute for multiple instances of same class # https://stackoverflow.com/questions/1325673/how-to-add-property-to-a-class-dynamically
                             )
         if self.pluginType in [PluginManager.TYPE.DISPLAY, PluginManager.TYPE.LIVEDISPLAY] and not self == self.pluginManager.Browser:
@@ -608,9 +612,11 @@ class Plugin(QWidget):
         for action in self.titleBar.actions():
             if action.iconText() != '':
                 if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)) and hasattr(action.getIcon(), 'fileName'):
-                    actionsHTML += f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n"
+                    actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;'" +
+                    f" width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n")
                 elif hasattr(action, 'fileName'):
-                    actionsHTML += f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;' width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n"
+                    actionsHTML += (f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;'" +
+                    f" width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n")
                 else:
                     self.print(f'QAction with iconText {action.iconText()} has no attribute fileName', flag=PRINT.WARNING) # assign fileName if missing
         actionsHTML += '</p>'
@@ -859,7 +865,6 @@ class StaticDisplay(Plugin):
         super().__init__(**kwargs)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.legend = None
         self.outputLayout = QVBoxLayout()
@@ -885,7 +890,6 @@ class StaticDisplay(Plugin):
         self.initData()
 
     def initFig(self):
-        """:meta private:"""
         if self.fig is not None and rgb_to_hex(self.fig.get_facecolor()) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
@@ -902,7 +906,6 @@ class StaticDisplay(Plugin):
         self.axes.append(self.fig.add_subplot(111))
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         # for a in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
         #     self.titleBar.addAction(a)
         super().finalizeInit(aboutFunc)
@@ -916,7 +919,6 @@ class StaticDisplay(Plugin):
         return self.parentPlugin.getIcon(**kwargs)
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.initializedDock:
             self.testControl(self.copyAction, True, 1)
             self.testControl(self.plotEfficientAction, not self.plotEfficientAction.state, 1)
@@ -946,13 +948,11 @@ class StaticDisplay(Plugin):
                 QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
 
     def provideDock(self):
-        """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
 
     def supportsFile(self, file):
-        """:meta private:"""
         if super().supportsFile(file):
             return True
         elif self.pluginManager.DeviceManager.supportsFile(file):
@@ -962,7 +962,6 @@ class StaticDisplay(Plugin):
             return False
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         # using linewidget to display
         self.file = file
         self.provideDock()
@@ -1103,7 +1102,6 @@ plt.show()
         """)
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.staticPlotWidget.setBackground(colors.bg)
         fg = colors.fg
@@ -1169,7 +1167,6 @@ class LiveDisplay(Plugin):
         super().__init__(**kwargs)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.plotSplitter = None
         if self.parentPlugin.pluginType in [self.pluginManager.TYPE.INPUTDEVICE, self.pluginManager.TYPE.OUTPUTDEVICE]:
@@ -1203,7 +1200,6 @@ class LiveDisplay(Plugin):
                                                         toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
@@ -1378,7 +1374,6 @@ class LiveDisplay(Plugin):
         return self.parentPlugin.getIcon(**kwargs)
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.initializedDock:
             # init, start, pause, stop acquisition will be tested by DeviceManager
             self.testControl(self.copyAction, True)
@@ -1389,8 +1384,8 @@ class LiveDisplay(Plugin):
 
     @synchronized()
     def copyClipboard(self):
-        self.print('copyClipboard', flag=PRINT.DEBUG)
         """Extends matplotlib based version to add support for pyqtgraph."""
+        self.print('copyClipboard', flag=PRINT.DEBUG)
         # Test in light mode with and without mouse enabled
         # Test in dark mode with and without mouse enabled, with and without
         if len(self.livePlotWidgets) == 0:
@@ -1427,7 +1422,6 @@ class LiveDisplay(Plugin):
             QApplication.clipboard().setPixmap(self.plotSplitter.grab())
 
     def provideDock(self):
-        """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
@@ -1554,20 +1548,17 @@ class LiveDisplay(Plugin):
             channel.clearPlotCurve()
 
     def closeUserGUI(self):
-        """:meta private:"""
         self.parentPlugin.toggleLiveDisplayAction.state = False # state is remembered and restored from setting
         # self.remoteView.close() # not using parallelization for now
         super().closeUserGUI()
 
     def closeGUI(self):
-        """:meta private:"""
         if not self.pluginManager.closing:
             self.parentPlugin.clearPlot() # plotCurve references will be deleted and have to be recreated later if needed
             self.pluginManager.toggleTitleBarDelayed(update=True)
         super().closeGUI()
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         if not self.loading:
             self.parentPlugin.clearPlot() # recreate plot with new colors
@@ -1723,7 +1714,6 @@ class ChannelManager(Plugin):
             self.onAction.state = on
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.initializedDock:
             # Note: ignore repeated line indicating testing of device.name as static and live displays have same name
             if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
@@ -1751,9 +1741,9 @@ class ChannelManager(Plugin):
                         self.staticDisplay.runTestParallel()
             #             self.testControl(self.staticDisplay.videoRecorderAction, False)
             if self.channelPlotActive():
-                    self.channelPlot.raiseDock(True)
+                self.channelPlot.raiseDock(True)
             #         self.testControl(self.channelPlot.videoRecorderAction, True)
-                    self.channelPlot.runTestParallel()
+                self.channelPlot.runTestParallel()
             #         self.testControl(self.channelPlot.videoRecorderAction, False)
                 # init, start, pause, stop acquisition will be tested by DeviceManager
         super().runTestParallel()
@@ -2031,7 +2021,7 @@ class ChannelManager(Plugin):
                     self.updateChannelConfig([item for name, item in confParser.items() if name not in [Parameter.DEFAULT.upper(), EsibdCore.VERSION, EsibdCore.INFO]], file, append=append)
                 else: # Generate default settings file if file was not found.
                     # To update files with new parameters, simply delete the old file and the new one will be generated.
-                    if self.channels == []:
+                    if not self.channels:
                         self.print(f'Generating default config file {file}')
                         for i in range(9):
                             self.addChannel(item={Parameter.NAME : f'{self.name}{i+1}'})
@@ -2288,14 +2278,12 @@ class ChannelManager(Plugin):
         super().close()
 
     def closeGUI(self):
-        """:meta private:"""
         self.toggleChannelPlot(False)
         self.toggleLiveDisplay(False)
         self.toggleStaticDisplay(False)
         super().closeGUI()
 
     def toggleTitleBar(self):
-        """:meta private:"""
         super().toggleTitleBar()
         if self.liveDisplayActive():
             self.liveDisplay.toggleTitleBar()
@@ -2331,7 +2319,6 @@ class ChannelManager(Plugin):
         return self.staticDisplay is not None and self.staticDisplay.initializedDock
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.loading = True
         for channel in self.getChannels():
@@ -2420,7 +2407,6 @@ class Device(ChannelManager):
         self.errorCountTimer.setInterval(600000) # 10 min i.e. 600000 msec
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(), toolTip=f'Close {self.name} communication.', icon=self.makeCoreIcon('stop.png'))
         self.initAction = self.addAction(event=lambda: self.initializeCommunication(), toolTip=f'Initialize {self.name} communication.', icon=self.makeCoreIcon('rocket-fly.png'))
@@ -2466,7 +2452,6 @@ class Device(ChannelManager):
         return defaultSettings
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.useBackgrounds:
             self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
@@ -2674,7 +2659,6 @@ class Device(ChannelManager):
         super().close()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         if self.liveDisplay.supportsFile(file) or self.staticDisplay.supportsFile(file):
             self.staticDisplay.loadData(file, _show)
         else:
@@ -2748,11 +2732,13 @@ class Device(ChannelManager):
                     self.pluginManager.DeviceManager.limit_display_size = True
                     if self.pluginManager.DeviceManager.max_display_size > 1000:
                         self.pluginManager.DeviceManager.max_display_size = 1000 # keep if already smaller
-                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel. Communication will be stopped in 50 s unless GUI becomes responsive again.', flag=PRINT.WARNING)
+                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.' +
+                                   ' Communication will be stopped in 50 s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                     else:
                         self.print('Slow GUI detected. Communication will be stopped in 50 s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                 elif self.lagging%self.lag_limit == 0:
-                    self.print(f'Slow GUI detected. Consider decreasing device interval, displayed channels, and other GUI intensive functions. Communication will be stopped in {10*(6-self.lagging/self.lag_limit)} s unless GUI becomes responsive again.', flag=PRINT.WARNING)
+                    self.print('Slow GUI detected. Consider decreasing device interval, displayed channels, and other GUI intensive functions.' +
+                    f' Communication will be stopped in {10*(6-self.lagging/self.lag_limit)} s unless GUI becomes responsive again.', flag=PRINT.WARNING)
                 self.lagging += 1
             else: # lagging 60 s in a row -> stop acquisition
                 if self.lagging == 6*self.lag_limit:
@@ -2945,10 +2931,7 @@ class Scan(Plugin):
             self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height()-self.scan.settingsTree.sizeHint().height()])
 
     class Display(Plugin):
-        """Display for base scan. Extend as needed.
-
-        :meta private:
-        """
+        """Display for base scan. Extend as needed."""
         pluginType=PluginManager.TYPE.DISPLAY
 
         def __init__(self, scan, **kwargs):
@@ -2958,7 +2941,6 @@ class Scan(Plugin):
             super().__init__(**kwargs)
 
         def initGUI(self):
-            """:meta private:"""
             super().initGUI()
             self.mouseMoving = False
             self.mouseActive = False
@@ -2969,13 +2951,11 @@ class Scan(Plugin):
             self.provideFig()
 
         def provideDock(self):
-            """:meta private:"""
             if super().provideDock():
                 self.finalizeInit()
                 self.afterFinalizeInit()
 
         def finalizeInit(self, aboutFunc=None):
-            """:meta private:"""
             super().finalizeInit(aboutFunc)
             self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
             if self.scan.useDisplayChannel:
@@ -2994,7 +2974,6 @@ class Scan(Plugin):
             return self.scan.getIcon(**kwargs)
 
         def runTestParallel(self):
-            """:meta private:"""
             if self.initializedDock:
                 self.testControl(self.copyAction, True, .5)
             # super().runTestParallel() # handled by scan
@@ -3018,7 +2997,6 @@ class Scan(Plugin):
                 self.mouseMoving = False
 
         def closeGUI(self):
-            """:meta private:"""
             if self.scan.finished:
                 return super().closeGUI()
             else:
@@ -3046,7 +3024,6 @@ class Scan(Plugin):
         self.init()
 
     def initGUI(self):
-        """:meta private:"""
         self.loading = True
         super().initGUI()
         self.treeSplitter = self.TreeSplitter(scan=self, orientation=Qt.Orientation.Vertical)
@@ -3130,7 +3107,6 @@ class Scan(Plugin):
         self.inputs, self.outputs, self.channels = [], [], []
 
     def runTestParallel(self):
-        """:meta private:"""
         # * testing the scan itself is done by DeviceManager
         if self.initializedDock:
             if self.display is not None:
@@ -3208,7 +3184,6 @@ class Scan(Plugin):
         self.settingsMgr.saveSettings(file=file, default=default)
 
     def getDefaultSettings(self):
-        """:meta private:"""
         # ATTENTION: Changing setting names will cause backwards incompatibility unless handled explicitly!
         ds = {}
         ds[self.NOTES]  = parameterDict(value='', toolTip='Add specific notes to current scan. Will be reset after scan is saved.', widgetType=Parameter.TYPE.TEXT,
@@ -3403,7 +3378,6 @@ class Scan(Plugin):
                     self.print(f'Cannot create dataset for channel {output.name}: {e}', PRINT.ERROR)
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         if file.name.endswith(self.configINI):
             return # will be handled by Text plugin
         else:
@@ -3565,10 +3539,11 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
 
             for j, output in enumerate(self.outputs):
                 if len(self.inputs) == 1: # 1D scan
-                    output.recordingData[i] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
+                    output.recordingData[i] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(),
+                                                                       length=self.measurementsPerStep))
                 else: # 2D scan, higher dimensions not jet supported
-                    output.recordingData[i%len(self.inputs[1].getRecordingData()), i//len(self.inputs[1].getRecordingData())] = np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(),
-                                                                                                                  length=self.measurementsPerStep))
+                    output.recordingData[i%len(self.inputs[1].getRecordingData()), i//len(self.inputs[1].getRecordingData())] = np.mean(
+                        output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
             if i == len(steps)-1 or not recording(): # last step
                 for j, _input in enumerate(self.inputs):
                     _input.updateValueSignal.emit(_input.initialValue)
@@ -3581,7 +3556,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
                 self.signalComm.scanUpdateSignal.emit(False) # update graph
 
     def close(self):
-        """:meta private:"""
         super().close()
         # if self.initializedDock:
         #     self.settingsMgr.saveSettings(default=True) # scan settings saved immediately when changed
@@ -3589,7 +3563,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
             self.recording = False
 
     def closeGUI(self):
-        """:meta private:"""
         self.toggleDisplay(False)
         super().closeGUI()
 
@@ -3602,7 +3575,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
             self.display.closeGUI()
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         if self.displayActive():
             self.display.updateTheme()
@@ -3638,12 +3610,10 @@ class Browser(Plugin):
         self.plugin = None
 
     def initDock(self):
-        """:meta private:"""
         super().initDock()
         self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.webEngineView = QWebEngineView(parent=QApplication.instance().mainWindow)
         # self.webEngineView.page().settings().setUnknownUrlSchemePolicy(QWebEngineSettings.UnknownUrlSchemePolicy.AllowAllUnknownUrlSchemes)
@@ -3684,7 +3654,6 @@ class Browser(Plugin):
         self.addContentWidget(self.webEngineView)
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         super().finalizeInit(aboutFunc)
         self.floatAction.deleteLater()
         delattr(self, 'floatAction')
@@ -3692,7 +3661,6 @@ class Browser(Plugin):
         self.openAbout()
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.initializedDock:
             self.testControl(self.docAction, True, .5)
             self.testControl(self.homeAction, True, .5)
@@ -3703,7 +3671,6 @@ class Browser(Plugin):
         super().runTestParallel()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         self.provideDock()
         self.file = file
         # overwrite parent
@@ -3711,7 +3678,8 @@ class Browser(Plugin):
             self.webEngineView.load(QUrl.fromLocalFile(file.as_posix()))
             # self.webEngineView.setUrl(QUrl(f'file:///{file.as_posix()}'))
         elif any(file.name.endswith(fileType) for fileType in ['.mp4','.avi']):
-            self.webEngineView.setHtml('Note: .mp4 and .avi files are not supported due to licensing limitations as explained <a href="https://doc.qt.io/qt-5/qtwebengine-features.html#audio-and-video-codecs">here</a>.\nPlease open in external program.')
+            self.webEngineView.setHtml('Note: .mp4 and .avi files are not supported due to licensing limitations as ' +
+                                       'explained <a href="https://doc.qt.io/qt-5/qtwebengine-features.html#audio-and-video-codecs">here</a>.\nPlease open in external program.')
         elif file.name.endswith('.svg'):
             # self.webEngineView.setUrl(QUrl(f'file:///{file.as_posix()}')) # does not scale
             # does not work when using absolute path directly for src. also need to replace empty spaces to get valid url
@@ -3786,7 +3754,6 @@ class Browser(Plugin):
         return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve()}' width='22'> {plugin.name} {plugin.version}</h1>"
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         if self.html is not None:
             if self.plugin is None:
@@ -3816,7 +3783,6 @@ class Text(Plugin):
         self.signalComm.setTextSignal.connect(self.setText)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.editor = EsibdCore.TextEdit()
         self.editor.setFont(QFont('Courier', 10))
@@ -3827,13 +3793,11 @@ class Text(Plugin):
         self.addContentLayout(lay)
 
     def provideDock(self):
-        """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         super().finalizeInit(aboutFunc)
         self.addAction(lambda: self.saveFile(), 'Save', icon=self.makeCoreIcon('disk-black.png'), before=self.aboutAction)
         self.wordWrapAction = self.addStateAction(event=lambda: self.toggleWordWrap, toolTipFalse='Word wrap on.', iconFalse=self.makeCoreIcon('ui-scroll-pane-text.png'),
@@ -3843,14 +3807,12 @@ class Text(Plugin):
         self.toggleWordWrap()
 
     def runTestParallel(self):
-        """:meta private:"""
         if self.initializedDock:
             self.testControl(self.wordWrapAction, True)
             self.testControl(self.textClipboardAction, True)
         super().runTestParallel()
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         if not self.pluginManager.loading:
             self.numbers.updateTheme()
@@ -3867,7 +3829,6 @@ class Text(Plugin):
             self.pluginManager.Explorer.populateTree()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         self.provideDock()
         self.editor.clear()
         if any(file.name.endswith(fileType) for fileType in self.previewFileTypes):
@@ -3937,22 +3898,19 @@ class Tree(Plugin):
         self._inspect = False
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.tree = QTreeWidget()
         self.addContentWidget(self.tree)
-        self.tree.itemExpanded.connect(self.expandObjet)
+        self.tree.itemExpanded.connect(self.expandObject)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.initContextMenu)
 
     def provideDock(self):
-        """:meta private:"""
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         self.provideDock()
         self.tree.clear()
         self.tree.setHeaderHidden(True)
@@ -4008,6 +3966,13 @@ class Tree(Plugin):
             method_widget.setToolTip(0, ast.get_docstring(method))
 
     def inspect(self, obj, _filter=None):
+        """Shows a list of attributes of the object and applies a filter if provided.
+
+        :param obj: Any python class or List
+        :type obj: class or List
+        :param _filter: Filter string.
+        :type _filter: str, optional
+        """
         self.provideDock()
         self._inspect = True
         self.tree.clear()
@@ -4021,7 +3986,8 @@ class Tree(Plugin):
         self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj, _filter=_filter)
         self.tree.setUpdatesEnabled(True)
 
-    def expandObjet(self, element):
+    def expandObject(self, element):
+        """Populates and expands element of inspected class."""
         if self._inspect:
             self.tree.setUpdatesEnabled(False)
             self.inspect_recursive(tree=element, obj=element.obj)
@@ -4077,6 +4043,8 @@ class Tree(Plugin):
                     variable_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
                     if not isinstance(attr, List):
                         variable_widget.setText(1, repr(attr))
+                        # # attribute docstrings not yet supported https://discuss.python.org/t/revisiting-attribute-docstrings/36413/33
+                        # variable_widget.setToolTip
                     variable_widget.obj = attr
                 if not isinstance(attr, (bool, float, int, str, Enum)):
                     self.inspect_recursive(tree=variable_widget, obj=attr, recursionDepth=recursionDepth)
@@ -4195,12 +4163,10 @@ class Console(Plugin):
         executeSignal = pyqtSignal(str)
 
     def initDock(self):
-        """:meta private:"""
         super().initDock()
         self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1) # enable hiding
         self.historyFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'console_history.bin'
@@ -4248,7 +4214,6 @@ class Console(Plugin):
         self.pluginManager.logger.backLog = []
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         super().finalizeInit(aboutFunc)
         self.floatAction.deleteLater()
         delattr(self, 'floatAction')
@@ -4267,7 +4232,8 @@ class Console(Plugin):
         self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
                                               toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
                                               before=self.aboutAction, event=lambda: self.toggleLogging(), default='true')
-        self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'), before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
+        self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'),
+                                            before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
         self.inspectAction = self.addAction(toolTip='Inspect object.', icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'),
                                             before=self.toggleLoggingAction, event=lambda: self.inspect())
         self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
@@ -4276,7 +4242,6 @@ class Console(Plugin):
         self.mainConsole.localNamespace[key] = value
 
     def runTestParallel(self):
-        """:meta private:"""
         # if self.initializedDock:
             # self.testControl(self.openLogAction, True) # will be opened at the end as to not interfere with video recording
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
@@ -4366,7 +4331,6 @@ class Console(Plugin):
         self.pluginManager.Settings.showConsoleAction.triggered.emit(False)
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.mainConsole.updateTheme()
         if hasattr(self, 'inspectAction'):
@@ -4678,12 +4642,10 @@ class Settings(SettingsManager):
         self.previewFileTypes = [self.confINI]
 
     def initDock(self):
-        """:meta private:"""
         super().initDock()
         self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.addContentWidget(self.tree)
         self.loadSettingsAction = self.addAction(lambda: self.loadSettings(None), f'Load {PROGRAM_NAME} Settings.', icon=self.makeCoreIcon('blue-folder-import.png'))
@@ -4705,7 +4667,6 @@ class Settings(SettingsManager):
         super().runTestParallel()
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         super().finalizeInit(aboutFunc)
         self.floatAction.deleteLater()
         delattr(self, 'floatAction')
@@ -4735,7 +4696,6 @@ class Settings(SettingsManager):
                 setting.setHidden(not self.advancedAction.state)
 
     def loadData(self, file, _show=False):
-        """:meta private:"""
         return # nothing to do, content will be handled by Text plugin
 
     SESSION             = 'Session'
@@ -4774,7 +4734,8 @@ class Settings(SettingsManager):
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL)
-        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.', event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
+        ds[f'{GENERAL}/{ICONMODE}']                = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.',
+                                                                   event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, widgetType=Parameter.TYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
         ds[f'{GENERAL}/Show video recorders']      = parameterDict(value=False, toolTip='Show icons to record videos of plugins.', event=lambda: self.pluginManager.toggleVideoRecorder(),
                                                                 internal=True, widgetType=Parameter.TYPE.BOOL, attr='showVideoRecorders', advanced=True)
@@ -4862,7 +4823,6 @@ class Settings(SettingsManager):
         return Path(*[self.componentInputValidation(part) for part in path.parts])
 
     # def close(self):
-    #     """:meta private:"""
     #     self.saveSettings(default=True) # not needed, settings are saved instantly when changed
     #     super().close()
 
@@ -4913,11 +4873,11 @@ class DeviceManager(Plugin):
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.importAction = self.addAction(lambda: self.loadConfiguration(file=None), 'Import all device channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
         self.importAction.setVisible(False)
-        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history and all channels to current session.', icon=self.makeCoreIcon('database-export.png')) # pylint: disable=unnecessary-lambda
+        self.exportAction = self.addAction(event=lambda: self.exportOutputData(), toolTip='Save all visible history and all channels to current session.',
+                                           icon=self.makeCoreIcon('database-export.png'))
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(manual=True), toolTip='Close all communication.', icon=self.makeCoreIcon('stop.png'))
         self.addAction(event=lambda: self.initializeCommunication(), toolTip='Initialize all communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         # lambda needed to avoid "checked" parameter passed by QAction
@@ -4925,13 +4885,11 @@ class DeviceManager(Plugin):
                                                 iconFalse=self.makeCoreIcon('play.png'), toolTipTrue='Stop all data acquisition.', iconTrue=self.makeCoreIcon('pause.png'))
 
     def initDock(self):
-        """:meta private:"""
         super().initDock()
         self.dock.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures) # not floatable or movable
         self.dock.setMaximumHeight(22) # GUI will only consist of titleBar
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         self.requiredPlugin('Settings')
         self.globalUpdate(True)
         if hasattr(self.pluginManager, 'Settings') and self.pluginManager.Settings.sessionPath == '': # keep existing session path when restarting
@@ -4978,7 +4936,6 @@ class DeviceManager(Plugin):
                     first = False
 
     def runTestParallel(self):
-        """:meta private:"""
         self.testControl(self.recordingAction, True, 3) # even in test mode initialization time of up to 2 seconds is simulated
         self.testControl(self.exportAction, True)#, 2
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
@@ -5029,7 +4986,6 @@ class DeviceManager(Plugin):
             return any([plugin.initialized() for plugin in self.pluginManager.getPluginsByClass(Device)])
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         for device in self.getDevices():
             device.loadData(file, _show)
 
@@ -5078,12 +5034,12 @@ class DeviceManager(Plugin):
         return [plugin.staticDisplay for plugin in self.pluginManager.getPluginsByClass(ChannelManager) if plugin.staticDisplayActive()]
 
     def getDefaultSettings(self):
-        """:meta private:"""
         defaultSettings = super().getDefaultSettings()
-        defaultSettings['Acquisition/Max display points'] = parameterDict(value=2000, toolTip='Maximum number of data points per channel used for plotting. Decrease if plotting is limiting performance.',
+        defaultSettings['Acquisition/Max display points'] = parameterDict(value=2000,
+                                                                          toolTip='Maximum number of data points per channel used for plotting. Decrease if plotting is limiting performance.',
                                                                 event=lambda: self.livePlot(apply=True), widgetType=Parameter.TYPE.INT, _min=100, _max=100000, attr='max_display_size')
-        defaultSettings['Acquisition/Limit display points'] = parameterDict(value=True, toolTip="Number of displayed data points will be limited to 'Max display points'", widgetType=Parameter.TYPE.BOOL,
-                                                               event=lambda: self.livePlot(apply=True), attr='limit_display_size')
+        defaultSettings['Acquisition/Limit display points'] = parameterDict(value=True, toolTip="Number of displayed data points will be limited to 'Max display points'",
+                                                                            widgetType=Parameter.TYPE.BOOL, event=lambda: self.livePlot(apply=True), attr='limit_display_size')
         return defaultSettings
 
     def restoreConfiguration(self):
@@ -5196,7 +5152,6 @@ class DeviceManager(Plugin):
                 plugin.toggleRecording(on=self.recordingAction.state, manual=False)
 
     def close(self):
-        """:meta private:"""
         super().close()
         self.timer.stop()
 
@@ -5214,7 +5169,6 @@ class Notes(Plugin):
         super().__init__(**kwargs)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.editor = EsibdCore.TextEdit()
         self.editor.setFont(QFont('Courier', 10))
@@ -5238,7 +5192,6 @@ class Notes(Plugin):
                 group.attrs[Parameter.VALUE] = self.editor.toPlainText()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         self.provideDock()
         self.editor.clear()
         self.file = file / 'notes.txt'
@@ -5249,7 +5202,6 @@ class Notes(Plugin):
         self.raiseDock(_show)
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.numbers.updateTheme()
 
@@ -5349,7 +5301,6 @@ class Explorer(Plugin):
         self.loadingContent = False
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.tree = QTreeWidget()
         self.addContentWidget(self.tree)
@@ -5387,14 +5338,12 @@ class Explorer(Plugin):
         findShortcut.activated.connect(self.filterLineEdit.setFocus)
 
     def finalizeInit(self, aboutFunc=None):
-        """:meta private:"""
         # Load directory after all other plugins loaded, to allow use icons for supported files
         self.updateRoot(self.pluginManager.Settings.dataPath, addHistory=True, loading=True) # do not trigger populate tree here, will be done when updating theme
         super().finalizeInit(aboutFunc)
         self.stretch.deleteLater()
 
     def runTestParallel(self):
-        """:meta private:"""
         for action in [self.sessionAction, self.upAction, self.backAction, self.forwardAction, self.dataPathAction, self.refreshAction]:
             if not self.testing:
                 break
@@ -5418,7 +5367,6 @@ class Explorer(Plugin):
         super().runTestParallel()
 
     def loadData(self, file, _show=True):
-        """:meta private:"""
         self.provideDock()
         target = Path('')
         if sys.platform == "Linux":
@@ -5766,12 +5714,10 @@ class Explorer(Plugin):
                 self.pluginManager.Notes.loadData(newRoot, _show=False)
 
     def close(self):
-        """:meta private:"""
         super().close()
         self.rootChanging(self.pluginManager.Explorer.root, None)
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.populateTree(clear=True)
 
@@ -6099,7 +6045,8 @@ class PID(ChannelManager):
                 else:
                     self.monitor = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
                 if self.active and self.device.isOn() and self.inputChannel.getDevice().isOn() and not np.isnan(self.sourceChannel.value):
-                    # self.print(f'stepPID {self.device.isOn()} {self.inputChannel.name} {self.inputChannel.value} {self.inputChannel.getDevice().isOn()} {self.sourceChannel.name} {self.sourceChannel.value} {self.pid.components}', flag=PRINT.DEBUG)
+                    # self.print(f'stepPID {self.device.isOn()} {self.inputChannel.name} {self.inputChannel.value}' +
+                    #            f'{self.inputChannel.getDevice().isOn()} {self.sourceChannel.name} {self.sourceChannel.value} {self.pid.components}', flag=PRINT.DEBUG)
                     self.inputChannel.value = self.pid(self.sourceChannel.value)
             except RuntimeError as e:
                 self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}', flag=PRINT.ERROR)

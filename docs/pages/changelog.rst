@@ -15,6 +15,7 @@ Changed
 ~~~~~~~
 
 - Added confirmation prompt before deleting all device history.
+- Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 
 Version 0.7.3 2025-03-24
 ========================

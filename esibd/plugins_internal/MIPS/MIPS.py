@@ -1,13 +1,14 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
-import serial
 from threading import Thread
 import time
 from random import choices
+import serial
 import numpy as np
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MIPS]
 
 class MIPS(Device):
@@ -29,12 +30,10 @@ class MIPS(Device):
         self.channelType = VoltageChannel
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self, COMs = self.getCOMs()) # after all channels loaded
 
     def getDefaultSettings(self):
-        """:meta private:"""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value

@@ -8,6 +8,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [KEITHLEY]
 
 class KEITHLEY(Device):
@@ -61,7 +62,6 @@ class KEITHLEY(Device):
             self.initializeCommunication()
 
     def updateTheme(self):
-        """:meta private:"""
         super().updateTheme()
         self.onAction.iconTrue = self.getIcon()
         self.onAction.updateIcon(self.isOn())

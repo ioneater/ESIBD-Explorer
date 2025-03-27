@@ -20,8 +20,8 @@ import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.console
 import keyboard as kb
-import matplotlib as mpl
 import cv2
+import matplotlib as mpl
 import matplotlib.pyplot as plt # pylint: disable = unused-import # need to import to access mpl.axes.Axes
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
@@ -280,6 +280,7 @@ class PluginManager():
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path):
+        """Loads plugins from a path."""
         for _dir in [_dir for _dir in path.iterdir() if _dir.is_dir()]:
             for file in [file for file in _dir.iterdir() if file.name.endswith('.py')]:
                 try:
@@ -1047,7 +1048,7 @@ class Parameter():
     fixedItems : bool
     """Indicates if list of items can be edited by the user or should remain fixed."""
     widgetType : TYPE
-    """They type determines which widget is used to represent the parameter in the user interface."""
+    """The widgetType determines which widget is used to represent the parameter in the user interface."""
     advanced : bool
     """If True, parameter will only be visible in advanced mode."""
     header : str
@@ -1093,7 +1094,7 @@ class Parameter():
     tree : QTreeWidget
     """None, unless the parameter is used for settings."""
     itemWidget : QTreeWidgetItem
-    """None if parameter is part of a channel, otherwise it is part of a setting."""
+    """Widget used to display the value of the parameter. None if parameter is part of a channel. Defined if it is part of a setting."""
     extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 
@@ -1218,7 +1219,6 @@ class Parameter():
 
     def settingEvent(self):
         """Extend to manage changes to settings"""
-        pass
 
     def changedEvent(self):
         if not (self.loading or self._parent.loading):
@@ -1267,7 +1267,7 @@ class Parameter():
             pass # self.label.changeEvent.connect(self.changedEvent) # no change events for labels
 
     def safeConnect(self, control, signal, event):
-        # make sure there is never more than one event assigned to a signal
+        """Makes sure there is never more than one event assigned to the signal."""
         if control.receivers(signal) > 0:
             signal.disconnect()
         if event is not None:
@@ -1372,7 +1372,8 @@ class Parameter():
         return container
 
     def setHeight(self, height=None):
-        if self.widgetType not in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO, self.TYPE.TEXT,self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH]:
+        if self.widgetType not in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO,
+                                   self.TYPE.TEXT,self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH]:
             return
         if height is None:
             height = self.rowHeight
@@ -1404,6 +1405,7 @@ class Parameter():
             self.label.setFont(font)
 
     def getWidget(self):
+        """Returns the widget used to display the parameter value in the user interface."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             return self.combo
         elif self.widgetType == self.TYPE.TEXT:
@@ -1554,6 +1556,7 @@ class Setting(QTreeWidgetItem, Parameter):
                 self._parent.saveSettings(default=True)
 
 class RelayChannel():
+    """Channel that wraps another sourceChannel. Used to display and access some elements of sourceChannel in other parts of the program."""
 
     def getRecordingData(self):
         return self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
@@ -1767,8 +1770,8 @@ class Channel(QTreeWidgetItem):
         self.warningState = False
 
         if self.inout != INOUT.NONE and self.useBackgrounds:
-                # array of background history. managed by instrument manager to keep timing synchronous
-                self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
+            # array of background history. managed by instrument manager to keep timing synchronous
+            self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
 
         # self.value = None # will be replaced by wrapper
         # generate property for direct access of parameter values
@@ -2138,7 +2141,8 @@ class Channel(QTreeWidgetItem):
 
     def monitorChanged(self):
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
-        self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller is not None and self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
+        self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller is not None and
+                                                  self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
 
     def updateWarningState(self, warn):
         if warn != self.warningState:
@@ -2424,12 +2428,12 @@ class QLabviewSpinBox(QSpinBox):
 class QLabviewDoubleSpinBox(QDoubleSpinBox):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
     def __init__(self, parent=None, indicator=False, displayDecimals=2):
+        self.NAN = 'NaN'
         super().__init__(parent)
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf) # limit explicitly if needed, this seems more useful than the [0, 100] default range
         self.setDisplayDecimals(displayDecimals)
-        self.NAN = 'NaN'
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
@@ -2445,7 +2449,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.displayDecimals = prec
         # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
         self.setDecimals(max(self.displayDecimals, self.decimals()))
-        self.value = self.value
+        self.setValue(self.value())
 
     def valueFromText(self, text):
         return float(text)
@@ -2652,6 +2656,7 @@ class ToolButton(QToolButton):
         self.setChecked(value)
 
 class Action(QAction):
+    """An Action that allows to change values from another thread and retains a reference to icon an toolTip."""
 
     class SignalCommunicate(QObject):
         setValueFromThreadSignal = pyqtSignal(bool)
@@ -2735,6 +2740,7 @@ class StateAction(Action):
         self.state = value
 
 class MultiState():
+    """Represents a state of a MultiStateAction including label, toolTip and icon."""
 
     def __init__(self, label='', toolTip='', icon=None):
         self.label = label
@@ -2746,7 +2752,7 @@ class MultiStateAction(Action):
     Values are restored using QSettings if name is provided."""
 
     class Labels():
-        pass
+        """Dummy class used to store labels."""
 
     def __init__(self, parentPlugin, states=None, event=None, before=None, attr=None, restore=True, default=0):
         super().__init__(states[0].icon, states[0].toolTip, parentPlugin)
@@ -2930,6 +2936,7 @@ class Icon(QIcon):
         self.fileName = file # remember for later access
 
 class TreeWidget(QTreeWidget):
+    """A TreeWidget with extended options to control its height."""
 
     def __init__(self, parent=None, minimizeHeight=False):
         super().__init__(parent)
@@ -3089,6 +3096,7 @@ class LedIndicator(QAbstractButton):
         self.off_color_2 = color
 
 class LineEdit(QLineEdit):
+    """LineEdit with input validation and custom signal onEditingFinished."""
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
     userEditingFinished = pyqtSignal(str)
 
@@ -3120,7 +3128,7 @@ class LineEdit(QLineEdit):
         if not re.match(self.valid_chars, current_text):
             # Filter the text, keeping only valid characters
             filtered_text = ''.join([char for char in current_text if re.match(self.valid_chars, char)])
-            [print(f'Removing invalid character {char} from {current_text}') for char in current_text if not re.match(self.valid_chars, char)]
+            _ = [print(f'Removing invalid character {char} from {current_text}') for char in current_text if not re.match(self.valid_chars, char)]
             self.setText(filtered_text)  # Update the QLineEdit with valid characters only
 
     def onEditingFinished(self):
@@ -3219,7 +3227,10 @@ class TextEdit(QPlainTextEdit):
         self._completer.complete(cr)
 
 class IconStatusBar(QStatusBar):
+    """Statusbar that shows an icon in front of the message to indicate the type of message."""
+
     iconClicked = pyqtSignal(bool)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setStyleSheet('''
@@ -3612,6 +3623,7 @@ class PlotWidget(pg.PlotWidget):
         return self.plotItem.legend
 
 class LabelItem(pg.LabelItem):
+    """LabelItem that passes color changes on to the label text."""
 
     def setColor(self, color):
         self.setText(self.text, color=color)
@@ -4095,6 +4107,7 @@ class RippleEffect(QWidget):
         painter.drawEllipse(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
 class MouseInterceptor(QObject):
+    """Intercepts mouse clicks and applies ripple effect."""
 
     rippleEffectSignal = pyqtSignal(int, int, QColor)
 
@@ -4107,7 +4120,6 @@ class MouseInterceptor(QObject):
         RippleEffect(self.window, x, y, color)
 
     def eventFilter(self, obj, event):
-        """Intercepts mouse clicks and applies ripple effect."""
         if isinstance(event, QMouseEvent) and event.type() == QMouseEvent.Type.MouseButtonPress and self.window.pluginManager.Settings.showMouseClicks:
             local_pos = self.window.mapFromGlobal(event.globalPosition().toPoint())
             if event.button() == Qt.MouseButton.LeftButton:

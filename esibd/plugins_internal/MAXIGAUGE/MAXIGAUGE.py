@@ -6,6 +6,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MAXIGAUGE]
 
 class MAXIGAUGE(Device):

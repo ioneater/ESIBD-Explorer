@@ -8,12 +8,12 @@ import pyqtgraph.opengl as gl
 from Bio.PDB import PDBParser
 import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
-from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt, QTimer
-from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, colors, rgb_to_hex
+from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, colors
 from esibd.plugins import Plugin
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MS, LINE, PDB, HOLO]
 
 class MS(Plugin):
@@ -487,10 +487,10 @@ class HOLO(Plugin):
                 verts, faces = pg.isosurface(self.amplitude, self.mapSliderToData(self.amplitudeSlider, self.amplitude))
 
             md = gl.MeshData(vertexes=verts, faces=faces)
-            colors = np.ones((md.faceCount(), 4), dtype=float)
-            colors[:, 3] = 0.2
-            colors[:, 2] = np.linspace(0, 1, colors.shape[0])
-            md.setFaceColors(colors)
+            faceColors = np.ones((md.faceCount(), 4), dtype=float)
+            faceColors[:, 3] = 0.2
+            faceColors[:, 2] = np.linspace(0, 1, faceColors.shape[0])
+            md.setFaceColors(faceColors)
 
             m1 = gl.GLMeshItem(meshdata=md, smooth=True, shader='balloon')
             m1.setGLOptions('additive')

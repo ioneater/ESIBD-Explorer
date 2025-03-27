@@ -1,26 +1,27 @@
 REM Start script for windows
 REM based on https://www.pythonguis.com/tutorials/packaging-pyqt5-pyside2-applications-windows-pyinstaller/
 
-REM do not run this a script
-REM run individual blocks manually and only proceed if successful
+do not run this a script
+run individual blocks manually and only proceed if successful
 exit
 
 ::::::::::::::
 REM Formatting
 ::::::::::::::
 
-REM use the following regex to fix common formating errors
+use the following regex to fix common formating errors
 REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :
 REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.txt,*.svg,*.sh,LICENSE,Makefile
+temporary enable all pylint checking
 
 ::::::::::::::
 REM Change Log
 ::::::::::::::
-REM update changelog in changelog.rst (ideally update before each commit)
-REM update change log title with version and release date
-REM Often, writing the change log inspires some last minute changes!
-REM Content: start bullet points with capitals and dot at the end
-REM - will be replaced by bullet points on github
+update changelog in changelog.rst (ideally update before each commit)
+update change log title with version and release date
+Often, writing the change log inspires some last minute changes!
+Content: start bullet points with capitals and dot at the end
+hyphens will be replaced by bullet points on github
 
 REM Added 		for new features.
 REM Changed 	for changes in existing functionality.
@@ -33,26 +34,27 @@ REM Performance for speed improvements
 :::::::::::
 REM Testing
 :::::::::::
-REM make sure all test pass in development environment
+make sure all test pass in development environment
 
 :::::::::::::::::::::
 REM Environment setup
 :::::::::::::::::::::
 
-REM If applicable perform clean install of virtual environment
+If applicable perform clean install of virtual environment
 REM start from ESIBD Explorer folder
 cd setup
 call create_env.bat REM make sure no other environments (including VSCode) are active during this step
 cd ..
 call activate esibd
 
-REM If no change to the environment since last deployment following is sufficient.
+If no change to the environment since last deployment following is sufficient.
 call conda update -y -n base -c conda-forge conda
 
 :::::::::::::::::::::::::::
 REM Bump version
 :::::::::::::::::::::::::::
 
+use find and replace to update all version references
 REM update version in pyproject.toml
 REM update Product Version in EsibdExplorer.ifp in the General tab
 REM update PROGRAM_VERSION in config.py

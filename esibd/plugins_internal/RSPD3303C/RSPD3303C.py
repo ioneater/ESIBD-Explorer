@@ -9,6 +9,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [RSPD3303C]
 
 class RSPD3303C(Device):
@@ -32,7 +33,6 @@ class RSPD3303C(Device):
         self.shutDownTimer.timeout.connect(self.updateTimer)
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 
@@ -44,7 +44,6 @@ class RSPD3303C(Device):
     SHUTDOWNTIMER = 'Shutdown timer'
 
     def getDefaultSettings(self):
-        """:meta private:"""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
@@ -55,7 +54,6 @@ class RSPD3303C(Device):
         return defaultSettings
 
     def closeCommunication(self):
-        """:meta private:"""
         self.setOn(False)
         self.controller.voltageON(parallel=False)
         super().closeCommunication()

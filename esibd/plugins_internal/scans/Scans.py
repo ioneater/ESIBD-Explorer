@@ -30,6 +30,7 @@ else:
 aeval = Interpreter()
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Beam, Spectra, Energy, Omni, Depo, GA, MassSpec]
 
 class Beam(Scan):
@@ -297,7 +298,8 @@ plt.show()
 
     def getMeshgrid(self, scaling=1):
         # interpolation with more than 50 x 50 grid points gets slow and does not add much to the quality for typical scans
-        return np.meshgrid(*[np.linspace(i.getRecordingData()[0], i.getRecordingData()[-1], len(i.getRecordingData()) if scaling == 1 else min(len(i.getRecordingData())*scaling, 50)) for i in self.inputs])
+        return np.meshgrid(*[np.linspace(i.getRecordingData()[0], i.getRecordingData()[-1], len(i.getRecordingData()) if
+                                         scaling == 1 else min(len(i.getRecordingData())*scaling, 50)) for i in self.inputs])
 
 class Spectra(Beam):
     """This scan shares many features of the Beam scan.
@@ -994,7 +996,7 @@ class Depo(Scan):
             """custom formatter that prevents waste of vertical space by offset or scale factor.
             There is still an issue with very large or very small values if log=False.
             In that case the corresponding device should use self.logY = True"""
-            def __init__(self, log=False, *args, **kwargs):
+            def __init__(self, *args, log=False, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.log=log
                 self.set_scientific(True)  # Enable scientific notation
@@ -1076,7 +1078,8 @@ class Depo(Scan):
         self.depoCheckList.setReadOnly(True)
         self.depoCheckList.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         # self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Ignored)
-        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
+        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n' +
+                                   '- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
         self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') + self.depoCheckList.verticalScrollBar().sizeHint().width()+ 10)
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
@@ -1205,7 +1208,7 @@ class Depo(Scan):
                 if done:
                     time_done_str = self.roundDateTime(datetime.fromtimestamp(float(_timeInt[-1]))).strftime('%H:%M')
             if len(_time) > 0: # predict scan based on last 10 data points
-                hh, mm= divmod(int(np.ceil((_timeInt[-1]-_timeInt[0])//60)), 60)
+                # hh, mm= divmod(int(np.ceil((_timeInt[-1]-_timeInt[0])//60)), 60)
                 self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(_time[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
                                         + f"{charge[-1]-charge[0]:2.1f} pAh deposited")
                                         # do not show deposition time as scan time also includes thermalization and ice growth.
@@ -1305,7 +1308,7 @@ plt.show()
         while recording():
             time.sleep(self.interval/1000)
             self.inputs[0].recordingData.add(time.time())
-            for i, output in enumerate(self.outputs):
+            for output in self.outputs:
                 if output.isChargeChannel:
                     output.recordingData.add(output.sourceChannel.charge)
                 else:
@@ -1424,7 +1427,8 @@ class GA(Scan):
             if channel.optimize:
                 self.ga.optimize(channel.value, channel.min, channel.max,.2, abs(channel.max-channel.min)/10, channel.name)
             else:
-                self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max-channel.min)/10, channel.name) # add entry but set rate to 0 to prevent value change. Can be activated later.
+                # add entry but set rate to 0 to prevent value change. Can be activated later.
+                self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max-channel.min)/10, channel.name)
         self.ga.genesis()
         self.measurementsPerStep = max(int((self.average/self.outputs[0].getDevice().interval))-1, 1)
         self.updateFile()
@@ -1523,7 +1527,8 @@ plt.show()
             parameter = channel.getParameterByName(Parameter.VALUE)
             if not parameter.equals(self.ga.GAget(channel.name, channel.value, initial=True)):
                 self.changeLog.append(
-    f'Changed value of {channel.name} from {parameter.formatValue(self.ga.GAget(channel.name, channel.value, initial=True))} to {parameter.formatValue(self.ga.GAget(channel.name, channel.value, index=0))}.')
+    f'Changed value of {channel.name} from {parameter.formatValue(self.ga.GAget(channel.name, channel.value, initial=True))} to ' +
+    f'{parameter.formatValue(self.ga.GAget(channel.name, channel.value, index=0))}.')
         if len(self.changeLog) == 1:
             self.changeLog.append('No changes.')
         self.pluginManager.Text.setTextParallel('\n'.join(self.changeLog))

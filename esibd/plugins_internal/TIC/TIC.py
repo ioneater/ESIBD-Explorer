@@ -6,6 +6,7 @@ from esibd.plugins_internal.OMNICONTROL.OMNICONTROL import OMNICONTROL, Pressure
 from esibd.core import PRINT
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [TIC]
 
 class TIC(OMNICONTROL):

@@ -1,11 +1,12 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
 import time
-import numpy as np
 import ctypes
+import numpy as np
 from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [PICO]
 
 class PICO(Device):

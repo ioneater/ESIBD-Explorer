@@ -7,6 +7,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Voltage]
 
 class Voltage(Device):
@@ -30,12 +31,10 @@ class Voltage(Device):
         self.useOnOffLogic = True
 
     def initGUI(self):
-        """:meta private:"""
         super().initGUI()
         self.controller = VoltageController(_parent=self, modules = self.getModules()) # after all channels loaded
 
     def getDefaultSettings(self):
-        """:meta private:"""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
                                                                 widgetType=Parameter.TYPE.TEXT, attr='ip')
@@ -49,7 +48,6 @@ class Voltage(Device):
         return set([channel.module for channel in self.channels])
 
     def closeCommunication(self):
-        """:meta private:"""
         self.setOn(False)
         self.controller.voltageON(parallel=False)
         super().closeCommunication()
