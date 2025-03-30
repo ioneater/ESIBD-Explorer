@@ -3977,6 +3977,16 @@ class Tree(Plugin):
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.initContextMenu)
 
+    def finalizeInit(self, aboutFunc=None):
+        super().finalizeInit(aboutFunc)
+        self.filterLineEdit = QLineEdit()
+        self.filterLineEdit.setMaximumWidth(100)
+        self.filterLineEdit.setMinimumWidth(50)
+        self.filterLineEdit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.filterLineEdit.textChanged.connect(lambda: self.filterTree())
+        self.filterLineEdit.setPlaceholderText('Search')
+        self.titleBar.insertWidget(self.aboutAction, self.filterLineEdit)
+
     def provideDock(self):
         if super().provideDock():
             self.finalizeInit()
@@ -4007,7 +4017,27 @@ class Tree(Plugin):
             self.pluginManager.Text.provideDock()
             self.pluginManager.Text.raiseDock(_show)
         else:
+            self.filterTree()
             self.raiseDock(_show)
+
+    def filterTree(self, parentItem=None):
+        """Filters content based on filterLineEdit.text.
+
+        :param parentItem: The item to be filtered, defaults to None
+        :type parentItem: QTreeWidgetItem, optional
+        :return: True if widget is visible
+        :rtype: bool
+        """
+        if parentItem is None:
+            parentItem = self.tree.invisibleRootItem()
+        children = [parentItem.child(i) for i in range(parentItem.childCount())]
+        show = (self.filterLineEdit.text() == "" or self.filterLineEdit.text().lower() in parentItem.text(0).lower() or
+                 self.filterLineEdit.text().lower() in parentItem.text(1).lower())
+        for item in children:
+            if self.filterTree(item):
+                show = True # show if filter matches at least one child
+        parentItem.setHidden(not show)
+        return show
 
     def hdfShow(self, hdfItem, tree, expansionLevel):
         """Populates tree based on contents of a hdf5 file.
@@ -4055,13 +4085,11 @@ class Tree(Plugin):
             method_widget.setIcon(0, QIcon(self.ICON_FUNCTIONMETHOD))
             method_widget.setToolTip(0, ast.get_docstring(method))
 
-    def inspect(self, obj, search_term=None):
+    def inspect(self, obj):
         """Shows a list of attributes of the object and applies a filter if provided.
 
         :param obj: Any python class or List
         :type obj: class or List
-        :param search_term: Filter string.
-        :type search_term: str, optional
         """
         self.provideDock()
         self._inspect = True
@@ -4073,7 +4101,8 @@ class Tree(Plugin):
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tree.setUpdatesEnabled(False)
-        self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj, search_term=search_term)
+        self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj)
+        self.filterTree()
         self.tree.setUpdatesEnabled(True)
 
     def expandObject(self, item):
@@ -4088,7 +4117,7 @@ class Tree(Plugin):
             self.tree.setUpdatesEnabled(True)
             item.setExpanded(True)
 
-    def inspect_recursive(self, tree, obj, search_term=None, recursionDepth=2):
+    def inspect_recursive(self, tree, obj, recursionDepth=2):
         """Recursively populates the tree with the objects attributes and methods.
         Will also be called as user expands items.
         Similar logic is used for Explorer, but here we do not need to worry about changing filters or items that have been removed.
@@ -4097,8 +4126,6 @@ class Tree(Plugin):
         :type tree: QTreeWidgetItem
         :param obj: Valid python object.
         :type obj: any
-        :param search_term: Result will be filtered for this, defaults to None
-        :type search_term: str, optional
         :param recursionDepth: How many levels will be populated. Further levels will be populated as they are expanded. Defaults to 2
         :type recursionDepth: int, optional
         """
@@ -4123,7 +4150,7 @@ class Tree(Plugin):
                 _ = QTreeWidgetItem(tree, ['...'])
                 _.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
         else:
-            object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_') and (search_term is None or search_term.lower() in object_name.lower())]
+            object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_')]
             variable_names = []
             callable_names = []
             for object_name in object_names:
@@ -4162,6 +4189,7 @@ class Tree(Plugin):
                     if attr.__doc__ is not None:
                         class_method_widget.setText(1, attr.__doc__.split('\n')[0])
                         class_method_widget.setToolTip(1, attr.__doc__)
+        self.filterTree()
         self.raiseDock(True)
 
     def initContextMenuBase(self, item, pos):
@@ -4174,6 +4202,9 @@ class Tree(Plugin):
         :type pos: QPoint
         """
         contextMenu = QMenu(self.tree)
+        consoleAction = None
+        if getShowDebug():
+            consoleAction = contextMenu.addAction('Add item to Console')
         copyClipboardAction = contextMenu.addAction('Copy to clipboard')
         contextMenu = contextMenu.exec(self.tree.mapToGlobal(pos))
         if contextMenu is not None:
@@ -4187,6 +4218,9 @@ class Tree(Plugin):
                         break
                 if column_index != -1:
                     QApplication.clipboard().setText(item.text(column_index))
+            elif contextMenu is consoleAction:
+                self.pluginManager.Console.addToNamespace('item', item)
+                self.pluginManager.Console.execute('item')
 
     def initContextMenu(self, pos):
         """Initializes context menu for an item.
@@ -4238,6 +4272,7 @@ class Tree(Plugin):
             plugin_widget.setExpanded(True)
 
         # self.expandTree(self.tree)
+        self.filterTree()
         self.raiseDock(True)
 
     def addActionWidgets(self, tree, plugin):
@@ -4308,7 +4343,6 @@ class Console(Plugin):
             "RBD.channels # get channels of a device",
             "Energy.display.fig # get specific figure",
             "Tree.inspect(Settings) # show methods and attributes of any object in Tree plugin",
-            "Tree.inspect(Settings, search_term='session') # show methods and attributes of any object in Tree plugin",
             "timeit.timeit('Beam.plot(update=True, done=False)', number=100, globals=globals()) # time execution of plotting",
             "channel = DeviceManager.getChannelByName('RT_Front-Plate', inout=INOUT.IN) # get specific input channel",
             "channel.asDict(temp=True) # Returns list of channel parameters and their value.",
@@ -4456,7 +4490,7 @@ class Console(Plugin):
         if self.mainConsole.input.text() == '':
             self.mainConsole.input.setText('Enter object to be inspected here first.')
         else:
-            self.execute(f'Tree.inspect({self.mainConsole.input.text()}, search_term="")')
+            self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
 
     def help(self):
         """Simple help message. Overwrites broken help function in PyQtGraph.Console."""
@@ -5627,9 +5661,6 @@ class Explorer(Plugin):
         self.filterLineEdit.textChanged.connect(lambda: self.populateTree(clear=False))
         self.filterLineEdit.setPlaceholderText('Search')
         self.titleBar.addWidget(self.filterLineEdit)
-
-        findShortcut = QShortcut(QKeySequence('Ctrl+F'), self)
-        findShortcut.activated.connect(self.filterLineEdit.setFocus)
 
     def finalizeInit(self, aboutFunc=None):
         # Load directory after all other plugins loaded, to allow use icons for supported files

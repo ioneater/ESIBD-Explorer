@@ -6,6 +6,12 @@ Changelog
 Latest
 ======
 
+Added
+~~~~~
+
+- The tree plugin can now filter content based on a search field.
+- In debugMode, items from the tree can be added to the Console.
+
 Fixed
 ~~~~~
 
