@@ -741,6 +741,16 @@ class Plugin(QWidget):
     def plot(self):
         """If applicable, overwrite with a plugin specific plot method."""
 
+    def generatePythonPlotCode(self):
+        """Provides plugin specific code to plot data exported by the plugin independently.
+        This is a starting point to reproduce and adjust figures e.g. for publications or independent data analysis.
+
+        :return: Python plot code
+        :rtype: str
+        """
+        # Extend to add functionality
+        return ''
+
     @synchronized()
     def copyClipboard(self):
         """Copy matplotlib figure to clipboard."""
@@ -1051,8 +1061,7 @@ class StaticDisplay(Plugin):
         return True # return True if loading was successful # make sure to follow this pattern when extending!
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(f"""import h5py
+        return f"""import h5py
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -1099,8 +1108,8 @@ for i, output in enumerate(outputs):
     ax.plot([datetime.fromtimestamp(float(_time)) for _time in x], y, label=f'{{output.name}} ({{output.unit}})')
 
 ax.legend(loc = 'best', prop={{'size': 7}}, frameon=False)
-plt.show()
-        """)
+fig.show()
+        """
 
     def updateTheme(self):
         super().updateTheme()
@@ -3448,9 +3457,7 @@ class Scan(Plugin):
                 self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
 
     def generatePythonPlotCode(self):
-        """Saves minimal code to create a plot which can be customized by the user."""
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(self.pythonLoadCode() + self.pythonPlotCode())
+        return self.pythonLoadCode() + self.pythonPlotCode()
 
     def pythonLoadCode(self):
         return f"""import h5py
@@ -5757,7 +5764,7 @@ class Explorer(Plugin):
                 runPythonCodeAction = explorerContextMenu.addAction('Run file in python.')
             else:
                 for display in self.pluginManager.getPluginsByType(PluginManager.TYPE.DISPLAY):
-                    if display.supportsFile(self.activeFileFullPath) and hasattr(display, 'generatePythonPlotCode'):
+                    if display.supportsFile(self.activeFileFullPath) and display.generatePythonPlotCode() != '':
                         copyPlotCodeAction = explorerContextMenu.addAction(f'Generate {display.name} plot file.')
                         break # only use first match
 
@@ -5783,17 +5790,20 @@ class Explorer(Plugin):
             elif explorerContextMenuAction is copyPlotCodeAction:
                 for device in self.pluginManager.DeviceManager.getDevices():
                     if device.liveDisplay.supportsFile(self.activeFileFullPath):
-                        device.staticDisplay.generatePythonPlotCode()
+                        with open(self.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+                            plotFile.write(device.staticDisplay.generatePythonPlotCode())
                         self.populateTree(clear=False)
                         break # only use first match
                 for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
                     if scan.supportsFile(self.activeFileFullPath):
-                        scan.generatePythonPlotCode()
+                        with open(self.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+                            plotFile.write(scan.generatePythonPlotCode())
                         self.populateTree(clear=False)
                         break # only use first match
                 for display in self.pluginManager.getPluginsByType(PluginManager.TYPE.DISPLAY):
-                    if display.supportsFile(self.activeFileFullPath) and hasattr(display, 'generatePythonPlotCode'):
-                        display.generatePythonPlotCode()
+                    if display not in [self.pluginManager.Tree, self.pluginManager.Text] and display.supportsFile(self.activeFileFullPath) and display.generatePythonPlotCode() != '':
+                        with open(self.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
+                            plotFile.write(display.generatePythonPlotCode())
                         self.populateTree(clear=False)
                         break # only use first match
             elif explorerContextMenuAction in loadSettingsActions:

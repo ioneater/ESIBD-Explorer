@@ -293,7 +293,7 @@ else:
 cbar = fig.colorbar(cont, cax=cax) # match axis and color bar size # , format='%d'
 cbar.ax.set_title(outputs[0].unit)
 
-plt.show()
+fig.show()
         """
 
     def getMeshgrid(self, scaling=1):
@@ -532,7 +532,7 @@ else:
     if plotMode == 'overlay':
         legend = ax.legend(loc='best', prop={'size': 10}, frameon=False)
         legend.set_in_layout(False)
-plt.show()
+fig.show()
         """
 
 class Energy(Scan):
@@ -733,7 +733,7 @@ try:
 except RuntimeError as e:
     print(f'Fit failed with error: {e}')
 
-plt.show()
+fig.show()
         """
 
     def gaussian(self, x, amp1, cen1, sigma1):
@@ -899,7 +899,7 @@ for output in outputs:
     else:
         ax0.plot(inputs[0].recordingData, output.recordingData, label=f'{output.name} ({output.unit})')
 ax0.legend(loc='best', prop={'size': 7}, frameon=False)
-plt.show()
+fig.show()
         """ # similar to staticDisplay
 
     def run(self, recording):
@@ -1290,7 +1290,7 @@ axes[-1].set_xlabel('Time')
 axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 tilt_xlabels(axes[-1])
 
-plt.show()
+fig.show()
 
         """
 
@@ -1485,7 +1485,7 @@ _time = [datetime.fromtimestamp(float(_time)) for _time in inputs[0].recordingDa
 ax0.plot(_time, outputs[0].recordingData, label='best fitness')[0]
 ax0.plot(_time, outputs[1].recordingData, label='avg fitness')[0]
 ax0.legend(loc='lower right', prop={'size': 10}, frameon=False)
-plt.show()
+fig.show()
         """
 
     def run(self, recording):
@@ -1613,7 +1613,7 @@ ax0.plot(inputs[0].recordingData, outputs[output_index].recordingData)
 ax0.set_ylabel(f'{outputs[output_index].name} ({outputs[output_index].unit})')
 ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
 
-plt.show()
+fig.show()
 """
 
     def loadData(self, file, _show=True):

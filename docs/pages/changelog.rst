@@ -18,6 +18,7 @@ Changed
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 - Added documentation for many methods.
 - Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
+- generatePythonPlotCode method now only returns text. When running generated code from the context menu, other plots are no longer changed into popups.
 
 Version 0.7.3 2025-03-24
 ========================

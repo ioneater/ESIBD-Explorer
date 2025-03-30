@@ -153,8 +153,7 @@ class MS(Plugin):
             self.paperAction.updateIcon(self.paperAction.state)
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(f"""import matplotlib as mpl
+        return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -199,7 +198,7 @@ with mpl.style.context('default'):
         ax.set_ylabel('Intensity')
         ax.plot(x, y)[0]
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared exponent for short y labels, even for smaller numbers
-    plt.show()""")
+    fig.show()"""
 
 class PDB(Plugin):
     """The PDB plugin allows to display atoms defined in the .pdb and .pdb1
@@ -275,8 +274,7 @@ class PDB(Plugin):
         ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(f"""import matplotlib as mpl
+        return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from Bio.PDB import PDBParser
@@ -316,7 +314,7 @@ with mpl.style.context('default'):
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(x, y, z, marker='.', s=2)
     set_axes_equal(ax)
-    plt.show()""")
+    fig.show()"""
 
 class LINE(Plugin):
     """The Line plugin allows to display simple 2D data. It is made to work
@@ -396,8 +394,7 @@ class LINE(Plugin):
         self.labelPlot(self.axes[0], self.file.name)
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(f"""import matplotlib as mpl
+        return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -409,7 +406,7 @@ with mpl.style.context('default'):
     ax.plot(profile[:, 0], profile[:, 1])[0]
     ax.set_xlabel('width (m)')
     ax.set_ylabel('height (m)')
-    plt.show()""")
+    fig.show()"""
 
 class HOLO(Plugin):
     """The Holo plugin was designed to display 3D NumPy arrays such as
@@ -511,8 +508,7 @@ class HOLO(Plugin):
                 self.glAmplitudeView.addItem(m1)
 
     def generatePythonPlotCode(self):
-        with open(self.pluginManager.Explorer.activeFileFullPath.with_suffix('.py'), 'w', encoding=UTF8) as plotFile:
-            plotFile.write(f"""import pyqtgraph as pg
+        return f"""import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
 import sys
@@ -587,4 +583,4 @@ if __name__ == '__main__':
     mainWindow = Foo()
     mainWindow.show()
     sys.exit(app.exec())
-""")
+"""
