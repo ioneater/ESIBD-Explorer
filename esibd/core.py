@@ -106,7 +106,11 @@ class EsibdExplorer(QMainWindow):
         # qSet.setValue(self.WINDOWSTATE, self.mainWindow.saveState())
 
     def closeEvent(self, event):
-        """Triggers :class:`~esibd.core.PluginManager` to close all plugins and all related communication."""
+        """Triggers PluginManager to close all plugins and all related communication.
+
+        :param event: The close event.
+        :type event: QEvent
+        """
         if not self.pluginManager.loading:
             if self.pluginManager.DeviceManager.initialized():
                 if CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
@@ -424,6 +428,7 @@ class PluginManager():
         self.Console.mainConsole.input.setText('PluginManager.stopTest()') # prepare to stop
 
     def stopTest(self):
+        """Stops test after current step completes."""
         self.logger.print('Stopping test.')
         self.testing = False
         for plugin in self.plugins:
@@ -453,6 +458,7 @@ class PluginManager():
         self.testing = False
 
     def showThreads(self):
+        """Shows all currently running threads in the Text plugin."""
         self.Text.setText('\n'.join([thread.name for thread in threading.enumerate()]), True)
 
     def managePlugins(self):
@@ -627,9 +633,11 @@ class PluginManager():
         return [plugin for plugin in self.plugins if isinstance(plugin, parentClasses)]
 
     def toggleTitleBarDelayed(self, update=False, delay=500):
+        """Wrapper to delay toggleTitleBar until GUI updates have been completed."""
         QTimer.singleShot(delay, lambda: self.toggleTitleBar(update=update))
 
     def toggleTitleBar(self, update=False):
+        """Toggles between showing icons or text in tabs."""
         if not self.tabBars or update:
             # this is very expensive as it traverses the entire QObject hierarchy, but this is the only way to find a new tabbar that is created by moving docks around
             # keep reference to tabBars. this should only need update if dock topLevelChanged
@@ -705,18 +713,25 @@ class PluginManager():
         self.toggleTitleBarDelayed(update=True)
 
     def reconnectSource(self, channel):
+        """Tries to reconnect linked channels if applicable.
+        This is needed e.g. after renaming, moving, or deleting channels.
+        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found."""
+        # keep docstring synchronized with PID.reconnectSource and UCM.reconnectSource
         if hasattr(self, 'PID'):
             self.PID.reconnectSource(channel.name)
         if hasattr(self, 'UCM'):
             self.UCM.reconnectSource(channel.name)
 
     def connectAllSources(self):
+        """Connects all available source channels."""
+        # keep docstring synchronized with PID.connectAllSources and UCM.connectAllSources
         if hasattr(self, 'PID'):
             self.PID.connectAllSources(update=True)
         if hasattr(self, 'UCM'):
             self.UCM.connectAllSources(update=True)
 
     def toggleVideoRecorder(self):
+        """Toggles visibility of videoRecorderActions for all plugins."""
         show = self.Settings.showVideoRecorders
         for plugin in self.plugins:
             if plugin.initializedDock and hasattr(plugin, 'videoRecorderAction'):
@@ -891,6 +906,7 @@ class DynamicNp():
         self.init(initialData, max_size, dtype)
 
     def init(self, initialData=None, max_size=None, dtype=np.float32):
+        """Initializes DynamicNp. This is also used if data is cropped or padded."""
         self.data = np.zeros((2000,), dtype=dtype) if initialData is None or initialData.shape[0] == 0 else initialData
         self.capacity = self.data.shape[0]
         self.size = 0 if initialData is None else initialData.shape[0]
@@ -1198,6 +1214,7 @@ class Parameter():
 
     @property
     def default(self):
+        "The default value."
         return self._default
     @default.setter
     def default(self, default): # casting does not change anything if the value is already supplied in the right type, but will convert strings to correct value if needed
@@ -1212,6 +1229,7 @@ class Parameter():
 
     @property
     def items(self):
+        """List of items for parameters with a combobox."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             return [self.combo.itemText(i) for i in range(self.combo.count())]
         else:
@@ -1221,6 +1239,8 @@ class Parameter():
         """Extend to manage changes to settings"""
 
     def changedEvent(self):
+        """Event that is triggered when the value of the parameter changes.
+        Depending on the type and configuration of parameter specific additional events will be triggered."""
         if not (self.loading or self._parent.loading):
             self.settingEvent() # always save changes even when event is not triggered
             if not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
@@ -1274,9 +1294,12 @@ class Parameter():
             signal.connect(event)
 
     def setValueChanged(self):
+        """Indicates that value actually changed.
+        The changedEvent might be ignored e.g. if there was an input but the value did not change."""
         self._valueChanged = True
 
     def setToDefault(self):
+        """Sets parameter value to its default."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             i = self.combo.findText(str(self.default))
             if i == -1: # add default entry in case it has been deleted
@@ -1285,6 +1308,7 @@ class Parameter():
         self.value = self.default
 
     def makeDefault(self):
+        """Makes current value the default value."""
         self.default = self.value
 
     def applyWidget(self):
@@ -1361,6 +1385,7 @@ class Parameter():
         self.getWidget().customContextMenuRequested.connect(self.initContextMenu)
 
     def containerize(self, widget):
+        """Adds a container around the widget that ensures correct handling of visibility and color changes."""
         # just hiding widget using setVisible(False) is not reliable due to bug https://bugreports.qt.io/browse/QTBUG-13522
         # use a wrapping container as a workaround https://stackoverflow.com/questions/71707347/how-to-keep-qwidgets-in-qtreewidget-hidden-during-resize?noredirect=1#comment126731693_71707347
         container = QWidget()
@@ -1372,6 +1397,7 @@ class Parameter():
         return container
 
     def setHeight(self, height=None):
+        """Sets the height of the parameter while accounting for different types of parameter widgets."""
         if self.widgetType not in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO,
                                    self.TYPE.TEXT,self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH]:
             return
@@ -1420,12 +1446,14 @@ class Parameter():
             return self.label
 
     def setEnabled(self, enabled):
+        """Controls user access using setEnabled or setReadOnly depending on the widget type."""
         if hasattr(self.getWidget(), 'setReadOnly'):
             self.getWidget().setReadOnly(not enabled)
         else:
             self.getWidget().setEnabled(enabled)
 
     def addItem(self, value):
+        """Adds an item to a combobox and selects it."""
         # should only be called for WIDGETCOMBO settings
         if self.validateComboInput(value):
             if self.combo.findText(str(value)) == -1: # only add item if not already in list
@@ -1433,12 +1461,14 @@ class Parameter():
                 self.value = value
 
     def removeCurrentItem(self):
+        """Removes currently selected item from combobox."""
         if len(self.items) > 1:
             self.combo.removeItem(self.combo.currentIndex())
         else:
             self.print('List cannot be empty.', PRINT.WARNING)
 
     def editCurrentItem(self, value):
+        """Edits currently selected item of a combobox."""
         if self.validateComboInput(value):
             self.combo.setItemText(self.combo.currentIndex(), str(value))
             self.changedEvent() # is not triggered by setItemText
@@ -1479,6 +1509,7 @@ class Parameter():
             return self.value == value
 
     def formatValue(self, value=None):
+        """Formats value as a string, depending on parameter type."""
         value = value if value is not None else self.value
         if value is None:
             return str(value)
@@ -1493,6 +1524,7 @@ class Parameter():
             return str(value)
 
     def initContextMenu(self, pos):
+        """Initializes the context menu of the parent at the location of the"""
         self._parent.initSettingsContextMenuBase(self, self.getWidget().mapToGlobal(pos))
 
 class Setting(QTreeWidgetItem, Parameter):
@@ -1559,23 +1591,29 @@ class RelayChannel():
     """Channel that wraps another sourceChannel. Used to display and access some elements of sourceChannel in other parts of the program."""
 
     def getRecordingData(self):
+        """SourceChannel.getRecordingData() if available. Default provided."""
         return self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
 
     def getDevice(self):
+        """SourceChannel.getDevice() if available. Default provided."""
         return self.sourceChannel.getDevice() if self.sourceChannel is not None else self.device
 
     def subtractBackgroundActive(self):
+        """SourceChannel.subtractBackgroundActive() if available. Default provided."""
         return self.sourceChannel.getDevice().subtractBackgroundActive() if self.sourceChannel is not None else False
 
     @property
     def recording(self):
+        """SourceChannel.recording if available. Default provided."""
         return self.sourceChannel.getDevice().recording if self.sourceChannel is not None else False
 
     def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None):
+        """SourceChannel.getValues() if available. Default provided."""
         return self.sourceChannel.getValues(length, _min, _max, n, subtractBackground) if self.sourceChannel is not None else None
 
     @property
     def value(self):
+        """SourceChannel.value if available. Default provided."""
         if self.sourceChannel is not None:
             return self.sourceChannel.value
             # leave decision to subtract background to be handled explicitly at higher level.
@@ -1591,26 +1629,32 @@ class RelayChannel():
 
     @property
     def enabled(self):
+        """SourceChannel.enabled if available. Default provided."""
         return self.sourceChannel.enabled if self.sourceChannel is not None else False
 
     @property
     def active(self):
+        """SourceChannel.active if available. Default provided."""
         return self.sourceChannel.active if self.sourceChannel is not None else True
 
     @property
     def real(self):
+        """SourceChannel.real if available. Default provided."""
         return self.sourceChannel.real if self.sourceChannel is not None else False
 
     @property
     def acquiring(self):
+        """SourceChannel.acquiring if available. Default provided."""
         return self.sourceChannel.acquiring if self.sourceChannel is not None else False
 
     @property
     def min(self):
+        """SourceChannel.min if available. Default provided."""
         return self.sourceChannel.min if self.sourceChannel is not None else None
 
     @property
     def max(self):
+        """SourceChannel.max if available. Default provided."""
         return self.sourceChannel.max if self.sourceChannel is not None else None
 
     # @property # implement channel specific, some may prefer to use their internal display!
@@ -1621,6 +1665,7 @@ class RelayChannel():
 
     @property
     def smooth(self):
+        """SourceChannel.smooth if available. Default provided."""
         return self.sourceChannel.smooth if self.sourceChannel is not None else 0
 
     # @property # implement channel specific,
@@ -1629,21 +1674,26 @@ class RelayChannel():
 
     @property
     def color(self):
+        """SourceChannel.color if available. Default provided."""
         return self.sourceChannel.color if self.sourceChannel is not None else '#ffffff'
 
     @property
     def linewidth(self):
+        """SourceChannel.linewidth if available. Default provided."""
         return self.sourceChannel.linewidth if self.sourceChannel is not None else 4
 
     @property
     def linestyle(self):
+        """SourceChannel.linestyle if available. Default provided."""
         return self.sourceChannel.linestyle if self.sourceChannel is not None else 'solid'
 
     def getQtLineStyle(self):
+        """SourceChannel.QtLineStyle if available. Default provided."""
         return self.sourceChannel.getQtLineStyle() if self.sourceChannel is not None else Qt.PenStyle.DotLine
 
     @property
     def logY(self):
+        """SourceChannel.logY if available. Default provided."""
         if self.sourceChannel is not None:
             return self.sourceChannel.logY
         elif self.unit in ['mbar', 'Pa']:
@@ -1684,6 +1734,7 @@ class MetaChannel(RelayChannel):
         self.connectSource()
 
     def connectSource(self):
+        """Connects the sourceChannel."""
         # Will only be called when using MetaChannel directly. ScanChannel will implements its own version.
         if self.name == 'Time':
             return
@@ -1972,19 +2023,27 @@ class Channel(QTreeWidgetItem):
         return _dict
 
     def updateValueParallel(self, value): # used to update from external threads
+        """Updates the value (thread safe).
+
+        :param value: new value
+        :type value: various
+        """
         self.value = value # pylint: disable=[attribute-defined-outside-init] # attribute defined by makeWrapper
 
     def activeChanged(self):
+        """Updates channel after active state has changed."""
         self.toggleBackgroundVisible()
         self.updateColor()
         if not self.device.loading:
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def equationChanged(self):
+        """Updates channel after equation has changed."""
         if not self.device.loading:
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def collapseChanged(self, toggle=True):
+        """Updates visible channels after collapse has changed."""
         self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if toggle and not self.device.loading: # otherwise only update icon
             self.device.toggleAdvanced()
@@ -2017,6 +2076,7 @@ class Channel(QTreeWidgetItem):
             return self.values.get(length=length, _min=_min, _max=_max, n=n)
 
     def clearHistory(self, max_size=None): # overwrite as needed, e.g. when keeping history of more than one parameter
+        """Clears all history data including backgrounds if applicable."""
         if self.device.pluginManager.DeviceManager is not None and (self.device.pluginManager.Settings is not None and not self.device.pluginManager.Settings.loading):
             self.values = DynamicNp(max_size=max_size if max_size is not None else 600000/int(self.device.interval)) # 600000 -> only keep last 10 min to save ram unless otherwise specified
         self.clearPlotCurve()
@@ -2024,6 +2084,7 @@ class Channel(QTreeWidgetItem):
             self.backgrounds = DynamicNp(max_size=max_size)
 
     def clearPlotCurve(self):
+        """Clears the plot curve. It will be recreated (with updated values and settings) next time plot is called."""
         if self.plotCurve is not None:
             #if hasattr(self.plotCurve, '_parent'):  # all plot curves need to have a _parent so they can be removed gracefully
             self.plotCurve._parent.removeItem(self.plotCurve) # plotWidget still tries to access this even if deleted -> need to explicitly remove!
@@ -2035,9 +2096,11 @@ class Channel(QTreeWidgetItem):
             self.getDevice().liveDisplay._updateLegend = True
 
     def getDevice(self):
+        """Gets the device. Overwrite for more specific cases like relay channels where the channel parent is not the device."""
         return self.device
 
     def getQtLineStyle(self):
+        """Get Qt.PenStyle matching matplotlib linestyle."""
         match self.linestyle:
             case 'dotted':
                 return Qt.PenStyle.DotLine
@@ -2121,6 +2184,7 @@ class Channel(QTreeWidgetItem):
                 self.device.liveDisplay.plot(apply=True)
 
     def toggleBackgroundVisible(self):
+        """Shows the background widget if applicable and hides it otherwise."""
         if self.useBackgrounds:
             backgroundVisible = self.enabled and self.active and self.real
             self.getParameterByName(self.BACKGROUND).getWidget().setVisible(backgroundVisible)
@@ -2128,11 +2192,14 @@ class Channel(QTreeWidgetItem):
                 self.background = 0
 
     def nameChanged(self):
+        """Updates display and linked channels if channel name changed."""
         if self.inout == INOUT.OUT:
             self.updateDisplay()
+        # self.device.pluginManager.reconnectSource(self) # not sufficient as channels linked to old and new name have to be updated
         self.device.pluginManager.connectAllSources()
 
     def updateDisplay(self):
+        """Updates live and static displays."""
         if not self.device.loading and self.useDisplays:
             self.clearPlotCurve()
             if not self.device.recording and self.device.liveDisplay is not None:
@@ -2145,6 +2212,7 @@ class Channel(QTreeWidgetItem):
                                                   self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
 
     def updateWarningState(self, warn):
+        """Updates warningState of monitor and applies corresponding style sheet."""
         if warn != self.warningState:
             self.warningState = warn
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet if warn else self.defaultStyleSheet)
@@ -2317,6 +2385,7 @@ class ScanChannel(RelayChannel, Channel):
             self.display = True
 
     def connectSource(self):
+        """Connects the sourceChannel."""
         self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
         if self.sourceChannel is None:
             self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
@@ -2363,6 +2432,7 @@ class ScanChannel(RelayChannel, Channel):
                 self.removeEvents()
 
     def removeEvents(self):
+        """Removes extra events from sourceChannel."""
         if self.sourceChannel is not None:
             if self.sourceChannel.useMonitors:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
@@ -2394,12 +2464,14 @@ class QLabviewSpinBox(QSpinBox):
             self.preciseValue = 0
 
     def contextMenuEvent(self, event):
+        """Suppresses context menu for indicators."""
         if self.indicator:
             event.ignore()
         else:
             return super().contextMenuEvent(event)
 
     def wheelEvent(self, event):
+        """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
     def stepBy(self, step):
@@ -2452,6 +2524,13 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         self.setValue(self.value())
 
     def valueFromText(self, text):
+        """Converts text to value.
+
+        :param text: Input text.
+        :type text: str
+        :return: value
+        :rtype: float
+        """
         return float(text)
 
     def textFromValue(self, value):
@@ -2472,6 +2551,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             self.lineEdit().setText(self.NAN) # needed in rare cases where setting to nan would set to maximum
 
     def wheelEvent(self, event):
+        """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
     def stepBy(self, step):
@@ -2597,20 +2677,23 @@ class ControlCursor(Cursor):
         pass
 
     def ondrag(self, event):
+        """Continuously updates cursor position."""
         if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
             # dir(event)
             super().onmove(event)
 
     def setPosition(self, x, y):
-        """emulated mouse event to set position"""
+        """Emulated mouse event to set position."""
         [xpix, ypix]=self.ax.transData.transform((x, y))
         event = MouseEvent(name='', canvas=self.ax.figure.canvas, x=xpix, y=ypix, button=MouseButton.LEFT)
         super().onmove(event)
 
     def getPosition(self):
+        """Get current position."""
         return self.linev.get_data()[0][0], self.lineh.get_data()[1][1]
 
     def updatePosition(self):
+        """Updates position. Usually required to reset position after cursors have been lost by drawing other elements."""
         self.setPosition(*self.getPosition())
 
 class RestoreFloatComboBox(QComboBox):
@@ -2639,6 +2722,7 @@ class CheckBox(QCheckBox):
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
     def setValue(self, value):
+        """Sets value using consistent API for parameter widgets."""
         self.setChecked(value)
 
 class ToolButton(QToolButton):
@@ -2653,6 +2737,7 @@ class ToolButton(QToolButton):
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
     def setValue(self, value):
+        """Sets value using consistent API for parameter widgets."""
         self.setChecked(value)
 
 class Action(QAction):
@@ -2669,12 +2754,19 @@ class Action(QAction):
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
     def getIcon(self):
+        """Gets the icon. API consistent with other Action classes."""
         return self.icon
 
     def getToolTip(self):
+        """Gets the tooltip. API consistent with other Action classes."""
         return self.toolTip
 
     def setValue(self, value):
+        """Set action state.
+
+        :param value: New state.
+        :type value: bool
+        """
         self.setChecked(value)
 
 class StateAction(Action):
@@ -2714,14 +2806,21 @@ class StateAction(Action):
             self.parentPlugin.titleBar.insertAction(before, self)
 
     def toggle(self):
+        """Toggles the state."""
         self.state = not self.state
         return self.state
 
     @property
     def state(self):
+        """Returns the state"""
         return self.isChecked()
     @state.setter
     def state(self, state):
+        """Sets the state.
+
+        :param state: The state to be set.
+        :type state: bool
+        """
         self.setChecked(state)
 
     def updateIcon(self, checked):
@@ -2789,17 +2888,33 @@ class MultiStateAction(Action):
             self.parentPlugin.titleBar.insertAction(before, self)
 
     def stateFromLabel(self, label):
+        """Returns state corresponding to provided label.
+
+        :param label: State label.
+        :type label: str
+        :return: Index of corresponding state, defaults to 0.
+        :rtype: int
+        """
         return next((i for i in range(len(self.states)) if self.states[i].label == label), 0)
 
     def labelFromState(self, state):
-        return self.states[state].label
+        """Returns label corresponding to provided state.
+
+        :param state: state index
+        :type state: int
+        :return: state label, defaults to label of first state
+        :rtype: str
+        """
+        return self.states[state].label if state < len(self.states) else self.states[0].label
 
     def rollState(self):
+        """Rolls to next state."""
         self._state = np.mod(self._state + 1, len(self.states))
         self.updateIcon()
 
     @property
     def state(self): # use labels for api
+        """Label representation of current state."""
         return self.labelFromState(self._state)
 
     @state.setter
@@ -2807,6 +2922,7 @@ class MultiStateAction(Action):
         self._state = self.stateFromLabel(label)
 
     def updateIcon(self):
+        """Updates icon and icon toolTip based on current state."""
         if self.fullName is not None:
             qSet.setValue(self.fullName, self._state) # store state as int
         self.setIcon(self.getIcon())
@@ -2826,6 +2942,7 @@ class CompactComboBox(QComboBox):
     """Combobox that stays small while showing full content in dropdown menu.s"""
     # from JonB at https://forum.qt.io/post/542594
     def showPopup(self):
+        """Shows popup after setting minimum width."""
         # we like the popup to always show the full contents
         # we only need to do work for this when the combo has had a maximum width specified
         maxWidth = self.maximumWidth()
@@ -2837,6 +2954,7 @@ class CompactComboBox(QComboBox):
         super().showPopup()
 
     def setPopupMinimumWidthForItems(self):
+        """Calculates and sets the minimum combobox width."""
         # we like the popup to always show the full contents
         # under Linux/GNOME popups always do this
         # but under Windows they get truncated
@@ -2877,6 +2995,7 @@ class DockWidget(QDockWidget):
         self.setWidget(self.plugin.mainDisplayWidget)
 
     def on_top_level_changed(self):
+        """Updates toolbars after dragging plugins to new location."""
         # self.plugin.print('on_top_level_changed', flag=PRINT.DEBUG)
         # there are no signals available to be emitted at the end of dragging or when tabifying.
         # for now I am just using a long delay and hope that the operation has been completed before toggleTitleBar is called
@@ -2915,6 +3034,7 @@ class DockWidget(QDockWidget):
                     self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
 
     def closeEvent(self, event):
+        """Closes the GUI when the dock is closing."""
         self.signalComm.dockClosingSignal.emit()
         return super().closeEvent(event)
 
@@ -2943,7 +3063,7 @@ class TreeWidget(QTreeWidget):
         self.minimizeHeight = minimizeHeight
 
     def totalItems(self):
-        "total number of items at top level and first child level"
+        "Total number of items at top level and first child level."
         total_items = 0
         for i in range(self.topLevelItemCount()):
             top_item = self.topLevelItem(i)
@@ -2952,6 +3072,7 @@ class TreeWidget(QTreeWidget):
         return total_items
 
     def totalHeight(self):
+        """Total height of all items."""
         total_height = self.header().height()
         for i in range(self.topLevelItemCount()):
             top_item = self.topLevelItem(i)
@@ -2961,6 +3082,7 @@ class TreeWidget(QTreeWidget):
         return total_height
 
     def itemWidth(self):
+        """Width of fist visible item."""
         if self.topLevelItemCount() > 0:
             for i in range(self.topLevelItemCount()):
                 if self.visualItemRect(self.topLevelItem(i)).width() > 0: # ignore hidden channels
@@ -2969,14 +3091,17 @@ class TreeWidget(QTreeWidget):
             return 300
 
     def tree_height_hint_complete(self):
+        """The complete height, corresponding to all items."""
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
         return self.header().height() + self.totalItems() * item_height + 10
 
     def tree_height_hint_minimal(self):
+        """The minimal height, corresponding to 4 items."""
         item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
         return self.header().height() + min(self.totalItems(), 4) * item_height + 10
 
     def count_child_items(self, item):
+        """Counts the number of child items or a QTreeWidgetItem."""
         count = item.childCount()
         for i in range(item.childCount()):
             count += self.count_child_items(item.child(i))
@@ -2987,9 +3112,11 @@ class TreeWidget(QTreeWidget):
         return QRect(self.rect().left(), self.rect().top(), min(self.rect().width(), self.itemWidth()), min(self.rect().height(), self.totalHeight()))
 
     def grabItems(self):
+        """Grab a QPixmap of the items."""
         return self.grab(self.itemRect())
 
     def sizeHint(self):
+        """SizeHint with custom minimal or complete height."""
         return QSize(self.width(), self.tree_height_hint_minimal() if self.minimizeHeight else self.tree_height_hint_complete())
 
 class LedIndicator(QAbstractButton):
@@ -3049,6 +3176,7 @@ class LedIndicator(QAbstractButton):
 
     @pyqtProperty(QColor)
     def onColor(self):
+        """On color."""
         return self.on_color
 
     @onColor.setter
@@ -3057,43 +3185,12 @@ class LedIndicator(QAbstractButton):
 
     @pyqtProperty(QColor)
     def offColor(self):
+        """Off color."""
         return self.off_color
 
     @offColor.setter
     def offColor(self, color):
         self.off_color = color
-
-    @pyqtProperty(QColor)
-    def onColor1(self):
-        return self.on_color_1
-
-    @onColor1.setter
-    def onColor1(self, color):
-        self.on_color_1 = color
-
-    @pyqtProperty(QColor)
-    def onColor2(self):
-        return self.on_color_2
-
-    @onColor2.setter
-    def onColor2(self, color):
-        self.on_color_2 = color
-
-    @pyqtProperty(QColor)
-    def offColor1(self):
-        return self.off_color_1
-
-    @offColor1.setter
-    def offColor1(self, color):
-        self.off_color_1 = color
-
-    @pyqtProperty(QColor)
-    def offColor2(self):
-        return self.off_color_2
-
-    @offColor2.setter
-    def offColor2(self, color):
-        self.off_color_2 = color
 
 class LineEdit(QLineEdit):
     """LineEdit with input validation and custom signal onEditingFinished."""
@@ -3153,7 +3250,7 @@ class TextEdit(QPlainTextEdit):
         self.installEventFilter(self)
         self._completer = None
 
-    def setCompleter(self, c):
+    def setCompleter(self, c): # pylint: disable=missing-function-docstring
         if self._completer is not None:
             self._completer.activated.disconnect()
 
@@ -3165,10 +3262,10 @@ class TextEdit(QPlainTextEdit):
         c.setCompletionMode(QCompleter.PopupCompletion)
         c.activated.connect(self.insertCompletion)
 
-    def completer(self):
+    def completer(self): # pylint: disable=missing-function-docstring
         return self._completer
 
-    def insertCompletion(self, completion):
+    def insertCompletion(self, completion): # pylint: disable=missing-function-docstring
         if self._completer.widget() is not self:
             return
 
@@ -3179,12 +3276,12 @@ class TextEdit(QPlainTextEdit):
         tc.insertText(completion[-extra:])
         self.setTextCursor(tc)
 
-    def textUnderCursor(self):
+    def textUnderCursor(self): # pylint: disable=missing-function-docstring
         tc = self.textCursor()
         tc.select(QTextCursor.WordUnderCursor)
         return tc.selectedText()
 
-    def focusInEvent(self, e):
+    def focusInEvent(self, e): # pylint: disable=missing-function-docstring
         if self._completer is not None:
             self._completer.setWidget(self)
         super(TextEdit, self).focusInEvent(e)
@@ -3814,6 +3911,14 @@ class DeviceController(QObject):
         self.signalComm.initCompleteSignal.emit()
         self.print('Faking values for testing!', PRINT.WARNING)
         self.initializing = False
+
+    def readNumbers():
+        """Write channel values in an array that will be used in updateValue."""
+        # overwrite to implement function if applicable
+
+    def fakeNumbers():
+        """Write fake channel values in an array that will be used in updateValue."""
+        # overwrite to implement function
 
     def initComplete(self):
         """Called after successful initialization to start acquisition from main thread (access to GUI!)."""

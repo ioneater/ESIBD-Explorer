@@ -35,6 +35,7 @@ class PICO(Device):
         super().runTestParallel()
 
     def changeUnit(self):
+        """Update plots to account for change of unit."""
         if self.liveDisplayActive():
             self.clearPlot()
             self.liveDisplay.plot(apply=True)
@@ -46,9 +47,6 @@ class PICO(Device):
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return defaultSettings
-
-    def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def convertDataDisplay(self, data):
         return data - 273.15 if self.unitAction.state else data
@@ -154,6 +152,7 @@ class TemperatureController(DeviceController):
                 self.temperatures[i] = np.random.randint(1, 300) if np.isnan(self.temperatures[i]) else self.temperatures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndTemperature(self):
+        """Returns a random temperature."""
         return np.random.uniform(0, 400)
 
     def updateValue(self):

@@ -43,12 +43,6 @@ class Pressure(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return defaultSettings
 
-    def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and
-                                             ((channel._controller == channel.TIC and self.controller.ticPort is not None)
-                                              or (channel._controller == channel.TPG and self.controller.tpgPort is not None)
-                                              or self.getTestMode())) or not channel.active]
-
 class PressureChannel(Channel):
     """UI for pressure with integrated functionality"""
 
@@ -180,6 +174,7 @@ class PressureController(DeviceController):
                 self.pressures[i] = self.rndPressure() if np.isnan(self.pressures[i]) else self.pressures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
+        """Returns a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp

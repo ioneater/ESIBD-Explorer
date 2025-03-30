@@ -44,7 +44,8 @@ class Voltage(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
         return defaultSettings
 
-    def getModules(self): # get list of used modules
+    def getModules(self):
+        """Get list of used modules."""
         return set([channel.module for channel in self.channels])
 
     def closeCommunication(self):
@@ -84,6 +85,11 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.ID)
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
+        """Applies voltage value if value has changed or explicitly requested.
+
+        :param apply: If True, value will be applied even if it has not changed.
+        :type apply: bool
+        """
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
@@ -125,10 +131,20 @@ class VoltageController(DeviceController):
         self.voltageON()
 
     def applyVoltage(self, channel):
+        """Applies voltage value.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
     def applyVoltageFromThread(self, channel):
+        """Applies voltage value (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
     def updateValue(self):
@@ -140,6 +156,11 @@ class VoltageController(DeviceController):
                     channel.monitor = self.voltages[channel.module][channel.id]
 
     def voltageON(self, parallel=True): # this can run in main thread
+        """Toggles voltage output.
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -149,6 +170,7 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
 
     def voltageONFromThread(self):
+        """Toggles voltage output (tread safe)."""
         for module in self.modules:
             self.ISEGWriteRead(message=f":VOLT {'ON' if self.device.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
 
@@ -176,19 +198,20 @@ class VoltageController(DeviceController):
                     self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
-    def ISEGWrite(self, message):
-        self.socket.sendall(message)
-
-    def ISEGRead(self):
-        # only call from thread! # make sure lock is acquired before and released after
-        if not getTestMode() and self.initialized or self.initializing:
-            return self.socket.recv(4096).decode("utf-8")
-
     def ISEGWriteRead(self, message, lock_acquired=False):
+        """ISEG specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
                 if lock_acquired:
-                    self.ISEGWrite(message) # get channel name
-                    response = self.ISEGRead()
+                    self.socket.sendall(message) # get channel name
+                    response = self.socket.recv(4096).decode("utf-8")
         return response

@@ -92,10 +92,8 @@ class RBD(Device):
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
         return defaultSettings
 
-    def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (channel.controller.port is not None or self.getTestMode())) or not channel.active]
-
     def resetCharge(self):
+        """Resets the charge of each channel."""
         for channel in self.channels:
             channel.resetCharge()
 
@@ -312,6 +310,7 @@ class CurrentController(DeviceController):
         self.updateAverageFlag=False
 
     def setBias(self):
+        """Sets the bias voltage on or off."""
         self.RBDWriteRead(message=f'B{int(self.channel.bias)}') # set bias, convert from bool to int
         self.updateBiasFlag=False
 

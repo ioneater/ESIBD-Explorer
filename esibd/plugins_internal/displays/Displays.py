@@ -125,11 +125,13 @@ class MS(Plugin):
         self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value):
+        """Returns the nearest value in the given array."""
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
     def map_percent(self, x, x_min, x_max, y):
+        """Maps the range between y(x_min) and y(x_max) to 0 to 100 %."""
         x_min_i=np.where(x == self.find_nearest(x, x_min))[0]
         x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
         x_max_i=np.where(x == self.find_nearest(x, x_max))[0]
@@ -138,6 +140,7 @@ class MS(Plugin):
         return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
 
     def smooth(self, y, box_pts):
+        """Smooths y data by convolution with a box."""
         box = np.ones(box_pts)/box_pts
         y_smooth = np.convolve(y, box, mode='same')
         return y_smooth
@@ -156,18 +159,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def map_percent(x, x_min, x_max, y):
+    '''Maps the range between y(x_min) and y(x_max) to 0 to 100 %.'''
     x_min_i=np.where(x == find_nearest(x, x_min))[0]
     x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
     x_max_i=np.where(x == find_nearest(x, x_max))[0]
     x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
     y_sub=y[x_min_i:x_max_i]
     return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
+
 def smooth(y, box_pts):
+    '''Smooths y data by convolution with a box.'''
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
     return y_smooth
 
 def find_nearest(array, value):
+    '''Returns the nearest value in the given array.'''
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx]
@@ -467,9 +474,11 @@ class HOLO(Plugin):
         self.raiseDock(_show)
 
     def mapSliderToData(self, slider, data):
+        """Maps the position of the slider in percent to the corresponding data value."""
         return data.min() + slider.value()/100*(data.max() - data.min())
 
     def value_changed(self, plotAngle=True):
+        """Triggers delayed plot after slider value change."""
         self.plotAngle = plotAngle
         self.update_timer.start(200)
         # QTimer.singleShot(500, lambda: self.drawSurface(plotAngle=plotAngle))

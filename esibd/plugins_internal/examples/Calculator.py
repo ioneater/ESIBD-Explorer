@@ -19,8 +19,8 @@ class Calculator(Plugin):
     def initGUI(self):
         """Initialize your custom user interface"""
         super().initGUI()
-        # self.calculatorWidget = CalculatorWidget() # use this to import calculator as is
-        self.calculatorWidget = ExtendedCalculatorWidget(parentPlugin=self) # use this to import calculator with interface to other plugins
+        self.calculatorWidget = CalculatorWidget() # use this to import calculator as is
+        # self.calculatorWidget = ExtendedCalculatorWidget(parentPlugin=self) # use this to import calculator with interface to other plugins
         self.addContentWidget(self.calculatorWidget)
 
 class ExtendedCalculatorWidget(CalculatorWidget):
@@ -38,7 +38,7 @@ class ExtendedCalculatorWidget(CalculatorWidget):
         for name in channelNames:
             if name in equ:
                 channel_equ = next((channel for channel in channels if channel.name == name), None)
-                self.parentPlugin.print(f'Replacing channel name {name} with value {channel_equ.value}.', flag=PRINT.MESSAGE)
-                equ = equ.replace(channel_equ.name, f'{channel_equ.value}')
+                self.parentPlugin.print(f'Replacing channel name {name} with value {channel_equ.value-channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}.', flag=PRINT.MESSAGE)
+                equ = equ.replace(channel_equ.name, f'{channel_equ.value-channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}')
         self.display.setText(equ)
         super().evaluate()

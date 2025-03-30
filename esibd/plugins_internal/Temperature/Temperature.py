@@ -40,6 +40,7 @@ class Temperature(Device):
         super().runTestParallel()
 
     def changeUnit(self):
+        """Update plots to account for change of unit."""
         if self.liveDisplayActive():
             self.clearPlot()
             self.liveDisplay.plot()
@@ -55,9 +56,6 @@ class Temperature(Device):
                                           widgetType=Parameter.TYPE.INT, attr='toggleThreshold')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return defaultSettings
-
-    def getInitializedChannels(self):
-        return [channel for channel in self.channels if (channel.enabled and (self.controller.port is not None or self.getTestMode())) or not channel.active]
 
     def closeCommunication(self):
         self.setOn(False)
@@ -182,6 +180,7 @@ class TemperatureController(DeviceController):
                 self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.temperatures[i]), 0)
 
     def rndTemperature(self):
+        """Returns a random temperature."""
         return np.random.uniform(0, 400)
 
     def updateValue(self):

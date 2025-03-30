@@ -5,6 +5,8 @@ from PyQt6.QtCore import Qt
 aeval = Interpreter()
 
 class Calculator(QWidget):
+    """Minimal calculator example in PyQt6."""
+
     def __init__(self):
         super().__init__()
 

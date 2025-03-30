@@ -16,6 +16,8 @@ Changed
 
 - Added confirmation prompt before deleting all device history.
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
+- Added documentation for many methods.
+- Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
 
 Version 0.7.3 2025-03-24
 ========================

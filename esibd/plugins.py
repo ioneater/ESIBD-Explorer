@@ -265,6 +265,7 @@ class Plugin(QWidget):
 
     @property
     def testing(self):
+        """Indicates if the plugin, or any other plugin, is currently testing."""
         return self.pluginManager.testing
     @testing.setter
     def testing(self, state):
@@ -517,11 +518,12 @@ class Plugin(QWidget):
 
     def toggleTitleBar(self):
         """Adjusts the title bar layout and :attr:`~esibd.plugins.Plugin.titleBarLabel` depending on the state of the :attr:`~esibd.plugins.Plugin.dock` (tabbed, floating, ...).
-        Extend to make sure toggleTitleBar is called for dependent plugins.
+        Extend to make sure toggleTitleBar is called for dependent plugins if applicable.
         """
         self.dock.toggleTitleBar()
 
     def toggleTitleBarDelayed(self, delay=500):
+        """Wrapper to delay toggleTitleBar until GUI updates have been completed."""
         QTimer.singleShot(delay, lambda: self.toggleTitleBar())
 
     def addContentWidget(self, cw):
@@ -563,10 +565,12 @@ class Plugin(QWidget):
         self.print(f'Loading data from {file} not implemented.', PRINT.ERROR)
 
     def getSupportedFiles(self):
+        """Returns supported file types."""
         # extend to include previewFileTypes of associated displays if applicable
         return self.previewFileTypes
 
     def hdfUpdateVersion(self, f):
+        """Update version in Info group."""
         info_group = self.requireGroup(f, INFO)
         for key, value in infoDict(self.name).items():
             info_group.attrs[key] = value
@@ -981,14 +985,11 @@ class StaticDisplay(Plugin):
         if self.file is not None and len(self.outputs) > 0:
             self.plot(update=True)
 
-    def updateStaticPlot(self):
-        # update if channel settings have changed and data is present
-        if self.initializedDock and not self.loading and len(self.outputs) > 0:
-            self.plot()
-
     def plot(self, update=False):
         """Plots channels from file, using real channel information (color, linewidth, linestyle, ...) if available."""
         # as this is only done once we can plot all data without thinning
+        if not self.initializedDock or self.loading or len(self.outputs) == 0:
+            return
         if self.plotEfficientAction.state:
             self.axes[0].clear()
             self.axes[0].set_xlabel(self.TIME)
@@ -1113,7 +1114,7 @@ plt.show()
         self.staticPlotWidget.getPlotItem().xyLabel.setColor(fg)
         if self.legend is not None:
             self.legend.setLabelTextColor(fg)
-        self.updateStaticPlot() # triggers update of legend
+        self.plot() # triggers update of legend
         if not self.loading:
             self.togglePlotType()
 
@@ -1508,10 +1509,12 @@ class LiveDisplay(Plugin):
         self.pluginManager.plotting = False
 
     def plotGroup(self, livePlotWidget, timeAxes, channels, apply):
+        """Plots a group of channels."""
         for channel in channels[::-1]: # reverse order so channels on top of list are also plotted on top of others
             self.plotChannel(livePlotWidget, timeAxes, channel, apply)
 
     def plotChannel(self, livePlotWidget, timeAxes, channel, apply):
+        """Plots a channel."""
         if (channel.enabled or not channel.real) and channel.display and channel.time.size != 0:
             i_min, i_max, n, timeAxis = timeAxes[channel.getDevice().name]
             if apply or np.remainder(i_min, n) == 0: # otherwise no update required
@@ -1565,6 +1568,7 @@ class LiveDisplay(Plugin):
             self.plot(apply=True)
 
 class ChannelManager(Plugin):
+    """Generic plugin with a tree of channels. This can be extended to implement device plugins, plugins with relay channels, and more."""
 
     name='Channel Manager'  # overwrite after inheriting
     version = '1.0'
@@ -1984,7 +1988,7 @@ class ChannelManager(Plugin):
 
     def intervalChanged(self):
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
-        pass
+        self.lagging = 0 # reset as lag time is calculated based on interval.
 
     def loadConfiguration(self, file=None, default=False, append=False):
         """Loads :class:`channel<esibd.core.Channel>` configuration from file.
@@ -2066,6 +2070,7 @@ class ChannelManager(Plugin):
 
     @property
     def LOADVALUES(self):
+        """Load values string for context menus."""
         return f'Load {self.name} values.'
 
     def loadValues(self, file=None, append=False):
@@ -2292,6 +2297,7 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def toggleLiveDisplay(self, visible=None):
+        """Toggles visibility of the liveDisplay."""
         if self.liveDisplay is None:
             return # liveDisplay not supported
         if (visible if visible is not None else self.toggleLiveDisplayAction.state):
@@ -2303,9 +2309,11 @@ class ChannelManager(Plugin):
                 self.liveDisplay.closeGUI()
 
     def liveDisplayActive(self):
+        """Indicates if the liveDisplay is active."""
         return self.liveDisplay is not None and self.liveDisplay.initializedDock
 
     def toggleStaticDisplay(self, visible):
+        """Toggles visibility of the staticDisplay."""
         if self.staticDisplay is None:
             return # staticDisplay not supported
         if visible:
@@ -2316,6 +2324,7 @@ class ChannelManager(Plugin):
             self.staticDisplay.closeGUI()
 
     def staticDisplayActive(self):
+        """Indicates if the staticDisplay is active."""
         return self.staticDisplay is not None and self.staticDisplay.initializedDock
 
     def updateTheme(self):
@@ -2384,7 +2393,7 @@ class Device(ChannelManager):
     useBackgrounds = False
 
     class SignalCommunicate(ChannelManager.SignalCommunicate):
-        appendDataSignal    = pyqtSignal()
+        appendDataSignal    = pyqtSignal(bool, bool)
         """Signal that triggers appending of data from channels to history."""
 
     def __init__(self, **kwargs): # Always use keyword arguments to allow forwarding to parent classes.
@@ -2462,15 +2471,18 @@ class Device(ChannelManager):
         self.estimateStorage()
 
     def subtractBackgroundChanged(self):
+        """Updates plot if background subtraction is toggled."""
         if self.liveDisplayActive():
             self.liveDisplay.subtractBackgroundAction.state = self.subtractBackgroundAction.state
         self.plot(apply=True)
 
     def errorCountChanged(self):
+        """Starts a timer to reset error count if no further errors occur."""
         if self.errorCount != 0:
-            self.errorCountTimer.start() # will reset in after interval unless another error happens before and restarts the timer
+            self.errorCountTimer.start() # will reset after interval unless another error happens before and restarts the timer
 
     def resetErrorCount(self):
+        """Resets error count to 0."""
         self.errorCount = 0
 
     def startAcquisition(self):
@@ -2704,7 +2716,14 @@ class Device(ChannelManager):
             self.applyValues(apply)
         self.updating = False
 
-    def appendData(self, nan=False):
+    def appendData(self, nan=False, skipPlotting=False):
+        """Appends data from device acquisition to channels and updates plots.
+
+        :param nan: Indicates that a nan value should be appended to prevent interpolation through areas without data. Defaults to False
+        :type nan: bool, optional
+        :param skip: Skip plotting if previous plot was too recent, defaults to False
+        :type skip: bool, optional
+        """
         if self.initialized() or nan:
             self.updateValues() # this makes equations work for output devices.
             # Equations for output devices are evaluated only when plotting. Calling them for every value change event would cause a massive computational load.
@@ -2712,11 +2731,20 @@ class Device(ChannelManager):
                 channel.appendValue(lenT=self.time.size, nan=nan) # add time after values to make sure value arrays stay aligned with time array
             self.time.add(time.time()) # add time in seconds
             if self.liveDisplayActive():
-                self.signalComm.plotSignal.emit()
+                if skipPlotting:
+                    self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.DEBUG)
+                    self.measureInterval(reset=False) # do not reset but keep track of unresponsiveness
+                else:
+                    self.signalComm.plotSignal.emit()
             else:
                 self.measureInterval()
 
-    def measureInterval(self):
+    def measureInterval(self, reset=True):
+        """Measures interval since last successful plotting.
+
+        :param reset: Only reset if plotting was successful or not required, defaults to True
+        :type reset: bool, optional
+        """
         # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
         # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
         self.interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
@@ -2752,7 +2780,8 @@ class Device(ChannelManager):
             # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
             pass
         self.lagging_seconds = int(self.lagging*self.interval/1000)
-        self.lastIntervalTime = time.time()*1000
+        if reset:
+            self.lastIntervalTime = time.time()*1000
 
     def toggleRecording(self, on=None, manual=False):
         """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""
@@ -2781,18 +2810,27 @@ class Device(ChannelManager):
     def runDataThread(self, recording):
         """Regularly triggers reading and appending of data.
         This uses the current value of :class:`channels<esibd.core.Channel>` which is updated
-        independently by the corresponding :class:`~esibd.core.DeviceController`."""
+        independently by the corresponding :class:`~esibd.core.DeviceController`.
+
+        :param recording: Function that polls device.recording to indicate if the device should still be recording.
+        :type recording: callable
+        """
         while recording():
             # time.sleep precision in low ms range on windows -> will usually be a few ms late
             # e.g. 0.1 will not give a true 10 Hz repetition rate
             # if that becomes important and decreasing the interval to compensate for delay is not sufficient a better method is required
             interval_measured = int((time.time()*1000-self.lastIntervalTime)) if self.lastIntervalTime is not None else self.interval
             interval_tolerance = max(100, self.interval/5)
-            if interval_measured >= self.interval - interval_tolerance: # do only emit when at least self.interval has expired to prevent unresponsive application due to queue of multiple emissions
-                self.signalComm.appendDataSignal.emit()
-            else:
-                self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.DEBUG)
-                self.lastIntervalTime = time.time()*1000 # reset reference for next interval
+            # do only plot when at least self.interval has expired to prevent unresponsive application due to queue of multiple parallel calls to plot
+            # do not plot if other plotting has not yet completed.
+            skipPlotting = not (interval_measured >= self.interval - interval_tolerance) or self.pluginManager.plotting
+            self.signalComm.appendDataSignal.emit(False, skipPlotting) # arguments nan, skipPlotting cannot be added explicitly for pyqtBoundSignal
+            # TODO delete
+            # if interval_measured >= self.interval - interval_tolerance: # do only emit when at least self.interval has expired to prevent unresponsive application due to queue of multiple emissions
+            #     self.signalComm.appendDataSignal.emit(nan=False, skip=)
+            # else:
+            #     self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.DEBUG)
+            #     self.lastIntervalTime = time.time()*1000 # reset reference for next interval
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     def duplicateChannel(self):
@@ -3691,9 +3729,11 @@ class Browser(Plugin):
         self.raiseDock(_show)
 
     def loadUrl(self):
+        """Loads content from an URL."""
         self.webEngineView.load(QUrl.fromUserInput(self.locationEdit.text()))
 
     def adjustLocation(self):
+        """Adjusts text in address bar after loading completed."""
         if self.title is None:
             self.locationEdit.setText(self.webEngineView.url().toString().replace('%5C','/'))
             self.html = None
@@ -3703,11 +3743,12 @@ class Browser(Plugin):
             self.title = None # reset for next update
 
     def openDocumentation(self):
+        """Displays the offline documentation."""
         self.title = 'Offline Documentation'
         self.loadData(file=(Path(__file__).parent / 'docs/index.html').resolve())
 
     def openAbout(self):
-        """Simple dialog displaying program purpose, version, and creators"""
+        """Simple dialog displaying program purpose, version, and creators."""
         updateHTML = '(Offline)'
         try:
             response = requests.get('https://github.com/ioneater/ESIBD-Explorer/releases/latest')
@@ -3722,6 +3763,13 @@ class Browser(Plugin):
         <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title, html):
+        """Displays HTML content.
+
+        :param title: Title displayed in address bar
+        :type title: str
+        :param html: Valid HTML code.
+        :type html: str
+        """
         self.provideDock()
         self.html = html
         self.title = title
@@ -3729,6 +3777,15 @@ class Browser(Plugin):
         self.raiseDock(True)
 
     def setAbout(self, plugin, title, html):
+        """Creates and displays the about dialog for a given plugin.
+
+        :param plugin: Plugin for which the dialog should be shown
+        :type plugin: :class:`~esibd.plugins.Plugin`
+        :param title: Title displayed in address bar
+        :type title: str
+        :param html: Plugin specific HTML content of about page.
+        :type html: str
+        """
         self.provideDock()
         self.title = title
         self.html = html
@@ -3738,6 +3795,7 @@ class Browser(Plugin):
         self.raiseDock(True)
 
     def htmlStyle(self):
+        """Style definitions for HTML content."""
         return f"""
         <style>
         body {{
@@ -3751,6 +3809,7 @@ class Browser(Plugin):
         </style>"""
 
     def htmlTitle(self, plugin):
+        """Title line for about page in HTML."""
         return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve()}' width='22'> {plugin.name} {plugin.version}</h1>"
 
     def updateTheme(self):
@@ -3818,6 +3877,7 @@ class Text(Plugin):
             self.numbers.updateTheme()
 
     def saveFile(self):
+        """Saves text file containing current text."""
         file = None
         if self.pluginManager.Explorer.activeFileFullPath is not None:
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE, directory=self.pluginManager.Explorer.activeFileFullPath.as_posix())[0])
@@ -3842,6 +3902,7 @@ class Text(Plugin):
         self.raiseDock(_show)
 
     def setText(self, text, _show=False, append=False):
+        """Sets the displayed text."""
         self.provideDock()
         if append:
             self.editor.appendPlainText(text)
@@ -3853,22 +3914,26 @@ class Text(Plugin):
         self.raiseDock(_show)
 
     def setTextParallel(self, text, _show=False):
+        """Sets the displayed text (thread save)."""
         self.signalComm.setTextSignal.emit(text, _show)
 
-    def inspect(self, obj, _filter=None):
+    def inspect(self, obj, search_term=None):
+        """Displays a simple overview of all object attributes and methods."""
         _list = []
-        if _filter is not None:
-            _list = [repr(member) for member in inspect.getmembers(obj) if _filter in repr(member)]
+        if search_term is not None:
+            _list = [repr(member) for member in inspect.getmembers(obj) if search_term in repr(member)]
         else:
             _list = [repr(member) for member in inspect.getmembers(obj)]
         self.setText('\n'.join(_list), True)
 
     @synchronized()
     def copyTextClipboard(self):
+        """Copies current text to clipboard."""
         QApplication.clipboard().setText(self.editor.toPlainText())
 
     @synchronized()
     def toggleWordWrap(self):
+        """Toggles use of word wrap."""
         self.editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth if self.wordWrapAction.state else QPlainTextEdit.LineWrapMode.NoWrap)
 
 class Tree(Plugin):
@@ -3937,41 +4002,59 @@ class Tree(Plugin):
         else:
             self.raiseDock(_show)
 
-    def hdfShow(self, f, tree, level):
-        for name, item in f.items():
+    def hdfShow(self, hdfItem, tree, expansionLevel):
+        """Populates tree based on contents of a hdf5 file.
+
+        :param hdfItem: _description_
+        :type hdfItem: h5py.Group, h5py.Dataset, h5py.File, ...
+        :param tree: The tree used to display the file contents.
+        :type tree: QTreeWidgetItem
+        :param expansionLevel: Only expand items up to this level.
+        :type expansionLevel: int
+        """
+        for name, item in hdfItem.items():
             if isinstance(item, h5py.Group):
-                group = QTreeWidgetItem(tree,[name])
-                group.setIcon(0, QIcon(self.ICON_GROUP))
-                if level < 1:
-                    group.setExpanded(True)
+                groupItem = QTreeWidgetItem(tree, [name])
+                groupItem.setIcon(0, QIcon(self.ICON_GROUP))
+                if expansionLevel < 1:
+                    groupItem.setExpanded(True)
                 for attribute, value in item.attrs.items():
-                    attribute_widget = QTreeWidgetItem(group,[f'{attribute}: {value}'])
+                    attribute_widget = QTreeWidgetItem(groupItem, [f'{attribute}: {value}'])
                     attribute_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
-                self.hdfShow(item, group, level+1)
+                self.hdfShow(item, groupItem, expansionLevel+1)
             elif isinstance(item, h5py.Dataset):
-                dataset_widget = QTreeWidgetItem(tree,[name])
+                dataset_widget = QTreeWidgetItem(tree, [name])
                 dataset_widget.setIcon(0, QIcon(self.ICON_DATASET))
 
-    def pyShow(self, _class, tree, level):
-        class_widget = QTreeWidgetItem(tree,[_class.name])
+    def pyShow(self, _class, tree, expansionLevel):
+        """Populates tree based on contents of a python class.
+
+        :param _class: Valid python class.
+        :type _class: class
+        :param tree: The tree used to display the attributes and methods if the class.
+        :type tree: QTreeWidgetItem
+        :param expansionLevel: Only expand items up to this level.
+        :type expansionLevel: int
+        """
+        class_widget = QTreeWidgetItem(tree, [_class.name])
         class_widget.setIcon(0, QIcon(self.ICON_CLASS))
         class_widget.setToolTip(0, ast.get_docstring(_class))
-        if level < 1:
+        if expansionLevel < 1:
             class_widget.setExpanded(True)
         for __class in [node for node in _class.body if isinstance(node, ast.ClassDef)]:
-            self.pyShow(__class, class_widget, level+1)
+            self.pyShow(__class, class_widget, expansionLevel+1)
         for method in [node for node in _class.body if isinstance(node, ast.FunctionDef)]:
-            method_widget = QTreeWidgetItem(class_widget,[method.name])
+            method_widget = QTreeWidgetItem(class_widget, [method.name])
             method_widget.setIcon(0, QIcon(self.ICON_FUNCTIONMETHOD))
             method_widget.setToolTip(0, ast.get_docstring(method))
 
-    def inspect(self, obj, _filter=None):
+    def inspect(self, obj, search_term=None):
         """Shows a list of attributes of the object and applies a filter if provided.
 
         :param obj: Any python class or List
         :type obj: class or List
-        :param _filter: Filter string.
-        :type _filter: str, optional
+        :param search_term: Filter string.
+        :type search_term: str, optional
         """
         self.provideDock()
         self._inspect = True
@@ -3983,21 +4066,35 @@ class Tree(Plugin):
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tree.setUpdatesEnabled(False)
-        self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj, _filter=_filter)
+        self.inspect_recursive(tree=self.tree.invisibleRootItem(), obj=obj, search_term=search_term)
         self.tree.setUpdatesEnabled(True)
 
-    def expandObject(self, element):
-        """Populates and expands element of inspected class."""
+    def expandObject(self, item):
+        """Populates and expands element of inspected class.
+
+        :param item: The item representing the object to be expanded.
+        :type item: QTreeWidgetItem
+        """
         if self._inspect:
             self.tree.setUpdatesEnabled(False)
-            self.inspect_recursive(tree=element, obj=element.obj)
+            self.inspect_recursive(tree=item, obj=item.obj)
             self.tree.setUpdatesEnabled(True)
-            element.setExpanded(True)
+            item.setExpanded(True)
 
-    def inspect_recursive(self, tree, obj, _filter=None, recursionDepth=2):
-        """Recursively populates the object tree.
+    def inspect_recursive(self, tree, obj, search_term=None, recursionDepth=2):
+        """Recursively populates the tree with the objects attributes and methods.
         Will also be called as user expands items.
-        Similar logic is used for Explorer, but here we do not need to worry about changing filters or items that have been removed."""
+        Similar logic is used for Explorer, but here we do not need to worry about changing filters or items that have been removed.
+
+        :param tree: The tree used to display the attributes and methods.
+        :type tree: QTreeWidgetItem
+        :param obj: Valid python object.
+        :type obj: any
+        :param search_term: Result will be filtered for this, defaults to None
+        :type search_term: str, optional
+        :param recursionDepth: How many levels will be populated. Further levels will be populated as they are expanded. Defaults to 2
+        :type recursionDepth: int, optional
+        """
         if recursionDepth == 0:
             return
         recursionDepth = recursionDepth - 1
@@ -4019,7 +4116,7 @@ class Tree(Plugin):
                 _ = QTreeWidgetItem(tree, ['...'])
                 _.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
         else:
-            object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_') and (_filter is None or _filter.lower() in object_name.lower())]
+            object_names = [object_name for object_name in dir(obj) if not object_name.startswith('_') and (search_term is None or search_term.lower() in object_name.lower())]
             variable_names = []
             callable_names = []
             for object_name in object_names:
@@ -4060,9 +4157,15 @@ class Tree(Plugin):
                         class_method_widget.setToolTip(1, attr.__doc__)
         self.raiseDock(True)
 
-    def initContextMenuBase(self, widget, pos):
+    def initContextMenuBase(self, item, pos):
         """General implementation of a context menu.
-        The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Parameter`."""
+        The relevant actions will be chosen based on the type and properties of the Parameter.
+
+        :param item: The item for which the context menu is requested.
+        :type item: QTreeWidgetItem
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         contextMenu = QMenu(self.tree)
         copyClipboardAction = contextMenu.addAction('Copy to clipboard')
         contextMenu = contextMenu.exec(self.tree.mapToGlobal(pos))
@@ -4076,15 +4179,21 @@ class Tree(Plugin):
                         column_index = col
                         break
                 if column_index != -1:
-                    QApplication.clipboard().setText(widget.text(column_index))
+                    QApplication.clipboard().setText(item.text(column_index))
 
     def initContextMenu(self, pos):
+        """Initializes context menu for an item.
+
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         try:
             self.initContextMenuBase(self.tree.itemAt(pos), pos)
         except KeyError as e:
             self.print(e)
 
     def iconOverview(self):
+        """Shows actions from toolbar of all plugins."""
         self.provideDock()
         self.tree.clear()
         self.tree.setHeaderHidden(False)
@@ -4125,6 +4234,13 @@ class Tree(Plugin):
         self.raiseDock(True)
 
     def addActionWidgets(self, tree, plugin):
+        """Adds items representing actions.
+
+        :param tree: The tree used to display the items.
+        :type tree: QTreeWidgetItem
+        :param plugin: The plugin for which actions should be displayed.
+        :type plugin: esibd.plugins.Plugin
+        """
         if hasattr(plugin, 'titleBar'):
             for action in plugin.titleBar.actions():
                 if action.iconText() != '' and action.isVisible():
@@ -4155,7 +4271,7 @@ class Console(Plugin):
     name = 'Console'
     version = '1.0'
     optional = False
-    triggerComboBoxSignal = pyqtSignal(int)
+    # triggerComboBoxSignal = pyqtSignal(int)
     iconFile = 'terminal.png'
 
     class SignalCommunicate(Plugin.SignalCommunicate):
@@ -4185,7 +4301,7 @@ class Console(Plugin):
             "RBD.channels # get channels of a device",
             "Energy.display.fig # get specific figure",
             "Tree.inspect(Settings) # show methods and attributes of any object in Tree plugin",
-            "Tree.inspect(Settings, _filter='session') # show methods and attributes of any object in Tree plugin",
+            "Tree.inspect(Settings, search_term='session') # show methods and attributes of any object in Tree plugin",
             "timeit.timeit('Beam.plot(update=True, done=False)', number=100, globals=globals()) # time execution of plotting",
             "channel = DeviceManager.getChannelByName('RT_Front-Plate', inout=INOUT.IN) # get specific input channel",
             "channel.asDict(temp=True) # Returns list of channel parameters and their value.",
@@ -4205,7 +4321,7 @@ class Console(Plugin):
         self.mainConsole.repl.inputLayout.insertWidget(1, self.commonCommandsComboBox)
         self.mainConsole.historyBtn.deleteLater()
         self.mainConsole.exceptionBtn.deleteLater()
-        self.triggerComboBoxSignal.connect(self.triggerCombo)
+        # self.triggerComboBoxSignal.connect(self.triggerCombo)
         self.signalComm.writeSignal.connect(self.write)
         self.signalComm.executeSignal.connect(self.execute)
         # self.mainConsole.repl.input.installEventFilter(self.pluginManager.mainWindow) # clears input on Ctrl + C like a terminal. Not using it as it also prevents copy paste!
@@ -4239,6 +4355,13 @@ class Console(Plugin):
         self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
     def addToNamespace(self, key, value):
+        """Adds an attribute to the namespace of the Console.
+
+        :param key: Attribute used to access the object
+        :type key: str
+        :param value: Value or object.
+        :type value: various
+        """
         self.mainConsole.localNamespace[key] = value
 
     def runTestParallel(self):
@@ -4257,16 +4380,22 @@ class Console(Plugin):
                     self.signalComm.executeSignal.emit(self.commonCommandsComboBox.itemText(i))
         super().runTestParallel()
 
-    def triggerCombo(self, i):
-        self.commonCommandsComboBox.setCurrentIndex(i)
+    # def triggerCombo(self, i):
+    #     self.commonCommandsComboBox.setCurrentIndex(i)
 
     def commandChanged(self, _):
+        """Executes selected command from combobox."""
+        # ignoring second argument
         if self.commonCommandsComboBox.currentIndex() != 0:
             self.execute(self.commonCommandsComboBox.currentText())
             self.commonCommandsComboBox.setCurrentIndex(0)
 
     def write(self, message):
-        """Writes to integrated console to keep track of message history."""
+        """Writes to integrated console to keep track of message history.
+
+        :param message: The message to be added to the console.
+        :type message: str
+        """
         # avoid using self.mainConsole.repl.write() because stdout is already handled by core.Logger
         if self.initializedGUI:
             if current_thread() is main_thread():
@@ -4287,6 +4416,11 @@ class Console(Plugin):
                 self.signalComm.writeSignal.emit(message)
 
     def toggleMessageFilter(self, error=True):
+        """Makes sure only one filter is active at a time. Shows outout for selected filter.
+
+        :param error: Indicates if messages should be filtered for errors or warnings, defaults to True
+        :type error: bool, optional
+        """
         if error:
             self.warningFilterAction.state = False
         else:
@@ -4299,9 +4433,11 @@ class Console(Plugin):
             self.mainConsole.outputLayout.setCurrentIndex(0)
 
     def toggleVisible(self):
+        """Toggles visibility of Console."""
         self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state)
 
     def toggleLogging(self):
+        """Toggles logging of all messages in the log file."""
         qSet.setValue(LOGGING, self.toggleLoggingAction.state)
         if self.toggleLoggingAction.state:
             self.pluginManager.logger.open()
@@ -4309,24 +4445,33 @@ class Console(Plugin):
             self.pluginManager.logger.close()
 
     def inspect(self):
+        """Uses inspect function of Tree plugin to inspect element currently in the Console input."""
         if self.mainConsole.input.text() == '':
             self.mainConsole.input.setText('Enter object to be inspected here first.')
         else:
-            self.execute(f'Tree.inspect({self.mainConsole.input.text()})')
+            self.execute(f'Tree.inspect({self.mainConsole.input.text()}, search_term="")')
 
     def help(self):
+        """Simple help message. Overwrites broken help function in PyQtGraph.Console."""
         self.print(f'Read the docs online at http://esibd-explorer.rtfd.io/ or offline at {(Path(__file__).parent / "docs/index.html").resolve()} to get help.')
 
     @synchronized(timeout=1)
     def execute(self, command):
+        """Inserts a command in the Console input and executes it.
+
+        :param command: Any valid python command
+        :type command: str
+        """
         self.mainConsole.input.setText(command)
         self.mainConsole.input.execCmd()
         self.mainConsole.input.setFocus()
 
     def clear(self):
+        """Clears the Console input."""
         self.mainConsole.input.setText('')
 
     def hide(self):
+        """Hides the Console."""
         self.pluginManager.Settings.showConsoleAction.state = False
         self.pluginManager.Settings.showConsoleAction.triggered.emit(False)
 
@@ -4355,6 +4500,11 @@ class SettingsManager(Plugin):
         self.settings = {}
 
     def addDefaultSettings(self, plugin):
+        """Adds settings from provided plugin and makes them accessible as attributes.
+
+        :param plugin: The plugin providing the settings.
+        :type plugin: :class:`~esibd.plugins.Plugin`
+        """
         self.defaultSettings.update(plugin.getDefaultSettings())
         # generate property for direct access of setting value from parent
         for name, default in plugin.getDefaultSettings().items():
@@ -4362,6 +4512,11 @@ class SettingsManager(Plugin):
                 setattr(plugin.__class__, default[Parameter.ATTR], makeSettingWrapper(name, self))
 
     def initSettingsContextMenu(self, pos):
+        """Initializes the context menu of the setting.
+
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         try:
             if hasattr(self.tree.itemAt(pos), 'fullName'):
                 self.initSettingsContextMenuBase(self.settings[self.tree.itemAt(pos).fullName], self.tree.mapToGlobal(pos))
@@ -4374,7 +4529,13 @@ class SettingsManager(Plugin):
 
     def initSettingsContextMenuBase(self, setting, pos):
         """General implementation of a context menu.
-        The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Setting`."""
+        The relevant actions will be chosen based on the type and properties of the setting.
+
+        :param setting: The setting for which the context menu is requested.
+        :type setting: esibd.core.Setting
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         settingsContextMenu = QMenu(self.tree)
         openPathAction = None
         changePathAction = None
@@ -4435,12 +4596,19 @@ class SettingsManager(Plugin):
                 setting.removeCurrentItem()
 
     def init(self):
+        """Initializes Settings. Extended to add settings of all other plugins using addDefaultSettings."""
         # call this after creating the instance, as the instance is required during initialization
         # call after all defaultSettings have been added!
         self.loadSettings(default=True)
 
     def loadSettings(self, file=None, default=False):
-        """Loads settings from hdf or ini file."""
+        """Loads settings from hdf or ini file.
+
+        :param file: File from which settings should be loaded, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if default file should be used, defaults to False
+        :type default: bool, optional
+        """
         self.loading = True
         if default:
             file = self.defaultFile
@@ -4520,7 +4688,13 @@ class SettingsManager(Plugin):
         self.loading = False
 
     def updateSettings(self, items, file):
-        """Scans for changes and shows change log before overwriting old channel configuration."""
+        """Scans for changes and shows change log before overwriting old channel configuration.
+
+        :param items: List of setting dictionaries
+        :type items: List[dict]
+        :param file: File from which settings are being loaded.
+        :type file: pathlib.Path
+        """
         # Note: h5diff can be used alternatively to find changes, but the output is not formatted in a user friendly way (hard to correlate values with channels).
         if not self.pluginManager.loading:
             self.changeLog = [f'Change log for loading {self.name} from {file.name}:']
@@ -4546,13 +4720,27 @@ class SettingsManager(Plugin):
             self.addSetting(item)
 
     def addSetting(self, item):
+        """Adds a setting including GUI elements.
+
+        :param item: Setting dict.
+        :type item: dict
+        """
         self.settings[item[Parameter.NAME]] = EsibdCore.Setting(_parent=self, name=item[Parameter.NAME], value=item[Parameter.VALUE], default=item[Parameter.DEFAULT],
                             items=item[Parameter.ITEMS], fixedItems=item[Parameter.FIXEDITEMS], _min=item[Parameter.MIN], _max=item[Parameter.MAX], internal=item[Parameter.INTERNAL],
                             indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], displayDecimals=item[Parameter.DISPLAYDECIMALS], toolTip=item[Parameter.TOOLTIP],
                             tree=item[Parameter.TREE], widgetType=item[Parameter.WIDGETTYPE], widget=item[Parameter.WIDGET], event=item[Parameter.EVENT],
-                            parentItem=self.hdfRequireParentItem(item[Parameter.NAME], self.tree.invisibleRootItem()), advanced=item[Parameter.ADVANCED])
+                            parentItem=self.requireParentItem(name=item[Parameter.NAME], parentItem=self.tree.invisibleRootItem()), advanced=item[Parameter.ADVANCED])
 
-    def hdfRequireParentItem(self, name, parentItem):
+    def requireParentItem(self, name, parentItem):
+        """Ensures all parents groups exist.
+
+        :param name: name containing all parent groups
+        :type name: str
+        :param parentItem: Ensures all groups exist relative to this parent item.
+        :type parentItem: QTreeWidgetItem
+        :return: Valid parent item for last element of name.
+        :rtype: QTreeWidgetItem
+        """
         names = name.split('/')
         if len(names) > 1: # only ensure parents are there. last widget will be created as an Setting
             for name_part in name.split('/')[:-1]:
@@ -4565,7 +4753,13 @@ class SettingsManager(Plugin):
         return parentItem
 
     def saveSettings(self, file=None, default=False): # public method
-        """Saves settings to hdf or ini file."""
+        """Saves settings to hdf or ini file.
+
+        :param file: File to save settings in, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if defaultFile should be used, defaults to False
+        :type default: bool, optional
+        """
         if default:
             file = self.defaultFile
         if file is None: # get file via dialog
@@ -4603,6 +4797,15 @@ class SettingsManager(Plugin):
                         self.hdfSaveSetting(settings_group, name, default)
 
     def hdfSaveSetting(self, group, name, default):
+        """Saves setting in hdf file.
+
+        :param group: The group to which to add setting.
+        :type group: h5py.Group
+        :param name: setting name
+        :type name: str
+        :param default: Default dict for setting.
+        :type default: dict
+        """
         for name_part in name.split('/'):
             group = self.requireGroup(group, name_part)
         group.attrs[Parameter.VALUE]        = self.settings[name].value
@@ -4619,7 +4822,7 @@ class Settings(SettingsManager):
     does not exist. Likewise, default values are used for any missing
     parameters. Setting files can be exported or imported from the user
     interface. A change log will show which settings have changed after importing.
-    In addition, the plugin manager and console can be opened from here."""
+    In addition, the PluginManager and Console can be opened from here."""
 
     version     = '1.0'
     pluginType  = PluginManager.TYPE.CONTROL
@@ -4675,7 +4878,7 @@ class Settings(SettingsManager):
         self.toggleAdvanced()
 
     def init(self):
-        """Call externally to init all internal settings and those of all other plugins."""
+        """Call to init all internal settings and those of all other plugins."""
         self.addDefaultSettings(plugin=self) # make settings available via self.attr
         super().init() # call first time to only load internal settings to enable validation of datapath
         for plugin in self.pluginManager.plugins:
@@ -4758,12 +4961,14 @@ class Settings(SettingsManager):
         super().loadSettings(file=file, default=default)
 
     def updateDataPath(self):
+        """Updates session path and Explorer root directory after changing data path."""
         if not self.pluginManager.loading:
             self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication before changing data path.')
             self.updateSessionPath()
             self.pluginManager.Explorer.updateRoot(self.dataPath)
 
-    def updateConfigPath(self): # load settings from new conf path
+    def updateConfigPath(self):
+        """Reloads settings and plugin configuration after changing configuration path."""
         self.defaultFile = self.configPath / self.confINI
         if not self.pluginManager.loading:
             self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication before changing config path.')
@@ -4778,6 +4983,7 @@ class Settings(SettingsManager):
             splash.close()
 
     def updatePluginPath(self):
+        """Reloads plugins after changing user plugin path."""
         if EsibdCore.CloseDialog(title='Restart now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
             self.pluginManager.closePlugins(reload=True)
 
@@ -4799,27 +5005,51 @@ class Settings(SettingsManager):
             self.print(f'Updated session path to {self.sessionPath}')
 
     def buildSessionPath(self):
+        """Builds the session path based on timestamp. Extend to add additional elements to session path."""
         return Path(*[datetime.now().strftime('%Y-%m-%d_%H-%M')])
 
     def updateDPI(self):
+        """Updates DPI in all active matplotlib figures."""
         for plugin in self.pluginManager.plugins:
             if hasattr(plugin, 'fig') and plugin.fig is not None:
                 plugin.fig.set_dpi(getDPI())
                 plugin.plot()
 
     def getFullSessionPath(self):
+        """Returns full session path inside data path."""
         fullSessionPath = Path(*[self.dataPath, self.sessionPath])
         fullSessionPath.mkdir(parents=True, exist_ok=True) # create if not already existing
         return fullSessionPath
 
     def getMeasurementFileName(self, extension):
+        """Gets measurement file name based on session path, measurement number, and plugin specific file extension.
+
+        :param extension: Plugin specific file extension.
+        :type extension: str
+        :return: Full measurement file path with measurement number and extension.
+        :rtype: pathlib.Path
+        """
         return self.getFullSessionPath() / f'{self.getFullSessionPath().name}_{self.measurementNumber:03d}{extension}'
 
-    def componentInputValidation(self, c):
+    def componentInputValidation(self, component):
+        """Validates a path component.
+
+        :param component: Path component.
+        :type component: str
+        :return: Validated path component.
+        :rtype: str
+        """
         illegal_characters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-        return ''.join(char if char not in illegal_characters else '_' for char in c)
+        return ''.join(char if char not in illegal_characters else '_' for char in component)
 
     def pathInputValidation(self, path):
+        """Validates path.
+
+        :param path: The path to validate.
+        :type path: pathlib.Path
+        :return: Validated path.
+        :rtype: pathlib.Path
+        """
         return Path(*[self.componentInputValidation(part) for part in path.parts])
 
     # def close(self):
@@ -4916,7 +5146,8 @@ class DeviceManager(Plugin):
     def toggleAdvanced(self, advanced=None):
         self.importAction.setVisible(self.advancedAction.state)
 
-    def loadConfiguration(self, file=None):
+    def loadConfiguration(self):
+        """Loads configuration of all devices from a single file."""
         if self.initialized():
             if EsibdCore.CloseDialog(title='Stop communication?', ok='Stop communication', prompt='Communication is still running. Stop communication before loading all configurations!').exec():
                 self.closeCommunication()
@@ -4972,6 +5203,7 @@ class DeviceManager(Plugin):
 
     @property
     def recording(self):
+        """Indicates if at least one device is recording."""
         return any([plugin.recording for plugin in self.pluginManager.getPluginsByClass(ChannelManager)] + [self._recording])
     @recording.setter
     def recording(self, recording):
@@ -4980,6 +5212,7 @@ class DeviceManager(Plugin):
         self.recordingAction.state = recording
 
     def initialized(self):
+        """Indicates if communication to at least one device is initialized."""
         if self.pluginManager.loading:
             return False
         else:
@@ -4990,6 +5223,13 @@ class DeviceManager(Plugin):
             device.loadData(file, _show)
 
     def channels(self, inout=INOUT.BOTH): # flat list of all channels
+        """Get channels based on device type.
+
+        :param inout: Type of device, defaults to INOUT.BOTH
+        :type inout: INOUT, optional
+        :return: List of channels.
+        :rtype: List[:class:`~esibd.core.Channel`]
+        """
         # 15% slower than using cached channels but avoids need to maintain cashed lists when removing and adding channels
         return [y for x in [device.getChannels() for device in self.getDevices(inout)] for y in x]
 
@@ -5005,10 +5245,14 @@ class DeviceManager(Plugin):
         """
         return next((channel for channel in self.channels(inout) if channel.name.strip().lower() == name.strip().lower()), None)
 
-    def getInitializedOutputChannels(self):
-        return [y for x in [device.getInitializedChannels() for device in self.getOutputs()] for y in x]
-
     def getDevices(self, inout=INOUT.BOTH):
+        """Gets devices depending on device type.
+
+        :param inout: Type of device, defaults to INOUT.BOTH
+        :type inout: INOUT, optional
+        :return: List of devices
+        :rtype: List[:class:`~esibd.plugins.Device`]
+        """
         if inout == INOUT.BOTH:
             return self.getInputs() + self.getOutputs()
         if inout == INOUT.ALL:
@@ -5019,18 +5263,23 @@ class DeviceManager(Plugin):
             return self.getOutputs()
 
     def getInputs(self):
+        """Gets all input devices."""
         return self.pluginManager.getPluginsByType(EsibdCore.PluginManager.TYPE.INPUTDEVICE)
 
     def getOutputs(self):
+        """Gets all output devices."""
         return self.pluginManager.getPluginsByType(EsibdCore.PluginManager.TYPE.OUTPUTDEVICE)
 
     def getRelays(self):
+        """Gets all channel managers. These usually do not have real channels but channels that link to device channels in other plugins."""
         return self.pluginManager.getPluginsByType(EsibdCore.PluginManager.TYPE.CHANNELMANAGER)
 
     def getActiveLiveDisplays(self):
+        """Gets all active liveDisplays."""
         return [plugin.liveDisplay for plugin in self.pluginManager.getPluginsByClass(ChannelManager) if plugin.liveDisplayActive()]
 
     def getActiveStaticDisplays(self):
+        """Gets all active staticDisplays."""
         return [plugin.staticDisplay for plugin in self.pluginManager.getPluginsByClass(ChannelManager) if plugin.staticDisplayActive()]
 
     def getDefaultSettings(self):
@@ -5043,6 +5292,7 @@ class DeviceManager(Plugin):
         return defaultSettings
 
     def restoreConfiguration(self):
+        """Loads configuration and settings for all devices and scans."""
         for device in self.getDevices():
             device.loadConfiguration(default=True)
             self.processEvents()
@@ -5051,14 +5301,21 @@ class DeviceManager(Plugin):
             self.processEvents()
 
     def clearPlot(self):
+        """Clears plots for all plugins."""
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             plugin.clearPlot()
 
     def livePlot(self, apply=False):
+        """Updates plots for all active liveDisplays.
+
+        :param apply: Indicates if plot curves should be recreated or just updated. Defaults to False
+        :type apply: bool, optional
+        """
         for liveDisplay in self.getActiveLiveDisplays():
             liveDisplay.plot(apply)
 
     def stopRecording(self):
+        """Stops recording for all devices. Communication stays active."""
         if EsibdCore.CloseDialog(title='Stop all recording?', ok='Stop all recording', prompt='Stop recording on all devices? Active scans will be stopped.').exec():
             self.recording = False
             for liveDisplay in self.getActiveLiveDisplays():
@@ -5070,8 +5327,12 @@ class DeviceManager(Plugin):
     def closeCommunication(self, manual=False, closing=False, message='Stopping communication.'):
         """Close all communication
 
-        :param manual: Indicates if triggered by user, defaults to False
+        :param manual: Indicates if triggered by user and needs confirmation dialog before proceeding. Defaults to False
         :type manual: bool, optional
+        :param closing: Indicate that the application is closing, defaults to False
+        :type closing: bool, optional
+        :param message: Message indicating that the communication is stopped. Optionally add reason. Defaults to 'Stopping communication.'
+        :type message: str, optional
         """
         if not self.initialized():
             return # already closed
@@ -5083,6 +5344,11 @@ class DeviceManager(Plugin):
                 plugin.closeCommunication()
 
     def stopScans(self, closing=False):
+        """Stops all scans and waits for them to finish.
+
+        :param closing: Indicate that the application is closing and needs to wait for scans to finish. Defaults to False
+        :type closing: bool, optional
+        """
         for scan in self.pluginManager.getPluginsByType(PluginManager.TYPE.SCAN):
             scan.recording = False # stop all running scans
         if closing:
@@ -5093,6 +5359,11 @@ class DeviceManager(Plugin):
 
     @synchronized()
     def exportOutputData(self, file=None):
+        """Exports output data for all active LiveDisplays.
+
+        :param file: The file to which the data should be added, defaults to None
+        :type file: str, pathlib.Path, optional
+        """
         self.pluginManager.Settings.incrementMeasurementNumber()
         if file is None:
             file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
@@ -5106,18 +5377,28 @@ class DeviceManager(Plugin):
         self.pluginManager.Explorer.populateTree()
 
     def updateStaticPlot(self):
+        """Updates all staticPlots."""
         for staticDisplay in self.getActiveStaticDisplays():
-            staticDisplay.updateStaticPlot()
+            staticDisplay.plot()
 
     def exportConfiguration(self, file=None, default=False, inout=INOUT.BOTH):
+        """Exports configuration for all Devices and ChannelManagers."""
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             plugin.exportConfiguration(file=file, default=default)
 
     def initializeCommunication(self):
+        """Initialized communication for all Devices and ChannelManagers."""
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             plugin.initializeCommunication()
 
     def globalUpdate(self, apply=False, inout=INOUT.BOTH):
+        """Updates channel values based on equations for all devices of provided type.
+
+        :param apply: Indicates if values should be applied to devices, even if they have not changed. Defaults to False
+        :type apply: bool, optional
+        :param inout: Type of device to evaluate, defaults to INOUT.BOTH
+        :type inout: INOUT, optional
+        """
         # wait until all channels are complete before applying logic. will be called again when loading completed
         if any([device.loading for device in self.getDevices(inout)]) or self.pluginManager.loading:
             return
@@ -5179,7 +5460,13 @@ class Notes(Plugin):
         self.addContentLayout(lay)
 
     def saveData(self, file, default=False):
-        """Adds current notes to existing file."""
+        """Adds current notes to existing file.
+
+        :param file: Path to save data.
+        :type file: pathlib.Path
+        :param default: Saves notes in text file in current folder or in scan file, defaults to False
+        :type default: bool, optional
+        """
         if default:
             self.file = file / 'notes.txt'
             if self.editor.toPlainText() != '':
@@ -5380,16 +5667,29 @@ class Explorer(Plugin):
         # except:
         #     self.print(f'Error: cant open directory {target}')
 
-    def LOADSETTINGS(self, p):
-        if p.pluginType in [PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE]:
-            return f'Load {p.name} channels.'
+    def LOADSETTINGS(self, plugin):
+        """Load settings message for context menus.
+
+        :param plugin: The plugin for which settings should be loaded.
+        :type plugin: esibd.plugins.Plugin
+        :return: Load settings message.
+        :rtype: str
+        """
+        if plugin.pluginType in [PluginManager.TYPE.INPUTDEVICE, PluginManager.TYPE.OUTPUTDEVICE]:
+            # currently channels can only be loaded explicitly from the toolbar in advanced mode.
+            # this is to prevent changing them by accident and make the context menu more concise as this function is rarely used.
+            return f'Load {plugin.name} channels.'
         else: # PLUGINSCAN, ...
-            return f'Load {p.name} settings.'
+            return f'Load {plugin.name} settings.'
 
     LOADALLVALUES = 'Load all device values.'
 
     def initExplorerContextMenu(self, pos):
-        """Context menu for items in Explorer"""
+        """Context menu for items in Explorer
+
+        :param pos: The position where the context menu should be created.
+        :type pos: QPoint
+        """
         item = self.tree.itemAt(pos)
         if item is None:
             return
@@ -5516,12 +5816,24 @@ class Explorer(Plugin):
                             device.loadValues(self.activeFileFullPath)
 
     def treeItemDoubleClicked(self, item, _):
+        """Opens dir or opens file in external default program on double click.
+
+        :param item: The item representing a file or directory.
+        :type item: QTreeWidgetItem
+        """
         if self.getItemFullPath(item).is_dir():
             self.updateRoot(self.getItemFullPath(item), addHistory=True)
         else: # treeItemDoubleClicked
             openInDefaultApplication(self.activeFileFullPath)
 
     def getItemFullPath(self, item):
+        """Returns full path to item.
+
+        :param item: The item representing a file or directory.
+        :type item: QTreeWidgetItem
+        :return: Corresponding full path.
+        :rtype: str
+        """
         out = item.text(0)
         if item.parent():
             out = self.getItemFullPath(item.parent()) / out
@@ -5530,18 +5842,30 @@ class Explorer(Plugin):
         return out
 
     def up(self):
+        """Navigate to parent directory."""
         newRoot = Path(self.root).parent.resolve()
         self.updateRoot(newRoot, addHistory=True)
 
     def forward(self):
+        """Navigate forwards in directory history."""
         self.indexHistory = min(self.indexHistory + 1, len(self.history)-1)
         self.updateRoot(self.history[self.indexHistory])
 
     def backward(self):
+        """Navigate backwards in directory history."""
         self.indexHistory = max(self.indexHistory - 1, 0)
         self.updateRoot(self.history[self.indexHistory])
 
     def updateRoot(self, newRoot, addHistory = False, loading=False):
+        """Updates the root directory.
+
+        :param newRoot: The new root directory.
+        :type newRoot: str, pathlib.Path
+        :param addHistory: Indicates if the path will be accessible later through the navigation buttons. Defaults to False
+        :type addHistory: bool, optional
+        :param loading: Skip GUI updates during loading and initialization. Defaults to False
+        :type loading: bool, optional
+        """
         self.rootChanging(self.root, newRoot)
         self.root = Path(newRoot)
         if addHistory:
@@ -5554,7 +5878,11 @@ class Explorer(Plugin):
 
     @synchronized()
     def populateTree(self, clear=False):
-        """Populates or updates fileTree."""
+        """Populates or updates fileTree.
+
+        :param clear: If true all items will be deleted and new items will be created from scratch. Defaults to False
+        :type clear: bool, optional
+        """
         self.populating = True
         for action in [self.backAction, self.forwardAction, self.upAction, self.refreshAction]:
             action.setEnabled(False)
@@ -5574,30 +5902,34 @@ class Explorer(Plugin):
         else:
             self.upAction.setIcon(self.ICON_UP)
 
-        self.load_project_structure(startPath=self.root, tree=self.tree.invisibleRootItem(), _filter=self.filterLineEdit.text(), clear=clear) # populate tree widget
+        self.load_project_structure(startPath=self.root, tree=self.tree.invisibleRootItem(), search_term=self.filterLineEdit.text(), clear=clear) # populate tree widget
 
         it = QTreeWidgetItemIterator(self.tree, QTreeWidgetItemIterator.IteratorFlag.HasChildren)
         while it.value():
             if it.value().isExpanded():
-                self.load_project_structure(startPath=it.value().path_info, tree=it.value(), _filter=self.filterLineEdit.text(), clear=clear) # populate expanded dirs, independent of recursion depth
+                self.load_project_structure(startPath=it.value().path_info, tree=it.value(), search_term=self.filterLineEdit.text(), clear=clear) # populate expanded dirs, independent of recursion depth
             it +=1
         self.populating = False
         for action in [self.backAction, self.forwardAction, self.upAction, self.refreshAction]:
             action.setEnabled(True)
 
     def browseDir(self):
+        """Sets path selected from file dialog as new root directory."""
         newPath = Path(QFileDialog.getExistingDirectory(parent=None, caption=SELECTPATH, directory=self.root.as_posix(),
                                                         options=QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks))
         if newPath != Path('.'):
             self.updateRoot(newPath, addHistory=True)
 
     def goToCurrentSession(self):
+        """Sets current session path as new root directory."""
         self.updateRoot(self.pluginManager.Settings.getFullSessionPath(), addHistory=True)
 
     def goToDataPath(self):
+        """Sets data path as new root directory."""
         self.updateRoot(self.pluginManager.Settings.dataPath, addHistory=True)
 
     def updateCurDirFromLineEdit(self):
+        """Updates root directory after manually editing path in currentDirLineEdit."""
         path = Path(self.currentDirLineEdit.text())
         if path.exists():
             self.updateRoot(path, addHistory=True)
@@ -5605,6 +5937,11 @@ class Explorer(Plugin):
             self.print(f'Could not find directory: {path}', PRINT.ERROR)
 
     def treeItemClicked(self, item):
+        """Displays content when clicking on a file.
+
+        :param item: The item representing the file.
+        :type item: QTreeWidgetItem
+        """
         if item is not None and not self.getItemFullPath(item).is_dir():
             if self.loadingContent:
                 self.print(f'Ignoring {self.getItemFullPath(item).name} while loading {self.activeFileFullPath.name}')
@@ -5637,12 +5974,22 @@ class Explorer(Plugin):
         finally:
             self.loadingContent = False
 
-    def load_project_structure(self, startPath, tree, _filter, recursionDepth=2, clear=False):
-        """from https://stackoverflow.com/questions/5144830/how-to-create-folder-view-in-pyqt-inside-main-window
-        recursively maps the file structure into the internal explorer
-        Note that recursion depth of 2 assures fast indexing. Deeper levels will be indexed as they are expanded.
+    def load_project_structure(self, startPath, tree, search_term, recursionDepth=2, clear=False):
+        # based on https://stackoverflow.com/questions/5144830/how-to-create-folder-view-in-pyqt-inside-main-window
+        """Recursively maps the file structure into the internal Explorer.
         Data from multiple sessions can be accessed from the data path level by expanding the tree.
-        Recursion depth of more than 2 can lead to very long loading times"""
+
+        :param startPath: The new root directory. The Explorer will show all directories and files contained inside it.
+        :type startPath: pathlib.Path
+        :param tree: The tree that will be used to display directories and files.
+        :type tree: QTreeWidgetItem
+        :param search_term: Content will be filtered using this.
+        :type search_term: str
+        :param recursionDepth: How many levels will be populated. Further levels will be populated as they are expanded. recursionDepth of more than 2 can lead to very long loading times. Defaults to 2
+        :type recursionDepth: int, optional
+        :param clear: If True, all items will be recreated from scratch, otherwise existing items will be updated. Defaults to False
+        :type clear: bool, optional
+        """
         self.processEvents()
         # self.tree.update() does not update GUI before completion of event loop
         if recursionDepth == 0: # limit depth to avoid indexing entire storage (can take minutes)
@@ -5672,9 +6019,9 @@ class Explorer(Plugin):
                     parent_itm = QTreeWidgetItem(tree,[element.name])
                     parent_itm.path_info = path_info
                     parent_itm.setIcon(0, self.ICON_FOLDER)
-                self.load_project_structure(startPath=path_info, tree=parent_itm, _filter=_filter, recursionDepth=recursionDepth, clear=clear)
-            for element in [element for element in filelist if ((_filter is None or _filter == "" or _filter.lower() in element.name.lower()) and element.name not in children_text)]:
-                # don't add files that do not match _filter and only add elements that do not exist already
+                self.load_project_structure(startPath=path_info, tree=parent_itm, search_term=search_term, recursionDepth=recursionDepth, clear=clear)
+            for element in [element for element in filelist if ((search_term is None or search_term == "" or search_term.lower() in element.name.lower()) and element.name not in children_text)]:
+                # don't add files that do not match search_term and only add elements that do not exist already
                 if clear: # add all items alphabetically
                     parent_itm = QTreeWidgetItem(tree,[element.name])
                 else: # insert new items at alphabetically correct position
@@ -5687,12 +6034,19 @@ class Explorer(Plugin):
             for child in children:
                 if not (startPath / child.text(0)).exists():
                     tree.removeChild(child) # remove if does not exist anymore
-                if (startPath / child.text(0)).is_file() and _filter is not None and _filter != "" and _filter.lower() not in child.text(0).lower():
+                if (startPath / child.text(0)).is_file() and search_term is not None and search_term != "" and search_term.lower() not in child.text(0).lower():
                     tree.removeChild(child) # remove files if they do not match filter
         else:
             self.print(f'{startPath} is not a valid directory', PRINT.ERROR)
 
     def getFileIcon(self, file):
+        """Gets the icon of the plugin that will handle the file.
+
+        :param file: The file path.
+        :type file: pathlib.Path
+        :return: The corresponding icon.
+        :rtype: esibd.core.Icon
+        """
         plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file) if plugin not in [self.pluginManager.Tree, self.pluginManager.Text]), None)
         if plugin is None: # only use Tree or Text if no other supporting Plugin has been found
             plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)), None)
@@ -5702,10 +6056,22 @@ class Explorer(Plugin):
             return self.ICON_DOCUMENT
 
     def expandDir(self, _dir):
-        self.load_project_structure(startPath=_dir.path_info, tree=_dir, _filter=self.filterLineEdit.text())
+        """Loads directory content and expands it.
+
+        :param _dir: The directory to be expanded.
+        :type _dir: QTreeWidgetItem
+        """
+        self.load_project_structure(startPath=_dir.path_info, tree=_dir, search_term=self.filterLineEdit.text())
         _dir.setExpanded(True)
 
     def rootChanging(self, oldRoot, newRoot):
+        """Handles notes when rood directory changes.
+
+        :param oldRoot: Old root directory.
+        :type oldRoot: pathlib.Path
+        :param newRoot: New root directory.
+        :type newRoot: pathlib.Path
+        """
         if hasattr(self.pluginManager, 'Notes'):
             # save old notes
             if oldRoot is not None:
@@ -5748,6 +6114,7 @@ class UCM(ChannelManager):
         DEVICE   = 'Device'
 
         def connectSource(self):
+            """Connects the sourceChannel."""
             self.removeEvents() # free up previously used channel if applicable
             sources = [channel for channel in self.device.pluginManager.DeviceManager.channels(inout=INOUT.ALL)
                        if channel not in self.device.getChannels()
@@ -5809,6 +6176,7 @@ class UCM(ChannelManager):
             self.scalingChanged()
 
         def setSourceChannelValue(self):
+            """Updates sourceChannel.value"""
             if self.sourceChannel is not None:
                 try:
                     self.sourceChannel.value = self.value
@@ -5818,6 +6186,7 @@ class UCM(ChannelManager):
                     self.connectSource()
 
         def relayValueEvent(self):
+            """Updates value when sourceChannel.value changed."""
             if self.sourceChannel is not None:
                 try:
                     value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
@@ -5829,6 +6198,7 @@ class UCM(ChannelManager):
                     self.removeEvents()
 
         def relayMonitorEvent(self):
+            """Updates monitor and monitor stylesheet when sourceChannel.monitor changed."""
             if self.sourceChannel is not None:
                 try:
                     self.monitor = self.sourceChannel.monitor
@@ -5840,6 +6210,7 @@ class UCM(ChannelManager):
             pass
 
         def getSourceChannelValues(self):
+            """Gets value and if applicable monitor from sourceChannel."""
             if self.sourceChannel is not None:
                 if self.sourceChannel.inout == INOUT.OUT:
                     self.monitor = self.sourceChannel.value
@@ -5853,6 +6224,7 @@ class UCM(ChannelManager):
             self.removeEvents()
 
         def removeEvents(self):
+            """Removes extra events from sourceChannel."""
             if self.sourceChannel is not None:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
@@ -5949,6 +6321,7 @@ class UCM(ChannelManager):
         self.pluginManager.Text.setText('Import channels from file explicitly.', True)
 
     def connectAllSources(self, update=False):
+        """Connects all available source channels."""
         self.loading = True # suppress plot
         for channel in self.channels:
             if channel.sourceChannel is None or update:
@@ -5962,6 +6335,9 @@ class UCM(ChannelManager):
         self.loading = False
 
     def reconnectSource(self, name):
+        """Tries to reconnect linked channels if applicable.
+        This is needed e.g. after renaming, moving, or deleting channels.
+        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found."""
         for channel in self.channels:
             if channel.name == name:
                 self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
@@ -6002,6 +6378,7 @@ class PID(ChannelManager):
         SAMPLETIME   = 'Sampletime'
 
         def connectSource(self):
+            """Connects the source and inputChannels."""
             self.removeEvents()
             self.sourceChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
@@ -6022,6 +6399,15 @@ class PID(ChannelManager):
             self.updateColor()
 
         def findChannel(self, name, DEVICE):
+            """Finds the source or inputChannel based on its name and sets its device icon.
+
+            :param name: Channel name.
+            :type name: str
+            :param DEVICE: Input or Outputdevice icon parameter
+            :type DEVICE: str
+            :return: channel, notes
+            :rtype: :class:`~esibd.core.Channel`, str
+            """
             channels = [channel for channel in self.device.pluginManager.DeviceManager.channels() if channel.name.strip().lower() == name.strip().lower()]
             selectedChannel = None
             notes = ''
@@ -6039,6 +6425,7 @@ class PID(ChannelManager):
             return selectedChannel, notes
 
         def stepPID(self):
+            """Sets inputChannel.value based on sourceChannel.value and PID state."""
             try:
                 if self.sourceChannel.useMonitors:
                     self.monitor = self.sourceChannel.monitor
@@ -6056,14 +6443,17 @@ class PID(ChannelManager):
             pass
 
         def updateSetpoint(self):
+            """Updates the setpoint in the pid controller based on the channel value."""
             if self.pid is not None:
                 self.pid.setpoint = self.value
 
         def updateSampleTime(self):
+            """Updates the sample time in the pid controller based on the channel value."""
             if self.pid is not None:
                 self.pid.sample_time = self.sample_time
 
         def updatePID(self):
+            """Updates P, I, and D in the pid controller based on the channel values."""
             if self.pid is not None:
                 self.pid.tunings = self.p, self.i, self.d
 
@@ -6072,6 +6462,7 @@ class PID(ChannelManager):
             self.removeEvents()
 
         def removeEvents(self):
+            """Removes extra events from sourceChannel."""
             if self.sourceChannel is not None:
                 if self.stepPID in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
@@ -6179,6 +6570,7 @@ class PID(ChannelManager):
             newChannel.connectSource()
 
     def connectAllSources(self, update=False):
+        """Connects all available source channels."""
         for channel in self.channels:
             if channel.sourceChannel is None or channel.inputChannel is None or update:
                 channel.connectSource()
@@ -6191,6 +6583,9 @@ class PID(ChannelManager):
                     channel.connectSource()
 
     def reconnectSource(self, name):
+        """Tries to reconnect linked channels if applicable.
+        This is needed e.g. after renaming, moving, or deleting channels.
+        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found."""
         for channel in self.channels:
             if channel.input == name or channel.output == name:
                 self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)

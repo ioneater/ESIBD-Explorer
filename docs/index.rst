@@ -29,8 +29,9 @@ your custom plugin. It **does not** eliminate the need to learn basic
 Python and PyQt independently if you want to create more advanced plugins,
 though the existing plugins can be a great resource to get started.
 
-*ESIBD Explorer* is implemented based on Python and PyQt. It is
-optimized for Microsoft Windows 10 or higher and distributed under the
+*ESIBD Explorer* is implemented based on Python 3.11 and PyQt6. It is
+running on Microsoft Windows 10 or higher. Use on Linux and MacOS is possible
+but not extensively tested. *ESIBD Explorer* is distributed under the
 GNU General Public License. There is no guarantee in case of any data
 loss due to malfunction of *ESIBD Explorer*. Users are responsible for
 backing up their own data and configuration files.
