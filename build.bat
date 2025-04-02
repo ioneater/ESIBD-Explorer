@@ -142,12 +142,15 @@ call rm -r pyinstaller_build
 call rmdir /q /s pyinstaller_dist
 call rm -r pyinstaller_dist
 REM make sure both folders have been deleted!
-conda create -y -n "esibdtest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
-conda activate esibdtest
+conda create -y -n "esibd-offline" python=3.11 REM make sure no other environments (including VSCode) are active during this step
+conda activate esibd-offline
 REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
 pip install esibd-explorer==0.7.3 pyinstaller
 REM test software
 python -m esibd.explorer
+
+REM create environment for offline installation
+create_esibd_offline.bat
 
 REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
@@ -187,4 +190,5 @@ REM select tag
 REM Title: Version v0.7.3
 REM Copy change log from changelog.rst
 REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
+REM attach esibd.tar.gz to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

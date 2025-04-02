@@ -132,19 +132,35 @@ class PressureController(DeviceController):
                 channel.value = pressure
 
     def TPGWrite(self, message):
-        """TPG specific serial write."""
+        """TPG specific serial write.
+
+        :param message: The serial message to be send.
+        :type message: str
+        """
         self.serialWrite(self.port, f'{message}\r', encoding='ascii')
         self.serialRead(self.port, encoding='ascii') # read acknowledgment
 
     def TPGRead(self):
-        """TPG specific serial read."""
+        """TPG specific serial read.
+
+        :return: The serial response received.
+        :rtype: str
+        """
         self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
         enq =  self.serialRead(self.port, encoding='ascii') # response
         self.serialRead(self.port, encoding='ascii') # followed by NAK
         return enq
 
     def TPGWriteRead(self, message, lock_acquired=False):
-        """TPG specific serial write and read return."""
+        """TPG specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:

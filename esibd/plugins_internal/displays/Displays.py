@@ -9,7 +9,7 @@ from Bio.PDB import PDBParser
 import matplotlib.pyplot as plt
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtCore import Qt, QTimer
-from esibd.core import MZCalculator, PluginManager, getDarkMode, UTF8, colors
+from esibd.core import MZCalculator, PluginManager, getDarkMode, colors
 from esibd.plugins import Plugin
 
 def providePlugins():
@@ -104,7 +104,7 @@ class MS(Plugin):
         if self.paperAction.state:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
-            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, min(self.x), max(self.x), self.smooth(self.y, 10)),
+            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, self.smooth(self.y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100+2])
@@ -125,22 +125,46 @@ class MS(Plugin):
         self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value):
-        """Returns the nearest value in the given array."""
+        """Returns the nearest value in the given array.
+
+        :param array: Array to search in.
+        :type array: np.array
+        :param value: Search value.
+        :type value: float
+        :return: Value nearest to search value.
+        :rtype: float
+        """
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
-    def map_percent(self, x, x_min, x_max, y):
-        """Maps the range between y(x_min) and y(x_max) to 0 to 100 %."""
-        x_min_i=np.where(x == self.find_nearest(x, x_min))[0]
+    def map_percent(self, x, y):
+        """Maps the range between y(x_min) and y(x_max) to 0 to 100 %.
+
+        :param x: X values.
+        :type x: np.array
+        :param y: Original Y values.
+        :type y: np.array
+        :return: Mapped input values.
+        :rtype: np.array
+        """
+        x_min_i=np.where(x == self.find_nearest(x, min(x)))[0]
         x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
-        x_max_i=np.where(x == self.find_nearest(x, x_max))[0]
+        x_max_i=np.where(x == self.find_nearest(x, max(x)))[0]
         x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
         y_sub=y[x_min_i:x_max_i]
         return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
 
     def smooth(self, y, box_pts):
-        """Smooths y data by convolution with a box."""
+        """Smooths a 1D array.
+
+        :param y: Array to be smoothed.
+        :type y: np.array
+        :param box_pts: With of box used for smoothing.
+        :type box_pts: int
+        :return: convolvedArray
+        :rtype: np.array
+        """
         box = np.ones(box_pts)/box_pts
         y_smooth = np.convolve(y, box, mode='same')
         return y_smooth
@@ -157,23 +181,47 @@ class MS(Plugin):
 import matplotlib.pyplot as plt
 import numpy as np
 
-def map_percent(x, x_min, x_max, y):
-    '''Maps the range between y(x_min) and y(x_max) to 0 to 100 %.'''
-    x_min_i=np.where(x == find_nearest(x, x_min))[0]
+def map_percent(x, y):
+    '''Maps the range between y(x_min) and y(x_max) to 0 to 100 %.
+
+    :param x: X values.
+    :type x: np.array
+    :param y: Original Y values.
+    :type y: np.array
+    :return: Mapped input values.
+    :rtype: np.array
+    '''
+    x_min_i=np.where(x == find_nearest(x, min(x)))[0]
     x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
-    x_max_i=np.where(x == find_nearest(x, x_max))[0]
+    x_max_i=np.where(x == find_nearest(x, max(x)))[0]
     x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
     y_sub=y[x_min_i:x_max_i]
     return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
 
 def smooth(y, box_pts):
-    '''Smooths y data by convolution with a box.'''
+    '''Smooths a 1D array.
+
+    :param y: Array to be smoothed.
+    :type y: np.array
+    :param box_pts: With of box used for smoothing.
+    :type box_pts: int
+    :return: convolvedArray
+    :rtype: np.array
+    '''
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
     return y_smooth
 
 def find_nearest(array, value):
-    '''Returns the nearest value in the given array.'''
+    '''Returns the nearest value in the given array.
+
+    :param array: Array to search in.
+    :type array: np.array
+    :param value: Search value.
+    :type value: float
+    :return: Value nearest to search value.
+    :rtype: float
+    '''
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return array[idx]
@@ -229,6 +277,13 @@ class PDB(Plugin):
             self.afterFinalizeInit()
 
     def get_structure(self, pdb_file): # read PDB file
+        """Get structure and XYZ coordinates from pdb file.
+
+        :param pdb_file: PDB input file.
+        :type pdb_file: pathlib.Path
+        :return: PDBParser object, XYZ, X, Y, Z
+        :rtype: PDBParser, np.array, np.array, np.array
+        """
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
         XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
         return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
@@ -251,12 +306,13 @@ class PDB(Plugin):
         self.canvas.draw_idle()
 
     def set_axes_equal(self, ax):
-        '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+        """Make axes of 3D plot have equal scale so that spheres appear as spheres,
         cubes as cubes, etc..  This is one possible solution to Matplotlib's
         ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
-        Input
-        ax: a matplotlib axis, e.g., as output from plt.gca().
-        '''
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        """
         x_limits = ax.get_xlim3d()
         y_limits = ax.get_ylim3d()
         z_limits = ax.get_zlim3d()
@@ -280,9 +336,16 @@ import numpy as np
 from Bio.PDB import PDBParser
 
 def get_structure(pdb_file): # read PDB file
-        structure = PDBParser(QUIET=True).get_structure('', pdb_file)
-        XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
-        return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
+    '''Get structure and XYZ coordinates from pdb file.
+
+    :param pdb_file: PDB input file.
+    :type pdb_file: pathlib.Path
+    :return: PDBParser object, XYZ, X, Y, Z
+    :rtype: PDBParser, np.array, np.array, np.array
+    '''
+    structure = PDBParser(QUIET=True).get_structure('', pdb_file)
+    XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
+    return structure, XYZ, XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
@@ -371,7 +434,13 @@ class LINE(Plugin):
         return False
 
     def loadData(self, file, _show=True):
-        """Plots one dimensional data for multiple file types."""
+        """Plots one dimensional data for multiple file types.
+
+        :param file: The file from which to load data.
+        :type file: pathlib.Path
+        :param _show: True if display should be shown after loading data. Set to false if multiple plugins load file and other plugins have priority. Defaults to True
+        :type _show: bool, optional
+        """
         self.provideDock()
         if file.name.endswith('.txt'): # need to implement handling of different files in future
             self.profile = np.loadtxt(file, skiprows=3)
@@ -471,17 +540,33 @@ class HOLO(Plugin):
         self.raiseDock(_show)
 
     def mapSliderToData(self, slider, data):
-        """Maps the position of the slider in percent to the corresponding data value."""
+        """Maps the position of the slider in percent to the corresponding data value.
+
+        :param slider: Slider providing threshold for drawing.
+        :type slider: QSlider
+        :param data: The data to be mapped.
+        :type data: np.ndarray
+        :return: Mapped data.
+        :rtype: np.ndarray
+        """
         return data.min() + slider.value()/100*(data.max() - data.min())
 
     def value_changed(self, plotAngle=True):
-        """Triggers delayed plot after slider value change."""
+        """Triggers delayed plot after slider value change.
+
+        :param plotAngle: True for angle, False for amplitude, defaults to None
+        :type plotAngle: bool, optional
+        """
         self.plotAngle = plotAngle
         self.update_timer.start(200)
         # QTimer.singleShot(500, lambda: self.drawSurface(plotAngle=plotAngle))
 
     def drawSurface(self, plotAngle=None):
-        """Draws an isosurface at a value defined by the sliders."""
+        """Draws an isosurface at a value defined by the sliders.
+
+        :param plotAngle: True for angle, False for amplitude, defaults to None
+        :type plotAngle: bool, optional
+        """
         if plotAngle is not None:
             self.plotAngle=plotAngle
         if self.angle is not None:

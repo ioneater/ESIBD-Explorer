@@ -6,6 +6,7 @@ from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
 def providePlugins():
+    """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [CustomControl]
 
 class CustomControl(Plugin):

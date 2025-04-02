@@ -1,11 +1,15 @@
-REM After setting up the esibd environment using create_env.bat on a computer with internet, this file can be used to bundle all dependencies to create the esibd environment on a computer without internet connection
-REM After running this, proceed by installing miniconda on the offline computer and extract the content of esibd.tar.gz as a local environment (e.g. to \AppData\Local\miniconda3\envs\esibd)
+REM This file can be used to bundle ESIBD-Explorer and all dependencies for use on a computer without internet connection
+REM After running this, proceed by installing miniconda on the offline computer and extract the content of esibd.tar.gz as a local environment (e.g. to \AppData\Local\miniconda3\envs\esibd or any other location)
 REM Then start the program using start_esibd_offline.bat
 
-REM https://conda.github.io/conda-pack/
-REM https://gist.github.com/pmbaumgartner/2626ce24adb7f4030c0075d2b35dda32
-REM Make sure files are copied to local drive before unpacking (q drive insanely slow)
 call conda activate base
-REM requires installation of conda-pack in base environment
-REM conda install -c conda-forge conda-pack
-call conda pack -n esibd -o esibd.tar.gz
+call conda install -y -c conda-forge conda-pack
+call conda create -y -n "esibd-offline" python=3.11
+call conda activate esibd-offline
+call pip install esibd-explorer
+call conda activate base
+REM Note: add any additional custom requirements here
+REM call conda install your-requirements
+call conda pack --force -n esibd-offline -o esibd.tar.gz
+REM Make sure files are copied to local drive before unpacking
+

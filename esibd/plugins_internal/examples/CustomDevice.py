@@ -69,17 +69,12 @@ class CustomDevice(Device):
         pass # TODO add code to be executed in case the interval changes if needed
 
     def applyValues(self, apply=False):
-        """ Executed when values have changed.
-            Should only apply channels where value has changed."""
         for channel in self.getChannels():
             self.controller.applyValue(channel)
 
     customSetting = 'Custom/Setting'
 
     def getDefaultSettings(self):
-        """Define device specific settings that will be added to the general settings tab.
-        These will be included if the settings file is deleted and automatically regenerated.
-        Overwrite as needed."""
         settings = super().getDefaultSettings()
         settings[self.customSetting] = parameterDict(value=100, _min=100, _max=10000, toolTip='Custom Tooltip',
                                                                                     widgetType=Parameter.TYPE.INT, attr='custom')
@@ -103,6 +98,12 @@ class CustomChannel(Channel):
         super().__init__(device, tree)
         # TODO initialize any custom variables
 
+    def initGUI(self, item):
+        super().initGUI(item)
+        # TODO make any final modifications after channels have been initialized.
+        _id = self.getParameterByName(self.ID)
+        print(_id.getWidget())
+
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE   ][Parameter.HEADER] = 'Value (X)' # overwrite to change header
@@ -118,12 +119,6 @@ class CustomChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() # + [self.ID]
         # TODO add parameters that should not be restored from file
-
-    def finalizeInit(self, item):
-        super().finalizeInit(item)
-        # TODO make any final modifications after channels have been initialized.
-        _id = self.getParameterByName(self.ID)
-        print(_id.getWidget())
 
     def enabledChanged(self):
         super().enabledChanged()
@@ -194,6 +189,11 @@ class CustomController(DeviceController):
             time.sleep(self.device.interval/1000) # release lock before waiting!
 
     def applyValue(self, channel):
+        """Applies value to device.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         # Pseudocode: Apply channel.value to channel with channel.id
         pass # TODO implement depending on hardware
 

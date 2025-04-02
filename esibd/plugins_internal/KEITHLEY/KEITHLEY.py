@@ -33,9 +33,6 @@ class KEITHLEY(Device):
         self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
-        """ Define device specific settings that will be added to the general settings tab.
-        These will be included if the settings file is deleted and automatically regenerated.
-        Overwrite as needed."""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
         return defaultSettings
@@ -113,6 +110,7 @@ class CurrentChannel(Channel):
         self.resetCharge()
 
     def resetCharge(self):
+        """Resets the charge."""
         self.charge = 0 # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
         self.preciseCharge = 0
 
@@ -189,10 +187,16 @@ class CurrentController(DeviceController):
         self.channel.value = value
 
     def applyVoltage(self):
+        """Applies voltage value."""
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
 
     def voltageON(self, parallel=True): # this can run in main thread
+        """Toggles voltage output.
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
         if not getTestMode() and self.initialized:
             self.applyVoltage() # apply voltages before turning power supply on or off
             if parallel:
@@ -201,6 +205,7 @@ class CurrentController(DeviceController):
                 self.voltageONFromThread()
 
     def voltageONFromThread(self):
+        """Toggles voltage output (tread safe)."""
         self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeNumbers(self):

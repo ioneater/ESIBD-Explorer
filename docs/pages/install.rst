@@ -50,12 +50,12 @@ From source (Miniconda offline)
 To install on a computer that is offline, create and export the esibd environment from another computer that is online.
 All files you need to do this are in the `setup folder <https://github.com/ioneater/ESIBD-Explorer/tree/main/setup>`_.
 
-1. Run :code:`create_env.bat` to create the esibd environment.
-2. Run :code:`create_esibd_offline.bat` to export the esibd environment as :code:`esibd.tar.gz`.
+1. If you need custom requirements, add them to :code:`create_esibd_offline.bat`
+2. Run :code:`create_esibd_offline.bat` to create and export the esibd environment as :code:`esibd.tar.gz`.
 3. Install Miniconda on the offline computer and extract the content of :code:`esibd.tar.gz` as a local environment.
 4. Run :code:`start_esibd_offline.bat` to start *ESIBD Explorer* on the offline computer
 
-You need to adjust the filepaths in these files depending on the location of the environment and software on your computer.
+You need to adjust the filepaths in these files depending on the location of the environment on your computer.
 See comments within the files for more details.
 
 From PyPi (Linux)

@@ -37,7 +37,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtWidgets import (QLineEdit, QWidget, QSizePolicy, QScrollBar, QPushButton, QPlainTextEdit, QHBoxLayout, QVBoxLayout, QLabel,
                             QTreeWidgetItem, QTreeWidget, QApplication, QTreeWidgetItemIterator, QMenu, QHeaderView, QToolBar,
                             QFileDialog, QInputDialog, QComboBox, QSpinBox, QCheckBox, QToolButton, QSplitter, QDockWidget)
-from PyQt6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QImage, QAction, QTextCursor #, QPixmap, QScreen, QColor
+from PyQt6.QtGui import QFont, QIcon, QImage, QAction, QTextCursor #, QPixmap, QScreen, QColor, QKeySequence, QShortcut
 from PyQt6.QtCore import Qt, QUrl, QSize, QLoggingCategory, pyqtSignal, QObject, QTimer #, QRect
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -195,7 +195,17 @@ class Plugin(QWidget):
         self.signalComm.testCompleteSignal.emit()
 
     def testControl(self, control, value, delay=0, label=None):
-        """Changes control states and triggers corresponding events."""
+        """Changes control states and triggers corresponding events.
+
+        :param control: The control to be tested.
+        :type control: QWidget
+        :param value: The value that should be simulated.
+        :type value: Any
+        :param delay: Wait this long for event to be processed before proceeding to next test. Defaults to 0
+        :type delay: int, optional
+        :param label: Custom test message used for logging, defaults to None
+        :type label: str, optional
+        """
         if not self.testing:
             return
         widget = control
@@ -272,7 +282,8 @@ class Plugin(QWidget):
         self._testing = state
 
     def processEvents(self):
-        if not self.testing: # avoid triggering unrelated events queued by testing
+        """Process all open events in the event loop before continuing. Is ignored in testmode where this could lead to a dead lock."""
+        if not self.testing: #
             QApplication.processEvents()
 
     def waitForCondition(self, condition, interval=0.1, timeout=5, timeoutMessage =''):
@@ -302,6 +313,7 @@ class Plugin(QWidget):
         return True
 
     def addToolbarStretch(self):
+        """Adds a dummy action that can be used to stretch the gap between actions on the left and right of a toolbar."""
         self.stretchAction = QAction() # allows adding actions in front of stretch later on
         self.stretchAction.setVisible(False)
         self.titleBar.addAction(self.stretchAction)
@@ -310,6 +322,7 @@ class Plugin(QWidget):
         self.titleBar.addWidget(self.stretch)
 
     def setFloat(self):
+        """Turns the plugin into a popup. It can be combined with others or docked in another place in the main window."""
         if self.initializedDock:
             self.dock.setFloating(self.floatAction.state)
             if not self.floatAction.state:
@@ -426,19 +439,27 @@ class Plugin(QWidget):
         # self.loading = False
 
     def toggleAdvanced(self, advanced=None):
-        """Overwrite to show advanced options."""
+        """Overwrite to show advanced options.
+
+        :param advanced: Indicates if advanced options should be visible, defaults to None
+        :type advanced: bool, optional
+        """
         self.print('toggleAdvanced not implemented')
 
     def requiredPlugin(self, name):
-        """Displays error message if required plugin is not available."""
+        """Displays error message if required plugin is not available.
+
+        :param name: Name of required Plugin.
+        :type name: str
+        """
         if not hasattr(self.pluginManager, name):
             self.print(f'Plugin {name} required for {self.name} {self.version}', PRINT.ERROR)
 
     def addAction(self, event=None, toolTip='', icon=None, before=None):
         """Adds a simple Action to the toolBar.
 
-        :param func: The function triggered by the action, defaults to None
-        :type func: method, optional
+        :param event: The function triggered by the action, defaults to None
+        :type event: method, optional
         :param toolTip: The toolTip of the action, defaults to ''
         :type toolTip: str, optional
         :param icon: The icon of the action, defaults to None
@@ -569,20 +590,37 @@ class Plugin(QWidget):
         # extend to include previewFileTypes of associated displays if applicable
         return self.previewFileTypes
 
-    def hdfUpdateVersion(self, f):
-        """Update version in Info group."""
-        info_group = self.requireGroup(f, INFO)
+    def hdfUpdateVersion(self, file):
+        """Update version in the Info group.
+
+        :param file: The file in which to update the version.
+        :type file: h5py.File
+        """
+        info_group = self.requireGroup(file, INFO)
         for key, value in infoDict(self.name).items():
             info_group.attrs[key] = value
 
     def requireGroup(self, group, name):
-        """Replaces require_group from h5py, and adds support for track_order."""
+        """Replaces require_group from h5py, and adds support for track_order.
+
+        :param group: Valid group.
+        :type group: h5py.Group
+        :param name: Name of new group.
+        :type name: str
+        :return: New group.
+        :rtype: h5py.Group
+        """
         if name in group:
             return group[name]
         else:
             return group.create_group(name=name, track_order=True)
 
     def expandTree(self, tree):
+        """Expands a tree.
+
+        :param tree: The tree to be expanded.
+        :type tree: QTreeWidget
+        """
         # expand all categories
         it = QTreeWidgetItemIterator(tree, QTreeWidgetItemIterator.IteratorFlag.HasChildren)
         while it.value():
@@ -590,6 +628,7 @@ class Plugin(QWidget):
             it +=1
 
     def toggleVideoRecorder(self):
+        """Toggles visibility of videoRecorderActions."""
         if self.videoRecorderAction.state:
             self.videoRecorder.startRecording()
         else:
@@ -610,6 +649,11 @@ class Plugin(QWidget):
             )
 
     def getToolBarActionsHTML(self):
+        """Returns HTML code that lists all toolbar actions including the corresponding icons.
+
+        :return: HTML code documenting toolbar actions.
+        :rtype: str
+        """
         if not hasattr(self, 'titleBar'):
             return ''
         actionsHTML = '<p>Icon Legend:<br>'
@@ -646,7 +690,13 @@ class Plugin(QWidget):
                 self.titleBar.addAction(action)
 
     def labelPlot(self, ax, label):
-        """Adds file name labels to plot to trace back which file it is based on."""
+        """Adds file name labels to plot to trace back which file it is based on.
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        :param label: The plot label.
+        :type label: str
+        """
         fontsize = 10
         # call after all other plotting operations are completed for scaling to work properly
         if self.labelAnnotation is not None:
@@ -667,6 +717,11 @@ class Plugin(QWidget):
         ax.figure.canvas.draw_idle()
 
     def removeAnnotations(self, ax):
+        """Removes all annotations from an axes.
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        """
         for ann in [child for child in ax.get_children() if isinstance(child, mpl.text.Annotation)]:#[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
 
@@ -674,6 +729,8 @@ class Plugin(QWidget):
         """Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
         Overwrite only if definition of iconFile and iconFileDark is not sufficient.
 
+        :param desaturate: Indicates if color should be removed from icon, defaults to False
+        :type desaturate: bool, optional
         :return: Icon
         :rtype: :class:`~esibd.core.Icon`
         """
@@ -684,13 +741,26 @@ class Plugin(QWidget):
             return self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png', desaturate=desaturate)
 
     def makeCoreIcon(self, file, desaturate=False):
-        return self.makeIcon(file=file, path=internalMediaPath, desaturate=desaturate)
-
-    def makeIcon(self, file, path=None, desaturate=False):
         """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
 
         :param file: Icon file name.
         :type file: str
+        :param desaturate: Indicates if color should be removed from icon, defaults to False
+        :type desaturate: bool, optional
+        :return: Icon
+        :rtype: :class:`~esibd.core.Icon`
+        """
+        return self.makeIcon(file=file, path=internalMediaPath, desaturate=desaturate)
+
+    def makeIcon(self, file, path=None, desaturate=False):
+        """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath` unless otherwise specified.
+
+        :param file: Icon file name.
+        :type file: str
+        :param path: The file path to the icon.
+        :type path: pathlib.Path, optional
+        :param desaturate: Indicates if color should be removed from icon, defaults to False
+        :type desaturate: bool, optional
         :return: Icon
         :rtype: :class:`~esibd.core.Icon`
         """
@@ -723,6 +793,7 @@ class Plugin(QWidget):
         self.canvas = None
 
     def provideFig(self):
+        """Creates or reinitializes a matplotlib figure."""
         if self.fig is not None and rgb_to_hex(self.fig.get_facecolor()) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
@@ -787,6 +858,11 @@ class Plugin(QWidget):
 
     @synchronized()
     def copyLineDataClipboard(self, line):
+        """Copies data as text to clipboard.
+
+        :param line: The line with the data do be copied.
+        :type line: matplotlib.lines.Line2D
+        """
         if line is not None:
             text = ''
             for x, y in zip(line.get_xdata(), line.get_ydata()):
@@ -810,7 +886,11 @@ class Plugin(QWidget):
         ax.set_ylim(lim[0], lim[1] + delta*margin)
 
     def addRightAxis(self, ax):
-        """Adds additional y labels on the right."""
+        """Adds additional y labels on the right.
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        """
         # .tick_params(labelright=True) does only add labels
         # .tick_right() removes ticks on left
         # -> link second axis as a workaround
@@ -821,7 +901,7 @@ class Plugin(QWidget):
             axr.set_yscale('log')
 
     def tilt_xlabels(self, ax, rotation=30):
-        # replaces autofmt_xdate which is currently not compatible with constrained_layout
+        """Replaces autofmt_xdate which is currently not compatible with constrained_layout."""
         # https://currents.soest.hawaii.edu/ocn_data_analysis/_static/Dates_Times.html
         for label in ax.get_xticklabels(which='major'):
             label.set_ha('right')
@@ -839,6 +919,7 @@ class Plugin(QWidget):
         return ds
 
     def displayActive(self):
+        """Indicates if the display is active."""
         return self.display is not None and self.display.initializedDock
 
     def close(self):
@@ -988,6 +1069,7 @@ class StaticDisplay(Plugin):
             self.print(f'Could not load file {file.name}.', PRINT.WARNING)
 
     def togglePlotType(self):
+        """Toggles between using matplotlib and pyqtgraph."""
         self.staticPlotWidget.setVisible(not self.plotEfficientAction.state)
         self.canvas.setHidden(not self.plotEfficientAction.state)
         for a in self.navToolBar.actions()[:-1]: # last action is empty and undocumented
@@ -996,7 +1078,11 @@ class StaticDisplay(Plugin):
             self.plot(update=True)
 
     def plot(self, update=False):
-        """Plots channels from file, using real channel information (color, linewidth, linestyle, ...) if available."""
+        """Plots channels from file, using real channel information (color, linewidth, linestyle, ...) if available.
+
+        :param update: Indicates if plot needs to be updated, defaults to False
+        :type update: bool, optional
+        """
         # as this is only done once we can plot all data without thinning
         if not self.initializedDock or self.loading or len(self.outputs) == 0:
             return
@@ -1041,10 +1127,17 @@ class StaticDisplay(Plugin):
             self.staticPlotWidget.autoRange() # required to trigger update
 
     def initData(self):
+        """Clears all channels before (re-)initialization."""
         self.inputs, self.outputs = [], []
 
     def loadDataInternal(self, file):
-        """Load data in standard format. Overwrite in derived classes to add support for old file formats."""
+        """Load data in standard format. Overwrite in derived classes to add support for old file formats.
+
+        :param file: File to load data from.
+        :type file: pathlib.Path
+        :return: Return True if loading was successful.
+        :rtype: bool
+        """
         with h5py.File(file, 'r') as h5file:
             if self.parentPlugin.name not in h5file:
                 return False
@@ -1058,7 +1151,7 @@ class StaticDisplay(Plugin):
                     self.outputs[-1].recordingBackground = item[:]
                 else:
                     self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs[UNIT] if UNIT in item.attrs else ''))
-        return True # return True if loading was successful # make sure to follow this pattern when extending!
+        return True
 
     def generatePythonPlotCode(self):
         return f"""import h5py
@@ -1220,6 +1313,7 @@ class LiveDisplay(Plugin):
             self.clearHistoryAction.setVisible(self.advancedAction.state)
 
     def displayTimeChanged(self):
+        """Adjusts displayed section to display time and activates autorange."""
         if len(self.livePlotWidgets) > 0:
             for livePlotWidget in self.livePlotWidgets:
                 livePlotWidget.enableAutoRange(x=False, y=True)
@@ -1228,7 +1322,7 @@ class LiveDisplay(Plugin):
         self.plot(apply=True)
 
     def subtractBackgroundChanged(self):
-        # relay change to action in parentPlugin
+        """Relays change of background subtraction to corresponding action in parentPlugin."""
         self.parentPlugin.subtractBackgroundAction.state = self.subtractBackgroundAction.state
         self.parentPlugin.subtractBackgroundAction.triggered.emit(self.subtractBackgroundAction.state)
 
@@ -1262,6 +1356,11 @@ class LiveDisplay(Plugin):
         self._updateLegend = True
 
     def getGroups(self):
+        """Returns channel groups, sorted by device, unit, group, or unsorted.
+
+        :return: Channel groups.
+        :rtype: dict[str, List[esibd.core.Channel]]
+        """
         self.channelGroups = {}
         match self.groupAction.state:
             case self.groupAction.labels.device:
@@ -1375,6 +1474,7 @@ class LiveDisplay(Plugin):
         self.pluginManager.plotting = False
 
     def updateStackedViews(self):
+        """Ensures stacked views use same x axis."""
         if self.stackAction.state == self.stackAction.labels.stacked:
             for livePlotWidget in self.livePlotWidgets[1:]:
                 livePlotWidget.setGeometry(self.livePlotWidgets[0].vb.sceneBoundingRect())
@@ -1437,6 +1537,10 @@ class LiveDisplay(Plugin):
             self.afterFinalizeInit()
 
     def getTimeAxes(self):
+        """
+        :return: List of time axes for all relevant devices.
+        :rtype: List[np.array]
+        """
         timeAxes = {}
         for device in list(set([channel.getDevice() for channel in self.parentPlugin.getChannels()])):
             # device could be a general channel manager, in which case this call is directed to all real devices corresponding to the managed channels
@@ -1518,12 +1622,32 @@ class LiveDisplay(Plugin):
         self.pluginManager.plotting = False
 
     def plotGroup(self, livePlotWidget, timeAxes, channels, apply):
-        """Plots a group of channels."""
+        """Plots a group of channels.
+
+        :param livePlotWidget: The PlotWidget used to display channel values.
+        :type livePlotWidget: pg.PlotWidget
+        :param timeAxes: The time axis.
+        :type timeAxes: np.array
+        :param channels: List of channels in group.
+        :type channels: List[esibd.core.Channel]
+        :param apply: Recreates all plots from scratch if True.
+        :type apply: bool
+        """
         for channel in channels[::-1]: # reverse order so channels on top of list are also plotted on top of others
             self.plotChannel(livePlotWidget, timeAxes, channel, apply)
 
     def plotChannel(self, livePlotWidget, timeAxes, channel, apply):
-        """Plots a channel."""
+        """Plots a channel.
+
+        :param livePlotWidget: The PlotWidget used to display channel values.
+        :type livePlotWidget: pg.PlotWidget
+        :param timeAxes: The time axis.
+        :type timeAxes: np.array
+        :param channel: Channels to plot.
+        :type channel: esibd.core.Channel
+        :param apply: Recreates all plots from scratch if True.
+        :type apply: bool
+        """
         if (channel.enabled or not channel.real) and channel.display and channel.time.size != 0:
             i_min, i_max, n, timeAxis = timeAxes[channel.getDevice().name]
             if apply or np.remainder(i_min, n) == 0: # otherwise no update required
@@ -1723,6 +1847,7 @@ class ChannelManager(Plugin):
             return False
 
     def setOn(self, on=None):
+        """Toggles device on state."""
         if on is not None and self.onAction.state is not on:
             self.onAction.state = on
 
@@ -1769,44 +1894,59 @@ class ChannelManager(Plugin):
     INTERVAL = 'Interval'
 
     def getDefaultSettings(self):
-        """ Define specific settings that will be added to the general settings tab.
-        Settings will be generated automatically if not found in the settings file.
-        Overwrite and extend as needed."""
         ds = {}
         ds[f'{self.name}/{self.INTERVAL}'] = parameterDict(value=2000, _min=100, _max=10000, toolTip=f'Interval for {self.name} in ms.',
                                                                 widgetType=Parameter.TYPE.INT, event=lambda: self.intervalChanged(), attr='interval', instantUpdate=False)
         return ds
 
     def customConfigFile(self, file):
+        """Custom config file including full path.
+
+        :param file: File name.
+        :type file: str
+        :return: File including full path.
+        :rtype: pathlib.Path
+        """
         return self.pluginManager.Settings.configPath / file
 
     def getChannelByName(self, name):
-        """Returns a device specific channel based on its unique name."""
+        """Returns a device specific channel based on its unique name.
+
+        :param name: Name of the channel to be found.
+        :type name: str
+        :return: Found channel, defaults to None if no channel found.
+        :rtype: esibd.core.Channel
+        """
         return next((channel for channel in self.channels if channel.name.strip().lower() == name.strip().lower()), None)
 
-    def getSelectedChannel(self):
-        """Returns selected channel. Note, channels can only be selected in advanced mode."""
-        return next((channel for channel in self.channels if channel.select), None)
-
     def getChannels(self):
+        """Gets channels. Overwrite to return subsets based on channel state."""
         # allows to replace list of internal channels with corresponding source channels if applicable.
         return self.channels
 
     def minTime(self):
+        """Gets the oldest time in the stored history."""
         if hasattr(self, 'time'):
             return self.time.get()[0]
         else:
             return np.min([channel.time.get()[0] for channel in self.getChannels() if channel.time.size > 0])
 
     def getActiveChannels(self):
-        # allows to replace list of internal channels with corresponding source channels if applicable.
+        """Returns all channels that are enabled or not real."""
         return [channel for channel in self.getChannels() if (channel.enabled or not channel.real)]
 
     def getDataChannels(self):
+        """Returns all channels that have data history."""
         return [channel for channel in self.channels if channel.getValues().shape[0] != 0]
 
     def addChannel(self, item, index=None):
-        """Maps dictionary to :class:`~esibd.core.Channel`."""
+        """Maps dictionary to :class:`~esibd.core.Channel`.
+
+        :param item: Dictionary containing channel details.
+        :type item: dict
+        :param index: Index where channel should be inserted, defaults to None
+        :type index: _type_, optional
+        """
         channel = self.channelType(device=self, tree=self.tree)
         if index is None:
             self.channels.append(channel)
@@ -1817,7 +1957,12 @@ class ChannelManager(Plugin):
         channel.initGUI(item)
 
     def modifyChannel(self):
-        selectedChannel = self.getSelectedChannel()
+        """Returns selected channel. Note, channels can only be selected in advanced mode.
+
+        :return: The selected channel. None if no channel found.
+        :rtype: esibd.core.Channel
+        """
+        selectedChannel = next((channel for channel in self.channels if channel.select), None)
         if selectedChannel is None:
             self.print('No channel selected.')
             return None
@@ -1826,6 +1971,7 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def duplicateChannel(self):
+        """Duplicates the currently selected channel."""
         selectedChannel = self.modifyChannel()
         if selectedChannel is not None:
             self.print(f'duplicateChannel {selectedChannel.name}', flag=PRINT.DEBUG)
@@ -1842,6 +1988,7 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def deleteChannel(self):
+        """Deletes the currently selected channel."""
         selectedChannel = self.modifyChannel()
         if selectedChannel is not None:
             self.print(f'deleteChannel {selectedChannel.name}', flag=PRINT.DEBUG)
@@ -1899,25 +2046,39 @@ class ChannelManager(Plugin):
             self.liveDisplay.plot(apply=apply)
 
     def clearPlot(self):
+        """Clears the plot in the liveDisplay."""
         if self.liveDisplayActive() and not self.pluginManager.closing:
             self.liveDisplay.clearPlot()
 
     def convertDataDisplay(self, data):
-        """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit."""
+        """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit.
+
+        :param data: Original data.
+        :type data: np.array
+        :return: Scaled data.
+        :rtype: np.array
+        """
         return data
 
     @synchronized()
     def saveConfiguration(self):
+        """Saves configuration to file in current session."""
         self.pluginManager.Settings.incrementMeasurementNumber()
         file = self.pluginManager.Settings.getMeasurementFileName(self.confh5)
         self.exportConfiguration(file)
-        self.print(f'Saved {file.name}')
+        self.print(f'Saved {file.name}.')
 
     CHANNEL = 'Channel'
 
     def exportConfiguration(self, file=None, default=False):
         """Saves an .ini or .h5 file which contains the configuration for this :class:`~esibd.plugins.Device`.
-        The .ini file can be easily edited manually with a text editor to add more :class:`channels<esibd.core.Channel>`."""
+        Channels can be added and edited through the user interface, but the .ini file can also be edited manually with a text editor.
+
+        :param file: The file to add the configuration to, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if the default should be used, defaults to False
+        :type default: bool, optional
+        """
         if len(self.channels) == 0:
             self.print('No channels found to export.', PRINT.ERROR)
             return
@@ -2007,6 +2168,8 @@ class ChannelManager(Plugin):
         :type file: pathlib.Path, optional
         :param default: Use internal configuration file if True, defaults to False
         :type default: bool, optional
+        :param append: True if changelog should be appended to previous change logs, e.g. when loading from multiple devices at once. Defaults to False
+        :type append: bool, optional
         """
         if default:
             file = self.customConfigFile(self.confINI)
@@ -2085,7 +2248,13 @@ class ChannelManager(Plugin):
     def loadValues(self, file=None, append=False):
         """Loads values only, instead of entire configuration, for :class:`channels<esibd.core.Channel>` matching in file and current configuration.
         Channels that exist in the file but not in the current configuration will be ignored.
-        Only used by input devices."""
+        Only used by input devices.
+
+        :param file: The file to load values from, defaults to None
+        :type file: pathlib.Path, optional
+        :param append: True if changelog should be appended to previous change logs, e.g. when loading from multiple devices at once. Defaults to False
+        :type append: bool, optional
+        """
         if file is None: # get file via dialog
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path('.'):
@@ -2107,6 +2276,13 @@ class ChannelManager(Plugin):
             self.print('Values updated. Change log available in Text plugin.')
 
     def updateChannelValue(self, name, value):
+        """Updates channel value und adds message to change log if the value has changed.
+
+        :param name: Channel name.
+        :type name: str
+        :param value: The new value.
+        :type value: Any
+        """
         channel = self.getChannelByName(name)
         if channel is not None:
             parameter = channel.getParameterByName(Parameter.VALUE)
@@ -2125,6 +2301,8 @@ class ChannelManager(Plugin):
         :type items: List[:class:`~esibd.core.Channel`]
         :param file: config file
         :type file: pathlib.Path
+        :param append: True if changelog should be appended to previous change logs, e.g. when loading from multiple devices at once. Defaults to False
+        :type append: bool, optional
         """
         # Note: h5diff can be used alternatively to find changes, but the output is not formatted in a user friendly way (hard to correlate values with channels).
         if not self.pluginManager.loading:
@@ -2180,7 +2358,15 @@ class ChannelManager(Plugin):
         return changeLog, changed
 
     def channelConfigChanged(self, file=None, default=True):
-        """Scans for changes when saving configuration."""
+        """Scans for changes when saving configuration.
+
+        :param file: Compare configuration to stat in this file, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if default file should be used, defaults to True
+        :type default: bool, optional
+        :return: True if configuration has changed and does not match file.
+        :rtype: bool
+        """
         changed = False
         if default:
             file = self.customConfigFile(self.confINI)
@@ -2194,15 +2380,26 @@ class ChannelManager(Plugin):
         return changed
 
     def channelSelection(self, selectedChannel):
-        if selectedChannel.select: # only one channel should be selected at all times
-            for channel in self.channels: # all channels, independent on active, display, initialized ...
+        """Ensures that only one channel is selected at all times.
+
+        :param selectedChannel: The Channel that has been selected by the user.
+        :type selectedChannel: esibd.core.Channel
+        """
+        if selectedChannel.select: #
+            for channel in self.channels:
                 if channel is not selectedChannel:
                     channel.select = False
 
     def channelPlotActive(self):
+        """Indicates if the channel plot is active."""
         return self.channelPlot is not None and self.channelPlot.initializedDock
 
     def toggleChannelPlot(self, visible):
+        """Toggles visibility of the channelPlot.
+
+        :param visible: Requested visibility for channelPlot.
+        :type visible: bool
+        """
         if visible:
             if self.channelPlot is None or not self.channelPlot.initializedDock:
                 self.channelPlot = self.ChannelPlot(parentPlugin=self, pluginManager=self.pluginManager, dependencyPath=self.dependencyPath)
@@ -2212,11 +2409,13 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def showChannelPlot(self):
+        """Shows a plot based on the current values of all real channels"""
         self.toggleChannelPlot(True)
         self.channelPlot.raiseDock(True)
         self.channelPlot.plot()
 
     def startRecording(self):
+        """Starts the data recording thread."""
         if self.dataThread is not None and self.dataThread.is_alive():
             self.print('Wait for data recording thread to complete before restarting acquisition.', PRINT.WARNING)
             self.recording = False
@@ -2232,7 +2431,8 @@ class ChannelManager(Plugin):
         self.dataThread.start()
 
     def toggleRecording(self, on=None, manual=True):
-        """Toggle plotting of data in :class:`~esibd.plugins.LiveDisplay`.
+        """Turns recording on or off or toggles state.
+        Data will be plotted in :class:`~esibd.plugins.LiveDisplay` if that is active.
         Extend to add recoding logic for devices.
 
         :param on: If true recording will be turned on, if false it will be turned off. If already on or off nothing happens. If None, recording is toggled.
@@ -2253,13 +2453,18 @@ class ChannelManager(Plugin):
 
     def runDataThread(self, recording):
         """Regularly triggers plotting of data.
-        Overwrite to add logic for appending data to channels."""
+        Extend or Overwrite to add logic for appending data to channels.
+
+        :param recording: Queries recording state.
+        :type recording: callable
+        """
         while recording():
             self.signalComm.plotSignal.emit()
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     @property
     def recording(self):
+        """Indicates the recording state."""
         return self._recording
     @recording.setter
     def recording(self, recording):
@@ -2306,7 +2511,11 @@ class ChannelManager(Plugin):
 
     @synchronized()
     def toggleLiveDisplay(self, visible=None):
-        """Toggles visibility of the liveDisplay."""
+        """Toggles visibility of the liveDisplay.
+
+        :param visible: Requested visibility for liveDisplay.
+        :type visible: bool
+        """
         if self.liveDisplay is None:
             return # liveDisplay not supported
         if (visible if visible is not None else self.toggleLiveDisplayAction.state):
@@ -2322,7 +2531,11 @@ class ChannelManager(Plugin):
         return self.liveDisplay is not None and self.liveDisplay.initializedDock
 
     def toggleStaticDisplay(self, visible):
-        """Toggles visibility of the staticDisplay."""
+        """Toggles visibility of the staticDisplay.
+
+        :param visible: Requested visibility for staticDisplay.
+        :type visible: bool
+        """
         if self.staticDisplay is None:
             return # staticDisplay not supported
         if visible:
@@ -2441,9 +2654,6 @@ class Device(ChannelManager):
         self.restoreOutputData()
 
     def getDefaultSettings(self):
-        """ Define device specific settings that will be added to the general settings tab.
-        Settings will be generated automatically if not found in the settings file.
-        Overwrite and extend as needed."""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True,
         toolTip=f'Measured plot interval for {self.name} in ms.\n'+
@@ -2576,11 +2786,13 @@ class Device(ChannelManager):
                     channel.background = np.nan
 
     def subtractBackgroundActive(self):
+        """Indicates if backgrounds should be subtracted."""
         return self.subtractBackgroundAction.state if self.useBackgrounds else False
         # independent of GUI
         # return self.useBackgrounds and qSet.value(f'{self.name}/subtractBackground', 'false', type=bool)
 
     def estimateStorage(self):
+        """Estimates storage space required to save maximal history depending on sample rate, number of channels, and backgrounds."""
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
         self.maxDataPoints = (self.maxStorage * 1024**2 - 8) / (4 * numChannelsBackgrounds)  # including time channel
         totalDays = self.interval / 1000 * self.maxDataPoints / 3600 / 24
@@ -2592,12 +2804,18 @@ class Device(ChannelManager):
     def applyValues(self, apply=False):
         """Applies :class:`~esibd.core.Channel` values to physical devices. Only used by input :class:`devices<esibd.plugins.Device>`.
 
-        :param apply: If false, only values that have changed since last apply will be updated, defaults to False
+        :param apply: If False, only values that have changed since last apply will be updated, defaults to False
         :type apply: bool, optional
         """
+        # Extend to implement functionality.
 
     @synchronized()
     def exportOutputData(self, default=False):
+        """Exports output data.
+
+        :param default: Add configuration to default file, defaults to False
+        :type default: bool, optional
+        """
         if default:
             _time = self.time.get()
             if _time.shape[0] == 0:
@@ -2617,7 +2835,13 @@ class Device(ChannelManager):
             self.pluginManager.Explorer.populateTree()
 
     def appendOutputData(self, h5file, default=False):
-        """Appends :class:`~esibd.plugins.Device` data to hdf file."""
+        """Appends :class:`~esibd.plugins.Device` data to hdf file.
+
+        :param h5file: The file to which append the data.
+        :type h5file: h5py.File
+        :param default: Use all data when appending to default file, defaults to False
+        :type default: bool, optional
+        """
         fullRange = True
         group = self.requireGroup(h5file, self.name) #, track_order=True
         _time = self.time.get()
@@ -2693,7 +2917,13 @@ class Device(ChannelManager):
         This minimal implementation will not give a warning about circular definitions.
         It will also fail if expressions are nested on more than N levels but N can be increased as needed.
         N=2 should however be sufficient for day to day work.
-        More complex algorithms should only be implemented if they are required to solve a practical problem."""
+        More complex algorithms should only be implemented if they are required to solve a practical problem.
+
+        :param N: Number of iterations, defaults to 2
+        :type N: int, optional
+        :param apply: If False, only values that have changed since last apply will be updated, defaults to False
+        :type apply: bool, optional
+        """
         if self.updating or self.pluginManager.closing:
             return
         self.updating = True # prevent recursive call caused by changing values from here
@@ -2730,8 +2960,8 @@ class Device(ChannelManager):
 
         :param nan: Indicates that a nan value should be appended to prevent interpolation through areas without data. Defaults to False
         :type nan: bool, optional
-        :param skip: Skip plotting if previous plot was too recent, defaults to False
-        :type skip: bool, optional
+        :param skipPlotting: Skip plotting if previous plot was too recent, defaults to False
+        :type skipPlotting: bool, optional
         """
         if self.initialized() or nan:
             self.updateValues() # this makes equations work for output devices.
@@ -2793,7 +3023,6 @@ class Device(ChannelManager):
             self.lastIntervalTime = time.time()*1000
 
     def toggleRecording(self, on=None, manual=False):
-        """Toggle recoding of data in :class:`~esibd.plugins.LiveDisplay`."""
         if (on is not None and not on) or (on is None and self.recording):
             # Turn off if not already off
             if self.recording:
@@ -2810,6 +3039,7 @@ class Device(ChannelManager):
                 self.startRecording()
 
     def clearHistory(self):
+        """Clear all data history for this device. Should only be needed if history gets out of sync and needs clean initialization."""
         if EsibdCore.CloseDialog(title=f'Clear {self.name} History?', ok='Clear history', prompt=f'Clear all data history for {self.name}?').exec():
             self.clearPlot()
             for channel in self.getChannels():
@@ -2817,11 +3047,11 @@ class Device(ChannelManager):
             self.time = DynamicNp(max_size=self.maxDataPoints, dtype=np.float64)
 
     def runDataThread(self, recording):
-        """Regularly triggers reading and appending of data.
+        """Regularly triggers appending and plotting of data.
         This uses the current value of :class:`channels<esibd.core.Channel>` which is updated
         independently by the corresponding :class:`~esibd.core.DeviceController`.
 
-        :param recording: Function that polls device.recording to indicate if the device should still be recording.
+        :param recording: Queries recording state.
         :type recording: callable
         """
         while recording():
@@ -2973,8 +3203,12 @@ class Scan(Plugin):
             super().__init__(**kwargs)
 
         def resizeEvent(self, event):
+            """Makes sure settingsTree takes up as much space as possible but there is no gap between settingsTree and channelTree.
+
+            :param event: The resize event.
+            :type event: QResizeEvent
+            """
             super().resizeEvent(event)  # Ensure default behavior
-            # make sure settingsTree takes up as much space as possible but there is no gap between settingsTree and channelTree
             self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height()-self.scan.settingsTree.sizeHint().height()])
 
     class Display(Plugin):
@@ -3026,7 +3260,11 @@ class Scan(Plugin):
             # super().runTestParallel() # handled by scan
 
         def mouseEvent(self, event):  # use mouse to move beam # use ctrl key to avoid this while zooming
-            """Handles dragging beam in 2D scan or setting retarding grid potential in energy scan"""
+            """Handles dragging beam in 2D scan or setting retarding grid potential in energy scan.
+
+            :param event: The mouse event.
+            :type event: QMouseEvent
+            """
             if not self.mouseActive:
                 return
             if self.mouseMoving and not event.name == 'button_release_event': # dont trigger events until last one has been processed
@@ -3068,7 +3306,7 @@ class Scan(Plugin):
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
         self.signalComm.saveScanCompleteSignal.connect(self.saveScanComplete)
-        self.init()
+        self.initData()
 
     def initGUI(self):
         self.loading = True
@@ -3132,6 +3370,7 @@ class Scan(Plugin):
         self.statusAction.setVisible(False)
 
     def statusActionEvent(self):
+        """Shows scan and corresponding display."""
         self.raiseDock(True)
         self.display.raiseDock(True)
 
@@ -3140,13 +3379,15 @@ class Scan(Plugin):
         self.connectAllSources()
 
     def connectAllSources(self):
+        """Connects all available source channels."""
         # self.print('connectAllSources', flag=PRINT.DEBUG)
         # for input in self.inputs: # are connected on creation
         #     input.connectSource()
         for channel in self.channels:
             channel.connectSource()
 
-    def init(self):
+    def initData(self):
+        """Clears all channels before (re-)initialization."""
         for channel in self.channels:
             channel.onDelete()
         if self.channelTree is not None:
@@ -3188,16 +3429,19 @@ class Scan(Plugin):
                 self.settingsMgr.settings[setting].setEnabled(finished)
 
     def updateFile(self):
+        """Updates scan file."""
         self.pluginManager.Settings.incrementMeasurementNumber()
         self.file = self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.lower()}.h5')
         self.display.file = self.file # for direct access of MZCalculator or similar addons that are not aware of the scan itself
 
     def updateDisplayChannel(self):
+        """Updates plot after changing display channel."""
         if self.display is not None and self.useDisplayChannel and (not self.pluginManager.loading and not self.loading
                                                                     and not self.settingsMgr.loading and not self.recording):
             self.plot(update=False, done=True)
 
     def updateDisplayDefault(self):
+        """Select displayed channel based on default display setting."""
         if self.display is not None and self.useDisplayChannel:
             self.loading = True
             i = self.display.displayComboBox.findText(self.displayDefault)
@@ -3208,10 +3452,11 @@ class Scan(Plugin):
             self.loading = False
             self.updateDisplayChannel()
         if self.finished and not self.recording and not self.loading:
-            self.init()
+            self.initData()
             self.addOutputChannels()
 
     def populateDisplayChannel(self):
+        """Populates dropdown that allows to select displayed channel for scans that can only display one channel at a time."""
         if self.display is not None and self.useDisplayChannel:
             self.loading = True
             self.display.displayComboBox.clear()
@@ -3221,6 +3466,13 @@ class Scan(Plugin):
             self.updateDisplayDefault()
 
     def loadSettings(self, file=None, default=False):
+        """Loads scan settings from file.
+
+        :param file: File to load settings from, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if default file should be used, defaults to False
+        :type default: bool, optional
+        """
         self.settingsMgr.loadSettings(file=file, default=default)
         self.expandTree(self.settingsMgr.tree)
         self.updateDisplayChannel()
@@ -3228,6 +3480,13 @@ class Scan(Plugin):
         # self.settingsTree.fitAllItems()
 
     def saveSettings(self, file=None, default=False):
+        """Saves scan settings to file.
+
+        :param file: File to save settings to, defaults to None
+        :type file: pathlib.Path, optional
+        :param default: Indicates if default file should be used, defaults to False
+        :type default: bool, optional
+        """
         self.settingsMgr.saveSettings(file=file, default=default)
 
     def getDefaultSettings(self):
@@ -3295,6 +3554,7 @@ class Scan(Plugin):
             return False
 
     def addOutputChannels(self):
+        """Adds all output channels."""
         self.print('addOutputChannels', flag=PRINT.DEBUG)
         if len(self.inputs) == 0:
             recordingData = None
@@ -3313,12 +3573,24 @@ class Scan(Plugin):
         else:
             self.channelTree.hide()
 
-    def addOutputChannel(self, name, unit='', recordingData=None, initialValue=None, recordingBackground=None):
+    def addOutputChannel(self, name, unit='', recordingData=None, recordingBackground=None):
+        """Converting channel to generic output data.
+        Uses data from file if provided.
+
+        :param name: Channel name.
+        :type name: str
+        :param unit: Channel unit, defaults to ''
+        :type unit: str, optional
+        :param recordingData: Recorded values from previous scan or initialized array for new scan, defaults to None
+        :type recordingData: np.array, optional
+        :param recordingBackground: Recorded background values from previous scan or initialized array for new scan, defaults to None
+        :type recordingBackground: np.array, optional
+        :return: Generic channel that is used to store and restore scan data.
+        :rtype: esibd.core.ScanChannel
+        """
         channel = self.ScanChannel(device=self, tree=self.channelTree)
         if recordingData is not None:
             channel.recordingData = recordingData
-        if initialValue is not None:
-            channel.initialValue = initialValue
         if recordingBackground is not None:
             channel.recordingBackground = recordingBackground
         self.channelTree.addTopLevelItem(channel) # has to be added before populating
@@ -3332,7 +3604,19 @@ class Scan(Plugin):
         return channel
 
     def addInputChannel(self, name, _from, to, step):
-        """Converting channel to generic input data. Returns True if channel is valid for scanning."""
+        """Converting channel to generic input data.
+
+        :param name: Channel name.
+        :type name: str
+        :param _from: Start value.
+        :type _from: float
+        :param to: Final value.
+        :type to: float
+        :param step: Step size.
+        :type step: float
+        :return: True if channel is ready to start scan.
+        :rtype: bool
+        """
         channel = self.getChannelByName(name, inout=INOUT.IN)
         if channel is None:
             self.print(f'No channel found with name {name}.', PRINT.WARNING)
@@ -3355,7 +3639,17 @@ class Scan(Plugin):
             return True
 
     def getSteps(self, _from, to, step):
-        """Returns steps based on _from, to, and step parameters."""
+        """Returns steps based on _from, to, and step parameters.
+
+        :param _from: Start value.
+        :type _from: float
+        :param to: Final value.
+        :type to: float
+        :param step: Step size.
+        :type step: float
+        :return: Array of steps.
+        :rtype: np.array
+        """
         if _from == to:
             self.print('Limits are equal.', PRINT.WARNING)
             return None
@@ -3401,7 +3695,11 @@ class Scan(Plugin):
             self.scantime = 'n/a'
 
     def saveData(self, file):
-        """Writes generic scan data to hdf file."""
+        """Writes generic scan data to hdf file.
+
+        :param file: The file to save data to.
+        :type file: pathlib.Path
+        """
         with h5py.File(file, 'a', track_order=True) as h5File:
             # avoid using getValues() function and use get() to make sure raw data, without background subtraction or unit correction etc. is saved in file
             top_group = self.requireGroup(h5File, self.name) #, track_order=True
@@ -3460,6 +3758,7 @@ class Scan(Plugin):
         return self.pythonLoadCode() + self.pythonPlotCode()
 
     def pythonLoadCode(self):
+        """Generic code to import channels from scan file."""
         return f"""import h5py
 import numpy as np
 import matplotlib.pyplot as plt
@@ -3503,7 +3802,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         """Handles start and stop of scan."""
         if self.recording:
             if self.finished:
-                self.init()
+                self.initData()
                 if self.initScan():
                     if self.runThread is not None and self.recording: # stop old scan if applicable
                         self.recordingAction.state = False # allow thread to finish without triggering toggleRecording recursion
@@ -3525,6 +3824,11 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         self.statusAction.setVisible(self.recordingAction.state)
 
     def scanUpdate(self, done=False):
+        """Updates plot and saves data when done.
+
+        :param done: Call with True in last step of scan to indicate that data should be saved to file. Defaults to False
+        :type done: bool, optional
+        """
         # self.print(f"Plot time: {timeit.timeit('self.plot(update=not done, done=done)', number=1, globals={'self': self, 'done': done})}", flag=PRINT.DEBUG)
         self.plot(update=not done, done=done)
         if done: # save data
@@ -3533,7 +3837,11 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
             self.saveThread.start()
 
     def saveScanParallel(self, file):
-        """Keeps GUI interactive by saving scan data in external thread."""
+        """Keeps GUI interactive by saving scan data in external thread.
+
+        :param file: The file to save to.
+        :type file: pathlib.Path
+        """
         # only reads data from gui but does not modify it -> can run in parallel thread
         self.settingsMgr.saveSettings(file=file) # save settings
         self.saveData(file=file) # save data to same file
@@ -3545,6 +3853,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         self.print(f'Saved {file.name}')
 
     def saveScanComplete(self):
+        """Marks scan as finished after saving file completed."""
         if not self.pluginManager.closing:
             self.pluginManager.Explorer.populateTree()
             self.notes='' # reset after saved to last scan
@@ -3561,17 +3870,30 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         """
 
     def updateToolBar(self, update):
+        """Update toolbar if this is not just an update.
+
+        :param update: Indicates if this us an update. Otherwise this is initializing of finalizing a plot.
+        :type update: bool
+        """
         if len(self.outputs) > 0 and not update:
             self.display.navToolBar.update()
             self.display.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
 
     def updateRecording(self, recording):
-        # trigger from external thread to assure GUI update happens in main thread
+        """Sets recording state. (Make sure this is called in main thread!)
+
+        :param recording: New recording state.
+        :type recording: bool
+        """
         self.recording = recording
 
     def run(self, recording):
         """Steps through input values, records output values, and triggers plot update.
-        Executed in runThread. Will likely need to be adapted for custom scans."""
+        Executed in runThread. Will likely need to be adapted for custom scans.
+
+        :param recording: Queries recording state.
+        :type recording: callable
+        """
         steps = list(itertools.product(*[input.getRecordingData() for input in self.inputs]))
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps): # scan over all steps
@@ -3612,6 +3934,11 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         super().closeGUI()
 
     def toggleDisplay(self, visible):
+        """Toggles visibility of display.
+
+        :param visible: Indicates if the display should be visible.
+        :type visible: bool
+        """
         if visible:
             if self.display is None or not self.display.initializedDock:
                 self.display = self.Display(scan=self, pluginManager=self.pluginManager)
@@ -4125,7 +4452,7 @@ class Tree(Plugin):
         :param tree: The tree used to display the attributes and methods.
         :type tree: QTreeWidgetItem
         :param obj: Valid python object.
-        :type obj: any
+        :type obj: Any
         :param recursionDepth: How many levels will be populated. Further levels will be populated as they are expanded. Defaults to 2
         :type recursionDepth: int, optional
         """
@@ -4401,7 +4728,7 @@ class Console(Plugin):
         :param key: Attribute used to access the object
         :type key: str
         :param value: Value or object.
-        :type value: various
+        :type value: Any
         """
         self.mainConsole.localNamespace[key] = value
 
@@ -4947,7 +5274,6 @@ class Settings(SettingsManager):
     SESSIONPATH         = 'Session path'
 
     def getDefaultSettings(self):
-        """Defines general default settings"""
         ds = {}
         ds[f'{GENERAL}/{DATAPATH}']=parameterDict(value=defaultDataPath,
                                         widgetType=Parameter.TYPE.PATH, internal=True, event=lambda: self.updateDataPath(), attr='dataPath')
@@ -6611,7 +6937,11 @@ class PID(ChannelManager):
             newChannel.connectSource()
 
     def connectAllSources(self, update=False):
-        """Connects all available source channels."""
+        """Connects all available source channels.
+
+        :param update: Indicates that all channels should be (re-)connected. Otherwise will only attempt to connect channels that are not yet connected. Defaults to False
+        :type update: bool, optional
+        """
         for channel in self.channels:
             if channel.sourceChannel is None or channel.inputChannel is None or update:
                 channel.connectSource()
@@ -6626,7 +6956,11 @@ class PID(ChannelManager):
     def reconnectSource(self, name):
         """Tries to reconnect linked channels if applicable.
         This is needed e.g. after renaming, moving, or deleting channels.
-        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found."""
+        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found.
+
+        :param name: Name of the channel to reconnect.
+        :type name: str
+        """
         for channel in self.channels:
             if channel.input == name or channel.output == name:
                 self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)

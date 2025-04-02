@@ -96,6 +96,7 @@ class TemperatureChannel(Channel):
         return channel
 
     def applyTemperature(self): # this actually sets the temperature on the controller!
+        """Applies temperature value if value has changed."""
         if self.real:
             self.device.controller.applyTemperature(self)
 
@@ -189,6 +190,7 @@ class TemperatureController(DeviceController):
                 channel.monitor = temperature
 
     def cryoON(self):
+        """Toggles CryoTel output."""
         if not getTestMode() and self.initialized:
             if self.device.isOn():
                 self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
@@ -202,13 +204,30 @@ class TemperatureController(DeviceController):
             self.processEvents()
 
     def applyTemperature(self, channel):
+        """Applies temperature value.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             Thread(target=self.applyTemperatureFromThread, args=(channel,), name=f'{self.device.name} applyTemperatureFromThreadThread').start()
 
     def applyTemperatureFromThread(self, channel):
+        """Applies temperature value (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}') # used to be SET TTARGET=
 
     def CryoTelWriteRead(self, message):
+        """CryoTel specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
             if lock_acquired:
@@ -217,8 +236,18 @@ class TemperatureController(DeviceController):
         return response
 
     def CryoTelWrite(self, message):
+        """CryoTel specific serial write.
+
+        :param message: The serial message to be send.
+        :type message: str
+        """
         self.serialWrite(self.port, f'{message}\r')
         self.CryoTelRead() # repeats query
 
     def CryoTelRead(self):
+        """TPG specific serial read.
+
+        :return: The response received.
+        :rtype: str
+        """
         return self.serialRead(self.port)

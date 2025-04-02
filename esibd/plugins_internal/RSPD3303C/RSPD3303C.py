@@ -71,6 +71,7 @@ class RSPD3303C(Device):
             self.initializeCommunication()
 
     def initTimer(self):
+        """Initialized the shutdown timer."""
         if self.shutDownTime != 0:
             if (self.shutDownTime < 10 or
             (self.shutDownTime < 60 and self.shutDownTime % 10 == 0) or
@@ -80,6 +81,7 @@ class RSPD3303C(Device):
             self.shutDownTimer.start(60000)  # ms steps
 
     def updateTimer(self):
+        """Updates the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.shutDownTime = max(0, self.shutDownTime - 1)
         if self.shutDownTime == 1:
             self.print('Timer expired. Setting to heater voltages to 0 V.')
@@ -119,6 +121,11 @@ class VoltageChannel(Channel):
         return super().tempParameters() + [self.POWER, self.CURRENT]
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
+        """Applies voltage value if value has changed or explicitly requested.
+
+        :param apply: If True, value will be applied even if it has not changed.
+        :type apply: bool
+        """
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
@@ -160,10 +167,20 @@ class VoltageController(DeviceController):
         self.voltageON()
 
     def applyVoltage(self, channel):
+        """Applies voltage value.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
     def applyVoltageFromThread(self, channel):
+        """Applies voltage value (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
     def updateValue(self):
@@ -176,7 +193,12 @@ class VoltageController(DeviceController):
                     channel.current = self.currents[i]
                     channel.power = channel.monitor*channel.current
 
-    def voltageON(self, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True):
+        """Toggles voltage output.
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -186,6 +208,7 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
 
     def voltageONFromThread(self):
+        """Toggles voltage output (tread safe)."""
         for channel in self.device.getChannels():
             self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
 
@@ -212,11 +235,25 @@ class VoltageController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def RSWrite(self, message):
+        """RS specific pyvisa write.
+
+        :param message: The message to be send.
+        :type message: str
+        """
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
             if lock_acquired:
                 self.port.write(message)
 
     def RSQuery(self, message, lock_acquired=False):
+        """RS specific pyvisa query.
+
+        :param message: The message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The response received.
+        :rtype: str
+        """
         response = ''
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {message}.', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:

@@ -58,6 +58,15 @@ class TICPressureController(PressureController):
                     self.pressures[i] = np.nan
 
     def TICWriteRead(self, message, lock_acquired=False):
+        """TIC specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:

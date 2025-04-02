@@ -1287,7 +1287,15 @@ class Parameter():
             pass # self.label.changeEvent.connect(self.changedEvent) # no change events for labels
 
     def safeConnect(self, control, signal, event):
-        """Makes sure there is never more than one event assigned to the signal."""
+        """Makes sure there is never more than one event assigned to the signal.
+
+        :param control: The control emitting the signal.
+        :type control: QWidget
+        :param signal: The signal.
+        :type signal: pyqtSignal
+        :param event: The event to be connected to the signal.
+        :type event: callable
+        """
         if control.receivers(signal) > 0:
             signal.disconnect()
         if event is not None:
@@ -1385,7 +1393,13 @@ class Parameter():
         self.getWidget().customContextMenuRequested.connect(self.initContextMenu)
 
     def containerize(self, widget):
-        """Adds a container around the widget that ensures correct handling of visibility and color changes."""
+        """Adds a container around the widget that ensures correct handling of visibility and color changes.
+
+        :param widget: The widget to be added to a container.
+        :type widget: QWidget
+        :return: The container containing the widget.
+        :rtype: QWidget
+        """
         # just hiding widget using setVisible(False) is not reliable due to bug https://bugreports.qt.io/browse/QTBUG-13522
         # use a wrapping container as a workaround https://stackoverflow.com/questions/71707347/how-to-keep-qwidgets-in-qtreewidget-hidden-during-resize?noredirect=1#comment126731693_71707347
         container = QWidget()
@@ -1397,7 +1411,11 @@ class Parameter():
         return container
 
     def setHeight(self, height=None):
-        """Sets the height of the parameter while accounting for different types of parameter widgets."""
+        """Sets the height of the parameter while accounting for different types of parameter widgets.
+
+        :param height: Target height, defaults to None
+        :type height: float, optional
+        """
         if self.widgetType not in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO,
                                    self.TYPE.TEXT,self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH]:
             return
@@ -1780,7 +1798,7 @@ class Channel(QTreeWidgetItem):
     """Reference to :class:`~esibd.plugins.Device.inout`."""
     plotCurve : pyqtgraph.PlotCurveItem
     """The plotCurve in the corresponding :class:`~esibd.plugins.LiveDisplay`."""
-    lastAppliedValue : any
+    lastAppliedValue : Any
     """Reference to last value. Allows to decide if hardware update is required."""
     parameters : Parameter
     """List of channel parameters."""
@@ -2026,7 +2044,7 @@ class Channel(QTreeWidgetItem):
         """Updates the value (thread safe).
 
         :param value: new value
-        :type value: various
+        :type value: Any
         """
         self.value = value # pylint: disable=[attribute-defined-outside-init] # attribute defined by makeWrapper
 
@@ -2463,18 +2481,18 @@ class QLabviewSpinBox(QSpinBox):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc
         """Suppresses context menu for indicators."""
         if self.indicator:
             event.ignore()
         else:
             return super().contextMenuEvent(event)
 
-    def wheelEvent(self, event):
+    def wheelEvent(self, event): # pylint: disable = missing-param-doc
         """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
-    def stepBy(self, step):
+    def stepBy(self, step): # pylint: disable = missing-param-doc
         """Handles stepping value depending con caret position."""
         text=self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
@@ -2510,7 +2528,7 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc
         if self.indicator:
             event.ignore()
         else:
@@ -2533,28 +2551,28 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         """
         return float(text)
 
-    def textFromValue(self, value):
+    def textFromValue(self, value): # pylint: disable = missing-param-doc
         """make sure nan and inf will be represented by NaN."""
         if np.isnan(value) or np.isinf(value):
             return self.NAN
         else:
             return f'{value:.{self.displayDecimals}f}'
 
-    def value(self):
+    def value(self): # pylint: disable = missing-param-doc
         if self.text() == self.NAN:
             return np.nan
         return super().value()
 
-    def setValue(self, val):
+    def setValue(self, val): # pylint: disable = missing-param-doc
         super().setValue(val)
         if np.isnan(val) or np.isinf(val):
             self.lineEdit().setText(self.NAN) # needed in rare cases where setting to nan would set to maximum
 
-    def wheelEvent(self, event):
+    def wheelEvent(self, event): # pylint: disable = missing-param-doc
         """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
-    def stepBy(self, step):
+    def stepBy(self, step): # pylint: disable = missing-param-doc
         """Handles stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
         if self.text() == self.NAN:
             return
@@ -2606,18 +2624,18 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         """Validates input for correct scientific notation."""
         _float_re = re.compile(r'(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)')
 
-        def valid_float_string(self, string):
+        def valid_float_string(self, string): # pylint: disable = missing-param-doc
             match = self._float_re.search(string)
             return match.groups()[0] == string if match else False
 
-        def validate(self, string, position): # -> typing.Tuple[State, str, int]:
+        def validate(self, string, position): # -> typing.Tuple[State, str, int]: # pylint: disable = missing-param-doc
             if self.valid_float_string(string):
                 return self.State.Acceptable, string, position
             if string == '' or string[position-1] in 'e.-+':
                 return self.State.Intermediate, string, position
             return self.State.Invalid, string, position
 
-        def fixup(self, text):
+        def fixup(self, text): # pylint: disable = missing-param-doc
             match = self._float_re.search(text)
             return match.groups()[0] if match else ''
 
@@ -2626,10 +2644,10 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         super().__init__(parent, indicator=indicator, displayDecimals=displayDecimals)
         self.setDecimals(1000) # need this to allow internal handling of data as floats 1E-20 = 0.0000000000000000001
 
-    def validate(self, text, position):
+    def validate(self, text, position): # pylint: disable = missing-param-doc
         return self.validator.validate(text, position)
 
-    def fixup(self, text):
+    def fixup(self, text): # pylint: disable = missing-param-doc
         return self.validator.fixup(text)
 
     def textFromValue(self, value):
@@ -2676,13 +2694,13 @@ class ControlCursor(Cursor):
     def onmove(self, event):
         pass
 
-    def ondrag(self, event):
+    def ondrag(self, event): # pylint: disable = missing-param-doc
         """Continuously updates cursor position."""
         if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
             # dir(event)
             super().onmove(event)
 
-    def setPosition(self, x, y):
+    def setPosition(self, x, y): # pylint: disable = missing-param-doc
         """Emulated mouse event to set position."""
         [xpix, ypix]=self.ax.transData.transform((x, y))
         event = MouseEvent(name='', canvas=self.ax.figure.canvas, x=xpix, y=ypix, button=MouseButton.LEFT)
@@ -2721,7 +2739,7 @@ class CheckBox(QCheckBox):
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
-    def setValue(self, value):
+    def setValue(self, value): # pylint: disable = missing-param-doc
         """Sets value using consistent API for parameter widgets."""
         self.setChecked(value)
 
@@ -2736,7 +2754,7 @@ class ToolButton(QToolButton):
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
-    def setValue(self, value):
+    def setValue(self, value): # pylint: disable = missing-param-doc
         """Sets value using consistent API for parameter widgets."""
         self.setChecked(value)
 
@@ -3576,6 +3594,11 @@ class MZCalculator():
         # self.canvas.mpl_connect('button_press_event', self.msOnClick) -> self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
     def setAxis(self, ax):
+        """Sets the axes and canvas to be used.
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        """
         self.ax = ax
         self.canvas = ax.figure.canvas
 
@@ -3844,7 +3867,7 @@ class DeviceController(QObject):
         updateValueSignal = pyqtSignal()
         """Signal that transfers new data from the :attr:`~esibd.core.DeviceController.acquisitionThread` to the corresponding channels."""
 
-    parent : any # Device or Channel, cannot specify without causing circular import
+    parent : Any # Device or Channel, cannot specify without causing circular import
     """Reference to the associated class."""
     print : callable
     """Reference to :meth:`~esibd.plugins.Plugin.print`."""

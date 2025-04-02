@@ -35,7 +35,6 @@ class RBD(Device):
             self.previewFileTypes.append('OUT.h5')
 
         def loadDataInternal(self, file):
-            """Extending to support legacy files"""
             if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
                 with open(file, 'r', encoding=self.UTF8) as dataFile:
                     dataFile.readline()
@@ -85,9 +84,6 @@ class RBD(Device):
         self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
     def getDefaultSettings(self):
-        """ Define device specific settings that will be added to the general settings tab.
-        These will be included if the settings file is deleted and automatically regenerated.
-        Overwrite as needed."""
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
         return defaultSettings
@@ -175,6 +171,7 @@ class CurrentChannel(Channel):
         self.resetCharge()
 
     def resetCharge(self):
+        """Resets the charge."""
         self.charge = 0 # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
         self.preciseCharge = 0
 
@@ -196,14 +193,17 @@ class CurrentChannel(Channel):
         return super().activeChanged()
 
     def updateAverage(self):
+        """Sets flag to trigger update of average."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateAverageFlag = True
 
     def updateRange(self):
+        """Sets flag to trigger update of range."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateRangeFlag = True
 
     def updateBias(self):
+        """Sets flag to trigger update of bias."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
@@ -261,7 +261,7 @@ class CurrentController(DeviceController):
                 self.signalComm.updateValueSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
                 return
             self.signalComm.updateValueSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
-            self.signalComm.updateDeviceNameSignal.emit(name) # pass port to main thread as init thread will die
+            self.signalComm.updateDeviceNameSignal.emit(name) # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
             self.signalComm.updateValueSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
@@ -284,11 +284,16 @@ class CurrentController(DeviceController):
                         self.fakeNumbers()
                     else:
                         self.readNumbers() # no sleep needed, timing controlled by waiting during readNumbers
-                    self.updateParameters()
+                        self.updateParameters()
             if getTestMode():
                 time.sleep(self.channel.getDevice().interval/1000)
 
     def updateDeviceName(self, name):
+        """Updates the name received from the device in the channel.
+
+        :param name: The received device name.
+        :type name: str
+        """
         self.channel.devicename = name
 
     def updateValue(self, value, outOfRange, unstable, error=''): # # pylint: disable=[arguments-differ] # arguments differ by intention
@@ -300,10 +305,12 @@ class CurrentController(DeviceController):
             self.print(error)
 
     def setRange(self):
+        """Sets the range. Typically autorange is sufficient."""
         self.RBDWriteRead(message=f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}') # set range
         self.updateRangeFlag=False
 
     def setAverage(self):
+        """Sets the averaging filter."""
         _filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
         _filter = 2**_filter if _filter > 0 else 0
         self.RBDWriteRead(message=f'F0{_filter:02}') # set filter
@@ -315,9 +322,11 @@ class CurrentController(DeviceController):
         self.updateBiasFlag=False
 
     def setGrounding(self):
+        """Sets grounding off."""
         self.RBDWriteRead(message='G0') # input grounding off
 
     def getName(self):
+        """Gets the name set on the device."""
         if not getTestMode():
             name = self.RBDWriteRead(message='P') # get channel name
         else:
@@ -328,6 +337,7 @@ class CurrentController(DeviceController):
             return ''
 
     def updateParameters(self):
+        """Updates Range, Average, and Bias."""
         # call from runAcquisition to make sure there are no race conditions
         if self.updateRangeFlag:
             self.setRange()
@@ -337,6 +347,7 @@ class CurrentController(DeviceController):
             self.setBias()
 
     def command_identify(self):
+        """Queries and reads identification and status."""
         with self.lock:
             self.RBDWrite('Q') # put in autorange
             for _ in range(13):
@@ -384,13 +395,26 @@ class CurrentController(DeviceController):
 
     #Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg):
+        """Only returns response if it contains a sample.
+
+        :param msg: Original message.
+        :type msg: str
+        :return: Sample string if found.
+        :rtype: str
+        """
         if '&S' in msg:
             return msg.strip('&')
         else:
             return ''
 
     def readingToNum(self, parsed):  # convert to pA
-        """Converts string to float value of pA based on unit"""
+        """Converts string to float value of pA based on unit
+
+        :param parsed: Parsed current response from RBD.
+        :type parsed: str
+        :return: Current as number.
+        :rtype: float
+        """
         try:
             _, _, x, unit = parsed.split(',')
             x=float(x)
@@ -413,12 +437,27 @@ class CurrentController(DeviceController):
                 #raise ValueError(f'No handler for unit {u} implemented!')
 
     def RBDWrite(self, message):
+        """RBD specific serial write.
+
+        :param message: The serial message to be send.
+        :type message: str
+        """
         self.serialWrite(self.port, f'&{message}\n')
 
     def RBDRead(self):
+        """RBD specific serial read."""
         return self.serialRead(self.port)
 
     def RBDWriteRead(self, message, lock_acquired=False):
+        """RBD specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:

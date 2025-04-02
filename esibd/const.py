@@ -293,9 +293,9 @@ def smooth(array, smooth):
     """Smooths a 1D array while keeping edges meaningful.
     This method is robust if array contains np.nan.
 
-    :param array: Array to be smoothed
+    :param array: Array to be smoothed.
     :type array: np.array
-    :param smooth: With of box used for smoothing
+    :param smooth: With of box used for smoothing.
     :type smooth: int
     :return: convolvedArray
     :rtype: np.array

@@ -40,6 +40,7 @@ class MIPS(Device):
         return defaultSettings
 
     def getCOMs(self): # get list of unique used COMs
+        """List of COM ports."""
         return list(set([channel.com for channel in self.channels]))
 
     def closeCommunication(self):
@@ -79,6 +80,11 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.ID)
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
+        """Applies voltage value if value has changed or explicitly requested.
+
+        :param apply: If True, value will be applied even if it has not changed.
+        :type apply: bool
+        """
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
@@ -133,10 +139,20 @@ class VoltageController(DeviceController):
         super().closeCommunication()
 
     def applyVoltage(self, channel):
+        """Applies voltage value.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
     def applyVoltageFromThread(self, channel):
+        """Applies voltage value (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
 
@@ -149,6 +165,11 @@ class VoltageController(DeviceController):
                     channel.monitor = self.voltages[self.COMs.index(channel.com)][channel.id-1]
 
     def voltageON(self, parallel=True): # this can run in main thread
+        """Toggles voltage output.
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -158,6 +179,7 @@ class VoltageController(DeviceController):
             self.fakeNumbers()
 
     def voltageONFromThread(self):
+        """Toggles voltage output (tread safe)."""
         for channel in self.device.getChannels():
             self.applyVoltageFromThread(channel)
 
@@ -188,14 +210,37 @@ class VoltageController(DeviceController):
             time.sleep(self.device.interval/1000)
 
     def MIPSWrite(self, COM, message):
+        """MIPS specific serial write.
+
+        :param COM: The COM port be used.
+        :type COM: str
+        :param message: The serial message to be send.
+        :type message: str
+        """
         self.serialWrite(self.ports[self.COMs.index(COM)], message)
 
     def MIPSRead(self, COM):
+        """MIPS specific serial read.
+
+        :param COM: The COM port be used.
+        :type COM: str
+        """
         # only call from thread! # make sure lock is acquired before and released after
         if not getTestMode() and self.initialized or self.initializing:
             return self.serialRead(self.ports[self.COMs.index(COM)], EOL='\r', strip='b\x06')
 
     def MIPSWriteRead(self, COM, message, lock_acquired=False):
+        """MIPS specific serial write and read.
+
+        :param COM: The COM port be used.
+        :type COM: str
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:

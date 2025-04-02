@@ -36,6 +36,7 @@ class NI9263(Device):
     def applyValues(self, apply=False):
         for channel in self.channels:
             channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
+
     def setOn(self, on=None):
         super().setOn(on)
         if self.initialized():
@@ -62,6 +63,11 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.ADDRESS)
 
     def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
+        """Applies voltage value if value has changed or explicitly requested.
+
+        :param apply: If True, value will be applied even if it has not changed.
+        :type apply: bool
+        """
         if self.real and ((self.value != self.lastAppliedValue) or apply):
             self.device.controller.applyVoltage(self)
             self.lastAppliedValue = self.value
@@ -89,17 +95,32 @@ class VoltageController(DeviceController):
         self.voltageON()
 
     def applyVoltage(self, channel):
+        """Applies voltage value.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         if not getTestMode() and self.initialized:
             Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
 
     def applyVoltageFromThread(self, channel):
+        """Applies voltage value (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to set voltage of {channel.name}.') as lock_acquired:
             if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
                     task.write(channel.value if (channel.enabled and self.device.isOn()) else 0)
 
-    def voltageON(self, parallel=True): # this can run in main thread
+    def voltageON(self, parallel=True):
+        """Toggles voltage output.
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
         if not getTestMode() and self.initialized:
             if parallel:
                 Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
@@ -107,6 +128,7 @@ class VoltageController(DeviceController):
                 self.voltageONFromThread()
 
     def voltageONFromThread(self):
+        """Toggles voltage output (tread safe)."""
         for channel in self.device.getChannels():
             if channel.real:
                 self.applyVoltageFromThread(channel)

@@ -185,13 +185,28 @@ class PressureController(DeviceController):
                 channel.value = pressure
 
     def TICWrite(self, _id):
+        """TIC specific serial write.
+
+        :param _id: The sensor id to be send.
+        :type _id: str
+        """
         self.serialWrite(self.ticPort, f'?V{_id}\r')
 
     def TICRead(self):
+        """TIC specific serial read."""
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
         return self.serialRead(self.ticPort, EOL='\r')
 
     def TICWriteRead(self, message, lock_acquired=False):
+        """TIC specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:
@@ -200,16 +215,35 @@ class PressureController(DeviceController):
         return response
 
     def TPGWrite(self, message):
+        """TPG specific serial write.
+
+        :param message: The serial message to be send.
+        :type message: str
+        """
         self.serialWrite(self.tpgPort, f'{message}\r', encoding='ascii')
         self.serialRead(self.tpgPort, encoding='ascii') # read acknowledgment
 
     def TPGRead(self):
+        """TPG specific serial read.
+
+        :return: The serial response received.
+        :rtype: str
+        """
         self.serialWrite(self.tpgPort, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
         enq =  self.serialRead(self.tpgPort, encoding='ascii') # response
         self.serialRead(self.tpgPort, encoding='ascii') # followed by NAK
         return enq
 
     def TPGWriteRead(self, message, lock_acquired=False):
+        """TPG specific serial write and read.
+
+        :param message: The serial message to be send.
+        :type message: str
+        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type lock_acquired: bool, optional
+        :return: The serial response received.
+        :rtype: str
+        """
         response = ''
         with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:

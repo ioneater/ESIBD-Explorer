@@ -391,7 +391,7 @@ class Seed(): # contains optimization parameters for each parameter. number of s
 class Being(): # contains the parameter set and fitness. number of beings corresponds to population size
     def __init__(self, maximize, seeds, keep=False):
         self.values=[]
-        self.fitness= -np.inf if maximize else np.inf # make sure that non evaluated beeings end up at the bottom of the list after sorting
+        self.fitness= -np.inf if maximize else np.inf # make sure that non evaluated beings end up at the bottom of the list after sorting
         for seed in seeds:
             if keep:
                 self.values.append(seed.initial)

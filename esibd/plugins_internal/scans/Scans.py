@@ -176,6 +176,7 @@ class Beam(Scan):
         self.scantime = f'{seconds//60:02d}:{seconds%60:02d}'
 
     def centerLimits(self):
+        """Centers scan range around current channel values."""
         channel = self.getChannelByName(self.LR_channel)
         if channel is not None:
             delta = abs(self.LR_to-self.LR_from)/2
@@ -192,6 +193,11 @@ class Beam(Scan):
             self.print(f'Could not find channel {self.UD_channel}')
 
     def updateStep(self, step):
+        """Couples step size if applicable.
+
+        :param step: The new step size.
+        :type step: float
+        """
         if self.coupleAction.state:
             self.LR_step = step
             self.UD_step = step
@@ -217,13 +223,13 @@ class Beam(Scan):
         return defaultSettings
 
     def useLimits(self):
+        """Uses current display limits as scan setting limits."""
         if self.display is not None and self.display.initializedDock:
             self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
-        """Plots 2D scan data"""
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
         if self.loading or len(self.outputs) == 0:
             return
@@ -276,6 +282,13 @@ cont = None
 cax = divider.append_axes("right", size="5%", pad=0.15)
 
 def getMeshgrid(scaling=1):
+    '''Gets a mesh grid of x a coordinates.
+
+    :param scaling: _descCan be used to increase resolution, e.g. when interpolating. Defaults to 1
+    :type scaling: int, optional
+    :return: The meshgrid.
+    :rtype: np.meshgrid
+    '''
     return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputs])
 
 x, y = getMeshgrid()
@@ -297,6 +310,13 @@ fig.show()
         """
 
     def getMeshgrid(self, scaling=1):
+        """Gets a mesh grid of x a coordinates.
+
+        :param scaling: _descCan be used to increase resolution, e.g. when interpolating. Defaults to 1
+        :type scaling: int, optional
+        :return: The meshgrid.
+        :rtype: np.meshgrid
+        """
         # interpolation with more than 50 x 50 grid points gets slow and does not add much to the quality for typical scans
         return np.meshgrid(*[np.linspace(i.getRecordingData()[0], i.getRecordingData()[-1], len(i.getRecordingData()) if
                                          scaling == 1 else min(len(i.getRecordingData())*scaling, 50)) for i in self.inputs])
@@ -390,7 +410,6 @@ class Spectra(Beam):
 
     @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
-        """Plots 2D scan data"""
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
 
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
@@ -446,8 +465,6 @@ class Spectra(Beam):
             self.labelPlot(self.display.axes[0], self.file.name)
 
     def run(self, recording):
-        """Steps through input values, records output values, and triggers plot update.
-        Executed in runThread. Will likely need to be adapted for custom scans."""
         # definition of steps updated to scan along x instead of y axis.
         steps = [tuple[::-1] for tuple in list(itertools.product(*[i.getRecordingData() for i in [self.inputs[1], self.inputs[0]]]))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
@@ -623,14 +640,19 @@ class Energy(Scan):
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
     def map_percent(self, x):
-        """Maps any range on range 0 to 100."""
+        """Maps any range on range 0 to 100.
+
+        :param x: Input values.
+        :type x: np.array
+        :return: Mapped input values.
+        :rtype: np.array
+        """
         # can't map if largest deviation from minimum is 0, i.e. all zero
         # has to return a sequence as matplotlib now expects sequences for set_x(y)data
         return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x)) > 0 else [0]
 
     @plotting
     def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
-        """Plots energy scan data including metadata"""
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
         if len(self.outputs) > 0:
@@ -688,12 +710,43 @@ MYRED='#d62728'
 from scipy import optimize
 
 def map_percent(x):
+    '''Maps any range on range 0 to 100.
+
+    :param x: Input values.
+    :type x: np.array
+    :return: Mapped input values.
+    :rtype: np.array
+    '''
     return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x) > 0) else 0
 
 def gaussian(x, amp1, cen1, sigma1):
+    '''Simple gaussian function.
+
+    :param x: X values.
+    :type x: np.array
+    :param amp1: amplitude
+    :type amp1: float
+    :param cen1: center
+    :type cen1: float
+    :param sigma1: width
+    :type sigma1: float
+    :return: Calculated Y values.
+    :rtype: np.array
+    '''
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
 
 def gauss_fit(x, y, c):
+    '''Simple gaussian fit.
+
+    :param x: X values.
+    :type x: np.array
+    :param y: Y values.
+    :type y: np.array
+    :param c: Guess of central value.
+    :type c: float
+    :return: X values with fine step size, corresponding fitted Y values, full with have maximum
+    :rtype: np.array, np.array, float
+    '''
     amp1 = 100
     sigma1 = 2
     gauss, *_ = optimize.curve_fit(gaussian, x, y, p0=[amp1, c, sigma1])
@@ -737,9 +790,33 @@ fig.show()
         """
 
     def gaussian(self, x, amp1, cen1, sigma1):
+        """Simple gaussian function.
+
+        :param x: X values.
+        :type x: np.array
+        :param amp1: amplitude
+        :type amp1: float
+        :param cen1: center
+        :type cen1: float
+        :param sigma1: width
+        :type sigma1: float
+        :return: Calculated Y values.
+        :rtype: np.array
+        """
         return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
 
     def gauss_fit(self, x, y, c):
+        """Simple gaussian fit.
+
+        :param x: X values.
+        :type x: np.array
+        :param y: Y values.
+        :type y: np.array
+        :param c: Guess of central value.
+        :type c: float
+        :return: X values with fine step size, corresponding fitted Y values, full with have maximum
+        :rtype: np.array, np.array, float
+        """
         # Define a gaussian to start with
         amp1 = 100
         sigma1 = 2
@@ -782,10 +859,17 @@ class Omni(Scan):
             self.updateInteractive()
 
         def updateX(self, value):
+            """Updates the value of the independent variable based on slider value.
+
+            :param value: Slider value.
+            :type value: float
+            """
             if self.scan.inputs[0].sourceChannel is not None:
                 self.scan.inputs[0].value = self.scan._from + value/self.xSlider.maximum()*(self.scan.to - self.scan._from) # map slider range onto range
 
         def updateInteractive(self):
+            """Adjusts the scan based on the interactive setting.
+            If interactive, a slider is used to change the independent variable in real time."""
             if self.xSlider is not None:
                 self.xSlider.setVisible(self.scan.interactive)
                 if self.scan.interactive and len(self.scan.inputs) > 0:
@@ -809,6 +893,7 @@ class Omni(Scan):
         return defaultSettings
 
     def updateInteractive(self):
+        """Adjusts the scan based on the interactive setting."""
         if self.display is not None and self.display.initializedDock:
             self.display.updateInteractive()
         self.estimateScanTime()
@@ -843,7 +928,6 @@ class Omni(Scan):
 
     @plotting
     def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
-        """Plots omni scan data."""
         if len(self.outputs) > 0:
             if self.display.lines is None:
                 self.display.axes[0].clear()
@@ -1052,6 +1136,7 @@ class Depo(Scan):
             self.updateDepoTarget()
 
         def updateDepoTarget(self):
+            """Updates the deposition target line in the plot."""
             if self.depoChargeTarget is not None:
                 self.depoChargeTarget.set_ydata([self.scan.target])
                 if np.sign(self.scan.target) == 1:
@@ -1084,10 +1169,10 @@ class Depo(Scan):
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
     def getExtraUnits(self):
+        """Gets all units that are not representing a current or a charge."""
         return list(set([channel.unit for channel in self.outputs if channel.unit not in ['pA', 'pAh'] and channel.display]))
 
     def getDefaultSettings(self):
-        """Defines settings and default values for DepoScan."""
         defaultSettings = super().getDefaultSettings()
         defaultSettings.pop(self.WAIT)
         defaultSettings.pop(self.WAITLONG)
@@ -1111,6 +1196,7 @@ class Depo(Scan):
         return defaultSettings
 
     def updateDepoTarget(self):
+        """Updates the deposition target line in the plot."""
         if self.display is not None and self.display.initializedDock:
             self.display.updateDepoTarget()
 
@@ -1169,13 +1255,13 @@ class Depo(Scan):
         super().updateDisplayChannel()
 
     def updateWarnLevel(self):
+        """Updates the warning level line in the plot."""
         if self.display is not None and self.display.currentWarnLine is not None:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
-        """Plots depo data"""
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
         if self.loading:
             return
@@ -1294,15 +1380,21 @@ fig.show()
 
         """
 
-    def roundDateTime(self, tm):
-        """Rounds to nearest minute."""
-        discard = timedelta(minutes=tm.minute % 1,
-                             seconds=tm.second,
-                             microseconds=tm.microsecond)
-        tm -= discard
+    def roundDateTime(self, interval):
+        """Rounds to nearest minute.
+
+        :param interval: The original time interval.
+        :type interval: datetime.datetime
+        :return: The rounded time interval.
+        :rtype: datetime.datetime
+        """
+        discard = timedelta(minutes=interval.minute % 1,
+                             seconds=interval.second,
+                             microseconds=interval.microsecond)
+        interval -= discard
         if discard >= timedelta(seconds=30):
-            tm += timedelta(minutes=1)
-        return tm
+            interval += timedelta(minutes=1)
+        return interval
 
     def run(self, recording):
         while recording():
@@ -1397,6 +1489,7 @@ class GA(Scan):
         return defaultSettings
 
     def toggleInitial(self):
+        """Toggles between initial and optimized values."""
         if len(self.outputs) > 0:
             self.gaSignalComm.updateValuesSignal.emit(0, self.initialAction.state)
         else:
@@ -1450,8 +1543,12 @@ class GA(Scan):
         self.toggleAdvanced()
 
     @plotting
-    def plot(self, update=False, **kwargs): # pylint:disable=unused-argument
-        """Plots fitness data"""
+    def plot(self, update=False, **kwargs): # pylint:disable=unused-argument, missing-param-doc
+        """Plots fitness data.
+
+        :param update: Indicates if this is just an incremental update or the final plot (e.g. when loading data from file), defaults to False
+        :type update: bool, optional
+        """
         # timing test with 160 generations: update True: 25 ms, update False: 37 ms
         if self.loading:
             return
@@ -1489,7 +1586,6 @@ fig.show()
         """
 
     def run(self, recording):
-        """Run GA optimization."""
         #first datapoint before optimization
         self.inputs[0].recordingData.add(time.time())
         fitnessStart = np.mean(self.outputs[0].getValues(subtractBackground=self.outputs[0].subtractBackgroundActive(), length=self.measurementsPerStep))
@@ -1514,6 +1610,13 @@ fig.show()
         self.signalComm.scanUpdateSignal.emit(True)
 
     def updateValues(self, index=None, initial=False):
+        """Updates all optimized values or restores initial values.
+
+        :param index: Index of being in GA population. -1 is current being. 0 is best after sorting. Defaults to None
+        :type index: int, optional
+        :param initial: Indicates if initial values should be returned, defaults to False
+        :type initial: bool, optional
+        """
         # only call in main thread as updates GUI
         self.pluginManager.loading = True # only update after setting all voltages
         for channel in [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if channel.optimize]:
@@ -1585,8 +1688,6 @@ class MassSpec(Scan):
 
     @plotting
     def plot(self, update=False, done=False, **kwargs): # pylint:disable=unused-argument
-        """Plots mass spectrum including metadata"""
-
         if len(self.outputs) > 0:
             self.display.ms.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
             if not update:
