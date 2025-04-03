@@ -133,7 +133,7 @@ class VoltageController(DeviceController):
     def applyVoltage(self, channel):
         """Applies voltage value.
 
-        :param channel: Channel for which the value should be applied.
+        :param channel: channel for which the value should be applied.
         :type channel: esibd.core.Channel
         """
         if not getTestMode() and self.initialized:
@@ -142,7 +142,7 @@ class VoltageController(DeviceController):
     def applyVoltageFromThread(self, channel):
         """Applies voltage value (thread safe).
 
-        :param channel: Channel for which the value should be applied.
+        :param channel: channel for which the value should be applied.
         :type channel: esibd.core.Channel
         """
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))

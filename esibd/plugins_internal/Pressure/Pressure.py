@@ -53,7 +53,7 @@ class PressureChannel(Channel):
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER] = 'P (mbar)' # overwrite existing parameter to change header
+        channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items=f'{self.TIC},{self.TPG}', attr='_controller', toolTip='Controller used for communication.')
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,

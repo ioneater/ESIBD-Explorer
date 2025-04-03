@@ -69,7 +69,7 @@ class TemperatureChannel(Channel):
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
+        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)'
         channel[self.VALUE][Parameter.VALUE ] = np.nan # undefined until communication established
         channel[self.CHANNEL ] = parameterDict(value='USBPT104_CHANNEL_1', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                     attr='channel', items='USBPT104_CHANNEL_1, USBPT104_CHANNEL_2, USBPT104_CHANNEL_3, USBPT104_CHANNEL_4')

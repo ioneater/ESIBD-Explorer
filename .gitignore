@@ -1,5 +1,6 @@
 # pylint configuration
 .pylintrc
+.pylintrc_old
 
 # VS code files
 ESIBD_Explorer.code-workspace

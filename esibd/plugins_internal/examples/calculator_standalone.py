@@ -47,7 +47,11 @@ class Calculator(QWidget):
         self.setLayout(layout)
 
     def onButtonClick(self, label):
-        """Handle button clicks."""
+        """Handle button clicks.
+
+        :param label: Label representing function of the button.
+        :type label: str
+        """
         if label == "=":
             self.evaluate()
         elif label == "C":
@@ -56,6 +60,7 @@ class Calculator(QWidget):
             self.display.setText(self.display.text() + label)
 
     def evaluate(self):
+        """Evaluates the equation."""
         try:
             result = aeval(self.display.text())
             self.display.setText(str(result))

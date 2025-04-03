@@ -113,7 +113,7 @@ class CurrentChannel(Channel):
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'I (pA)' # overwrite existing parameter to change header
+        channel[self.VALUE][Parameter.HEADER ] = 'I (pA)'
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
         channel[self.COM        ] = parameterDict(value='COM1', widgetType=Parameter.TYPE.COMBO, advanced=True, toolTip='COM port',
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')

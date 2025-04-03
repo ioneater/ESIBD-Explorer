@@ -25,7 +25,7 @@ class GA():
         self.rescan                  = 1     # if =1 also reevaluates the parents
         self._rescan_every           = 0     # Defines the number of generations after which the parents will be rescanned. Default is 0 (disabled).
         self._converged              = 0     # count for how many steps best_fitness has not increased
-        self.first_run               = True  # only true during first generation (also first generation after restart)
+        self.first_run               = True  # only True during first generation (also first generation after restart)
         self._maximize               = True  # max or minimize
 
         self.fit_best                = 0     # best fitness since last fitness function change
@@ -35,7 +35,7 @@ class GA():
         self._gen_seconds_array      = []    # array of times in ms for each generation
         self._file_path              = ''    # file path used to store the results
         self._file_name              = 'GA'  # file name used to store the results
-        self._restore                = False  # if true the last saved configuration will be restored
+        self._restore                = False  # if True the last saved configuration will be restored
 
         self.bestfile                = ''
         self.restorefile             = ''
@@ -249,7 +249,7 @@ class GA():
     def converged(self):
         return self._converged
 
-    def new_generation(self):  # Returns true if a new generation just started
+    def new_generation(self):  # Returns True if a new generation just started
         return (self.rescan == 1 and self.current_being == 0) or ((self.rescan !=1 or not self._rescan_every) and self.current_being == self.num_elite)
 
 

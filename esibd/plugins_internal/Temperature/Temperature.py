@@ -92,7 +92,7 @@ class TemperatureChannel(Channel):
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)' # overwrite existing parameter to change header
+        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)'
         return channel
 
     def applyTemperature(self): # this actually sets the temperature on the controller!

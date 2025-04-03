@@ -135,7 +135,7 @@ class Beam(Scan):
             self.inputs.append(MetaChannel(parentPlugin=self, name='UD Voltage', recordingData=np.arange(0, 1, 1/self.outputs[0].getRecordingData().shape[0]), unit='V'))
         elif self.file.name.endswith('.s2d.h5'):
             with h5py.File(self.file, 'r') as h5file:
-                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if false
+                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if False
                 lr = h5file['S2DSETTINGS']['Left-Right']
                 _from, to, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
                 self.inputs.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(_from, to, int(abs(_from-to)/abs(step))+1),
@@ -223,7 +223,7 @@ class Beam(Scan):
         return defaultSettings
 
     def useLimits(self):
-        """Uses current display limits as scan setting limits."""
+        """Uses current display limits as scan limits."""
         if self.display is not None and self.display.initializedDock:
             self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
@@ -495,7 +495,7 @@ class Spectra(Beam):
 
 _interpolate = False # set to True to interpolate data
 varAxesAspect = False # set to True to use variable axes aspect ratio
-average = False # set to true to display an average spectrum
+average = False # set to True to display an average spectrum
 plotMode = 'stacked' # 'stacked', 'overlay', or 'contour' # select the representation of your data
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -617,7 +617,7 @@ class Energy(Scan):
                 self.addOutputChannel(name=name.strip(), unit='pA', recordingData=dat)
         elif self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
-                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if false
+                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if False
                 self.inputs.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'], recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
@@ -868,7 +868,7 @@ class Omni(Scan):
                 self.scan.inputs[0].value = self.scan._from + value/self.xSlider.maximum()*(self.scan.to - self.scan._from) # map slider range onto range
 
         def updateInteractive(self):
-            """Adjusts the scan based on the interactive setting.
+            """Adjusts the scan based on the interactive Setting.
             If interactive, a slider is used to change the independent variable in real time."""
             if self.xSlider is not None:
                 self.xSlider.setVisible(self.scan.interactive)
@@ -893,7 +893,7 @@ class Omni(Scan):
         return defaultSettings
 
     def updateInteractive(self):
-        """Adjusts the scan based on the interactive setting."""
+        """Adjusts the scan based on the interactive Setting."""
         if self.display is not None and self.display.initializedDock:
             self.display.updateInteractive()
         self.estimateScanTime()

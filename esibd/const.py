@@ -103,7 +103,7 @@ def rgb_to_hex(rgba):
     return "#{:02x}{:02x}{:02x}".format(int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255))
 
 class INOUT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
+    """Used to specify if a function affects only input, only output, or all Channels."""
     IN = 0
     """Input"""
     OUT = 1
@@ -116,7 +116,7 @@ class INOUT(Enum):
     """Input and output and all others."""
 
 class PRINT(Enum):
-    """Used to specify if a function affects only input, only output, or all channels."""
+    """Used to specify if a function affects only input, only output, or all Channels."""
     MESSAGE = 0
     """A standard message."""
     WARNING = 1
@@ -139,12 +139,12 @@ def pluginSupported(pluginVersion):
     return version.parse(pluginVersion).major == PROGRAM_VERSION.major and version.parse(pluginVersion).minor == PROGRAM_VERSION.minor
 
 def makeSettingWrapper(name, settingsMgr, docstring=None):
-    """Neutral setting wrapper for convenient access to the value of a setting.
+    """Neutral Setting wrapper for convenient access to the value of a Setting.
     If you need to handle events on value change, link these directly to the events of the corresponding control.
 
-    :param name: The setting name.
+    :param name: The Setting name.
     :type name: str
-    :param settingsMgr: The SettingsManager of the setting.
+    :param settingsMgr: The SettingsManager of the Setting.
     :type settingsMgr: esibd.plugins.SettingsManager
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
@@ -156,10 +156,10 @@ def makeSettingWrapper(name, settingsMgr, docstring=None):
     return property(getter, setter, doc=docstring)
 
 def makeWrapper(name, docstring=None):
-    """Neutral property wrapper for convenient access to the value of a parameter inside a channel.
+    """Neutral property wrapper for convenient access to the value of a Parameter inside a Channel.
     If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
 
-    :param name: The parameter name.
+    :param name: The Parameter name.
     :type name: str
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
@@ -205,7 +205,7 @@ def getShowDebug():
     :return: Debug mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{DEBUG}', defaultValue='true', type=bool)
+    return qSet.value(f'{GENERAL}/{DEBUG}', defaultValue=True, type=bool)
 
 def getDarkMode():
     """Gets the dark mode from :ref:`sec:settings`.
@@ -213,7 +213,7 @@ def getDarkMode():
     :return: Dark mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
+    return qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue=True, type=bool)
 
 def setDarkMode(darkMode):
     """Sets the dark mode from :ref:`sec:settings`.
@@ -222,7 +222,7 @@ def setDarkMode(darkMode):
     :type darkMode: bool
     """
     qSet.setValue(f'{GENERAL}/{DARKMODE}', darkMode)
-    # qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue='true', type=bool)
+    # qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue=True, type=bool)
 
 def getClipboardTheme():
     """Gets the dark clipboard mode from :ref:`sec:settings`.
@@ -230,7 +230,7 @@ def getClipboardTheme():
     :return: Dark clipboard mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{CLIPBOARDTHEME}', defaultValue='true', type=bool)
+    return qSet.value(f'{GENERAL}/{CLIPBOARDTHEME}', defaultValue=True, type=bool)
 
 def getDPI():
     """Gets the DPI from :ref:`sec:settings`.
@@ -254,7 +254,7 @@ def getTestMode():
     :return: Test mode
     :rtype: bool
     """
-    return qSet.value(f'{GENERAL}/{TESTMODE}', defaultValue='false', type=bool)
+    return qSet.value(f'{GENERAL}/{TESTMODE}', defaultValue=False, type=bool)
 
 def infoDict(name):
     """Dictionary with general information, usually used to add this information to exported files.
@@ -359,15 +359,15 @@ def plotting(func):
     """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.pluginManager.plotting:
+        if self.plotting:
             self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
             self.measureInterval(reset=False) # do not reset but keep track of unresponsiveness
             return
-        self.pluginManager.plotting = True
+        self.plotting = True
         try:
             return func(self, *args, **kwargs)
         finally:
-            self.pluginManager.plotting = False
+            self.plotting = False
     return wrapper
 
 def openInDefaultApplication(file):

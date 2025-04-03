@@ -438,7 +438,7 @@ class LINE(Plugin):
 
         :param file: The file from which to load data.
         :type file: pathlib.Path
-        :param _show: True if display should be shown after loading data. Set to false if multiple plugins load file and other plugins have priority. Defaults to True
+        :param _show: True if display should be shown after loading data. Set to False if multiple plugins load file and other plugins have priority. Defaults to True
         :type _show: bool, optional
         """
         self.provideDock()

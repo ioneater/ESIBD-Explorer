@@ -180,7 +180,7 @@ class PluginManager():
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath = None
         self.pluginFile     = None
-        self.plotting = False
+        # self.plotting = False # TODO delete
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -212,7 +212,11 @@ class PluginManager():
             self._loading -= 1
 
     def loadPlugins(self, reload=False):
-        """Loads all enabled plugins."""
+        """Loads all enabled plugins.
+
+        :param reload: Indicates if plugins are reloading, defaults to False
+        :type reload: bool, optional
+        """
 
         self.updateTheme()
         if not reload:
@@ -284,7 +288,11 @@ class PluginManager():
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path):
-        """Loads plugins from a path."""
+        """Loads plugins from a path.
+
+        :param path: The path in which to look for plugins.
+        :type path: pathlib.Path
+        """
         for _dir in [_dir for _dir in path.iterdir() if _dir.is_dir()]:
             for file in [file for file in _dir.iterdir() if file.name.endswith('.py')]:
                 try:
@@ -304,7 +312,13 @@ class PluginManager():
                     # silently ignore dependencies which do not define providePlugins
 
     def loadPluginsFromModule(self, Module, dependencyPath):
-        """Loads plugins from a module."""
+        """Loads plugins from a module.
+
+        :param Module: A module providing one or multiple plugins.
+        :type Module: ModuleType
+        :param dependencyPath: The path where dependencies like icons are stored, defaults to None
+        :type dependencyPath: pathlib.Path, optional
+        """
         for Plugin in Module.providePlugins():
             # requires loading all dependencies, no matter if plugin is used or not
             # if a dependency of an unused plugin causes issues, report it and remove the corresponding file from the plugin folder until fixed.
@@ -335,7 +349,13 @@ class PluginManager():
         """Load a single plugin.
         Plugins must have a static name and pluginType.
         'mainWindow' is passed to enable flexible integration, but should only be used at your own risk.
-        Enabled state is saved and restored from an independent file and can also be edited using the plugins dialog."""
+        Enabled state is saved and restored from an independent file and can also be edited using the plugins dialog.
+
+        :param Plugin: The class of the Plugin to be loaded.
+        :type Plugin: Plugin
+        :param dependencyPath: The path where dependencies like icons are stored, defaults to None
+        :type dependencyPath: pathlib.Path, optional
+        """
         QApplication.processEvents() # break down expensive initialization to allow update splash screens while loading
         self.logger.print(f'loadPlugin {Plugin.name}', flag=PRINT.DEBUG)
         if not pluginSupported(Plugin.supportedVersion):
@@ -410,6 +430,7 @@ class PluginManager():
 
     @property
     def testing(self):
+        """Indicates if the PluginManager or any individual plugin is currently testing."""
         return self._testing or any([plugin._testing for plugin in self.plugins])
     @testing.setter
     def testing(self, state):
@@ -513,7 +534,15 @@ class PluginManager():
             QApplication.restoreOverrideCursor()
 
     def addPluginTreeWidgetItem(self, tree, item, name):
-        """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox."""
+        """Adds a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox.
+
+        :param tree: The tree used to display plugin information.
+        :type tree: QTreeWidget
+        :param item: Dictionary with plugin information.
+        :type item: dict
+        :param name: Plugin name.
+        :type name: str
+        """
         pluginTreeWidget = QTreeWidgetItem(tree.invisibleRootItem())
         if item[self.ICONFILE] != '':
             pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] != '' else item[self.ICONFILE])))
@@ -546,7 +575,11 @@ class PluginManager():
         tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
 
     def closePlugins(self, reload=False):
-        """Closes all open connections and leave hardware in save state (e.g. voltage off)."""
+        """Closes all open connections and leave hardware in save state (e.g. voltage off).
+
+        :param reload: Indicates if plugins will be reloaded, defaults to False
+        :type reload: bool, optional
+        """
         if reload:
             self.logger.print('Reloading Plugins.', flag=PRINT.EXPLORER)
             self.splash = SplashScreen()
@@ -633,11 +666,21 @@ class PluginManager():
         return [plugin for plugin in self.plugins if isinstance(plugin, parentClasses)]
 
     def toggleTitleBarDelayed(self, update=False, delay=500):
-        """Wrapper to delay toggleTitleBar until GUI updates have been completed."""
+        """Wrapper to delay toggleTitleBar until GUI updates have been completed.
+
+        :param update: Indicates if the list of tabBars should be updated, defaults to False
+        :type update: bool, optional
+        :param delay: Delay in ms, defaults to 500
+        :type delay: int, optional
+        """
         QTimer.singleShot(delay, lambda: self.toggleTitleBar(update=update))
 
     def toggleTitleBar(self, update=False):
-        """Toggles between showing icons or text in tabs."""
+        """Toggles between showing icons or text in tabs.
+
+        :param update: Indicates if the list of tabBars should be updated, defaults to False
+        :type update: bool, optional
+        """
         if not self.tabBars or update:
             # this is very expensive as it traverses the entire QObject hierarchy, but this is the only way to find a new tabbar that is created by moving docks around
             # keep reference to tabBars. this should only need update if dock topLevelChanged
@@ -715,7 +758,11 @@ class PluginManager():
     def reconnectSource(self, channel):
         """Tries to reconnect linked channels if applicable.
         This is needed e.g. after renaming, moving, or deleting channels.
-        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found."""
+        If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found.
+
+        :param channel: Channel to reconnect.
+        :type channel: esibd.core.Channel
+        """
         # keep docstring synchronized with PID.reconnectSource and UCM.reconnectSource
         if hasattr(self, 'PID'):
             self.PID.reconnectSource(channel.name)
@@ -770,7 +817,7 @@ class Logger(QObject):
         self.timer.setInterval(3600000) # every 1 hour
         self.printFromThreadSignal.connect(self.print)
         self.backLog = [] # stores messages to be displayed later if console is not initialized
-        if qSet.value(LOGGING, defaultValue='true', type=bool):
+        if qSet.value(LOGGING, defaultValue=True, type=bool):
             self.open()
 
     def open(self):
@@ -793,7 +840,13 @@ class Logger(QObject):
 
     def write(self, message, flag=PRINT.MESSAGE):
         """Directs messages to terminal, log file, and :ref:`sec:console`.
-        Called directly from stdout or stderr or indirectly via :meth:`~esibd.plugins.Plugin.print`."""
+        Called directly from stdout or stderr or indirectly via :meth:`~esibd.plugins.Plugin.print`.
+
+        :param message: The message.
+        :type message: str
+        :param flag: Signals the status of the message, defaults to PRINT.MESSAGE
+        :type flag: esibd.const.PRINT, optional
+        """
         if self.active:
             if self.terminalOut is not None: # after packaging with pyinstaller the program will not be connected to a terminal
                 self.terminalOut.write(message) # write to original stdout
@@ -812,6 +865,7 @@ class Logger(QObject):
             self.backLog.append(message)
 
     def purge(self):
+        """Purges the log file to keep it below purgeLimit."""
         # ca. 12 ms, only call once per hour. lock makes sure there is not race conditions with open reference
         with self.lock.acquire_timeout(1) as lock_acquired:
             if lock_acquired:
@@ -906,7 +960,15 @@ class DynamicNp():
         self.init(initialData, max_size, dtype)
 
     def init(self, initialData=None, max_size=None, dtype=np.float32):
-        """Initializes DynamicNp. This is also used if data is cropped or padded."""
+        """Initializes DynamicNp. This is also used if data is cropped or padded.
+
+        :param initialData: Initial data, defaults to None
+        :type initialData: np.array, optional
+        :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
+        :type max_size: int, optional
+        :param dtype: Datatype to be used, defaults to np.float32
+        :type dtype: np.float32 or np.float64, optional
+        """
         self.data = np.zeros((2000,), dtype=dtype) if initialData is None or initialData.shape[0] == 0 else initialData
         self.capacity = self.data.shape[0]
         self.size = 0 if initialData is None else initialData.shape[0]
@@ -987,8 +1049,48 @@ class DynamicNp():
 
 def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, fixedItems=False, tree=None, widgetType=None, advanced=False, header=None,
                     widget=None, event=None, internal=False, attr=None, indicator=False, instantUpdate=True, displayDecimals=2):
-    """Provides default values for all properties of a parameter.
-    See :class:`~esibd.core.Parameter` for definitions.
+    """Provides default values for all properties of a Parameter.
+
+    :param name: The Parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path, defaults to None
+    :type name: str, optional
+    :param value: The value of the Parameter in any supported type, defaults to None
+    :type value: Any, optional
+    :param default: The default value of the Parameter in any supported type, defaults to None
+    :type default: Any, optional
+    :param _min: Minimum limit for numerical properties, defaults to None
+    :type _min: float, optional
+    :param _max: Maximum limit for numerical properties., defaults to None
+    :type _max: float, optional
+    :param toolTip: ToolTip used to describe the Parameter, defaults to None
+    :type toolTip: str, optional
+    :param items: List of options for parameters with a comboBox, defaults to None
+    :type items: List[str], optional
+    :param fixedItems: Indicates if list of items can be edited by the user or should remain fixed., defaults to False
+    :type fixedItems: bool, optional
+    :param tree: None, unless the Parameter is used for settings., defaults to None
+    :type tree: QTreeWidget, optional
+    :param widgetType: The widgetType determines which widget is used to represent the Parameter in the user interface, defaults to None
+    :type widgetType: esibd.core.Parameter.TYPE, optional
+    :param advanced: If True, Parameter will only be visible in advanced mode, defaults to False
+    :type advanced: bool, optional
+    :param header: Header used for the corresponding column in list of Channels. The Parameter name is used if not specified. Only applies to Channel Parameters. Defaults to None
+    :type header: str, optional
+    :param widget: A custom widget that will be used instead of the automatically provided one., defaults to None
+    :type widget: QWidget, optional
+    :param event: A function that will be triggered when the Parameter value changes, defaults to None
+    :type event: callable, optional
+    :param internal: Set to True to save Parameter value in the registry (using QSetting) instead of configuration files. This can help to reduce clutter in configuration files and restore essential Parameters even if configuration files get moved or lost. Defaults to False
+    :type internal: bool, optional
+    :param attr: Allows direct access to the Parameter. Only applies to Channel and Settings Parameters. Defaults to None
+    :type attr: str, optional
+    :param indicator: Indicators cannot be edited by the user, defaults to False
+    :type indicator: bool, optional
+    :param instantUpdate: By default, events are triggered as soon as the value changes. If set to False, certain events will only be triggered if editing is finished by the *enter* key or if the widget loses focus. Defaults to True
+    :type instantUpdate: bool, optional
+    :param displayDecimals: Number of decimal places to display if applicable, defaults to 2
+    :type displayDecimals: int, optional
+    :return: Dictionary containing all Parameter information.
+    :rtype: dict
     """
     return {Parameter.NAME : name, Parameter.VALUE : value, Parameter.DEFAULT : default if default is not None else value, Parameter.MIN : _min, Parameter.MAX : _max, Parameter.ADVANCED : advanced,
             Parameter.HEADER : header, Parameter.TOOLTIP : toolTip, Parameter.ITEMS : items, Parameter.FIXEDITEMS : fixedItems, Parameter.TREE : tree, Parameter.WIDGETTYPE : widgetType,
@@ -996,11 +1098,11 @@ def parameterDict(name=None, value=None, default=None, _min=None, _max=None, too
             Parameter.DISPLAYDECIMALS : displayDecimals}
 
 class Parameter():
-    """Parameters are used by settings and channels. They take care
+    """Parameters are used by Settings and Channels. They take care
     of providing consistent user controls, linking events, input validation,
     context menus, and restoring values.
     Typically they are not initialized directly but via a :meth:`~esibd.core.parameterDict`
-    from which settings and channels take the relevant information."""
+    from which Settings and Channels take the relevant information."""
 
     # general keys
     NAME        = 'Name'
@@ -1024,7 +1126,7 @@ class Parameter():
     WIDGET      = 'WIDGET'
 
     class TYPE(Enum):
-        """Specifies what type of widget should be used to represent the parameter in the user interface."""
+        """Specifies what type of widget should be used to represent the Parameter in the user interface."""
 
         LABEL = 'LABEL'
         """A label that displays information."""
@@ -1050,50 +1152,50 @@ class Parameter():
         """A spinbox with scientific format."""
 
     name : str
-    """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
+    """The Parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
     value : Any
-    """The default value of the parameter in any supported type."""
+    """The value of the Parameter in any supported type."""
     min : float
     """Minimum limit for numerical properties."""
     max : float
     """Maximum limit for numerical properties."""
     toolTip : str
-    """Tooltip used to describe the parameter."""
+    """Tooltip used to describe the Parameter."""
     items : List[str]
     """List of options for parameters with a combobox."""
     fixedItems : bool
     """Indicates if list of items can be edited by the user or should remain fixed."""
     widgetType : TYPE
-    """The widgetType determines which widget is used to represent the parameter in the user interface."""
+    """The widgetType determines which widget is used to represent the Parameter in the user interface."""
     advanced : bool
-    """If True, parameter will only be visible in advanced mode."""
+    """If True, Parameter will only be visible in advanced mode."""
     header : str
-    """Header used for the corresponding column in list of channels.
-    The parameter name is used if not specified.
-    Only applies to channel parameters."""
+    """Header used for the corresponding column in list of Channels.
+    The Parameter name is used if not specified.
+    Only applies to Channel Parameters."""
     widget : QWidget
     """A custom widget that will be used instead of the automatically provided one."""
     event : callable
-    """A function that will be triggered when the parameter value changes."""
+    """A function that will be triggered when the Parameter value changes."""
     internal : bool
-    """Set to True to save parameter value in the registry (using QSetting)
+    """Set to True to save Parameter value in the registry (using QSetting)
     instead of configuration files. This can help to reduce clutter in
-    configuration files and restore essential parameters even if
+    configuration files and restore essential Parameters even if
     configuration files get moved or lost."""
     attr : str
-    """Allows direct access to the parameter. Only applies to channel and settings parameters.
+    """Allows direct access to the Parameter. Only applies to Channel and Settings Parameters.
 
-    E.g. The *color* parameter of a channel specifies *attr=’color’*
+    E.g. The *color* Parameter of a Channel specifies *attr=’color’*
     and can thus be accessed via *channel.color*.
 
-    E.g. The *Session path* parameter in :class:`~esibd.plugins.Settings` specifies
+    E.g. The *Session path* Parameter in :class:`~esibd.plugins.Settings` specifies
     *attr=’sessionPath’* and can thus be accessed via
     *Settings.sessionPath*.
 
-    E.g. The *interval* parameter of a device specifies
+    E.g. The *interval* Parameter of a device specifies
     *attr=’interval’* and can thus be accessed via *device.interval*.
 
-    E.g. The *notes* parameter of a scan specifies *attr=’notes’* and
+    E.g. The *notes* Parameter of a scan specifies *attr=’notes’* and
     can thus be accessed via *scan.notes*."""
     indicator : bool
     """Indicators cannot be edited by the user."""
@@ -1106,11 +1208,11 @@ class Parameter():
     print : callable
     """Reference to :meth:`~esibd.plugins.Plugin.print`."""
     fullName : str
-    """Will contain path of setting in HDF5 file if applicable."""
+    """Will contain path of Setting in HDF5 file if applicable."""
     tree : QTreeWidget
-    """None, unless the parameter is used for settings."""
+    """None, unless the Parameter is used for settings."""
     itemWidget : QTreeWidgetItem
-    """Widget used to display the value of the parameter. None if parameter is part of a channel. Defined if it is part of a setting."""
+    """Widget used to display the value of the Parameter. None if Parameter is part of a Channel. Defined if it is part of a Setting."""
     extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 
@@ -1145,7 +1247,7 @@ class Parameter():
         self._default = None
         if default is not None:
             self.default = default
-        if self.tree is None: # if this is part of a QTreeWidget, applyWidget() should be called after this parameter is added to the tree
+        if self.tree is None: # if this is part of a QTreeWidget, applyWidget() should be called after this Parameter is added to the tree
             self.applyWidget() # call after everything else is initialized but before setting value
 
     @property
@@ -1239,8 +1341,8 @@ class Parameter():
         """Extend to manage changes to settings"""
 
     def changedEvent(self):
-        """Event that is triggered when the value of the parameter changes.
-        Depending on the type and configuration of parameter specific additional events will be triggered."""
+        """Event that is triggered when the value of the Parameter changes.
+        Depending on the type and configuration of Parameter specific additional events will be triggered."""
         if not (self.loading or self._parent.loading):
             self.settingEvent() # always save changes even when event is not triggered
             if not self.instantUpdate and self.widgetType in [self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP]:
@@ -1250,7 +1352,7 @@ class Parameter():
                     return # ignore editingFinished if content has not changed
             # ! Settings event has to be triggered before main event to make sure internal parameters are updated and available right away
             # if self.event is not None or self.extraEvents:
-            #     self.print(f'changeEvent for parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
+            #     self.print(f'changeEvent for Parameter {self._parent.name}.{self.fullName}', flag=PRINT.DEBUG)
             # ! if you have 100 channels which update at 10 Hz, changedEvent can be called 1000 times per second.
             # ! adding a print statement to the terminal, console plugin, and statusbar at that rate might make the application unresponsive.
             # ! only uncomment for specific tests. Note that the print statement is always ignored if debug mode is not active.
@@ -1307,7 +1409,7 @@ class Parameter():
         self._valueChanged = True
 
     def setToDefault(self):
-        """Sets parameter value to its default."""
+        """Sets Parameter value to its default."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             i = self.combo.findText(str(self.default))
             if i == -1: # add default entry in case it has been deleted
@@ -1411,7 +1513,7 @@ class Parameter():
         return container
 
     def setHeight(self, height=None):
-        """Sets the height of the parameter while accounting for different types of parameter widgets.
+        """Sets the height of the Parameter while accounting for different types of Parameter widgets.
 
         :param height: Target height, defaults to None
         :type height: float, optional
@@ -1449,7 +1551,7 @@ class Parameter():
             self.label.setFont(font)
 
     def getWidget(self):
-        """Returns the widget used to display the parameter value in the user interface."""
+        """Returns the widget used to display the Parameter value in the user interface."""
         if self.widgetType in [self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO]:
             return self.combo
         elif self.widgetType == self.TYPE.TEXT:
@@ -1464,14 +1566,22 @@ class Parameter():
             return self.label
 
     def setEnabled(self, enabled):
-        """Controls user access using setEnabled or setReadOnly depending on the widget type."""
+        """Controls user access using setEnabled or setReadOnly depending on the widget type.
+
+        :param enabled: The requested enabled state.
+        :type enabled: bool
+        """
         if hasattr(self.getWidget(), 'setReadOnly'):
             self.getWidget().setReadOnly(not enabled)
         else:
             self.getWidget().setEnabled(enabled)
 
     def addItem(self, value):
-        """Adds an item to a combobox and selects it."""
+        """Adds an item to a combobox and selects it.
+
+        :param value: The new value to be added.
+        :type value: str
+        """
         # should only be called for WIDGETCOMBO settings
         if self.validateComboInput(value):
             if self.combo.findText(str(value)) == -1: # only add item if not already in list
@@ -1486,13 +1596,23 @@ class Parameter():
             self.print('List cannot be empty.', PRINT.WARNING)
 
     def editCurrentItem(self, value):
-        """Edits currently selected item of a combobox."""
+        """Edits currently selected item of a combobox.
+
+        :param value: The new value to be validated.
+        :type value: str
+        """
         if self.validateComboInput(value):
             self.combo.setItemText(self.combo.currentIndex(), str(value))
             self.changedEvent() # is not triggered by setItemText
 
     def validateComboInput(self, value):
-        """Validates input for comboboxes"""
+        """Validates input for comboboxes.
+
+        :param value: The new value to be validated.
+        :type value: str
+        :return: True if valid.
+        :rtype: bool
+        """
         if self.widgetType == self.TYPE.COMBO:
             return True
         elif self.widgetType == self.TYPE.INTCOMBO:
@@ -1510,7 +1630,13 @@ class Parameter():
         return False
 
     def equals(self, value):
-        """Returns True if a representation of value matches the value of the parameter"""
+        """Returns True if a representation of value matches the value of the Parameter.
+
+        :param value: The value to compare against.
+        :type value: Any
+        :return: True if value equals self.value.
+        :rtype: bool
+        """
         if self.widgetType == self.TYPE.BOOL:
             return self.value == value if isinstance(value,(bool, np.bool_)) else self.value == (value in ['True', 'true']) # accepts strings (from ini file or qSet) and bools
         elif self.widgetType in [self.TYPE.INT, self.TYPE.INTCOMBO]:
@@ -1527,7 +1653,13 @@ class Parameter():
             return self.value == value
 
     def formatValue(self, value=None):
-        """Formats value as a string, depending on parameter type."""
+        """Formats value as a string, depending on Parameter type.
+
+        :param value: A value to be formatted using the Parameter formatting, defaults to None and uses self.value
+        :type value: Any, optional
+        :return: Formatted value as text.
+        :rtype: str
+        """
         value = value if value is not None else self.value
         if value is None:
             return str(value)
@@ -1542,7 +1674,11 @@ class Parameter():
             return str(value)
 
     def initContextMenu(self, pos):
-        """Initializes the context menu of the parent at the location of the"""
+        """Initializes the context menu of the parent at the location of the Parameter.
+
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         self._parent.initSettingsContextMenuBase(self, self.getWidget().mapToGlobal(pos))
 
 class Setting(QTreeWidgetItem, Parameter):
@@ -1551,7 +1687,7 @@ class Setting(QTreeWidgetItem, Parameter):
         # use keyword arguments rather than positional to avoid issues with multiple inheritance
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
-        self.advanced = advanced # only display this parameter in advanced mode
+        self.advanced = advanced # only display this Parameter in advanced mode
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem
             self.parentItem.addChild(self) # has to be added to parent before widgets can be added!
@@ -1570,7 +1706,11 @@ class Setting(QTreeWidgetItem, Parameter):
         self.loading = False
 
     def setWidget(self, widget):
-        """Allows to change to custom widget after initialization. E.g. to move a setting to a more logical position outside the Settings tree."""
+        """Allows to change to custom widget after initialization. E.g. to move a Setting to a more logical position outside the Settings tree.
+
+        :param widget: An appropriate widget to display the Setting value.
+        :type widget: QWidget
+        """
         initialValue = self.value
         self.widget = widget
         self.applyWidget() # will overwrite ToolTip -> restore if value specific
@@ -1590,10 +1730,10 @@ class Setting(QTreeWidgetItem, Parameter):
         self.loading = False
 
     def settingEvent(self):
-        """Executes internal validation based on setting type.
+        """Executes internal validation based on Setting type.
         Saves parameters to file or qSet to make sure they can be restored even after a crash.
-        Finally executes setting specific event if applicable."""
-        if not self.indicator: # setting indicators should never need to trigger events
+        Finally executes Setting specific event if applicable."""
+        if not self.indicator: # Setting indicators should never need to trigger events
             if self.widgetType == self.TYPE.PATH:
                 path, changed = validatePath(self.value, self.default)
                 if changed:
@@ -1626,7 +1766,21 @@ class RelayChannel():
         return self.sourceChannel.getDevice().recording if self.sourceChannel is not None else False
 
     def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None):
-        """SourceChannel.getValues() if available. Default provided."""
+        """SourceChannel.getValues() if available. Default provided.
+
+        :param length: will return last 'length' values.
+        :type length: int
+        :param _min: Index of lower limit.
+        :type _min: int
+        :param _max: Index of upper limit.
+        :type _max: int
+        :param n: Will only return every nth value, defaults to 1
+        :type n: int, optional
+        :param subtractBackground: Indicates if the background should be subtracted, defaults to None
+        :type subtractBackground: bool, optional
+        :return: The array of values.
+        :rtype: np.array
+        """
         return self.sourceChannel.getValues(length, _min, _max, n, subtractBackground) if self.sourceChannel is not None else None
 
     @property
@@ -1675,7 +1829,7 @@ class RelayChannel():
         """SourceChannel.max if available. Default provided."""
         return self.sourceChannel.max if self.sourceChannel is not None else None
 
-    # @property # implement channel specific, some may prefer to use their internal display!
+    # @property # implement Channel specific, some may prefer to use their internal display!
     # def display(self):
     #     if hasattr(self, 'display'):
     #         return self.display
@@ -1686,7 +1840,7 @@ class RelayChannel():
         """SourceChannel.smooth if available. Default provided."""
         return self.sourceChannel.smooth if self.sourceChannel is not None else 0
 
-    # @property # implement channel specific,
+    # @property # implement Channel specific,
     # def unit(self):
     #     return self.sourceChannel.unit if self.sourceChannel is not None else self._unit
 
@@ -1768,11 +1922,12 @@ class MetaChannel(RelayChannel):
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
 
     def display(self):
+        """Indicates of the source channel should be displayed."""
         return self.sourceChannel.display if self.sourceChannel is not None else True
 
 class Channel(QTreeWidgetItem):
-    """A :class:`channel<esibd.core.Channel>` represents a virtual or real parameter and manages all data and
-    metadata related to that parameter. Each :ref:`device<sec:devices>` can only have one
+    """A :class:`channel<esibd.core.Channel>` represents a virtual or real Parameter and manages all data and
+    metadata related to that Parameter. Each :ref:`device<sec:devices>` can only have one
     type of channel, but channels have dynamic interfaces that allow to
     account for differences in the physical backend.
 
@@ -1803,9 +1958,9 @@ class Channel(QTreeWidgetItem):
     parameters : Parameter
     """List of channel parameters."""
     displayedParameters : List[str]
-    """List of parameters that determines which parameters are shown in the
+    """List of Parameters that determines which Parameters are shown in the
        user interface and in what order. Compare :meth:`~esibd.core.Channel.insertDisplayedParameter`.
-       If your custom parameter is not in this list it will not be visible in the user interface."""
+       If your custom Parameter is not in this list it will not be visible in the user interface."""
     values : DynamicNp
     """The history of values shown in the :class:`~esibd.plugins.LiveDisplay`.
        Use :meth:`~esibd.core.Channel.getValues` to get a plain numpy.array."""
@@ -1843,7 +1998,7 @@ class Channel(QTreeWidgetItem):
             self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
 
         # self.value = None # will be replaced by wrapper
-        # generate property for direct access of parameter values
+        # generate property for direct access of Parameter values
         # note: this assigns properties directly to class and only works as it uses a method that is specific to the current instance
         for name, default in self.getSortedDefaultChannel().items():
             if Parameter.ATTR in default and default[Parameter.ATTR] is not None:
@@ -1893,18 +2048,22 @@ class Channel(QTreeWidgetItem):
 
     @property
     def loading(self):
+        """Indicates if the corresponding device is currently loading."""
         return self.getDevice().loading
 
     @property
     def unit(self):
+        """The unit of the corresponding device."""
         return self.getDevice().unit
 
     @property
     def time(self):
+        """The time axis of the corresponding device."""
         return self.getDevice().time
 
     @property
     def acquiring(self):
+        """Indicates if the channel is acquiring data."""
         if self.controller is not None:
             return self.controller.acquiring
         elif self.getDevice().controller is not None:
@@ -1913,10 +2072,10 @@ class Channel(QTreeWidgetItem):
             return False
 
     def getDefaultChannel(self):
-        """ Defines parameter(s) of the default channel.
+        """ Defines Parameter(s) of the default Channel.
         This is also use to assign widgetTypes and if settings are visible outside of advanced mode.
         See :meth:`~esibd.core.parameterDict`.
-        If parameters do not exist in the settings file, the default parameter will be added.
+        If parameters do not exist in the settings file, the default Parameter will be added.
         Overwrite in dependent classes as needed.
         """
         channel = {}
@@ -1979,16 +2138,16 @@ class Channel(QTreeWidgetItem):
         return channel
 
     def getSortedDefaultChannel(self):
-        """Returns default channel sorted in the order defined by :attr:`~esibd.core.Channel.displayedParameters`."""
+        """Returns default Channel sorted in the order defined by :attr:`~esibd.core.Channel.displayedParameters`."""
         self.setDisplayedParameters()
         return {k: self.getDefaultChannel()[k] for k in self.displayedParameters}
 
     def insertDisplayedParameter(self, parameter, before):
-        """Inserts your custom parameter before an existing parameter in :attr:`~esibd.core.Channel.displayedParameters`.
+        """Inserts your custom Parameter before an existing Parameter in :attr:`~esibd.core.Channel.displayedParameters`.
 
-        :param parameter: The new parameter to insert.
+        :param parameter: The new Parameter to insert.
         :type parameter: :class:`~esibd.core.Parameter`
-        :param before: The existing parameter before which the new one will be placed.
+        :param before: The existing Parameter before which the new one will be placed.
         :type before: :class:`~esibd.core.Parameter`
         """
         self.displayedParameters.insert(self.displayedParameters.index(before), parameter)
@@ -2023,16 +2182,25 @@ class Channel(QTreeWidgetItem):
         return tempParameters
 
     def getParameterByName(self, name):
+        """Gets a Channel Parameter by name.
+
+        :param name: The name of the Parameter.
+        :type name: str
+        :return: The requested Parameter.
+        :rtype: esibd.core.Parameter
+        """
         parameter = next((parameter for parameter in self.parameters if parameter.name.strip().lower() == name.strip().lower()), None)
         if parameter is None:
-            self.print(f'Could not find parameter {name}.', PRINT.WARNING)
+            self.print(f'Could not find Parameter {name}.', PRINT.WARNING)
         return parameter
 
     def asDict(self, temp=False, formatValue=False):
-        """Returns a dictionary containing all channel parameters and their values.
+        """Returns a dictionary containing all Channel Parameters and their values.
 
-        :param temp: If true, dict will contain temporary parameters
+        :param temp: If True, dict will contain temporary Parameters, Defaults to False
         :type temp: bool, optional
+        :param formatValue: Indicates if the value should be formatted as a string, Defaults to False
+        :type formatValue: bool, optional
         """
         _dict = {}
         for parameter in self.parameters:
@@ -2061,7 +2229,11 @@ class Channel(QTreeWidgetItem):
             self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def collapseChanged(self, toggle=True):
-        """Updates visible channels after collapse has changed."""
+        """Updates visible channels after collapse has changed.
+
+        :param toggle: Toggles display of visible channels, defaults to True
+        :type toggle: bool, optional
+        """
         self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if toggle and not self.device.loading: # otherwise only update icon
             self.device.toggleAdvanced()
@@ -2071,7 +2243,7 @@ class Channel(QTreeWidgetItem):
 
         :param lenT: length of corresponding time array, defaults to None
         :type lenT: int, optional
-        :param nan: If true, np.nan is used instead of current value. This should mark a new collection and prevent interpolation in regions without data.
+        :param nan: If True, np.nan is used instead of current value. This should mark a new collection and prevent interpolation in regions without data.
         :type nan: bool
         """
         if nan:
@@ -2087,14 +2259,32 @@ class Channel(QTreeWidgetItem):
 
     def getValues(self, length=None, _min=None, _max=None, n=1, subtractBackground=None): # pylint: disable = unused-argument # use consistent arguments for all versions of getValues
         """Returns plain Numpy array of values.
-        Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained."""
+        Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained.
+
+        :param length: will return last 'length' values.
+        :type length: int
+        :param _min: Index of lower limit.
+        :type _min: int
+        :param _max: Index of upper limit.
+        :type _max: int
+        :param n: Will only return every nth value, defaults to 1
+        :type n: int, optional
+        :param subtractBackground: Indicates if the background should be subtracted, defaults to None
+        :type subtractBackground: bool, optional
+        :return: The array of values.
+        :rtype: np.array
+        """
         if self.useBackgrounds and subtractBackground:
             return self.values.get(length=length, _min=_min, _max=_max, n=n) - self.backgrounds.get(length=length, _min=_min, _max=_max, n=n)
         else:
             return self.values.get(length=length, _min=_min, _max=_max, n=n)
 
     def clearHistory(self, max_size=None): # overwrite as needed, e.g. when keeping history of more than one parameter
-        """Clears all history data including backgrounds if applicable."""
+        """Clears all history data including backgrounds if applicable.
+
+        :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
+        :type max_size: int, optional
+        """
         if self.device.pluginManager.DeviceManager is not None and (self.device.pluginManager.Settings is not None and not self.device.pluginManager.Settings.loading):
             self.values = DynamicNp(max_size=max_size if max_size is not None else 600000/int(self.device.interval)) # 600000 -> only keep last 10 min to save ram unless otherwise specified
         self.clearPlotCurve()
@@ -2159,6 +2349,7 @@ class Channel(QTreeWidgetItem):
         return color
 
     def scalingChanged(self):
+        """Adjust height of all Channel Parameters according to new scaling value."""
         normalHeight = QLineEdit().sizeHint().height() - 4
         match self.scaling:
             case 'small':
@@ -2176,9 +2367,9 @@ class Channel(QTreeWidgetItem):
         if not self.loading:
             self.tree.scheduleDelayedItemsLayout()
 
-    def sizeHint(self, option, index):
-        # Provide a custom size hint based on the item's content
-        return QSize(100, self.rowHeight)  # Width is not relevant; height is set to 50
+    def sizeHint(self, option, index): # pylint: disable = missing-param-doc, missing-type-doc
+        """Provide a custom size hint based on the item's content"""
+        return QSize(100, self.rowHeight)  # Width is not relevant
         # return super().sizeHint(option, index)
 
     def realChanged(self):
@@ -2229,8 +2420,12 @@ class Channel(QTreeWidgetItem):
         self.updateWarningState(self.enabled and (hasattr(self.device, 'controller') and self.device.controller is not None and
                                                   self.device.controller.acquiring) and self.getDevice().isOn() and abs(self.monitor - self.value) > 1)
 
-    def updateWarningState(self, warn):
-        """Updates warningState of monitor and applies corresponding style sheet."""
+    def updateWarningState(self, warn=False):
+        """Updates warningState of monitor and applies corresponding style sheet.
+
+        :param warn: Indicates if the warningStyleSheet should be used, defaults to False
+        :type warn: bool, optional
+        """
         if warn != self.warningState:
             self.warningState = warn
             self.getParameterByName(self.MONITOR).getWidget().setStyleSheet(self.warningStyleSheet if warn else self.defaultStyleSheet)
@@ -2238,6 +2433,9 @@ class Channel(QTreeWidgetItem):
     def initGUI(self, item):
         """Call after item has been added to tree.
         Item needs parent for all graphics operations.
+
+        :param item: Dictionary containing all channel information.
+        :type item: dict
         """
         for parameter in self.parameters:
             parameter.applyWidget()
@@ -2284,9 +2482,11 @@ class Channel(QTreeWidgetItem):
         self.scalingChanged()
 
     def updateMin(self):
+        """Applies new minimum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
 
     def updateMax(self):
+        """Applies new maximum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMaximum(self.max)
 
     def onDelete(self):
@@ -2295,7 +2495,13 @@ class Channel(QTreeWidgetItem):
 
     def initSettingsContextMenuBase(self, parameter, pos):
         """General implementation of a context menu.
-        The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Parameter`."""
+        The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Parameter`.
+
+        :param parameter: The parameter for which the context menu is requested.
+        :type parameter: esibd.core.Parameter
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
         settingsContextMenu = QMenu(self.tree)
         addParameterToConsoleAction = None
         addChannelToConsoleAction = None
@@ -2372,7 +2578,7 @@ class ScanChannel(RelayChannel, Channel):
         return channel
 
     def tempParameters(self):
-        """This channel is not restored from file, this every parameter is a tempParameter."""
+        """This Channel is not restored from file, this every parameter is a tempParameter."""
         tempParameters = super().tempParameters() + [self.VALUE, self.DEVICE, self.NOTES, self.SCALING]
         if self.scan.useDisplayParameter:
             tempParameters = tempParameters + [self.DISPLAY]
@@ -2438,6 +2644,7 @@ class ScanChannel(RelayChannel, Channel):
         self.scalingChanged()
 
     def relayValueEvent(self):
+        """Updates value when sourceChannel.value changed."""
         if self.sourceChannel is not None:
             # Note self.value should only be used as a display. it should show the background corrected value if applicable
             # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
@@ -2460,7 +2667,7 @@ class ScanChannel(RelayChannel, Channel):
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
 
     def updateDisplay(self):
-        # in general scan channels should be passive, but we need to react to changes in which channel should be displayed
+        # in general scan channels should be passive, but we need to react to changes in which Channel should be displayed
         if self.scan.display is not None and not self.loading and not self.scan.initializing:
             self.scan.display.initFig()
             self.scan.plot(update=self.scan.recording, done=not self.scan.recording)
@@ -2481,18 +2688,18 @@ class QLabviewSpinBox(QSpinBox):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc
+    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc, missing-type-doc
         """Suppresses context menu for indicators."""
         if self.indicator:
             event.ignore()
         else:
             return super().contextMenuEvent(event)
 
-    def wheelEvent(self, event): # pylint: disable = missing-param-doc
+    def wheelEvent(self, event): # pylint: disable = missing-param-doc, missing-type-doc
         """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
-    def stepBy(self, step): # pylint: disable = missing-param-doc
+    def stepBy(self, step): # pylint: disable = missing-param-doc, missing-type-doc
         """Handles stepping value depending con caret position."""
         text=self.lineEdit().text()
         cur = self.lineEdit().cursorPosition()
@@ -2528,13 +2735,19 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc
+    def contextMenuEvent(self, event): # pylint: disable = missing-param-doc, missing-type-doc
+        """Do not use context menu for indicators."""
         if self.indicator:
             event.ignore()
         else:
             return super().contextMenuEvent(event)
 
     def setDisplayDecimals(self, prec):
+        """Sets display precision.
+
+        :param prec: Number of displayed decimals.
+        :type prec: int
+        """
         # decimals used for display.
         self.displayDecimals = prec
         # keep internal precision higher if explicitly defined. ensure minimum precision corresponds to display
@@ -2551,28 +2764,30 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         """
         return float(text)
 
-    def textFromValue(self, value): # pylint: disable = missing-param-doc
-        """make sure nan and inf will be represented by NaN."""
+    def textFromValue(self, value): # pylint: disable = missing-param-doc, missing-type-doc
+        """Make sure nan and inf will be represented by NaN."""
         if np.isnan(value) or np.isinf(value):
             return self.NAN
         else:
             return f'{value:.{self.displayDecimals}f}'
 
-    def value(self): # pylint: disable = missing-param-doc
+    def value(self):
+        """Return nan instead of trying convert it."""
         if self.text() == self.NAN:
             return np.nan
         return super().value()
 
-    def setValue(self, val): # pylint: disable = missing-param-doc
+    def setValue(self, val): # pylint: disable = missing-param-doc, missing-type-doc
+        """Display nan and inf as text."""
         super().setValue(val)
         if np.isnan(val) or np.isinf(val):
             self.lineEdit().setText(self.NAN) # needed in rare cases where setting to nan would set to maximum
 
-    def wheelEvent(self, event): # pylint: disable = missing-param-doc
+    def wheelEvent(self, event): # pylint: disable = missing-param-doc, missing-type-doc
         """Overwriting to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
-    def stepBy(self, step): # pylint: disable = missing-param-doc
+    def stepBy(self, step): # pylint: disable = missing-param-doc, missing-type-doc
         """Handles stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
         if self.text() == self.NAN:
             return
@@ -2624,18 +2839,18 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         """Validates input for correct scientific notation."""
         _float_re = re.compile(r'(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)')
 
-        def valid_float_string(self, string): # pylint: disable = missing-param-doc
+        def valid_float_string(self, string): # pylint: disable = missing-param-doc, missing-type-doc, missing-function-docstring
             match = self._float_re.search(string)
             return match.groups()[0] == string if match else False
 
-        def validate(self, string, position): # -> typing.Tuple[State, str, int]: # pylint: disable = missing-param-doc
+        def validate(self, string, position): # -> typing.Tuple[State, str, int]: # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc
             if self.valid_float_string(string):
                 return self.State.Acceptable, string, position
             if string == '' or string[position-1] in 'e.-+':
                 return self.State.Intermediate, string, position
             return self.State.Invalid, string, position
 
-        def fixup(self, text): # pylint: disable = missing-param-doc
+        def fixup(self, text): # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc
             match = self._float_re.search(text)
             return match.groups()[0] if match else ''
 
@@ -2644,10 +2859,10 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
         super().__init__(parent, indicator=indicator, displayDecimals=displayDecimals)
         self.setDecimals(1000) # need this to allow internal handling of data as floats 1E-20 = 0.0000000000000000001
 
-    def validate(self, text, position): # pylint: disable = missing-param-doc
+    def validate(self, text, position): # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc
         return self.validator.validate(text, position)
 
-    def fixup(self, text): # pylint: disable = missing-param-doc
+    def fixup(self, text): # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc
         return self.validator.fixup(text)
 
     def textFromValue(self, value):
@@ -2694,13 +2909,13 @@ class ControlCursor(Cursor):
     def onmove(self, event):
         pass
 
-    def ondrag(self, event): # pylint: disable = missing-param-doc
+    def ondrag(self, event): # pylint: disable = missing-param-doc, missing-type-doc
         """Continuously updates cursor position."""
         if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
             # dir(event)
             super().onmove(event)
 
-    def setPosition(self, x, y): # pylint: disable = missing-param-doc
+    def setPosition(self, x, y): # pylint: disable = missing-param-doc, missing-type-doc
         """Emulated mouse event to set position."""
         [xpix, ypix]=self.ax.transData.transform((x, y))
         event = MouseEvent(name='', canvas=self.ax.figure.canvas, x=xpix, y=ypix, button=MouseButton.LEFT)
@@ -2739,8 +2954,12 @@ class CheckBox(QCheckBox):
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
-    def setValue(self, value): # pylint: disable = missing-param-doc
-        """Sets value using consistent API for parameter widgets."""
+    def setValue(self, value):
+        """Sets value using consistent API for Parameter widgets.
+
+        :param value: The new checked state.
+        :type value: bool
+        """
         self.setChecked(value)
 
 class ToolButton(QToolButton):
@@ -2754,8 +2973,12 @@ class ToolButton(QToolButton):
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
-    def setValue(self, value): # pylint: disable = missing-param-doc
-        """Sets value using consistent API for parameter widgets."""
+    def setValue(self, value):
+        """Sets value using consistent API for parameter widgets.
+
+        :param value: New checked state.
+        :type value: bool
+        """
         self.setChecked(value)
 
 class Action(QAction):
@@ -2791,7 +3014,7 @@ class StateAction(Action):
     """Extends QActions to show different icons depending on a state.
     Values are restored using QSettings if name is provided."""
 
-    def __init__(self, parentPlugin, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, event=None, before=None, attr=None, restore=True, default='false'):
+    def __init__(self, parentPlugin, toolTipFalse='', iconFalse=None, toolTipTrue='', iconTrue=None, event=None, before=None, attr=None, restore=True, default=False):
         super().__init__(iconFalse, toolTipFalse, parentPlugin)
         self.parentPlugin = parentPlugin
         self.iconFalse = iconFalse
@@ -2841,11 +3064,16 @@ class StateAction(Action):
         """
         self.setChecked(state)
 
-    def updateIcon(self, checked):
+    def updateIcon(self, state):
+        """Updates icon and icon toolTip.
+
+        :param state: The state for which icon and toolTip should be set.
+        :type state: bool
+        """
         if self.fullName is not None:
             qSet.setValue(self.fullName, self.state)
-        self.setIcon(self.iconTrue if checked else self.iconFalse)
-        self.setToolTip(self.toolTipTrue if checked else self.toolTipFalse)
+        self.setIcon(self.iconTrue if state else self.iconFalse)
+        self.setToolTip(self.toolTipTrue if state else self.toolTipFalse)
 
     def getIcon(self):
         return self.iconTrue if self.state else self.iconFalse
@@ -3051,7 +3279,7 @@ class DockWidget(QDockWidget):
                 if not isinstance(self.parent(), QMainWindow):
                     self.parent().setStyleSheet(self.plugin.pluginManager.styleSheet) # use same separators as in main window
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # pylint: disable = missing-param-doc, missing-type-doc
         """Closes the GUI when the dock is closing."""
         self.signalComm.dockClosingSignal.emit()
         return super().closeEvent(event)
@@ -3119,7 +3347,13 @@ class TreeWidget(QTreeWidget):
         return self.header().height() + min(self.totalItems(), 4) * item_height + 10
 
     def count_child_items(self, item):
-        """Counts the number of child items or a QTreeWidgetItem."""
+        """Counts the number of child items of a QTreeWidgetItem.
+
+        :param item: The item of which the children should be counted.
+        :type item: QTreeWidgetItem
+        :return: The child count.
+        :rtype: int
+        """
         count = item.childCount()
         for i in range(item.childCount()):
             count += self.count_child_items(item.child(i))
@@ -3154,7 +3388,7 @@ class LedIndicator(QAbstractButton):
         self.on_color = QColor(0, 220, 0)
         self.off_color = QColor(0, 60, 0)
 
-    def resizeEvent(self, QResizeEvent): # pylint: disable = unused-argument # matching standard signature
+    def resizeEvent(self, QResizeEvent): # pylint: disable = unused-argument, missing-function-docstring # matching standard signature
         self.update()
 
     def paintEvent(self, QPaintEvent): # pylint: disable = unused-argument, missing-function-docstring # matching standard signature
@@ -3228,11 +3462,15 @@ class LineEdit(QLineEdit):
         self.max_width = 300
 
     def onTextEdited(self):
-        # edited by user, emitted on every keystroke
+        """Sets flag to indicate text was edited by user but editing is not yet finished, emitted on every keystroke."""
         self._edited = True
 
     def onTextChanged(self, text):
-        # text changed by user or setText
+        """Validate text and adjust width after text was changed by user or setText.
+
+        :param text: The new text.
+        :type text: str
+        """
         self.updateGeometry() # adjust width to text
         self.validateInput()
 
@@ -3247,7 +3485,7 @@ class LineEdit(QLineEdit):
             self.setText(filtered_text)  # Update the QLineEdit with valid characters only
 
     def onEditingFinished(self):
-        # editing finished by Enter or loosing focus
+        """Process new value and update tree if applicable after editing was finished by Enter or loosing focus."""
         if self._edited:
             self._edited = False
             if self.tree is not None:
@@ -3380,10 +3618,21 @@ class IconStatusBar(QStatusBar):
         # self.messageChanged.connect(self._updateStatus)
 
     def showMessage(self, message, msecs=...):
-        # ignore internal statusbar which would overlay with our custom label
+        """Redirecting message to custom statusbar.
+
+        :param message: The message.
+        :type message: str
+        :param msecs: Defines message display time. Not used for custom statusbar.
+        :type msecs: int, optional
+        """
         self._statusLabel.setText(message)
 
     def setFlag(self, flag=PRINT.MESSAGE):
+        """Sets the status icon depending on the message flag.
+
+        :param flag: The message flag, defaults to PRINT.MESSAGE
+        :type flag: esibd.const.PRINT, optional
+        """
         match flag:
             case PRINT.WARNING:
                 self.setIcon(self.icon_warning)
@@ -3407,16 +3656,19 @@ class NumberBar(QWidget):
         self.lineBarColor = Qt.GlobalColor.black
 
     def updateTheme(self):
+        """Changes between dark and light themes."""
         self.lineBarColor = QColor(colors.bg)
 
-    def update_on_scroll(self, rect, scroll): # pylint: disable = unused-argument # keeping consistent signature
+    def update_on_scroll(self, rect, scroll): # pylint: disable = unused-argument, missing-param-doc, missing-type-doc # keeping consistent signature
+        """Updates NumberBar when scrolling in editor."""
         if self.isVisible():
             if scroll:
                 self.scroll(0, scroll)
             else:
                 self.update()
 
-    def update_width(self, string):
+    def update_width(self, string): # pylint: disable = missing-param-doc, missing-type-doc
+        """Adjusts with to number of required digits."""
         width = self.fontMetrics().horizontalAdvance(str(string)) + 8 # changed from width to horizontalAdvance
         if self.width() != width:
             self.setFixedWidth(width)
@@ -3488,9 +3740,11 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.updateTheme()
 
     def updateTheme(self):
+        """Changes between dark and light themes."""
         self.output.setStyleSheet(f'QPlainTextEdit{{background-color:{colors.bg};}}')
 
     def scrollToBottom(self):
+        """Scrolls to bottom to show recently added messages."""
         sb = self.output.verticalScrollBar()
         sb.setValue(sb.maximum())
 
@@ -3603,18 +3857,32 @@ class MZCalculator():
         self.canvas = ax.figure.canvas
 
     def msOnClick(self, event):
-        if event.button == MouseButton.RIGHT: # reset m/z analysis
+        """Adds a new m/z value for Ctrl+left mouse click.
+        Clears all data and labels for Ctrl+right mouse click.
+
+        :param event: The click event.
+        :type event: QEvent
+        """
+        if event.button == MouseButton.RIGHT:
             self.clear()
-        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl'): # add new value and analyze m/z
+        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl'):
             self.addMZ(event.xdata, event.ydata)
 
     def addMZ(self, x, y):
+        """Adds a single m/z value and evaluates the likely mass.
+
+        :param x: m/z value.
+        :type x: float
+        :param y: Intensity.
+        :type y: float
+        """
         if x is not None and y is not None:
             self.mz = np.append(self.mz, x)
             self.intensity = np.append(self.intensity, y)
             self.determine_mass_to_charge()
 
     def clear(self):
+        """Clears all data and removes labels."""
         self.mz = np.array([])
         self.intensity = np.array([])
         self.update_mass_to_charge()
@@ -3635,9 +3903,19 @@ class MZCalculator():
             self.update_mass_to_charge()
 
     def mass_string(self, offset, label):
+        """String indicating mass and standard deviation.
+
+        :param offset: Charge offset relative to likely charge.
+        :type offset: int
+        :param label: Descriptor for type of estimation.
+        :type label: str
+        :return: Complete string.
+        :rtype: str
+        """
         return f'{label} mass (Da): {np.average(self.mz*np.flip(self.charges[self.c1+offset:self.c1+offset+len(self.mz)])):.2f}, std: {self.STD[self.c1+offset]:.2f}'
 
     def update_mass_to_charge(self):
+        """Updates labels indicating mass and mass-to-charge values."""
         for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]: #[self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
         if len(self.mz) > 1:
@@ -3670,6 +3948,7 @@ class PlotItem(pg.PlotItem):
             self.xyLabel.setColor(colors.fg)
 
     def init(self):
+        """Init plotItem formatting and events."""
         self.showGrid(x=True, y=True, alpha=0.1)
         self.showAxis('top')
         self.getAxis('top').setStyle(showValues=False)
@@ -3686,6 +3965,7 @@ class PlotItem(pg.PlotItem):
         self.connectMouse()
 
     def finalizeInit(self):
+        """Applies final formatting."""
         # self.setContentsMargins(0, 0, 10, 0) # prevent right axis from being cut off
         for pos in ['left','top','right','bottom']:
             self.getAxis(pos).setPen(pg.mkPen(color=colors.fg, width=2)) # avoid artifacts with too thin lines
@@ -3697,11 +3977,17 @@ class PlotItem(pg.PlotItem):
         # self.disableAutoRange() # 50 % less CPU usage for about 1000 data points. For 10000 and more it does not make a big difference anymore.
 
     def connectMouse(self):
+        """Connect the mouse to the scene to update xyLabel. Plot when user moves or rescales x range."""
         # call after adding to GraphicsLayout as scene is not available before
         self.scene().sigMouseMoved.connect(self.mouseMoveEvent)
         self.sigXRangeChanged.connect(self.parentPlot)
 
     def mouseMoveEvent(self, ev):
+        """Updates the xyLabel with the current position.
+
+        :param ev: The mouseMoveEvent
+        :type ev: QEvent
+        """
         if self.showXY:
             pos = ev # called with QPointF instead of event?
             if self.getViewBox().geometry().contains(pos): # add offset
@@ -3740,12 +4026,18 @@ class PlotWidget(pg.PlotWidget):
 
     @property
     def legend(self):
+        """The plot legend."""
         return self.plotItem.legend
 
 class LabelItem(pg.LabelItem):
     """LabelItem that passes color changes on to the label text."""
 
     def setColor(self, color):
+        """Sets the color.
+
+        :param color: The color to be applied.
+        :type color: Any valid color format
+        """
         self.setText(self.text, color=color)
 
 class SciAxisItem(pg.AxisItem): # pylint: disable = abstract-method
@@ -3799,6 +4091,15 @@ class TimeoutLock(object):
         self.print = _parent.print
 
     def acquire(self, blocking=True, timeout=-1):
+        """Acquires the lock.
+
+        :param blocking: If it is set to True, the calling thread will be blocked if some other thread is holding the flag and once that lock is released, then the calling thread will acquire the lock and return True. If it is set to False, it will not block the thread if the lock is already acquired by some other thread, and will return False. Defaults to True
+        :type blocking: bool, optional
+        :param timeout: Timeout for lock acquisition, defaults to -1
+        :type timeout: int, optional
+        :return: True if lock has been acquired.
+        :rtype: bool
+        """
         return self._lock.acquire(blocking, timeout)
 
     @contextmanager
@@ -3834,6 +4135,7 @@ class TimeoutLock(object):
             self.print(timeoutMessage, flag=PRINT.ERROR)
 
     def release(self):
+        """Releases the lock."""
         self._lock.release()
 
     def __enter__(self):
@@ -3899,16 +4201,27 @@ class DeviceController(QObject):
 
     @property
     def name(self):
+        """Convenience method to access the name of the device."""
         return self.device.name # initially set to _parent, may be overwritten with self.channel.getDevice()
 
     @property
     def errorCount(self):
+        """Convenience method to access the errorCount of the device."""
         return self.device.errorCount
     @errorCount.setter
     def errorCount(self, count):
         self.device.errorCount = count
 
     def print(self, message, flag=PRINT.MESSAGE):
+        """The print function will send a message to stdout, the statusbar, the
+        Console, and if enabled to the logfile. It will automatically add a
+        timestamp and the name of the sending plugin.
+
+        :param message: A short informative message.
+        :type message: str
+        :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
+        :type flag: :meth:`~esibd.const.PRINT`, optional
+        """
         controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'
         self.device.print(f'{controller_name}: {message}', flag=flag)
 
@@ -3969,7 +4282,11 @@ class DeviceController(QObject):
 
     def runAcquisition(self, acquiring):
         """Runs acquisition loop. Executed in acquisitionThread.
-        Overwrite with hardware specific acquisition code."""
+        Overwrite with hardware specific acquisition code.
+
+        :param acquiring: Queries acquiring state.
+        :type acquiring: callable
+        """
         while acquiring():
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
@@ -4046,6 +4363,10 @@ class DeviceController(QObject):
         :type port: serial.Serial
         :param encoding: Encoding used for sending and receiving messages, defaults to 'utf-8'
         :type encoding: str, optional
+        :param EOL: End of line character, defaults to '\n'
+        :type EOL: str, optional
+        :param strip: String to be stripped from message.
+        :type strip: str, optional
         :return: message
         :rtype: str
         """
@@ -4075,6 +4396,11 @@ class DeviceController(QObject):
         return ''
 
     def clearBuffer(self, port=None):
+        """Clears the buffer at the serial port.
+
+        :param port: The port at which to clear the buffer, defaults to None
+        :type port: serial.Serial, optional
+        """
         port = port if port is not None else self.port
         if port is None:
             return
@@ -4105,21 +4431,24 @@ class SplashScreen(QSplashScreen):
         self.closed = False
 
     def animate(self):
+        """Advances to the next frame."""
         self.index = np.mod(self.index + 1, len(SPLASHIMAGE))
         self.label.setPixmap(QPixmap(SPLASHIMAGE[self.index].as_posix()))
 
     def show(self):
+        """Shows the splash screen."""
         super().show()
         QApplication.processEvents()
 
     def close(self):
+        """Closes the splash screen."""
         self.closed=True
         self.timer.stop()
         return super().close()
 
 class VideoRecorder():
     """Allows to record videos of a plugin."""
-    # ! capture real contextual cursor instead of drawing fixed cursor requires recording with external library FFmpeg
+    # ! capture real contextual cursor instead of drawing fixed cursor requires recording with external library FFmpeg -> not supported
 
     def __init__(self, parentPlugin):
         self.parentPlugin = parentPlugin
@@ -4132,7 +4461,7 @@ class VideoRecorder():
         self.cursor_pixmap = self.parentPlugin.makeCoreIcon('cursor.png').pixmap(32)
 
     def startRecording(self):
-        # return
+        """Initializes video recorder and starts recording."""
         if self.parentPlugin.pluginManager.testing and not self.parentPlugin.pluginManager.Settings.showVideoRecorders:
             return
         self.frameCount = 0
@@ -4152,6 +4481,7 @@ class VideoRecorder():
             self.parentPlugin.print('Cannot start recording. Screen not found.', flag=PRINT.ERROR)
 
     def capture_frame(self):
+        """Captures a single video frame."""
         if not self.is_recording:
             return
         full_screenshot = self.screen.grabWindow(0) # should be called from main thread
@@ -4190,6 +4520,7 @@ class VideoRecorder():
         self.frameCount += 1
 
     def stopRecording(self):
+        """Stops recording and finalizes the video file."""
         if self.is_recording:
             self.timer.stop()
             self.parentPlugin.videoRecorderAction.state = False
@@ -4226,7 +4557,11 @@ class RippleEffect(QWidget):
         self.update()  # Trigger repaint
 
     def paintEvent(self, event):
-        """Draws the ripple effect."""
+        """Draws the ripple effect.
+
+        :param event: The paint event.
+        :type event: QEvent
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         color = QColor(self.color.red(), self.color.green(), self.color.blue(), int(255 * self.opacity))
@@ -4245,9 +4580,27 @@ class MouseInterceptor(QObject):
         self.rippleEffectSignal.connect(self.ripple)
 
     def ripple(self, x, y, color):
+        """_summary_
+
+        :param x: X position.
+        :type x: int
+        :param y: Y position.
+        :type y: int
+        :param color: Ripple color.
+        :type color: QColor
+        """
         RippleEffect(self.window, x, y, color)
 
     def eventFilter(self, obj, event):
+        """Intercepts mouse clicks and applies ripple effect.
+
+        :param obj: Sender of the event.
+        :type obj: Any
+        :param event: The Event.
+        :type event: QEvent
+        :return: Indicates if the event has been handles. Always False as we want to add the ripple effect without altering anything else.
+        :rtype: bool
+        """
         if isinstance(event, QMouseEvent) and event.type() == QMouseEvent.Type.MouseButtonPress and self.window.pluginManager.Settings.showMouseClicks:
             local_pos = self.window.mapFromGlobal(event.globalPosition().toPoint())
             if event.button() == Qt.MouseButton.LeftButton:
