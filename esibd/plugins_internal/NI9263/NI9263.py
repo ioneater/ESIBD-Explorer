@@ -1,8 +1,7 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
-from threading import Thread
 import nidaqmx
 from esibd.plugins import Device
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
+from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController
 
 def providePlugins():
     """Indicates that this module provides plugins. Returns list of provided plugins."""
@@ -28,23 +27,6 @@ class NI9263(Device):
         super().initGUI()
         self.controller = VoltageController(_parent=self) # after all channels loaded
 
-    def closeCommunication(self):
-        self.setOn(False)
-        self.controller.voltageON(parallel=False)
-        super().closeCommunication()
-
-    def applyValues(self, apply=False):
-        for channel in self.channels:
-            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
-
-    def setOn(self, on=None):
-        super().setOn(on)
-        if self.initialized():
-            self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON()
-        elif self.isOn():
-            self.initializeCommunication()
-
 class VoltageChannel(Channel):
 
     ADDRESS = 'Address'
@@ -62,16 +44,6 @@ class VoltageChannel(Channel):
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ADDRESS)
 
-    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
-        """Applies voltage value if value has changed or explicitly requested.
-
-        :param apply: If True, value will be applied even if it has not changed.
-        :type apply: bool
-        """
-        if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.applyVoltage(self)
-            self.lastAppliedValue = self.value
-
     def realChanged(self):
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
@@ -88,50 +60,17 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        super().initComplete()
-        if self.device.isOn():
-            self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON()
-
-    def applyVoltage(self, channel):
-        """Applies voltage value.
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
-
-    def applyVoltageFromThread(self, channel):
-        """Applies voltage value (thread safe).
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
+    def applyValue(self, channel):
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to set voltage of {channel.name}.') as lock_acquired:
             if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
                     task.write(channel.value if (channel.enabled and self.device.isOn()) else 0)
 
-    def voltageON(self, parallel=True):
-        """Toggles voltage output.
-
-        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
-        :type parallel: bool, optional
-        """
-        if not getTestMode() and self.initialized:
-            if parallel:
-                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
-            else:
-                self.voltageONFromThread()
-
-    def voltageONFromThread(self):
-        """Toggles voltage output (tread safe)."""
+    def toggleOn(self):
         for channel in self.device.getChannels():
             if channel.real:
-                self.applyVoltageFromThread(channel)
+                self.applyValueFromThread(channel)
 
     def runAcquisition(self, acquiring):
         pass # nothing to acquire, no readbacks

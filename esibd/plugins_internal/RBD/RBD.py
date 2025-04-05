@@ -210,7 +210,7 @@ class CurrentChannel(Channel):
 class CurrentController(DeviceController):
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
-        updateValueSignal = pyqtSignal(float, bool, bool, str)
+        updateValuesSignal = pyqtSignal(float, bool, bool, str)
         updateDeviceNameSignal = pyqtSignal(str)
 
     def __init__(self, _parent):
@@ -258,15 +258,15 @@ class CurrentController(DeviceController):
             self.setBias()
             name = self.getName()
             if name == '':
-                self.signalComm.updateValueSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
+                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
                 return
-            self.signalComm.updateValueSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
             self.signalComm.updateDeviceNameSignal.emit(name) # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
-            self.signalComm.updateValueSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
         except serial.serialutil.SerialException as e:
-            self.signalComm.updateValueSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
         finally:
             self.initializing = False
 
@@ -296,7 +296,8 @@ class CurrentController(DeviceController):
         """
         self.channel.devicename = name
 
-    def updateValue(self, value, outOfRange, unstable, error=''): # # pylint: disable=[arguments-differ] # arguments differ by intention
+    def updateValues(self, value, outOfRange, unstable, error=''): # # pylint: disable=[arguments-differ] # arguments differ by intention
+        # Overwriting to also update additional custom channel properties
         self.channel.value = value
         self.channel.outOfRange = outOfRange
         self.channel.unstable = unstable
@@ -374,7 +375,7 @@ class CurrentController(DeviceController):
     def fakeNumbers(self):
         if not self.channel.getDevice().pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
-                self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
+                self.signalComm.updateValuesSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset, False, False, '')
 
     def readNumbers(self):
         if not self.channel.getDevice().pluginManager.closing:
@@ -385,13 +386,13 @@ class CurrentController(DeviceController):
                     return
                 parsed = self.parse_message_for_sample(msg)
                 if any (sym in parsed for sym in ['<','>']):
-                    self.signalComm.updateValueSignal.emit(0, True, False, parsed)
+                    self.signalComm.updateValuesSignal.emit(0, True, False, parsed)
                 elif '*' in parsed:
-                    self.signalComm.updateValueSignal.emit(0, False, True, parsed)
+                    self.signalComm.updateValuesSignal.emit(0, False, True, parsed)
                 elif parsed == '':
-                    self.signalComm.updateValueSignal.emit(0, False, False, 'got empty message')
+                    self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')
                 else:
-                    self.signalComm.updateValueSignal.emit(self.readingToNum(parsed), False, False, '')
+                    self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')
 
     #Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg):

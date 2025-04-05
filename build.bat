@@ -10,8 +10,8 @@ REM Formatting
 ::::::::::::::
 
 use the following regex to fix common formating errors
-REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :|true|false|parameter|channel|setting
-REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.rst,*.txt,*.svg,*.sh,LICENSE,Makefile
+REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :|true|false|parameter[\. ,]|channel[\. ,]|setting[\. ,]
+REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.prof,*.rst,*.txt,*.svg,*.sh,LICENSE,Makefile
 temporary enable all pylint checking
 
 ::::::::::::::

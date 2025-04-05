@@ -1,5 +1,4 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
-from threading import Thread
 import time
 from random import choices
 import serial
@@ -43,23 +42,6 @@ class MIPS(Device):
         """List of COM ports."""
         return list(set([channel.com for channel in self.channels]))
 
-    def closeCommunication(self):
-        self.setOn(False)
-        self.controller.voltageON(parallel=False)
-        super().closeCommunication()
-
-    def applyValues(self, apply=False):
-        for channel in self.channels:
-            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
-
-    def setOn(self, on=None):
-        super().setOn(on)
-        if self.initialized():
-            self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON()
-        elif self.isOn():
-            self.initializeCommunication()
-
 class VoltageChannel(Channel):
 
     COM        = 'COM'
@@ -79,16 +61,6 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.COM)
         self.displayedParameters.append(self.ID)
 
-    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
-        """Applies voltage value if value has changed or explicitly requested.
-
-        :param apply: If True, value will be applied even if it has not changed.
-        :type apply: bool
-        """
-        if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.applyVoltage(self)
-            self.lastAppliedValue = self.value
-
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.device.controller.acquiring
@@ -107,7 +79,7 @@ class VoltageController(DeviceController):
         self.COMs       = COMs or ['COM1']
         self.ports      = [None]*len(self.COMs)
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
-        self.voltages   = np.zeros([len(self.COMs), self.maxID+1])
+        self.values   = np.zeros([len(self.COMs), self.maxID+1])
 
     def runInitialization(self):
         try:
@@ -124,12 +96,6 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        super().initComplete()
-        if self.device.isOn():
-            self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON()
-
     def closeCommunication(self):
         for i, port in enumerate(self.ports):
             if port is not None:
@@ -138,50 +104,21 @@ class VoltageController(DeviceController):
                     self.ports[i] = None
         super().closeCommunication()
 
-    def applyVoltage(self, channel):
-        """Applies voltage value.
+    def applyValue(self, channel):
+        self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
 
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
-
-    def applyVoltageFromThread(self, channel):
-        """Applies voltage value (thread safe).
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
-
-    def updateValue(self):
+    def updateValues(self):
+        # Overwriting to use values for multiple COM ports
         if getTestMode():
             self.fakeNumbers()
         else:
             for channel in self.device.getChannels():
                 if channel.enabled and channel.real:
-                    channel.monitor = self.voltages[self.COMs.index(channel.com)][channel.id-1]
+                    channel.monitor = self.values[self.COMs.index(channel.com)][channel.id-1]
 
-    def voltageON(self, parallel=True): # this can run in main thread
-        """Toggles voltage output.
-
-        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
-        :type parallel: bool, optional
-        """
-        if not getTestMode() and self.initialized:
-            if parallel:
-                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
-            else:
-                self.voltageONFromThread() # use to make sure this is completed before closing connection
-        elif getTestMode():
-            self.fakeNumbers()
-
-    def voltageONFromThread(self):
-        """Toggles voltage output (tread safe)."""
+    def toggleOn(self):
         for channel in self.device.getChannels():
-            self.applyVoltageFromThread(channel)
+            self.applyValueFromThread(channel)
 
     def fakeNumbers(self):
         for channel in self.device.getChannels():
@@ -201,12 +138,12 @@ class VoltageController(DeviceController):
                         for i in range(len(self.COMs)):
                             for ID in range(8):
                                 try:
-                                    self.voltages[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=lock_acquired))
+                                    self.values[i][ID] = float(self.MIPSWriteRead(self.COMs[i], f'GDCBV,{ID+1}\r\n', lock_acquired=lock_acquired))
                                 except ValueError as e:
                                     self.print(f'Error while reading voltage {e}')
                                     self.errorCount += 1
-                                    self.voltages[i][ID] = np.nan
-                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
+                                    self.values[i][ID] = np.nan
+                    self.signalComm.updateValuesSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def MIPSWrite(self, COM, message):

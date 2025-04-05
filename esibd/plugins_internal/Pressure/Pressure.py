@@ -117,16 +117,12 @@ class PressureController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         self.initializing = False
 
-    def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
-        super().initComplete()
-
     def runAcquisition(self, acquiring):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000)
 
     PRESSURE_READING_STATUS = {
@@ -145,44 +141,39 @@ class PressureController(DeviceController):
                 if channel._controller == channel.TIC and self.ticInitialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
-                        self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
+                        self.values[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
-                        self.pressures[i] = np.nan
+                        self.values[i] = np.nan
                 elif channel._controller == channel.TPG and self.tpgInitialized:
                     msg = self.TPGWriteRead(message=f'PR{channel.id}', lock_acquired=True)
                     try:
                         a, pressure = msg.split(',')
                         if a == '0':
-                            self.pressures[i] = float(pressure) # set unit to mbar on device
+                            self.values[i] = float(pressure) # set unit to mbar on device
                             # self.print(f'Read pressure for channel {channel.name}', flag=PRINT.DEBUG)
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
-                            self.pressures[i] = np.nan
+                            self.values[i] = np.nan
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
-                        self.pressures[i] = np.nan
+                        self.values[i] = np.nan
                 else:
-                    self.pressures[i] = np.nan
+                    self.values[i] = np.nan
 
     def fakeNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                self.pressures[i] = self.rndPressure() if np.isnan(self.pressures[i]) else self.pressures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         """Returns a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp
-
-    def updateValue(self):
-        for channel, pressure in zip(self.device.getChannels(), self.pressures):
-            if channel.enabled and channel.active and channel.real:
-                channel.value = pressure
 
     def TICWrite(self, _id):
         """TIC specific serial write.

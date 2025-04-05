@@ -118,16 +118,12 @@ class TemperatureController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        self.temperatures = [np.nan]*len(self.device.getChannels())
-        super().initComplete()
-
     def runAcquisition(self, acquiring):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
@@ -137,25 +133,20 @@ class TemperatureController(DeviceController):
                     meas = ctypes.c_int32()
                     self.pt104.UsbPt104GetValue(self.chandle, self.pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
                     if meas.value != ctypes.c_long(0).value: # 0 during initialization phase
-                        self.temperatures[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
+                        self.values[i] = float(meas.value)/1000 + 273.15 # always return Kelvin
                     else:
-                        self.temperatures[i] = np.nan
+                        self.values[i] = np.nan
                 except ValueError as e:
                     self.print(f'Error while reading temp: {e}', PRINT.ERROR)
                     self.errorCount += 1
-                    self.temperatures[i] = np.nan
+                    self.values[i] = np.nan
 
     def fakeNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
             # exponentially approach target or room temp + small fluctuation
-                self.temperatures[i] = np.random.randint(1, 300) if np.isnan(self.temperatures[i]) else self.temperatures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
+                self.values[i] = np.random.randint(1, 300) if np.isnan(self.values[i]) else self.values[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndTemperature(self):
         """Returns a random temperature."""
         return np.random.uniform(0, 400)
-
-    def updateValue(self):
-        for channel, pressure in zip(self.device.getChannels(), self.temperatures):
-            if channel.enabled and channel.active and channel.real:
-                channel.value = pressure

@@ -70,16 +70,12 @@ class PressureController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        self.pressures = [np.nan]*len(self.device.getChannels())
-        super().initComplete()
-
     def runAcquisition(self, acquiring):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000)
 
     def readNumbers(self):
@@ -87,24 +83,19 @@ class PressureController(DeviceController):
             if channel.enabled and channel.active and channel.real:
                 try:
                     pressure = pvp.read_pressure(self.port, channel.id)
-                    self.pressures[i] = np.nan if pressure == 0 else pressure*1000
+                    self.values[i] = np.nan if pressure == 0 else pressure*1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')
                     self.errorCount += 1
-                    self.pressures[i] = np.nan
+                    self.values[i] = np.nan
 
     def fakeNumbers(self):
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                self.pressures[i] = self.rndPressure() if np.isnan(self.pressures[i]) else self.pressures[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
 
     def rndPressure(self):
         """Returns a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp
-
-    def updateValue(self):
-        for channel, pressure in zip(self.device.getChannels(), self.pressures):
-            if channel.enabled and channel.active and channel.real:
-                channel.value = pressure

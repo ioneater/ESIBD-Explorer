@@ -1,6 +1,5 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
 import time
-import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, DeviceController, getTestMode, PRINT
@@ -34,7 +33,7 @@ class CustomDevice(Device):
         self.channelType = CustomChannel
         self.controller = CustomController(_parent=self)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
-        # TODO initialize any custom variables
+        # TODO (optional) initialize any custom variables
 
     def initGUI(self):
         """Initialize your custom user interface"""
@@ -43,16 +42,17 @@ class CustomDevice(Device):
         self.addAction(self.customAction, 'Custom tooltip.', self.makeIcon('cookie.png'))
 
     def finalizeInit(self, aboutFunc=None):
-        # TODO add code that should be executed after all other Plugins are initialized.
+        # TODO (optional) add code that should be executed after all other Plugins are initialized.
         super().finalizeInit(aboutFunc)
 
     def runTestParallel(self):
         # self.testControl(self.customAction, self.customAction.state)
-        # TODO add custom tests (avoid tests that require user interaction!)
+        # TODO (optional) add custom tests (avoid tests that require user interaction!)
         super().runTestParallel()
 
     def setOn(self, on=None):
         super().setOn(on)
+        # TODO (optional) do something if device is turned on or off
         if self.isOn():
             self.customAction()
 
@@ -66,11 +66,7 @@ class CustomDevice(Device):
             self.messageBox.raise_()
 
     def intervalChanged(self):
-        pass # TODO add code to be executed in case the interval changes if needed
-
-    def applyValues(self, apply=False):
-        for channel in self.getChannels():
-            self.controller.applyValue(channel)
+        pass # TODO (optional) add code to be executed in case the interval changes if needed
 
     customSetting = 'Custom/Setting'
 
@@ -78,16 +74,16 @@ class CustomDevice(Device):
         settings = super().getDefaultSettings()
         settings[self.customSetting] = parameterDict(value=100, _min=100, _max=10000, toolTip='Custom Tooltip',
                                                                                     widgetType=Parameter.TYPE.INT, attr='custom')
-        # TODO add additional custom settings as needed
+        # TODO (optional) add additional custom settings as needed
         return settings
 
     def closeCommunication(self):
-        # TODO add final communication to set device into save state
+        # TODO (optional) add final communication to set device into save state
         super().closeCommunication()
 
     def updateTheme(self):
         super().updateTheme()
-        # TODO add custom code to handle themed icons or other custom themed widgets
+        # TODO (optional) add custom code to handle themed icons or other custom themed widgets
 
 class CustomChannel(Channel):
     """Custom channel. Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
@@ -96,53 +92,53 @@ class CustomChannel(Channel):
 
     def __init__(self, device, tree):
         super().__init__(device, tree)
-        # TODO initialize any custom variables
+        # TODO (optional) initialize any custom variables
 
     def initGUI(self, item):
         super().initGUI(item)
-        # TODO make any final modifications after channels have been initialized.
+        # TODO (optional) make any final modifications after channels have been initialized.
         _id = self.getParameterByName(self.ID)
-        print(_id.getWidget())
+        self.print(repr(_id.getWidget()), flag=PRINT.MESSAGE)
 
     def getDefaultChannel(self):
         channel = super().getDefaultChannel()
         channel[self.VALUE   ][Parameter.HEADER] = 'Value (X)' # overwrite to change header
         channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, header='ID    ', attr='id')
-        # TODO add and modify any channel parameters as needed
+        # TODO (optional) add and modify any channel parameters as needed
         return channel
 
     def setDisplayedParameters(self):
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ID)
-        # TODO add all custom parameters to determine if GUI elements are created and in what order
+        # TODO (optional) add all custom parameters to determine if GUI elements are created and in what order
 
     def tempParameters(self):
         return super().tempParameters() # + [self.ID]
-        # TODO add parameters that should not be restored from file
+        # TODO (optional) add parameters that should not be restored from file
 
     def enabledChanged(self):
         super().enabledChanged()
-        # TODO add any custom code that is needed when a channel is enabled or disabled
+        # TODO (optional) add any custom code that is needed when a channel is enabled or disabled
 
     def realChanged(self):
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
-        # TODO hide parameters that are only used by real channels
+        # TODO (optional) hide parameters that are only used by real channels
         super().realChanged()
 
     def updateColor(self):
         color = super().updateColor()  # noqa: F841
-        # TODO implement any custom reaction to color changes
+        # TODO (optional) implement any custom reaction to color changes
 
     def appendValue(self, lenT, nan=False):
         super().appendValue(lenT, nan)
-        # TODO adjust what values should be plotted. E.g. when using monitors, your might want to plot these instead of the set value.
+        # TODO (optional) adjust what values should be plotted. E.g. when using monitors, your might want to plot these instead of the set value.
 
 class CustomController(DeviceController):
     """Custom Device controller. Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        # TODO initialize any custom variables
+        # TODO (optional) initialize any custom variables
 
     def closeCommunication(self):
         if self.initialized and self.port is not None:
@@ -167,12 +163,11 @@ class CustomController(DeviceController):
             self.initializing = False
 
     def initComplete(self):
-        self.monitors = [np.nan]*len(self.device.getChannels())
         super().initComplete()
-        # TODO any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
+        # TODO (optional) any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
 
     def startAcquisition(self):
-        if True: # TODO add custom condition for acquisition
+        if True: # TODO (optional) add custom condition for acquisition
             super().startAcquisition()
 
     def runAcquisition(self, acquiring):
@@ -180,24 +175,19 @@ class CustomController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.monitors = [channel.value for channel in self.device.getChannels()] # TODO implement fake feedback
+                        self.values = [channel.value for channel in self.device.getChannels()] # TODO implement fake feedback
                     else:
                         pass # TODO implement real feedback
                         # TODO increment error count if you catch a communication error here
                         # self.errorCount += 1
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000) # release lock before waiting!
 
     def applyValue(self, channel):
-        """Applies value to device.
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
+        # TODO (optional) overwrite depending on hardware
         # Pseudocode: Apply channel.value to channel with channel.id
-        pass # TODO implement depending on hardware
+        pass
 
-    def updateValue(self):
-        # TODO adjust how you want to update values to the gui
-        for channel, monitor in zip(self.device.getChannels(), self.monitors):
-            channel.monitor = monitor
+    def updateValues(self):
+        # TODO (optional) adjust how you want to update values to the gui
+        pass

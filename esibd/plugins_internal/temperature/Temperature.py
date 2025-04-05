@@ -1,6 +1,5 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
 import time
-from threading import Thread
 import serial
 import numpy as np
 from PyQt6.QtWidgets import QMessageBox
@@ -57,27 +56,11 @@ class Temperature(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
         return defaultSettings
 
-    def closeCommunication(self):
-        self.setOn(False)
-        self.controller.cryoON()
-        super().closeCommunication()
-
     def convertDataDisplay(self, data):
         return data - 273.15 if self.unitAction.state else data
 
     def getUnit(self):
         return '°C' if self.unitAction.state else self.unit
-
-    def setOn(self, on=None):
-        super().setOn(on)
-        if self.initialized():
-            self.controller.cryoON()
-        elif self.isOn():
-            self.initializeCommunication()
-
-    def applyValues(self, apply=False): # pylint: disable = unused-argument # keep default signature
-        for channel in self.getChannels():
-            channel.applyTemperature() # only actually sets temperature if configured and value has changed
 
     def updateTheme(self):
         super().updateTheme()
@@ -94,11 +77,6 @@ class TemperatureChannel(Channel):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)'
         return channel
-
-    def applyTemperature(self): # this actually sets the temperature on the controller!
-        """Applies temperature value if value has changed."""
-        if self.real:
-            self.device.controller.applyTemperature(self)
 
 class TemperatureController(DeviceController):
 
@@ -134,18 +112,12 @@ class TemperatureController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        self.temperatures = [channel.value for channel in self.device.getChannels()] if getTestMode() else [np.nan]*len(self.device.getChannels())
-        super().initComplete()
-        if self.device.isOn():
-            self.cryoON()
-
     def runAcquisition(self, acquiring):
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000)
 
     toggleCounter = 0
@@ -154,11 +126,11 @@ class TemperatureController(DeviceController):
             if channel.enabled and channel.real:
                 value = self.CryoTelWriteRead(message='TC') # Display Cold-Tip Temperature (same on old and new controller)
                 try:
-                    self.temperatures[i] = float(value)
+                    self.values[i] = float(value)
                 except ValueError as e:
                     self.print(f'Error while reading temp: {e}', PRINT.ERROR)
                     self.errorCount += 1
-                    self.temperatures[i] = np.nan
+                    self.values[i] = np.nan
 
         # toggle cryo on off to stabilize at temperatures above what is possible with minimal power
         # temporary mode. to be replaced by temperature regulation using heater.
@@ -178,46 +150,25 @@ class TemperatureController(DeviceController):
         for i, channel in enumerate(self.device.getChannels()):
             # exponentially approach target or room temp + small fluctuation
             if channel.enabled and channel.real:
-                self.temperatures[i] = max((self.temperatures[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.temperatures[i]), 0)
+                self.values[i] = max((self.values[i]+np.random.uniform(-1, 1)) + 0.1*((channel.value if self.device.isOn() else 300)-self.values[i]), 0)
 
     def rndTemperature(self):
         """Returns a random temperature."""
         return np.random.uniform(0, 400)
 
-    def updateValue(self):
-        for channel, temperature in zip(self.device.getChannels(), self.temperatures):
-            if channel.enabled and channel.real:
-                channel.monitor = temperature
+    def toggleOn(self):
+        if self.device.isOn():
+            self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
+        else:
+            self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
+        self.messageBox.setText(f"Remember to turn water cooling {'on' if self.device.isOn() else 'off'} and gas ballast {'off' if self.device.isOn() else 'on'}!")
+        self.messageBox.setWindowIcon(self.device.getIcon())
+        if not self.device.testing:
+            self.messageBox.open() # show non blocking, defined outside so it does not get eliminated when the function completes.
+            self.messageBox.raise_()
+        self.processEvents()
 
-    def cryoON(self):
-        """Toggles CryoTel output."""
-        if not getTestMode() and self.initialized:
-            if self.device.isOn():
-                self.CryoTelWriteRead(message='COOLER=POWER') # 'COOLER=ON' start (used to be 'SET SSTOP=0')
-            else:
-                self.CryoTelWriteRead(message='COOLER=OFF') # stop (used to be 'SET SSTOP=1')
-            self.messageBox.setText(f"Remember to turn water cooling {'on' if self.device.isOn() else 'off'} and gas ballast {'off' if self.device.isOn() else 'on'}!")
-            self.messageBox.setWindowIcon(self.device.getIcon())
-            if not self.device.testing:
-                self.messageBox.open() # show non blocking, defined outside cryoON so it does not get eliminated when the function completes.
-                self.messageBox.raise_()
-            self.processEvents()
-
-    def applyTemperature(self, channel):
-        """Applies temperature value.
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            Thread(target=self.applyTemperatureFromThread, args=(channel,), name=f'{self.device.name} applyTemperatureFromThreadThread').start()
-
-    def applyTemperatureFromThread(self, channel):
-        """Applies temperature value (thread safe).
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
+    def applyValue(self, channel):
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}') # used to be SET TTARGET=
 
     def CryoTelWriteRead(self, message):

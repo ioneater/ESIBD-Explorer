@@ -1,5 +1,4 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
-from threading import Thread
 import time
 from random import choices
 import numpy as np
@@ -53,23 +52,6 @@ class RSPD3303C(Device):
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, attr='address')
         return defaultSettings
 
-    def closeCommunication(self):
-        self.setOn(False)
-        self.controller.voltageON(parallel=False)
-        super().closeCommunication()
-
-    def applyValues(self, apply=False):
-        for channel in self.channels:
-            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
-
-    def setOn(self, on=None):
-        super().setOn(on)
-        if self.initialized():
-            self.updateValues(apply=True) # apply voltages before turning on or off
-            self.controller.voltageON()
-        elif self.isOn():
-            self.initializeCommunication()
-
     def initTimer(self):
         """Initialized the shutdown timer."""
         if self.shutDownTime != 0:
@@ -120,16 +102,6 @@ class VoltageChannel(Channel):
     def tempParameters(self):
         return super().tempParameters() + [self.POWER, self.CURRENT]
 
-    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
-        """Applies voltage value if value has changed or explicitly requested.
-
-        :param apply: If True, value will be applied even if it has not changed.
-        :type apply: bool
-        """
-        if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.applyVoltage(self)
-            self.lastAppliedValue = self.value
-
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
@@ -145,7 +117,7 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        self.voltages   = [np.nan]*len(self.device.getChannels())
+        self.values   = [np.nan]*len(self.device.getChannels())
         self.currents   = [np.nan]*len(self.device.getChannels())
 
     def runInitialization(self):
@@ -160,55 +132,21 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        super().initComplete()
-        if self.device.isOn():
-            self.device.updateValues(apply=True) # apply voltages before turning on or off
-        self.voltageON()
-
-    def applyVoltage(self, channel):
-        """Applies voltage value.
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
-
-    def applyVoltageFromThread(self, channel):
-        """Applies voltage value (thread safe).
-
-        :param channel: Channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
+    def applyValue(self, channel):
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
-    def updateValue(self):
+    def updateValues(self):
+        # Overwriting to also update custom current and power parameters.
         if getTestMode():
             self.fakeNumbers()
         else:
             for i, channel in enumerate(self.device.getChannels()):
                 if channel.enabled and channel.real:
-                    channel.monitor = self.voltages[i]
+                    channel.monitor = self.values[i]
                     channel.current = self.currents[i]
                     channel.power = channel.monitor*channel.current
 
-    def voltageON(self, parallel=True):
-        """Toggles voltage output.
-
-        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
-        :type parallel: bool, optional
-        """
-        if not getTestMode() and self.initialized:
-            if parallel:
-                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
-            else:
-                self.voltageONFromThread()
-        elif getTestMode():
-            self.fakeNumbers()
-
-    def voltageONFromThread(self):
-        """Toggles voltage output (tread safe)."""
+    def toggleOn(self):
         for channel in self.device.getChannels():
             self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
 
@@ -229,9 +167,9 @@ class VoltageController(DeviceController):
                 if lock_acquired:
                     if not getTestMode():
                         for i, channel in enumerate(self.device.getChannels()):
-                            self.voltages[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
+                            self.values[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
                             self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=lock_acquired)
-                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
+                    self.signalComm.updateValuesSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def RSWrite(self, message):

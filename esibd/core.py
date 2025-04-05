@@ -2216,6 +2216,19 @@ class Channel(QTreeWidgetItem):
         """
         self.value = value # pylint: disable=[attribute-defined-outside-init] # attribute defined by makeWrapper
 
+    def applyValue(self, apply=False):
+        """Applies value to device if value has changed or explicitly requested.
+
+        :param apply: If True, value will be applied even if it has not changed. Defaults to None
+        :type apply: bool
+        """
+        if self.real and ((self.value != self.lastAppliedValue) or apply):
+            self.lastAppliedValue = self.value
+            if self.controller:
+                self.controller.applyValueFromThread(self)
+            else:
+                self.device.controller.applyValueFromThread(self)
+
     def activeChanged(self):
         """Updates channel after active state has changed."""
         self.toggleBackgroundVisible()
@@ -2393,12 +2406,18 @@ class Channel(QTreeWidgetItem):
                 self.device.liveDisplay.plot(apply=True)
 
     def toggleBackgroundVisible(self):
-        """Shows the background widget if applicable and hides it otherwise."""
+        """Shows the background widget if applicable and hides it otherwise.
+
+        :return: True if background is visible.
+        :rtype: bool
+        """
         if self.useBackgrounds:
             backgroundVisible = self.enabled and self.active and self.real
             self.getParameterByName(self.BACKGROUND).getWidget().setVisible(backgroundVisible)
             if not backgroundVisible:
                 self.background = 0
+            return backgroundVisible
+        return False
 
     def nameChanged(self):
         """Updates display and linked channels if channel name changed."""
@@ -3763,7 +3782,6 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.parentPlugin.warningFilterAction.state = False
         self.parentPlugin.errorFilterAction.state = False
 
-
 class ThemedNavigationToolbar(NavigationToolbar2QT):
     """Provides controls to interact with the figure.
     Adds light and dark theme support to NavigationToolbar2QT."""
@@ -4166,7 +4184,7 @@ class DeviceController(QObject):
         """Signal that is emitted after successful initialization of device communication."""
         closeCommunicationSignal = pyqtSignal()
         """Signal that triggers the acquisition to stop after communication errors."""
-        updateValueSignal = pyqtSignal()
+        updateValuesSignal = pyqtSignal()
         """Signal that transfers new data from the :attr:`~esibd.core.DeviceController.acquisitionThread` to the corresponding channels."""
 
     parent : Any # Device or Channel, cannot specify without causing circular import
@@ -4187,6 +4205,8 @@ class DeviceController(QObject):
     """Indicates if communications has been initialized successfully and not yet terminated."""
     initializing : bool = False
     """Indicates if communications is being initialized."""
+    values : list[float] = []
+    """Values are stored here by the deviceController and read out by the device later. Change definition by overwriting initComplete if necessary."""
 
     def __init__(self, _parent):
         super().__init__()
@@ -4196,7 +4216,7 @@ class DeviceController(QObject):
         self.port = None
         self.signalComm = self.SignalCommunicate()
         self.signalComm.initCompleteSignal.connect(self.initComplete)
-        self.signalComm.updateValueSignal.connect(self.updateValue)
+        self.signalComm.updateValuesSignal.connect(self.updateValues)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
 
     @property
@@ -4234,6 +4254,7 @@ class DeviceController(QObject):
             self.closeCommunication() # terminate old thread before starting new one
         self.initializing = True
         self.errorCount = 0
+        self.values = None
         self.initThread = Thread(target=self.fakeInitialization if getTestMode() else self.runInitialization, name=f'{self.device.name} initThread')
         self.initThread.daemon = True
         self.initThread.start() # initialize in separate thread
@@ -4248,18 +4269,26 @@ class DeviceController(QObject):
         self.print('Faking values for testing!', PRINT.WARNING)
         self.initializing = False
 
-    def readNumbers():
+    def readNumbers(self):
         """Write channel values in an array that will be used in updateValue."""
         # overwrite to implement function if applicable
 
-    def fakeNumbers():
+    def fakeNumbers(self):
         """Write fake channel values in an array that will be used in updateValue."""
         # overwrite to implement function
 
     def initComplete(self):
         """Called after successful initialization to start acquisition from main thread (access to GUI!)."""
+        if self.values is None:
+            if getTestMode() and self.device.inout is INOUT.IN and self.device.useMonitors:
+                self.values = [channel.value for channel in self.device.getChannels()]
+            else:
+                self.values = [np.nan]*len(self.device.getChannels()) # initializing values, Overwrite if needed
         self.initialized = True
         self.startAcquisition()
+        if self.device.isOn():
+            self.device.updateValues(apply=True) # apply voltages before turning on or off
+            self.toggleOnFromThread()
 
     def startAcquisition(self):
         """Starts data acquisition from physical device."""
@@ -4294,13 +4323,61 @@ class DeviceController(QObject):
                         pass # implement fake feedback
                     else:
                         pass # implement real feedback
-                    self.signalComm.updateValueSignal.emit()
+                    self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval/1000) # release lock before waiting!
 
-    def updateValue(self):
+    def applyValueFromThread(self, channel):
+        """Applies value to device (thread safe).
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
+        if not getTestMode() and self.initialized:
+            Thread(target=self.applyValue, args=(channel,), name=f'{self.device.name} applyValueThread').start()
+
+    def applyValue(self, channel):
+        """Applies value to device.
+
+        :param channel: Channel for which the value should be applied.
+        :type channel: esibd.core.Channel
+        """
+        # Extend to add functionality
+
+    def updateValues(self):
         """Called from acquisitionThread to update the
-        value of the channel(s) in the main thread.
-        Overwrite with specific update code."""
+        value or monitor of the channel(s) in the main thread."""
+        # Overwrite with specific update code if applicable.
+        if self.channel is None: # controls device with multiple channels
+            for channel, value in zip(self.device.getChannels(), self.values):
+                if channel.useMonitors and channel.enabled and channel.real:
+                    # Monitors of input devices should be updated even if the channel is not active (value determined by equation).
+                    channel.monitor = value
+                elif channel.enabled and channel.active and channel.real:
+                    # Should only be called for output devices
+                    channel.value = value
+        else: # controls single channel
+            if self.channel.useMonitors:
+                self.channel.monitor = self.values[0]
+            else:
+                self.channel.value = self.values[0]
+
+    def toggleOnFromThread(self, parallel=True):
+        """Toggles device on or off (tread safe).
+
+        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
+        :type parallel: bool, optional
+        """
+        if not getTestMode() and self.initialized:
+            if parallel:
+                Thread(target=self.toggleOn, name=f'{self.device.name} toggleOnThread').start()
+            else:
+                self.toggleOn()
+        elif getTestMode() and self.initialized:
+            self.fakeNumbers()
+
+    def toggleOn(self):
+        """Toggles device on or off."""
+        # Implement device specific
 
     def closeCommunication(self):
         """Closes all open ports.

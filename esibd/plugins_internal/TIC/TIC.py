@@ -48,14 +48,14 @@ class TICPressureController(PressureController):
                 if self.initialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
-                        self.pressures[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
+                        self.values[i] = float(re.split(' |;', msg)[1])/100 # parse and convert to mbar = 0.01 Pa
                         # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
-                        self.pressures[i] = np.nan
+                        self.values[i] = np.nan
                 else:
-                    self.pressures[i] = np.nan
+                    self.values[i] = np.nan
 
     def TICWriteRead(self, message, lock_acquired=False):
         """TIC specific serial write and read.

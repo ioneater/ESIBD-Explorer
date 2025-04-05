@@ -1,6 +1,5 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
 import socket
-from threading import Thread
 import time
 import numpy as np
 from esibd.plugins import Device
@@ -50,20 +49,8 @@ class Voltage(Device):
 
     def closeCommunication(self):
         self.setOn(False)
-        self.controller.voltageON(parallel=False)
+        self.controller.toggleOnFromThread(parallel=False)
         super().closeCommunication()
-
-    def applyValues(self, apply=False):
-        for channel in self.getChannels():
-            channel.applyVoltage(apply) # only actually sets voltage if configured and value has changed
-
-    def setOn(self, on=None):
-        super().setOn(on=on)
-        if self.initialized():
-            self.updateValues(apply=True) # apply voltages before turning modules on or off
-            self.controller.voltageON()
-        elif self.isOn():
-            self.initializeCommunication()
 
 class VoltageChannel(Channel):
 
@@ -84,16 +71,6 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.MODULE)
         self.displayedParameters.append(self.ID)
 
-    def applyVoltage(self, apply): # this actually sets the voltage on the power supply!
-        """Applies voltage value if value has changed or explicitly requested.
-
-        :param apply: If True, value will be applied even if it has not changed.
-        :type apply: bool
-        """
-        if self.real and ((self.value != self.lastAppliedValue) or apply):
-            self.device.controller.applyVoltage(self)
-            self.lastAppliedValue = self.value
-
     def monitorChanged(self):
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.device.controller.acquiring
@@ -112,7 +89,7 @@ class VoltageController(DeviceController):
         self.modules    = modules or [0]
         self.socket     = None
         self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
-        self.voltages   = np.zeros([len(self.modules), self.maxID+1])
+        self.values   = np.zeros([len(self.modules), self.maxID+1])
 
     def runInitialization(self):
         try:
@@ -124,53 +101,19 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        super().initComplete()
-        if self.device.isOn():
-            self.device.updateValues(apply=True) # apply voltages before turning modules on or off
-        self.voltageON()
-
-    def applyVoltage(self, channel):
-        """Applies voltage value.
-
-        :param channel: channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
-        if not getTestMode() and self.initialized:
-            Thread(target=self.applyVoltageFromThread, args=(channel,), name=f'{self.device.name} applyVoltageFromThreadThread').start()
-
-    def applyVoltageFromThread(self, channel):
-        """Applies voltage value (thread safe).
-
-        :param channel: channel for which the value should be applied.
-        :type channel: esibd.core.Channel
-        """
+    def applyValue(self, channel):
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
-    def updateValue(self):
+    def updateValues(self):
+        # Overwriting to use values for multiple modules
         if getTestMode():
             self.fakeNumbers()
         else:
             for channel in self.device.getChannels():
                 if channel.enabled and channel.real:
-                    channel.monitor = self.voltages[channel.module][channel.id]
+                    channel.monitor = self.values[channel.module][channel.id]
 
-    def voltageON(self, parallel=True): # this can run in main thread
-        """Toggles voltage output.
-
-        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
-        :type parallel: bool, optional
-        """
-        if not getTestMode() and self.initialized:
-            if parallel:
-                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
-            else:
-                self.voltageONFromThread()
-        elif getTestMode():
-            self.fakeNumbers()
-
-    def voltageONFromThread(self):
-        """Toggles voltage output (tread safe)."""
+    def toggleOn(self):
         for module in self.modules:
             self.ISEGWriteRead(message=f":VOLT {'ON' if self.device.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
 
@@ -191,11 +134,11 @@ class VoltageController(DeviceController):
                                 try:
                                     monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
                                     # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                                    self.voltages[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
+                                    self.values[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
                                 except (ValueError, TypeError) as e:
                                     self.print(f'Parsing error: {e} for {res}.')
                                     self.errorCount += 1
-                    self.signalComm.updateValueSignal.emit() # signal main thread to update GUI
+                    self.signalComm.updateValuesSignal.emit() # signal main thread to update GUI
             time.sleep(self.device.interval/1000)
 
     def ISEGWriteRead(self, message, lock_acquired=False):

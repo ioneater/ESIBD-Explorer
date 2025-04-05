@@ -1,8 +1,6 @@
 # pylint: disable=[missing-module-docstring] # see class docstrings
 import time
-from threading import Thread
 import numpy as np
-from PyQt6.QtCore import pyqtSignal
 import pyvisa
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
@@ -41,20 +39,6 @@ class KEITHLEY(Device):
         """Resets the charge of each channel."""
         for channel in self.channels:
             channel.resetCharge()
-
-    def closeCommunication(self):
-        self.setOn(False)
-        for channel in self.channels:
-            channel.controller.voltageON(parallel=False)
-        super().closeCommunication()
-
-    def setOn(self, on=None):
-        super().setOn(on)
-        if self.initialized():
-            for channel in self.channels:
-                channel.controller.voltageON()
-        elif self.isOn():
-            self.initializeCommunication()
 
     def updateTheme(self):
         super().updateTheme()
@@ -121,9 +105,6 @@ class CurrentChannel(Channel):
 class CurrentController(DeviceController):
     """Implements visa communication with KEITHLEY 6487."""
 
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        updateValueSignal = pyqtSignal(float)
-
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
         #setup port
@@ -159,13 +140,9 @@ class CurrentController(DeviceController):
             self.port.write("SOUR:VOLT:RANG 50")
             self.signalComm.initCompleteSignal.emit()
         except Exception:
-            self.signalComm.updateValueSignal.emit(np.nan)
+            self.signalComm.updateValuesSignal.emit(np.nan)
         finally:
             self.initializing = False
-
-    def initComplete(self):
-        super().initComplete()
-        self.voltageON()
 
     def startAcquisition(self):
         if self.channel.active:
@@ -179,47 +156,33 @@ class CurrentController(DeviceController):
                         self.fakeNumbers()
                     else:
                         self.readNumbers()
+                    self.signalComm.updateValuesSignal.emit()
                         # no sleep needed, timing controlled by waiting during readNumbers
             if getTestMode():
                 time.sleep(self.channel.device.interval/1000)
 
-    def updateValue(self, value):
-        self.channel.value = value
-
     def applyVoltage(self):
+        # NOTE this is different from the general applyValue function as this is not setting the channel value but a custom channel parameter
         """Applies voltage value."""
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
 
-    def voltageON(self, parallel=True): # this can run in main thread
-        """Toggles voltage output.
-
-        :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
-        :type parallel: bool, optional
-        """
-        if not getTestMode() and self.initialized:
-            self.applyVoltage() # apply voltages before turning power supply on or off
-            if parallel:
-                Thread(target=self.voltageONFromThread, name=f'{self.device.name} voltageONFromThreadThread').start()
-            else:
-                self.voltageONFromThread()
-
-    def voltageONFromThread(self):
-        """Toggles voltage output (tread safe)."""
+    def toggleOn(self):
+        self.applyVoltage() # apply voltages before turning power supply on or off
         self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeNumbers(self):
         if not self.channel.device.pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
-                self.signalComm.updateValueSignal.emit(np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset)
+                self.values=[np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset]
 
     def readNumbers(self):
         if not self.channel.device.pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
                 try:
                     self.port.write("INIT")
-                    self.signalComm.updateValueSignal.emit(float(self.port.query("FETCh?").split(',')[0][:-1])*1E12)
+                    self.values=[float(self.port.query("FETCh?").split(',')[0][:-1])*1E12]
                 except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                     self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
                     self.errorCount += 1
-                    self.signalComm.updateValueSignal.emit(np.nan)
+                    self.values=[np.nan]

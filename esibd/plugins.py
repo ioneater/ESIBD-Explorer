@@ -168,7 +168,7 @@ class Plugin(QWidget):
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
         """
-        self.pluginManager.logger.print(message, self.name, flag)
+        self.pluginManager.logger.print(message=message, sender=self.name, flag=flag)
 
     @property
     def loading(self):
@@ -1602,7 +1602,7 @@ class LiveDisplay(Plugin):
             return # values not yet available
         if hasattr(self.parentPlugin, 'time') and self.parentPlugin.time.size < 1: # no data
             return
-        # self.print('plot', flag=PRINT.DEBUG) only uncomment for specific testing to prevent spamming the console
+        # self.print('plot', flag=PRINT.DEBUG) # only uncomment for specific testing to prevent spamming the console
         self.parentPlugin.plotting = True # protect from recursion
         # flip array to speed up search of most recent data points
         # may return None if no value is older than displaytime
@@ -2694,6 +2694,18 @@ class Device(ChannelManager):
                                           widgetType=Parameter.TYPE.INT, attr='errorCount', indicator=True, event=lambda: self.errorCountChanged())
         return defaultSettings
 
+    def setOn(self, on=None):
+        super().setOn(on)
+        if self.initialized():
+            self.updateValues(apply=True) # update equations before turning on or off
+            if self.controller is None:
+                for channel in self.channels:
+                    channel.controller.toggleOnFromThread()
+            else:
+                self.controller.toggleOnFromThread()
+        elif self.isOn():
+            self.initializeCommunication()
+
     def runTestParallel(self):
         if self.useBackgrounds:
             self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
@@ -2770,6 +2782,13 @@ class Device(ChannelManager):
         """Stops all communication.
         Make sure that final calls to device are send from main thread or use a delay
         so they are not send after connection has terminated!"""
+        if self.useOnOffLogic:
+            self.setOn(False)
+            if self.controller is None:
+                for channel in self.channels:
+                    channel.controller.toggleOnFromThread(parallel=False)
+            else:
+                self.controller.toggleOnFromThread(parallel=False)
         self.stopAcquisition() # stop acquisition before terminating communication
         if self.controller is None:
             if self.channels[0].controller is not None:
@@ -2791,14 +2810,15 @@ class Device(ChannelManager):
         if self.useBackgrounds:
             for channel in self.getChannels(): # save present signal as background
                 # use average of last 5 s if possible
-                length = min(int(5000/self.interval), len(channel.getValues(subtractBackground=False)))
-                values = channel.getValues(subtractBackground=False)[-length:]
-                if not any([np.isnan(value) for value in values]):
-                    channel.background = np.mean(values)
-                elif not np.isnan(values[-1]):
-                    channel.background = values[-1]
-                else:
-                    channel.background = np.nan
+                if channel.toggleBackgroundVisible(): # sets to 0 if not visible
+                    length = min(int(5000/self.interval), len(channel.getValues(subtractBackground=False)))
+                    values = channel.getValues(subtractBackground=False)[-length:]
+                    if not any([np.isnan(value) for value in values]):
+                        channel.background = np.mean(values)
+                    elif not np.isnan(values[-1]):
+                        channel.background = values[-1]
+                    else:
+                        channel.background = np.nan
 
     def subtractBackgroundActive(self):
         """Indicates if backgrounds should be subtracted."""
@@ -2822,7 +2842,8 @@ class Device(ChannelManager):
         :param apply: If False, only values that have changed since last apply will be updated, defaults to False
         :type apply: bool, optional
         """
-        # Extend to implement functionality.
+        for channel in self.getChannels():
+            channel.applyValue(apply=apply) # only actually sets value if configured and value has changed
 
     @synchronized()
     def exportOutputData(self, default=False):

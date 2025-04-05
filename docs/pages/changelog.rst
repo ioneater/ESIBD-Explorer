@@ -20,6 +20,9 @@ Fixed
 Changed
 ~~~~~~~
 
+- Simplified plugins by introducing default implementations of DeviceController.values, DeviceController.applyValue, DeviceController.updateValues,
+DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
+Custom plugins need to be adjusted by deleting or simplifying functions to use default implementation!
 - Added confirmation prompt before deleting all device history.
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 - Added documentation for many methods.
