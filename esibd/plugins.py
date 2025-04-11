@@ -76,6 +76,7 @@ class Plugin(QWidget):
     documentation : str = None # specify in child class
     """The plugin documentation used in the internal about dialog in the :ref:`sec:browser`.
     If None, the doc string *__doc__* will be used instead.
+    The latter may contain rst commands for sphinx documentation which should not be exposed to the user.
     """
     version : str       = '' # specify in child class mandatory
     """The version of the plugin. Plugins are independent programs that
@@ -2151,10 +2152,10 @@ class ChannelManager(Plugin):
                 self.tree.setColumnHidden(i, not self.advancedAction.state)
         for channel in self.channels:
             if self.inout == INOUT.NONE:
-                channel.setHidden(False)
+                channel.setHidden(False) # Always visible
             else:
                 if channel.inout == INOUT.IN:
-                    channel.setHidden(not (self.advancedAction.state or channel.active))
+                    channel.setHidden(not (self.advancedAction.state or channel.active or channel.display))
                 else: # INOUT.OUT:
                     channel.setHidden(not (self.advancedAction.state or channel.active or channel.display))
         # Collapses all channels of same color below selected channels.
@@ -2594,24 +2595,24 @@ class Device(ChannelManager):
     device also comes with a :ref:`display<sec:displays>` and a :ref:`live display<sec:live_displays>`.
     The current values can also be plotted to get a quick overview and identify any
     unusual values."""
-    documentation = """Device plugins are used to handle communication with one or more
-    devices, provide controls to configure the device and display live or
-    previously recorded data. There are input devices (sending input from
-    the user to hardware) and output devices (reading outputs from
-    hardware). Note that some input devices may also read back data from
-    hardware to confirm that the user defined values are applied correctly.
+    # documentation = """Device plugins are used to handle communication with one or more
+    # devices, provide controls to configure the device and display live or
+    # previously recorded data. There are input devices (sending input from
+    # the user to hardware) and output devices (reading outputs from
+    # hardware). Note that some input devices may also read back data from
+    # hardware to confirm that the user defined values are applied correctly.
 
-    The main interface consists of a list of channels. By
-    default only the physically relevant information is shown. By entering
-    the advanced mode, additional channel parameters can be configured. The
-    configuration can be exported and imported, though once all channels
-    have been setup it is sufficient to only load values which can be done
-    using a file dialog or from the context menu of an appropriate file in
-    the Explorer. After loading the configurations or values, a change log will be
-    available in the Text plugin to quickly identify what has changed. Each
-    device also comes with a display and a live display.
-    The current values can also be plotted to get a quick overview and identify any
-    unusual values."""
+    # The main interface consists of a list of channels. By
+    # default only the physically relevant information is shown. By entering
+    # the advanced mode, additional channel parameters can be configured. The
+    # configuration can be exported and imported, though once all channels
+    # have been setup it is sufficient to only load values which can be done
+    # using a file dialog or from the context menu of an appropriate file in
+    # the Explorer. After loading the configurations or values, a change log will be
+    # available in the Text plugin to quickly identify what has changed. Each
+    # device also comes with a display and a live display.
+    # The current values can also be plotted to get a quick overview and identify any
+    # unusual values."""
 
     version = 1.0
     optional = True
@@ -2640,6 +2641,7 @@ class Device(ChannelManager):
         else:
             self.inout = INOUT.OUT
         self.logY = False
+        self.documentation = None # use __doc__ defined in child classes, sphinx does not initialize and will use the value of documentation defined above
         self.updating = False # Suppress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
         self.lastIntervalTime = time.time()*1000
@@ -3101,12 +3103,6 @@ class Device(ChannelManager):
             # do not plot if other plotting has not yet completed.
             skipPlotting = not (interval_measured >= self.interval - interval_tolerance) or self.plotting
             self.signalComm.appendDataSignal.emit(False, skipPlotting) # arguments nan, skipPlotting cannot be added explicitly for pyqtBoundSignal
-            # TODO delete
-            # if interval_measured >= self.interval - interval_tolerance: # do only emit when at least self.interval has expired to prevent unresponsive application due to queue of multiple emissions
-            #     self.signalComm.appendDataSignal.emit(nan=False, skip=)
-            # else:
-            #     self.print('Skipping appending data as previous request is still being processed.', flag=PRINT.DEBUG)
-            #     self.lastIntervalTime = time.time()*1000 # reset reference for next interval
             time.sleep(self.interval/1000) # in seconds # wait at end to avoid emitting signal after recording set to False
 
     def duplicateChannel(self):
@@ -3155,23 +3151,23 @@ class Scan(Plugin):
     if files need to be accessed externally. Use the
     context menu of a scan file to create a template plot file using h5py
     and adjust it to your needs."""
-    documentation = """Scans are all sort of measurements that record any number of outputs as a
-    function of any number of inputs. The main interface consists of a list of
-    scan settings. Each scan comes with a tailored display
-    optimized for its specific data format. Scan settings can be imported
-    and exported from the scan toolbar, though in most cases it will be
-    sufficient to import them from the context menu of a previously saved
-    scan file in the Explorer. When all settings are defined and all relevant channels are
-    communicating the scan can be started. A scan can be stopped at any
-    time. At the end of a scan the corresponding file will be saved to the
-    session path. The filename is displayed inside the corresponding graph to
-    allow to find the file later based on exported figures. Scan files are
-    saved in the widely used HDF5 file format that allows to keep data and
-    metadata together in a structured binary file. External viewers, such as
-    HDFView, or minimal python scripts based on the h5py package can be used
-    if files need to be accessed externally. Use the
-    context menu of a scan file to create a template plot file using h5py
-    and adjust it to your needs."""
+    # documentation = """Scans are all sort of measurements that record any number of outputs as a
+    # function of any number of inputs. The main interface consists of a list of
+    # scan settings. Each scan comes with a tailored display
+    # optimized for its specific data format. Scan settings can be imported
+    # and exported from the scan toolbar, though in most cases it will be
+    # sufficient to import them from the context menu of a previously saved
+    # scan file in the Explorer. When all settings are defined and all relevant channels are
+    # communicating the scan can be started. A scan can be stopped at any
+    # time. At the end of a scan the corresponding file will be saved to the
+    # session path. The filename is displayed inside the corresponding graph to
+    # allow to find the file later based on exported figures. Scan files are
+    # saved in the widely used HDF5 file format that allows to keep data and
+    # metadata together in a structured binary file. External viewers, such as
+    # HDFView, or minimal python scripts based on the h5py package can be used
+    # if files need to be accessed externally. Use the
+    # context menu of a scan file to create a template plot file using h5py
+    # and adjust it to your needs."""
 
     pluginType = PluginManager.TYPE.SCAN
     useAdvancedOptions = True
@@ -3256,6 +3252,7 @@ class Scan(Plugin):
             self.scan = scan
             self.name = f'{self.scan.name} Display'
             self.plot = self.scan.plot
+            self.dependencyPath = self.scan.dependencyPath
             super().__init__(**kwargs)
 
         def initGUI(self):
@@ -4576,9 +4573,10 @@ class Tree(Plugin):
                     attr = getattr(obj, object_name)
                     class_method_widget = QTreeWidgetItem(tree, [object_name])
                     class_method_widget.setIcon(0, QIcon(self.ICON_CLASS if inspect.isclass(attr) else self.ICON_FUNCTIONMETHOD))
-                    if attr.__doc__ is not None:
-                        class_method_widget.setText(1, attr.__doc__.split('\n')[0])
-                        class_method_widget.setToolTip(1, attr.__doc__)
+                    doc = inspect.getdoc(attr)
+                    if doc is not None:
+                        class_method_widget.setText(1, doc.split('\n')[0])
+                        class_method_widget.setToolTip(1, doc)
         self.filterTree()
         self.raiseDock(True)
 
@@ -4635,9 +4633,6 @@ class Tree(Plugin):
             plugin_widget = QTreeWidgetItem(self.tree, [plugin.name])
             plugin_widget.setIcon(0, plugin.getIcon())
             self.tree.setFirstColumnSpanned(self.tree.indexOfTopLevelItem(plugin_widget), self.tree.rootIndex(), True)  # Spans all columns
-            # description = plugin.documentation if plugin.documentation is not None else plugin.__doc__
-            # plugin_widget.setText(1, description.splitlines()[0][:100] )
-            # plugin_widget.setToolTip(1, description)
             self.addActionWidgets(plugin_widget, plugin)
             if hasattr(plugin, 'liveDisplay') and plugin.liveDisplayActive():
                 widget = QTreeWidgetItem(plugin_widget, [plugin.liveDisplay.name])
@@ -4725,6 +4720,7 @@ class Console(Plugin):
         self.vertLayout.addWidget(self.mainConsole, 1) # https://github.com/pyqtgraph/pyqtgraph/issues/404 # add before hintsTextEdit
         self.commonCommandsComboBox = EsibdCore.CompactComboBox()
         self.commonCommandsComboBox.wheelEvent = lambda event: None
+        self.commonCommandsComboBox.setToolTip('Examples and commonly used commands.')
         self.commonCommandsComboBox.addItems([
             "select command",
             "Tree.iconOverview() # Show icon overview.",
@@ -4732,6 +4728,7 @@ class Console(Plugin):
             "ISEG.controller # get device specific hardware manager",
             "RBD.channels # get channels of a device",
             "Energy.display.fig # get specific figure",
+            "inspect.getdoc(Settings) # get documentation of an object",
             "Tree.inspect(Settings) # show methods and attributes of any object in Tree plugin",
             "timeit.timeit('Beam.plot(update=True, done=False)', number=100, globals=globals()) # time execution of plotting",
             "channel = DeviceManager.getChannelByName('RT_Front-Plate', inout=INOUT.IN) # get specific input channel",
@@ -5362,7 +5359,8 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', widgetType=Parameter.TYPE.BOOL,
                                     event=lambda: self.pluginManager.DeviceManager.closeCommunication() # pylint: disable=unnecessary-lambda # needed to delay execution until initialized
                                     , internal=True, advanced=True)
-        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Show debug messages.', internal=True, widgetType=Parameter.TYPE.BOOL, advanced=True)
+        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Shows debug messages and enables additional functionality like\n sending Channels, Parameters, and Settings to the Console.',
+                                                                   internal=True, widgetType=Parameter.TYPE.BOOL, advanced=True)
         ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=lambda: self.pluginManager.updateTheme(),
                                                                 widgetType=Parameter.TYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',

@@ -44,7 +44,6 @@ class Beam(Scan):
     size in both directions. Scan limits can be adopted from the figure or
     centered around the current value, e.g., to zoom in and center on a
     specific feature."""
-    documentation = None # use __doc__
 
     LEFTRIGHT = 'Left-Right'
     UPDOWN = 'Up-Down'
@@ -559,14 +558,13 @@ class Energy(Scan):
     and a Gaussian fit that reveals beam-energy center and width. The
     potential on the selected channel can be changed by clicking and
     dragging on the image while holding down the Ctrl key."""
-    documentation = None # use __doc__
 
     name = 'Energy'
     version = '1.0'
     iconFile = 'energy.png'
 
     class Display(Scan.Display):
-        """Display for energy scan."""
+        """Display for Energy scan."""
 
         def initGUI(self):
             """Initialize GUI"""
@@ -831,7 +829,6 @@ class Omni(Scan):
     interactive mode, a slider will appear that allows to set the value of
     the input channel manually and independent of the scan settings. This
     may be more intuitive and faster than automated scanning, e.g. when looking for a local maximum."""
-    documentation = None # use __doc__
 
     name = 'Omni'
     version = '1.0'
@@ -839,7 +836,7 @@ class Omni(Scan):
     iconFile = 'omni.png'
 
     class Display(Scan.Display):
-        """Display for energy scan."""
+        """Display for Omni scan."""
 
         def __init__(self, scan, **kwargs):
             super().__init__(scan, **kwargs)
@@ -1030,7 +1027,6 @@ class Depo(Scan):
     As data analysis is decoupled from data
     acquisition, you can continue to use all other scan modes and
     optimization while the deposition recording is running."""
-    documentation = None # use __doc__
 
     name = 'Depo'
     version = '1.0'
@@ -1074,7 +1070,7 @@ class Depo(Scan):
                 self.getParameterByName(self.DISPLAY).getWidget().setVisible(False)
 
     class Display(Scan.Display):
-        """Display for depo scan."""
+        """Display for Depo scan."""
 
         class CustomScientificFormatter(ScalarFormatter):
             """custom formatter that prevents waste of vertical space by offset or scale factor.
@@ -1447,6 +1443,7 @@ class GA(Scan):
         updateValuesSignal = pyqtSignal(int, bool)
 
     class Display(Scan.Display):
+        """Display for GA scan."""
 
         def initFig(self):
             super().initFig()
@@ -1645,7 +1642,6 @@ class MassSpec(Scan):
     deviation of the mass as a function of possible charge states.
     Use Ctrl + right mouse click to reset.
     This can be used as a template or a parent class for a simple one dimensional scan of other properties."""
-    documentation = None # use __doc__
 
     name = 'msScan'
     version = '1.1'
@@ -1653,6 +1649,7 @@ class MassSpec(Scan):
     iconFile = 'msScan.png'
 
     class Display(Scan.Display):
+        """Display for MassSpec scan."""
 
         def initGUI(self):
             self.mzCalc = MZCalculator(parentPlugin=self)

@@ -8,8 +8,7 @@ def providePlugins():
     return [NI9263]
 
 class NI9263(Device):
-    """Device that contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each."""
-    documentation = None # use __doc__
+    """Contains a list of voltages channels from one or multiple NI9263 power supplies with 4 analog outputs each."""
 
     name = 'NI9263'
     version = '1.0'

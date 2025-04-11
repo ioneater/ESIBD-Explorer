@@ -12,11 +12,10 @@ def providePlugins():
     return [RBD]
 
 class RBD(Device):
-    """Device that contains a list of current channels, each corresponding to a single RBD
+    """Contains a list of current channels, each corresponding to a single RBD
     9103 picoammeter. The channels show the accumulated charge over time,
     which is proportional to the number of deposited ions. It can also
     reveal on which elements ions are lost."""
-    documentation = None # use __doc__
 
     name = 'RBD'
     version = '1.0'

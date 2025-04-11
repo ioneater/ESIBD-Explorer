@@ -11,9 +11,8 @@ def providePlugins():
     return [Temperature]
 
 class Temperature(Device):
-    """Device that reads the temperature of a silicon diode sensor via Sunpower CryoTel controller.
+    """Reads the temperature of a silicon diode sensor via Sunpower CryoTel controller.
     It allows to switch units between K and °C."""
-    documentation = None # use __doc__
 
     name = 'Temperature'
     version = '1.0'

@@ -180,7 +180,6 @@ class PluginManager():
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath = None
         self.pluginFile     = None
-        # self.plotting = False # TODO delete
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -308,7 +307,10 @@ class PluginManager():
                     self.qm.raise_()
                 else:
                     if hasattr(Module, 'providePlugins'):
-                        self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
+                        if type(Module.providePlugins()) is list:
+                            self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
+                        else:
+                            self.logger.print(f'Could not load module {file.stem}. Make sure providePlugins returns list of valid plugins.', flag=PRINT.ERROR)
                     # silently ignore dependencies which do not define providePlugins
 
     def loadPluginsFromModule(self, Module, dependencyPath):
@@ -2073,8 +2075,8 @@ class Channel(QTreeWidgetItem):
 
     def getDefaultChannel(self):
         """ Defines Parameter(s) of the default Channel.
-        This is also use to assign widgetTypes and if settings are visible outside of advanced mode.
-        See :meth:`~esibd.core.parameterDict`.
+        This is also use to assign widgetTypes, if Parameters are visible outside of advanced mode,
+        and many other parameter properties. See :meth:`~esibd.core.parameterDict`.
         If parameters do not exist in the settings file, the default Parameter will be added.
         Overwrite in dependent classes as needed.
         """
@@ -4279,7 +4281,7 @@ class DeviceController(QObject):
 
     def initComplete(self):
         """Called after successful initialization to start acquisition from main thread (access to GUI!)."""
-        if self.values is None:
+        if self.values is None: # unless defined by child class
             if getTestMode() and self.device.inout is INOUT.IN and self.device.useMonitors:
                 self.values = [channel.value for channel in self.device.getChannels()]
             else:
@@ -4440,7 +4442,7 @@ class DeviceController(QObject):
         :type port: serial.Serial
         :param encoding: Encoding used for sending and receiving messages, defaults to 'utf-8'
         :type encoding: str, optional
-        :param EOL: End of line character, defaults to '\n'
+        :param EOL: End of line character.
         :type EOL: str, optional
         :param strip: String to be stripped from message.
         :type strip: str, optional

@@ -10,8 +10,7 @@ def providePlugins():
     return [KEITHLEY]
 
 class KEITHLEY(Device):
-    """Device that contains a list of current channels, each corresponding to a single KEITHLEY 6487 picoammeter."""
-    documentation = None # use __doc__
+    """Contains a list of current channels, each corresponding to a single KEITHLEY 6487 picoammeter."""
 
     name = 'KEITHLEY'
     version = '1.0'

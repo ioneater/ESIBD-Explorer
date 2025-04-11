@@ -21,15 +21,15 @@ Changed
 ~~~~~~~
 
 - Simplified plugins by introducing default implementations of DeviceController.values, DeviceController.applyValue, DeviceController.updateValues,
-DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
-Custom plugins need to be adjusted by deleting or simplifying functions to use default implementation!
+  DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
+  Custom plugins need to be adjusted by deleting or simplifying functions to use default implementation!
 - Added confirmation prompt before deleting all device history.
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 - Added documentation for many methods.
 - Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
 - generatePythonPlotCode method now only returns text. When running generated code from the context menu, other plots are no longer changed into popups.
 - Removed unused getInitializedChannels method.
-- Simplified instructions for offline installation.
+- Simplified instructions for offline installation. No conda or python installation needed on offline PC!
 
 Version 0.7.3 2025-03-24
 ========================

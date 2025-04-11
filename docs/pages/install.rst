@@ -44,19 +44,24 @@ to install all dependencies. Later, update_env.bat can be used to update
 dependencies. Start the program using *start.bat*. If desired, you can add
 a shortcut to start.bat to the start menu.
 
-From source (Miniconda offline)
+Portable installation (offline)
 -------------------------------
 
-To install on a computer that is offline, create and export the esibd environment from another computer that is online.
+To install on a computer that is offline (or other installation approaches fail), create and export the esibd environment from another computer that is online.
 All files you need to do this are in the `setup folder <https://github.com/ioneater/ESIBD-Explorer/tree/main/setup>`_.
+See comments within the files for more details.
+**You do not need to install conda or python** on the offline computer for this to work, all dependencies are already included.
+
+On the online PC:
 
 1. If you need custom requirements, add them to :code:`create_esibd_offline.bat`
 2. Run :code:`create_esibd_offline.bat` to create and export the esibd environment as :code:`esibd.tar.gz`.
-3. Install Miniconda on the offline computer and extract the content of :code:`esibd.tar.gz` as a local environment.
-4. Run :code:`start_esibd_offline.bat` to start *ESIBD Explorer* on the offline computer
 
-You need to adjust the filepaths in these files depending on the location of the environment on your computer.
-See comments within the files for more details.
+On the offline PC:
+
+1. Extract the content of :code:`esibd.tar.gz` as a local environment.
+2. Adjust the filepath to the :code:`esibd` folder in :code:`start_esibd_offline.bat`.
+3. Run :code:`start_esibd_offline.bat` to start *ESIBD Explorer*.
 
 From PyPi (Linux)
 -----------------

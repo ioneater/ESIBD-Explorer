@@ -66,7 +66,8 @@ class CustomDevice(Device):
             self.messageBox.raise_()
 
     def intervalChanged(self):
-        pass # TODO (optional) add code to be executed in case the interval changes if needed
+        # TODO (optional) add code to be executed in case the interval changes if needed
+        pass
 
     customSetting = 'Custom/Setting'
 

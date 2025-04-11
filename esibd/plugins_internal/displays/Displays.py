@@ -253,7 +253,6 @@ class PDB(Plugin):
     file formats used by the protein data bank. While the visualization is
     not very sophisticated it may get you started on interacting
     programmatically with those files."""
-    documentation = None # use __doc__
 
     name = 'PDB'
     version = '1.0'

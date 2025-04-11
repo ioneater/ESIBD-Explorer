@@ -11,9 +11,8 @@ def providePlugins():
     return [MIPS]
 
 class MIPS(Device):
-    """Device that contains a list of voltages channels from one or multiple MIPS power supplies with 8 channels each.
+    """Contains a list of voltages channels from one or multiple MIPS power supplies with 8 channels each.
     The voltages are monitored and a warning is given if the set potentials are not reached."""
-    documentation = None # use __doc__
 
     name = 'MIPS'
     version = '1.0'
@@ -76,10 +75,9 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent, COMs):
         super().__init__(_parent=_parent)
-        self.COMs       = COMs or ['COM1']
-        self.ports      = [None]*len(self.COMs)
-        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
-        self.values   = np.zeros([len(self.COMs), self.maxID+1])
+        self.COMs   = COMs or ['COM1']
+        self.ports  = [None]*len(self.COMs)
+        self.maxID  = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
 
     def runInitialization(self):
         try:
@@ -95,6 +93,10 @@ class VoltageController(DeviceController):
             self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
+
+    def initComplete(self):
+        self.values = np.zeros([len(self.COMs), self.maxID+1])
+        return super().initComplete()
 
     def closeCommunication(self):
         for i, port in enumerate(self.ports):

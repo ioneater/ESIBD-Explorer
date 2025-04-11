@@ -10,9 +10,8 @@ def providePlugins():
     return [PICO]
 
 class PICO(Device):
-    """Device that reads the temperature of sensors attached to a pico PT-104.
+    """Reads the temperature of sensors attached to a pico PT-104.
     It allows to switch units between K and °C."""
-    documentation = None # use __doc__
 
     name = 'PICO'
     version = '1.0'

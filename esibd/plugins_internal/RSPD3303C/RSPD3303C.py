@@ -12,9 +12,8 @@ def providePlugins():
     return [RSPD3303C]
 
 class RSPD3303C(Device):
-    """Device that contains a list of voltages channels from a single RSPD3303C power supplies with 2 analog outputs.
+    """Contains a list of voltages channels from a single RSPD3303C power supplies with 2 analog outputs.
     In case of any issues, first test communication independently with EasyPowerX."""
-    documentation = None # use __doc__
 
     name = 'RSPD3303C'
     version = '1.0'
@@ -46,7 +45,7 @@ class RSPD3303C(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
-        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, attr='shutDownTime',
+        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, attr='shutDownTime', instantUpdate=False,
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
                                                                      event=lambda: self.initTimer(), internal=True)
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, attr='address')
@@ -60,13 +59,15 @@ class RSPD3303C(Device):
             (self.shutDownTime < 600 and self.shutDownTime % 100 == 0) or
             (self.shutDownTime % 1000 == 0)):
                 self.print(f'Will turn off in {self.shutDownTime} minutes.')
-            self.shutDownTimer.start(60000)  # ms steps
+            self.shutDownTimer.start(60000)  # 1 min steps steps
 
     def updateTimer(self):
         """Updates the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.shutDownTime = max(0, self.shutDownTime - 1)
         if self.shutDownTime == 1:
-            self.print('Timer expired. Setting to heater voltages to 0 V.')
+            self.print('Timer expired. Setting PID off and heater voltages to 0 V.')
+            if hasattr(self.pluginManager, 'PID'):
+                self.pluginManager.PID.setOn(on=False)
             for channel in self.channels:
                 channel.value = 0
         if self.shutDownTime == 0:
@@ -117,8 +118,6 @@ class VoltageController(DeviceController):
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
-        self.values   = [np.nan]*len(self.device.getChannels())
-        self.currents   = [np.nan]*len(self.device.getChannels())
 
     def runInitialization(self):
         try:
@@ -131,6 +130,11 @@ class VoltageController(DeviceController):
             self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
+
+    def initComplete(self):
+        self.currents   = [np.nan]*len(self.device.getChannels())
+        self.values = [np.nan]*len(self.device.getChannels())
+        return super().initComplete()
 
     def applyValue(self, channel):
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')

@@ -10,11 +10,10 @@ def providePlugins():
     return [Voltage]
 
 class Voltage(Device):
-    """Device that contains a list of voltages channels from an ISEG ECH244 power supply.
+    """Contains a list of voltages channels from an ISEG ECH244 power supply.
     The voltages are monitored and a warning is given if the set potentials are not reached.
     In case of any issues, first make sure ISEG ECH244 and all modules are turned on, and communicating.
     Use SNMP Control to quickly test this independent of this plugin."""
-    documentation = None # use __doc__
 
     name = 'ISEG'
     version = '1.1'
@@ -88,8 +87,7 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         self.modules    = modules or [0]
         self.socket     = None
-        self.maxID = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
-        self.values   = np.zeros([len(self.modules), self.maxID+1])
+        self.maxID      = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
 
     def runInitialization(self):
         try:
@@ -100,6 +98,10 @@ class VoltageController(DeviceController):
             self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
+
+    def initComplete(self):
+        self.values = np.zeros([len(self.modules), self.maxID+1])
+        return super().initComplete()
 
     def applyValue(self, channel):
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))

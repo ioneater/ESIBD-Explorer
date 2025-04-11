@@ -11,9 +11,8 @@ def providePlugins():
     return [OMNICONTROL]
 
 class OMNICONTROL(Device):
-    """Device that reads pressure values form an Pfeiffer Omnicontrol using the Pfeiffer Vacuum Protocol."""
+    """Reads pressure values form an Pfeiffer Omnicontrol using the Pfeiffer Vacuum Protocol."""
 
-    documentation = None # use __doc__
     name = 'OMNICONTROL'
     version = '1.0'
     supportedVersion = '0.7'

@@ -11,10 +11,9 @@ def providePlugins():
     return [Pressure]
 
 class Pressure(Device):
-    """Device that bundles pressure values form an Edwards TIC and Pfeiffer MaxiGauge into
+    """Bundles pressure values form an Edwards TIC and Pfeiffer MaxiGauge into
     a consistent list of channels. This demonstrates handling of values on a logarithmic scale."""
 
-    documentation = None # use __doc__
     name = 'Pressure'
     version = '1.0'
     supportedVersion = '0.7'

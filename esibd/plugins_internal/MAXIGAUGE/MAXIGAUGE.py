@@ -10,8 +10,7 @@ def providePlugins():
     return [MAXIGAUGE]
 
 class MAXIGAUGE(Device):
-    """Device that reads pressure values form a Pfeiffer MaxiGauge."""
-    documentation = None # use __doc__
+    """Reads pressure values form a Pfeiffer MaxiGauge."""
 
     name = 'MAXIGAUGE'
     version = '1.0'

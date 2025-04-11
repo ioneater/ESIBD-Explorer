@@ -10,7 +10,7 @@ def providePlugins():
     return [TIC]
 
 class TIC(OMNICONTROL):
-    """Device that reads pressure values form an Edwards TIC.
+    """Reads pressure values form an Edwards TIC.
 
     This is inheriting many functions from the OMNICONTROL plugin.
     Thus it exemplifies how to build a new plugin by only changing a few specific lines of code.
