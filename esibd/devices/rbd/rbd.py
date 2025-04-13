@@ -128,7 +128,7 @@ class CurrentChannel(Channel):
         channel[self.OUTOFRANGE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
         channel[self.UNSTABLE   ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
-                                        header='U', toolTip='Indicates if signal is out of unstable.', attr='unstable')
+                                        header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
         channel[self.ERROR      ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='error', indicator=True)
         return channel
 

@@ -4976,23 +4976,24 @@ class SettingsManager(Plugin):
         addSettingToConsoleAction = None
         if getShowDebug():
             addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
-        if setting.widgetType == Parameter.TYPE.PATH:
-            openPathAction = settingsContextMenu.addAction(self.OPENPATH)
-            changePathAction = settingsContextMenu.addAction(SELECTPATH)
-        elif (setting.widgetType in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]
-                and not isinstance(setting.parent, Channel) and not setting.fixedItems):
-            # Channels are part of Devices which define items centrally
-            addItemAction = settingsContextMenu.addAction(Channel.ADDITEM)
-            editItemAction = settingsContextMenu.addAction(Channel.EDITITEM)
-            removeItemAction = settingsContextMenu.addAction(Channel.REMOVEITEM)
-        if not isinstance(setting.parent, Channel):
-            if setting.widgetType == Parameter.TYPE.LABEL:
-                copyClipboardAction = settingsContextMenu.addAction('Copy to clipboard.')
-            else:
-                setToDefaultAction = settingsContextMenu.addAction(f'Set to Default: {setting.default}')
-                makeDefaultAction = settingsContextMenu.addAction('Make Default')
-        if not settingsContextMenu.actions():
-            return
+        if not setting.indicator:
+            if setting.widgetType == Parameter.TYPE.PATH:
+                openPathAction = settingsContextMenu.addAction(self.OPENPATH)
+                changePathAction = settingsContextMenu.addAction(SELECTPATH)
+            elif (setting.widgetType in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]
+                    and not isinstance(setting.parent, Channel) and not setting.fixedItems):
+                # Channels are part of Devices which define items centrally
+                addItemAction = settingsContextMenu.addAction(Channel.ADDITEM)
+                editItemAction = settingsContextMenu.addAction(Channel.EDITITEM)
+                removeItemAction = settingsContextMenu.addAction(Channel.REMOVEITEM)
+            if not isinstance(setting.parent, Channel):
+                if setting.widgetType == Parameter.TYPE.LABEL:
+                    copyClipboardAction = settingsContextMenu.addAction('Copy to clipboard.')
+                else:
+                    setToDefaultAction = settingsContextMenu.addAction(f'Set to Default: {setting.default}')
+                    makeDefaultAction = settingsContextMenu.addAction('Make Default')
+            if not settingsContextMenu.actions():
+                return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction is not None: # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addSettingToConsoleAction:

@@ -33,6 +33,9 @@ Changed
 - Restructured project structure to separate scans and displays. Using lower case convention for project folders and module files. Enabling simplified import statements,
   e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.scans import Beam, from esibd.displays import PDB.
 - Introduced restore option for parameters and settings and used it to not restore values for lagging, errorCount, and interval measured.
+- Disallowed use of / in channel names.
+- Removed option to edit indicators through the context menu.
+- Enabled context menu for LedIndicators.
 
 Version 0.7.3 2025-03-24
 ========================

@@ -1464,11 +1464,13 @@ class Parameter():
                     self.check = LedIndicator()
                     self.check.setMinimumSize(self.rowHeight-10, self.rowHeight-10)
                     self.check.setMaximumSize(self.rowHeight-10, self.rowHeight-10)
+                    self.setEnabled(True) # left clicks are suppressed, right clicks open context menu
                 else:
                     self.check = CheckBox()
+                    self.setEnabled(not self.indicator)
             else:
                 self.check = self.widget
-            self.setEnabled(not self.indicator)
+                self.setEnabled(not self.indicator)
         elif self.widgetType == self.TYPE.COLOR:
             if self.widget is None:
                 self.colorButton = pg.ColorButton()
@@ -2499,6 +2501,9 @@ class Channel(QTreeWidgetItem):
             collapse.applyWidget()
             collapse.value = initialValue
             collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
+        if self.EQUATION in self.displayedParameters:
+            equation = self.getParameterByName(self.EQUATION)
+            equation.getWidget().valid_chars = equation.getWidget().valid_chars.replace(']*$','/]*$') # need / in equations but it is invalid for line edits otherwise
         if self.inout != INOUT.NONE:
             self.updateColor()
             self.realChanged()
@@ -3408,11 +3413,17 @@ class LedIndicator(QAbstractButton):
         self.setMinimumSize(20, 20)
         self.setMaximumSize(20, 20)
         self.setCheckable(True)
-        self.setEnabled(False) # indicator
+        self.setEnabled(True) # necessary to trigger context menu -> overwrite mousePressEvent instead of self.setEnabled(False)
 
         # Green
         self.on_color = QColor(0, 220, 0)
         self.off_color = QColor(0, 60, 0)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            super().mousePressEvent(event) # allow to open context menu
+        elif event.button() == Qt.MouseButton.LeftButton:
+            return # ignore left clicks as this is an indicator
 
     def resizeEvent(self, QResizeEvent): # pylint: disable = unused-argument, missing-function-docstring # matching standard signature
         self.update()
@@ -3479,7 +3490,8 @@ class LineEdit(QLineEdit):
         super().__init__(parent)
         self._edited = False
         # Regular expression to allow only letters (both upper and lower case), digits, and spaces + mathematical symbols and brackets for equations
-        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+\\/,~!@#$%&]*$'
+        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+,~!@#$%&]*$'
+        # NOTE: \\/ slashes may cause names to be interpreted as paths but are needed in equations -> not allowed, add / to valid_chars only for equations
         self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
         self.textEdited.connect(self.onTextEdited)
