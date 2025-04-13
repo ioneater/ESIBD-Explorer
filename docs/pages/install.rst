@@ -47,7 +47,8 @@ a shortcut to start.bat to the start menu.
 Portable installation (offline)
 -------------------------------
 
-To install on a computer that is offline (or other installation approaches fail), create and export the esibd environment from another computer that is online.
+To install on a computer that is offline (or if other installation approaches fail),
+create and export the esibd environment from another computer that is online and has the same operating system.
 All files you need to do this are in the `setup folder <https://github.com/ioneater/ESIBD-Explorer/tree/main/setup>`_.
 See comments within the files for more details.
 **You do not need to install conda or python** on the offline computer for this to work, all dependencies are already included.

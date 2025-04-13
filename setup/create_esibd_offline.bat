@@ -1,5 +1,5 @@
 REM This file can be used to bundle ESIBD-Explorer and all dependencies for use on a computer without internet connection
-REM After running this, proceed by installing miniconda on the offline computer and extract the content of esibd.tar.gz as a local environment (e.g. to \AppData\Local\miniconda3\envs\esibd or any other location)
+REM After running this, extract the content of esibd.tar.gz as a local environment (e.g. to \AppData\Local\miniconda3\envs\esibd or any other location)
 REM Then start the program using start_esibd_offline.bat
 
 call conda activate base

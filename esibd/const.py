@@ -361,7 +361,8 @@ def plotting(func):
     def wrapper(self, *args, **kwargs):
         if self.plotting:
             self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
-            self.measureInterval(reset=False) # do not reset but keep track of unresponsiveness
+            if hasattr(self, 'measureInterval'):
+                self.measureInterval(reset=False) # do not reset but keep track of unresponsiveness
             return
         self.plotting = True
         try:

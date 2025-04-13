@@ -168,64 +168,64 @@ Other
 
 Custom device
 ~~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.examples.CustomDevice.CustomDevice
+.. automodule:: esibd.examples.customDevice.customDevice.CustomDevice
    :noindex:
 
 .. _`sec:ISEG`:
 
 ISEG
 ~~~~
-.. automodule:: esibd.plugins_internal.ISEG.ISEG.Voltage
+.. automodule:: esibd.devices.iseg.iseg.ISEG
    :noindex:
 
 RBD
 ~~~
-.. automodule:: esibd.plugins_internal.RBD.RBD.RBD
+.. automodule:: esibd.devices.rbd.rbd.RBD
    :noindex:
 
 Pressure
 ~~~~~~~~
-.. automodule:: esibd.plugins_internal.Pressure.Pressure.Pressure
+.. automodule:: esibd.devices.pressure.pressure.Pressure
    :noindex:
 
 TIC
 ~~~
-.. automodule:: esibd.plugins_internal.TIC.TIC.TIC
+.. automodule:: esibd.devices.tic.tic.TIC
    :noindex:
 
 MAXIGAUGE
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
+.. automodule:: esibd.devices.maxigauge.maxigauge.MAXIGAUGE
    :noindex:
 
 Temperature
 ~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
+.. automodule:: esibd.devices.temperature.temperature.Temperature
    :noindex:
 
 KEITHLEY
 ~~~~~~~~
-.. automodule:: esibd.plugins_internal.KEITHLEY.KEITHLEY.KEITHLEY
+.. automodule:: esibd.devices.keithley.keithley.KEITHLEY
    :noindex:
 
 MIPS
 ~~~~
-.. automodule:: esibd.plugins_internal.MIPS.MIPS.MIPS
+.. automodule:: esibd.devices.mips.mips.MIPS
    :noindex:
 
 NI9263
 ~~~~~~
-.. automodule:: esibd.plugins_internal.NI9263.NI9263.NI9263
+.. automodule:: esibd.devices.ni9263.ni9263.NI9263
    :noindex:
 
 PICO
 ~~~~
-.. automodule:: esibd.plugins_internal.PICO.PICO.PICO
+.. automodule:: esibd.devices.pico.pico.PICO
    :noindex:
 
 RSPD3303C
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.RSPD3303C.RSPD3303C.RSPD3303C
+.. automodule:: esibd.devices.rspd3303c.rspd3303c.RSPD3303C
    :noindex:
 
 .. _`sec:channels`:
@@ -400,17 +400,17 @@ Other
 
 Genetic algorithm (GA)
 ~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.GA
+.. automodule:: esibd.scans.ga.ga.GA
    :noindex:
 
 Omni scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Omni
+.. automodule:: esibd.scans.omni.omni.Omni
    :noindex:
 
 Spectra scan
 ~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Spectra
+.. automodule:: esibd.scans.spectra.spectra.Spectra
    :noindex:
 
 The following scans are used for ESIBD experiments but may be very
@@ -421,23 +421,23 @@ more information.
 
 Beam scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Beam
+.. automodule:: esibd.scans.beam.beam.Beam
    :noindex:
 
 Energy scan
 ~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Energy
+.. automodule:: esibd.scans.energy.energy.Energy
    :noindex:
 
 Depo scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Depo
+.. automodule:: esibd.scans.depo.depo.Depo
    :noindex:
 
 Custom extensions
 -----------------
 
-.. automodule:: esibd.plugins_internal.examples.Custom.CustomControl
+.. automodule:: esibd.examples.customPlugin.customPlugin.CustomPlugin
    :noindex:
 
 .. _sec:displays:
@@ -494,25 +494,25 @@ Tree
 MS
 ~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.MS
+.. automodule:: esibd.displays.ms.ms.MS
    :noindex:
 
 Line
 ~~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.LINE
+.. automodule:: esibd.displays.line.line.LINE
    :noindex:
 
 PDB
 ~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.PDB
+.. automodule:: esibd.displays.pdb.pdb.PDB
    :noindex:
 
 Holo
 ~~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.HOLO
+.. automodule:: esibd.displays.holo.holo.HOLO
    :noindex:
 
 .. _`sec:live_displays`:

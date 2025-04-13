@@ -22,7 +22,7 @@ multiple :class:`plugins<esibd.plugins.Plugin>`.
 found in :ref:`sec:Settings` after restarting the software. It is
 recommended that your custom plugin classes inherit directly from
 :class:`~esibd.plugins.Plugin`, :class:`~esibd.plugins.Device`, :class:`~esibd.plugins.Scan`, or from one of the other built-in plugins.
-All built-in :class:`plugins<esibd.plugins.Plugin>` can be imported from :mod:`esibd.plugins` and the corresponding modules in the *plugins_internal* folder.
+All built-in :class:`plugins<esibd.plugins.Plugin>` can be imported from :mod:`esibd.plugins` and the corresponding modules in the devices, displays, scans, and examples folders.
 Many other helpful classes and methods can be imported from :mod:`esibd.core`.
 
 If you need to extend the internal plugins just give them another name and make sure to unselect the original one in the plugin manager dialog.

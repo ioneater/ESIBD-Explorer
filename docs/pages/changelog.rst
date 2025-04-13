@@ -30,6 +30,9 @@ Changed
 - generatePythonPlotCode method now only returns text. When running generated code from the context menu, other plots are no longer changed into popups.
 - Removed unused getInitializedChannels method.
 - Simplified instructions for offline installation. No conda or python installation needed on offline PC!
+- Restructured project structure to separate scans and displays. Using lower case convention for project folders and module files. Enabling simplified import statements,
+  e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.scans import Beam, from esibd.displays import PDB.
+- Introduced restore option for parameters and settings and used it to not restore values for lagging, errorCount, and interval measured.
 
 Version 0.7.3 2025-03-24
 ========================

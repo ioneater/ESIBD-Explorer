@@ -51,11 +51,11 @@ Homepage = "https://esibd-explorer.readthedocs.io/en/stable/index.html"
 Source = "https://github.com/ioneater/ESIBD-Explorer"
 
 [tool.setuptools]
-packages = ["esibd","esibd.media","esibd.plugins_internal","esibd.docs"]
+packages = ["esibd", "esibd.media", "esibd.devices", "esibd.displays", "esibd.examples", "esibd.scans", "esibd.docs"]
 # include-package-data = true
 # This is already the default behavior if you are using
 # pyproject.toml to configure your build.
 # You can deactivate that with `include-package-data = false`
 
 [tool.setuptools.package-data]
-esibd = ["plugins_internal/**", "media/**", "docs/**"]
+esibd = ["devices/**", "displays/**", "examples/**", "scans/**", "media/**", "docs/**"]

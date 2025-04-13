@@ -139,11 +139,11 @@ class Plugin(QWidget):
             self.pluginManager = pluginManager # provide access to other plugins through pluginManager
         self.display = None # may be added by child class
         self._loading = 0
+        self.errorCount = 0 # will be overwritten by setting for devices, but needs to be defined for other plugins
         self.labelAnnotation = None
         self.dock = None
         self.lock = TimeoutLock(_parent=self)
         self.fig = None
-        self.errorCount = 0
         self.axes = []
         self.canvas = None
         self.plotting = False
@@ -176,7 +176,6 @@ class Plugin(QWidget):
         """A flag that can be used to suppress certain events while loading data or initializing the user interface.
         Make sure the flag is reset after every use. Internal logic allows nested use."""
         return self._loading != 0
-
     @loading.setter
     def loading(self, loading):
         if loading:
@@ -772,7 +771,7 @@ class Plugin(QWidget):
         """
         iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
         if not iconPath.exists():
-            self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.WARNING)
+            self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.ERROR)
             return Icon(internalMediaPath / 'unicode_error.png')
         return Icon(iconPath, desaturate=desaturate)
 
@@ -2672,13 +2671,13 @@ class Device(ChannelManager):
 
     def getDefaultSettings(self):
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True,
+        defaultSettings[f'{self.name}/{self.INTERVAL} (measured)'] = parameterDict(value=0, internal=True, restore=False,
         toolTip=f'Measured plot interval for {self.name} in ms.\n'+
                 'If this deviates multiple times in a row, the number of display points will be reduced and eventually acquisition\n'+
                 'will be stopped to ensure the application remains responsive.\n'+
                 f'Go to advanced mode to see how many seconds {self.name} has been lagging.',
                                                                 widgetType=Parameter.TYPE.INT, indicator=True, _min=0, _max=10000, attr='interval_measured')
-        defaultSettings[f'{self.name}/Lagging'] = parameterDict(value=0, internal=True, indicator=True, advanced=True,
+        defaultSettings[f'{self.name}/Lagging'] = parameterDict(value=0, internal=True, indicator=True, advanced=True, restore=False,
         toolTip='Shows for how many seconds the device has not been able to achieve the desired interval.\n'+
                 'After 10 seconds the number of displayed data points will be reduced.\n'+
                 'After 60 seconds the communication will be stopped to keep the application responsive.',
@@ -2693,7 +2692,8 @@ class Device(ChannelManager):
         defaultSettings[f'{self.name}/Error count'] = parameterDict(value=0, toolTip='Communication errors within last 10 minutes.\n' +
                                                                    'Communication will be stopped if this reaches 10.\n' +
                                                                    'Will be reset after 10 minutes without errors or on initialization.',
-                                          widgetType=Parameter.TYPE.INT, attr='errorCount', indicator=True, event=lambda: self.errorCountChanged())
+                                          widgetType=Parameter.TYPE.INT, attr='errorCount', internal=True, indicator=True, advanced=True, restore=False,
+                                          event=lambda: self.errorCountChanged())
         return defaultSettings
 
     def setOn(self, on=None):
@@ -5070,6 +5070,7 @@ class SettingsManager(Plugin):
                     internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                     advanced=default[Parameter.ADVANCED] if Parameter.ADVANCED in default else False,
                     indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
+                    restore=default[Parameter.RESTORE] if Parameter.RESTORE in default else True,
                     instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
                     displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                     toolTip=default[Parameter.TOOLTIP],
@@ -5097,6 +5098,7 @@ class SettingsManager(Plugin):
                         internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                         advanced=default[Parameter.ADVANCED] if Parameter.ADVANCED in default else False,
                         indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
+                        restore=default[Parameter.RESTORE] if Parameter.RESTORE in default else True,
                         instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
                         displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                         toolTip=default[Parameter.TOOLTIP],
@@ -5155,7 +5157,7 @@ class SettingsManager(Plugin):
         """
         self.settings[item[Parameter.NAME]] = EsibdCore.Setting(_parent=self, name=item[Parameter.NAME], value=item[Parameter.VALUE], default=item[Parameter.DEFAULT],
                             items=item[Parameter.ITEMS], fixedItems=item[Parameter.FIXEDITEMS], _min=item[Parameter.MIN], _max=item[Parameter.MAX], internal=item[Parameter.INTERNAL],
-                            indicator=item[Parameter.INDICATOR], instantUpdate=item[Parameter.INSTANTUPDATE], displayDecimals=item[Parameter.DISPLAYDECIMALS], toolTip=item[Parameter.TOOLTIP],
+                            indicator=item[Parameter.INDICATOR], restore=item[Parameter.RESTORE], instantUpdate=item[Parameter.INSTANTUPDATE], displayDecimals=item[Parameter.DISPLAYDECIMALS], toolTip=item[Parameter.TOOLTIP],
                             tree=item[Parameter.TREE], widgetType=item[Parameter.WIDGETTYPE], widget=item[Parameter.WIDGET], event=item[Parameter.EVENT],
                             parentItem=self.requireParentItem(name=item[Parameter.NAME], parentItem=self.tree.invisibleRootItem()), advanced=item[Parameter.ADVANCED])
 

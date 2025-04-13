@@ -1,6 +1,6 @@
 """Defines which plugins are loaded and in what order.
 Only use to replace plugins specified below with extended versions.
-Define all other plugins in plugins_internal or a user plugin folder.
+Define all other plugins in devices, scans, examples, displays, or a user plugin folder.
 """
 
 from esibd.plugins import DeviceManager, Console, Browser, Explorer, Text, Tree, Notes, UCM, PID

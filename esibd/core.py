@@ -242,12 +242,12 @@ class PluginManager():
 
         import esibd.providePlugins # pylint: disable = import-outside-toplevel # avoid circular import
         self.loadPluginsFromModule(Module=esibd.providePlugins, dependencyPath=internalMediaPath)
-        self.loadPluginsFromPath(internalPluginPath)
+        self.loadPluginsFromPath(esibdPath / 'examples')
+        self.loadPluginsFromPath(esibdPath / 'devices')
+        self.loadPluginsFromPath(esibdPath / 'scans')
+        self.loadPluginsFromPath(esibdPath / 'displays')
         self.userPluginPath.mkdir(parents=True, exist_ok=True)
-        if self.userPluginPath == internalPluginPath:
-            self.logger.print('Ignoring user plugin path as it equals internal plugin path.', flag=PRINT.WARNING)
-        else:
-            self.loadPluginsFromPath(self.userPluginPath)
+        self.loadPluginsFromPath(self.userPluginPath)
 
         obsoletePluginNames = []
         for name in self.confParser.keys():
@@ -1050,7 +1050,7 @@ class DynamicNp():
         # if n is increased to get similar performance than the code above, the curves are flickering as the displayed points can change (roll) while new data comes in.
 
 def parameterDict(name=None, value=None, default=None, _min=None, _max=None, toolTip=None, items=None, fixedItems=False, tree=None, widgetType=None, advanced=False, header=None,
-                    widget=None, event=None, internal=False, attr=None, indicator=False, instantUpdate=True, displayDecimals=2):
+                    widget=None, event=None, internal=False, attr=None, indicator=False, restore=True, instantUpdate=True, displayDecimals=2):
     """Provides default values for all properties of a Parameter.
 
     :param name: The Parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path, defaults to None
@@ -1087,6 +1087,8 @@ def parameterDict(name=None, value=None, default=None, _min=None, _max=None, too
     :type attr: str, optional
     :param indicator: Indicators cannot be edited by the user, defaults to False
     :type indicator: bool, optional
+    :param restore: Indicates if the parameter will be restored, defaults to True. Not that temp parameters of channels will never be restored.
+    :type restore: bool, optional
     :param instantUpdate: By default, events are triggered as soon as the value changes. If set to False, certain events will only be triggered if editing is finished by the *enter* key or if the widget loses focus. Defaults to True
     :type instantUpdate: bool, optional
     :param displayDecimals: Number of decimal places to display if applicable, defaults to 2
@@ -1096,7 +1098,7 @@ def parameterDict(name=None, value=None, default=None, _min=None, _max=None, too
     """
     return {Parameter.NAME : name, Parameter.VALUE : value, Parameter.DEFAULT : default if default is not None else value, Parameter.MIN : _min, Parameter.MAX : _max, Parameter.ADVANCED : advanced,
             Parameter.HEADER : header, Parameter.TOOLTIP : toolTip, Parameter.ITEMS : items, Parameter.FIXEDITEMS : fixedItems, Parameter.TREE : tree, Parameter.WIDGETTYPE : widgetType,
-            Parameter.WIDGET : widget, Parameter.EVENT : event, Parameter.INTERNAL : internal, Parameter.ATTR : attr, Parameter.INDICATOR : indicator, Parameter.INSTANTUPDATE : instantUpdate,
+            Parameter.WIDGET : widget, Parameter.EVENT : event, Parameter.INTERNAL : internal, Parameter.ATTR : attr, Parameter.INDICATOR : indicator, Parameter.RESTORE : restore, Parameter.INSTANTUPDATE : instantUpdate,
             Parameter.DISPLAYDECIMALS : displayDecimals}
 
 class Parameter():
@@ -1122,6 +1124,7 @@ class Parameter():
     EVENT       = 'Event'
     INTERNAL    = 'Internal'
     INDICATOR   = 'Indicator'
+    RESTORE     = 'Restore'
     INSTANTUPDATE = 'InstantUpdate'
     WIDGETTYPE  = 'WIDGETTYPE'
     DISPLAYDECIMALS  = 'DISPLAYDECIMALS'
@@ -1154,50 +1157,50 @@ class Parameter():
         """A spinbox with scientific format."""
 
     name : str
-    """The Parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
+    """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
     value : Any
-    """The value of the Parameter in any supported type."""
+    """The value of the parameter in any supported type."""
     min : float
     """Minimum limit for numerical properties."""
     max : float
     """Maximum limit for numerical properties."""
     toolTip : str
-    """Tooltip used to describe the Parameter."""
+    """Tooltip used to describe the parameter."""
     items : List[str]
     """List of options for parameters with a combobox."""
     fixedItems : bool
     """Indicates if list of items can be edited by the user or should remain fixed."""
     widgetType : TYPE
-    """The widgetType determines which widget is used to represent the Parameter in the user interface."""
+    """The widgetType determines which widget is used to represent the parameter in the user interface."""
     advanced : bool
-    """If True, Parameter will only be visible in advanced mode."""
+    """If True, parameter will only be visible in advanced mode."""
     header : str
     """Header used for the corresponding column in list of Channels.
-    The Parameter name is used if not specified.
-    Only applies to Channel Parameters."""
+    The parameter name is used if not specified.
+    Only applies to channel parameters."""
     widget : QWidget
     """A custom widget that will be used instead of the automatically provided one."""
     event : callable
-    """A function that will be triggered when the Parameter value changes."""
+    """A function that will be triggered when the parameter value changes."""
     internal : bool
-    """Set to True to save Parameter value in the registry (using QSetting)
+    """Set to True to save parameter value in the registry (using QSetting)
     instead of configuration files. This can help to reduce clutter in
-    configuration files and restore essential Parameters even if
+    configuration files and restore essential parameters even if
     configuration files get moved or lost."""
     attr : str
-    """Allows direct access to the Parameter. Only applies to Channel and Settings Parameters.
+    """Allows direct access to the parameter. Only applies to channel and settings parameters.
 
-    E.g. The *color* Parameter of a Channel specifies *attr=’color’*
+    E.g. The *color* parameter of a channel specifies *attr=’color’*
     and can thus be accessed via *channel.color*.
 
-    E.g. The *Session path* Parameter in :class:`~esibd.plugins.Settings` specifies
+    E.g. The *Session path* parameter in :class:`~esibd.plugins.Settings` specifies
     *attr=’sessionPath’* and can thus be accessed via
     *Settings.sessionPath*.
 
-    E.g. The *interval* Parameter of a device specifies
+    E.g. The *interval* parameter of a device specifies
     *attr=’interval’* and can thus be accessed via *device.interval*.
 
-    E.g. The *notes* Parameter of a scan specifies *attr=’notes’* and
+    E.g. The *notes* parameter of a scan specifies *attr=’notes’* and
     can thus be accessed via *scan.notes*."""
     indicator : bool
     """Indicators cannot be edited by the user."""
@@ -1212,14 +1215,14 @@ class Parameter():
     fullName : str
     """Will contain path of Setting in HDF5 file if applicable."""
     tree : QTreeWidget
-    """None, unless the Parameter is used for settings."""
+    """None, unless the parameter is used for settings."""
     itemWidget : QTreeWidgetItem
-    """Widget used to display the value of the Parameter. None if Parameter is part of a Channel. Defined if it is part of a Setting."""
+    """Widget used to display the value of the parameter. None if parameter is part of a channel. Defined if it is part of a Setting."""
     extraEvents : List[callable]
     """Used to add internal events on top of the user assigned ones."""
 
     def __init__(self, name, _parent=None, default=None, widgetType=None, index=1, items=None, fixedItems=False, widget=None, internal=False,
-                    tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, instantUpdate=True, displayDecimals=2):
+                    tree=None, itemWidget=None, toolTip=None, event=None, _min=None, _max=None, indicator=False, restore=True, instantUpdate=True, displayDecimals=2):
         self._parent = _parent
         self.widgetType = widgetType if widgetType is not None else self.TYPE.LABEL
         self.index = index
@@ -1237,6 +1240,7 @@ class Parameter():
         self.event = event
         self.internal = internal
         self.indicator = indicator
+        self.restore = restore
         self.instantUpdate = instantUpdate
         self.displayDecimals = displayDecimals
         self.rowHeight = self._parent.rowHeight if hasattr(self._parent, 'rowHeight') else QLineEdit().sizeHint().height() - 4
@@ -1689,7 +1693,7 @@ class Setting(QTreeWidgetItem, Parameter):
         # use keyword arguments rather than positional to avoid issues with multiple inheritance
         # https://stackoverflow.com/questions/9575409/calling-parent-class-init-with-multiple-inheritance-whats-the-right-way
         super().__init__(**kwargs)
-        self.advanced = advanced # only display this Parameter in advanced mode
+        self.advanced = advanced # only display this Parameter in advanced mode, implementation differs from Parameter
         if self.tree is not None: # some settings may be attached to dedicated controls
             self.parentItem = parentItem
             self.parentItem.addChild(self) # has to be added to parent before widgets can be added!
@@ -1702,9 +1706,9 @@ class Setting(QTreeWidgetItem, Parameter):
                 if self._items is not None:
                     self._items = qSet.value(self.fullName+self.ITEMS).split(',') if qSet.value(self.fullName+self.ITEMS) is not None else self._items
                 self.applyWidget()
-            self.value = qSet.value(self.fullName, self.default) # trigger assignment to widget
+            self.value = qSet.value(self.fullName, self.default) if self.restore else self.default # trigger assignment to widget
         else:
-            self.value = value # use setter to distinguish data types based on other fields
+            self.value = value if self.restore else self.default # use setter to distinguish data types based on other fields
         self.loading = False
 
     def setWidget(self, widget):
@@ -2015,6 +2019,7 @@ class Channel(QTreeWidgetItem):
                                                     toolTip=default[Parameter.TOOLTIP] if Parameter.TOOLTIP in default else None,
                                                     internal=default[Parameter.INTERNAL] if Parameter.INTERNAL in default else False,
                                                     indicator=default[Parameter.INDICATOR] if Parameter.INDICATOR in default else False,
+                                                    restore=default[Parameter.RESTORE] if Parameter.RESTORE in default else True,
                                                     instantUpdate=default[Parameter.INSTANTUPDATE] if Parameter.INSTANTUPDATE in default else True,
                                                     displayDecimals=default[Parameter.DISPLAYDECIMALS] if Parameter.DISPLAYDECIMALS in default else 2,
                                                     itemWidget=self, index=i, tree=self.tree,
@@ -4142,7 +4147,7 @@ class TimeoutLock(object):
         try:
             yield result
         except Exception as e:
-            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR) # {e}
+            self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR)
             self._parent.errorCount += 1
         finally:
             if result and not lock_acquired:
