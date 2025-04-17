@@ -2515,10 +2515,12 @@ class Channel(QTreeWidgetItem):
     def updateMin(self):
         """Applies new minimum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
+        self.device.pluginManager.reconnectSource(self) # update limits in relay channels
 
     def updateMax(self):
         """Applies new maximum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMaximum(self.max)
+        self.device.pluginManager.reconnectSource(self) # update limits in relay channels
 
     def onDelete(self):
         """Extend to handle events on deleting. E.g. handle references that should remain available."""

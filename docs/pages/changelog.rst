@@ -16,6 +16,7 @@ Fixed
 ~~~~~
 
 - Fixed error when canceling loading a file from DeviceManager.
+- Changing channel limits will now also update referencing channels (e.g. in UCM or PID).
 
 Changed
 ~~~~~~~
