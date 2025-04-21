@@ -10,9 +10,11 @@ from esibd.core import (Parameter, INOUT, parameterDict, DynamicNp, PRINT, plott
     pyqtSignal, MetaChannel, dynamicImport)
 from esibd.plugins import Scan
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [GA]
+
 
 class GA(Scan):
     """This plugin allows to integrate an independently developed genetic
@@ -47,19 +49,19 @@ class GA(Scan):
     class Display(Scan.Display):
         """Display for GA scan."""
 
-        def initFig(self):
+        def initFig(self) -> None:
             super().initFig()
             self.axes.append(self.fig.add_subplot(111))
-            self.bestLine = self.axes[0].plot([[datetime.now()]],[0], label='best fitness')[0] # need to be initialized with datetime on x axis
-            self.avgLine  = self.axes[0].plot([[datetime.now()]],[0], label='avg fitness')[0]
+            self.bestLine = self.axes[0].plot([[datetime.now()]], [0], label='best fitness')[0]  # need to be initialized with datetime on x axis
+            self.avgLine  = self.axes[0].plot([[datetime.now()]], [0], label='avg fitness')[0]
             legend = self.axes[0].legend(loc='lower right', prop={'size': 10}, frameon=False)
             legend.set_in_layout(False)
             self.axes[0].set_xlabel(self.TIME)
             self.axes[0].set_ylabel('Fitness Value')
-            # self.axes[0].margins(y=.1) # not yet supported for individual sides https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
+            # self.axes[0].margins(y=.1)  # not yet supported for individual sides https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
             self.tilt_xlabels(self.axes[0])
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.ga = dynamicImport('ga_standalone', self.dependencyPath / 'ga_standalone.py').GA()
         self.gaSignalComm = self.GASignalCommunicate()
@@ -67,27 +69,28 @@ class GA(Scan):
         self.changeLog = []
         self.gaChannel = None
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         super().initGUI()
         self.recordingAction.setToolTip('Toggle optimization.')
         self.initialAction = self.addStateAction(event=lambda: self.toggleInitial(), toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
                                                  toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
-    def runTestParallel(self):
+
+    def runTestParallel(self) -> None:
         self.testControl(self.initialAction, self.initialAction.state)
         super().runTestParallel()
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
         defaultSettings.pop(self.WAITLONG)
         defaultSettings.pop(self.LARGESTEP)
         defaultSettings.pop(self.SCANTIME)
-        defaultSettings['GA Channel'] = defaultSettings.pop(self.DISPLAY) # keep display for using displayChannel functionality but modify properties as needed
+        defaultSettings['GA Channel'] = defaultSettings.pop(self.DISPLAY)  # keep display for using displayChannel functionality but modify properties as needed
         defaultSettings['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
         defaultSettings['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
         defaultSettings['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', widgetType=Parameter.TYPE.BOOL, attr='log')
         return defaultSettings
 
-    def toggleInitial(self):
+    def toggleInitial(self) -> None:
         """Toggles between initial and optimized values."""
         if len(self.outputs) > 0:
             self.gaSignalComm.updateValuesSignal.emit(0, self.initialAction.state)
@@ -95,12 +98,12 @@ class GA(Scan):
             self.initialAction.state = False
             self.print('GA not initialized.')
 
-    def initScan(self):
+    def initScan(self) -> None:
         """ Start optimization."""
         # overwrite parent
         self.initializing = True
         self.gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
-        self.ga.init() # don't mix up with init method from Scan
+        self.ga.init()  # don't mix up with init method from Scan
         self.ga.maximize(True)
         # self.restore(True)
         if self.gaChannel is None:
@@ -117,12 +120,12 @@ class GA(Scan):
         self.initializing = False
         for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
             if channel.optimize:
-                self.ga.optimize(channel.value, channel.min, channel.max,.2, abs(channel.max-channel.min)/10, channel.name)
+                self.ga.optimize(channel.value, channel.min, channel.max, .2, abs(channel.max - channel.min) / 10, channel.name)
             else:
                 # add entry but set rate to 0 to prevent value change. Can be activated later.
-                self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max-channel.min)/10, channel.name)
+                self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
         self.ga.genesis()
-        self.measurementsPerStep = max(int((self.average/self.outputs[0].getDevice().interval))-1, 1)
+        self.measurementsPerStep = max(int((self.average / self.outputs[0].getDevice().interval)) - 1, 1)
         self.updateFile()
         self.ga.file_path(self.file.parent.as_posix())
         self.ga.file_name(self.file.name)
@@ -142,7 +145,7 @@ class GA(Scan):
         self.toggleAdvanced()
 
     @plotting
-    def plot(self, update=False, **kwargs): # pylint:disable=unused-argument, missing-param-doc
+    def plot(self, update=False, **kwargs):  # pylint:disable=unused-argument, missing-param-doc
         """Plots fitness data.
 
         :param update: Indicates if this is just an incremental update or the final plot (e.g. when loading data from file), defaults to False
@@ -152,12 +155,12 @@ class GA(Scan):
         if self.loading:
             return
         if len(self.outputs) > 0:
-            _time = [datetime.fromtimestamp(float(_time)) for _time in self.getData(0, INOUT.IN)] # convert timestamp to datetime
+            _time = [datetime.fromtimestamp(float(_time)) for _time in self.getData(0, INOUT.IN)]  # convert timestamp to datetime
             self.display.bestLine.set_data(_time, self.getData(0, INOUT.OUT))
             self.display.avgLine.set_data(_time, self.getData(1, INOUT.OUT))
-        else: # no data
-            self.display.bestLine.set_data([],[])
-            self.display.avgLine.set_data([],[])
+        else:  # no data
+            self.display.bestLine.set_data([], [])
+            self.display.avgLine.set_data([], [])
         self.display.axes[0].autoscale(True, axis='x')
         self.display.axes[0].relim()
         self.display.axes[0].autoscale_view(True, True, False)
@@ -166,7 +169,7 @@ class GA(Scan):
         self.updateToolBar(update=update)
         self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self):
+    def pythonPlotCode(self) -> None:
         return """# add your custom plot code here
 from datetime import datetime
 
@@ -184,7 +187,7 @@ ax0.legend(loc='lower right', prop={'size': 10}, frameon=False)
 fig.show()
         """
 
-    def run(self, recording):
+    def run(self, recording) -> None:
         #first datapoint before optimization
         self.inputs[0].recordingData.add(time.time())
         fitnessStart = np.mean(self.outputs[0].getValues(subtractBackground=self.outputs[0].subtractBackgroundActive(), length=self.measurementsPerStep))
@@ -192,10 +195,10 @@ fig.show()
         self.outputs[1].recordingData.add(fitnessStart)
         while recording():
             self.gaSignalComm.updateValuesSignal.emit(-1, False)
-            time.sleep((self.wait+self.average)/1000)
+            time.sleep((self.wait + self.average) / 1000)
             self.ga.fitness(np.mean(self.outputs[0].getValues(subtractBackground=self.outputs[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
-                self.print(self.ga.step_string().replace('GA: ',''))
+                self.print(self.ga.step_string().replace('GA: ', ''))
             _, session_saved = self.ga.check_restart()
             if session_saved:
                 self.print(f'Session Saved -- Average Fitness: {self.ga.average_fitness():6.2f} Best Fitness: {self.ga.best_fitness():6.2f}')
@@ -204,7 +207,7 @@ fig.show()
                 self.outputs[0].recordingData.add(self.ga.best_fitness())
                 self.outputs[1].recordingData.add(self.ga.average_fitness())
                 self.signalComm.scanUpdateSignal.emit(False)
-        self.ga.check_restart(True) # sort population
+        self.ga.check_restart(True)  # sort population
         self.gaSignalComm.updateValuesSignal.emit(0, False)
         self.signalComm.scanUpdateSignal.emit(True)
 
@@ -217,7 +220,7 @@ fig.show()
         :type initial: bool, optional
         """
         # only call in main thread as updates GUI
-        self.pluginManager.loading = True # only update after setting all voltages
+        self.pluginManager.loading = True  # only update after setting all voltages
         for channel in [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if channel.optimize]:
             channel.value = self.ga.GAget(channel.name, channel.value, index=index, initial=initial)
         self.pluginManager.loading = False

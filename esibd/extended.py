@@ -14,7 +14,7 @@ class ESIBDSettings(Settings):
     ION                 = 'Ion'
     SESSIONTYPE         = 'Session type'
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
                                                                 items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', widgetType=Parameter.TYPE.COMBO,

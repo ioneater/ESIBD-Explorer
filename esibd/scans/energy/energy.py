@@ -10,9 +10,11 @@ from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, PRINT, p
     MetaChannel, colors)
 from esibd.plugins import Scan
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Energy]
+
 
 class Energy(Scan):
     """Scan that records the current on one electrode, typically a detector plate, as a
@@ -29,42 +31,42 @@ class Energy(Scan):
     class Display(Scan.Display):
         """Display for Energy scan."""
 
-        def initGUI(self):
-            """Initialize GUI"""
+        def initGUI(self) -> None:
+            """Initialize GUI."""
             super().initGUI()
             self.mouseActive = True
 
-        def initFig(self):
+        def initFig(self) -> None:
             super().initFig()
             self.axes.append(self.fig.add_subplot(111))
-            self.axes.append(self.axes[0].twinx()) # creating twin axis
+            self.axes.append(self.axes[0].twinx())  # creating twin axis
             self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
             self.canvas.mpl_connect('button_press_event', self.mouseEvent)
             self.canvas.mpl_connect('button_release_event', self.mouseEvent)
             self.axes[0].yaxis.label.set_color(self.scan.MYBLUE)
             self.axes[0].tick_params(axis='y', colors=self.scan.MYBLUE)
             self.axes[1].set_ylabel('-dI/dV (%)')
-            self.axes[1].set_ylim([0, 115]) # keep top 15 % for label
+            self.axes[1].set_ylim([0, 115])  # keep top 15 % for label
             self.axes[1].yaxis.label.set_color(self.scan.MYRED)
             self.axes[1].tick_params(axis='y', colors=self.scan.MYRED)
-            self.seRaw  = self.axes[0].plot([],[], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0] # dummy plot
-            self.seGrad = self.axes[1].plot([],[], marker='.', linestyle='None', color=self.scan.MYRED)[0] # dummy plot
-            self.seFit  = self.axes[1].plot([],[], color=self.scan.MYRED)[0] # dummy plot
+            self.seRaw  = self.axes[0].plot([], [], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0]  # dummy plot
+            self.seGrad = self.axes[1].plot([], [], marker='.', linestyle='None', color=self.scan.MYRED)[0]  # dummy plot
+            self.seFit  = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
             self.axes[-1].cursor = None
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('.swp.dat')
         self.previewFileTypes.append('.swp.h5')
 
-    def loadDataInternal(self):
+    def loadDataInternal(self) -> None:
         """Loads data in internal standard format for plotting."""
-        if self.file.name.endswith('.swp.dat'): # legacy ESIBD Control file
+        if self.file.name.endswith('.swp.dat'):  # legacy ESIBD Control file
             headers = []
             with open(self.file, 'r', encoding=self.UTF8) as dataFile:
                 dataFile.readline()
-                headers = dataFile.readline().split(',')[1:][::2] # read names from second line
+                headers = dataFile.readline().split(',')[1:][::2]  # read names from second line
             try:
                 data = np.loadtxt(self.file, skiprows=4, delimiter=',', unpack=True)
             except ValueError as e:
@@ -74,11 +76,11 @@ class Energy(Scan):
                 self.print(f'No data found in file {self.file.name}.', PRINT.ERROR)
                 return
             self.inputs.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
-            for name, dat in zip(headers, data[1:][::2]):
+            for name, dat in zip(headers, data[1:][::2], strict=True):
                 self.addOutputChannel(name=name.strip(), unit='pA', recordingData=dat)
         elif self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
-                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3' # legacy version 0.3, 0.4 if False
+                is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 self.inputs.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'], recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
@@ -87,7 +89,7 @@ class Energy(Scan):
         else:
             super().loadDataInternal()
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
@@ -97,10 +99,10 @@ class Energy(Scan):
         defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         return defaultSettings
 
-    def initScan(self):
+    def initScan(self) -> None:
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
-    def map_percent(self, x):
+    def map_percent(self, x) -> np.array:
         """Maps any range on range 0 to 100.
 
         :param x: Input values.
@@ -110,16 +112,16 @@ class Energy(Scan):
         """
         # can't map if largest deviation from minimum is 0, i.e. all zero
         # has to return a sequence as matplotlib now expects sequences for set_x(y)data
-        return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x)) > 0 else [0]
+        return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else [0]
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs):  # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
         if len(self.outputs) > 0:
-            y = np.diff(self.outputs[self.getOutputIndex()].getRecordingData())/np.diff(self.inputs[0].getRecordingData())
-            x = self.inputs[0].getRecordingData()[:y.shape[0]]+np.diff(self.inputs[0].getRecordingData())[0]/2 # use as many data points as needed
-            if update: # only update data
+            y = np.diff(self.outputs[self.getOutputIndex()].getRecordingData()) / np.diff(self.inputs[0].getRecordingData())
+            x = self.inputs[0].getRecordingData()[:y.shape[0]] + np.diff(self.inputs[0].getRecordingData())[0] / 2  # use as many data points as needed
+            if update:  # only update data
                 self.display.seRaw.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
                 self.display.seGrad.set_data(x, self.map_percent(-y))
             else:
@@ -129,30 +131,30 @@ class Energy(Scan):
                     self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} {self.outputs[self.getOutputIndex()].unit}')
                     self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
                     self.display.seRaw.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
-                    self.display.seFit.set_data([],[]) # init
+                    self.display.seFit.set_data([], [])  # init
                     self.display.seGrad.set_data(x, self.map_percent(-y))
                     for ann in [child for child in self.display.axes[1].get_children() if isinstance(child, mpl.text.Annotation)]:
                         ann.remove()
                     if done:
                         try:
-                            x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x)) # use center as starting guess
+                            x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x))  # use center as starting guess
                             if self.inputs[0].getRecordingData()[0] <= expected_value <= self.inputs[0].getRecordingData()[-1]:
                                 self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
-                                self.display.axes[1].annotate(text='', xy=(expected_value-fwhm/2.3, 50), xycoords='data', xytext=(expected_value+fwhm/2.3, 50), textcoords='data',
+                                self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data', xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
                         	        arrowprops=dict(arrowstyle="<->", color=self.MYRED), va='center')
-                                self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(expected_value-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
+                                self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
-                                #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm]) # can screw up x range if fit fails
+                                #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm])  # can screw up x range if fit fails
                             else:
                                 self.print('Fitted mean outside data range. Ignore fit.', PRINT.ERROR)
                         except (RuntimeError, ValueError) as e:
                             self.print(f'Fit failed with error: {e}')
-                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False) # has to be initialized last, otherwise axis limits may be affected
-                else: # no data
-                    self.display.seRaw.set_data([],[])
-                    self.display.seFit.set_data([],[])
-                    self.display.seGrad.set_data([],[])
-            self.display.axes[0].relim() # adjust to data
+                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False)  # has to be initialized last, otherwise axis limits may be affected
+                else:  # no data
+                    self.display.seRaw.set_data([], [])
+                    self.display.seFit.set_data([], [])
+                    self.display.seGrad.set_data([], [])
+            self.display.axes[0].relim()  # adjust to data
             self.setLabelMargin(self.display.axes[0], 0.15)
         if len(self.outputs) > 0 and self.inputs[0].sourceChannel is not None:
             self.display.axes[-1].cursor.setPosition(self.inputs[0].value, 0)
@@ -162,7 +164,7 @@ class Energy(Scan):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self):
+    def pythonPlotCode(self) -> None:
         return """# add your custom plot code here
 
 MYBLUE='#1f77b4'
@@ -211,7 +213,7 @@ def gauss_fit(x, y, c):
     amp1 = 100
     sigma1 = 2
     gauss, *_ = optimize.curve_fit(gaussian, x, y, p0=[amp1, c, sigma1])
-    fwhm = round(2.355 * gauss[2], 1) # Calculate FWHM
+    fwhm = round(2.355 * gauss[2], 1)  # Calculate FWHM
     x_fine=np.arange(np.min(x), np.max(x), 0.05)
     return x_fine,-gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
 
@@ -250,7 +252,7 @@ except RuntimeError as e:
 fig.show()
         """
 
-    def gaussian(self, x, amp1, cen1, sigma1):
+    def gaussian(self, x, amp1, cen1, sigma1) -> np.array:
         """Simple gaussian function.
 
         :param x: X values.
@@ -264,7 +266,7 @@ fig.show()
         :return: Calculated Y values.
         :rtype: np.array
         """
-        return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
+        return amp1 * (1 / (sigma1 * (np.sqrt(2 * np.pi)))) * (np.exp(-((x - cen1)**2) / (2 * (sigma1)**2)))
 
     def gauss_fit(self, x, y, c):
         """Simple gaussian fit.
@@ -282,6 +284,6 @@ fig.show()
         amp1 = 100
         sigma1 = 2
         gauss, *_ = optimize.curve_fit(self.gaussian, x, y, p0=[amp1, c, sigma1])
-        fwhm = round(2.355 * gauss[2], 1) # Calculate FWHM
+        fwhm = round(2.355 * gauss[2], 1)  # Calculate FWHM
         x_fine=np.arange(np.min(x), np.max(x), 0.05)
-        return x_fine,-self.gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
+        return x_fine, -self.gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm

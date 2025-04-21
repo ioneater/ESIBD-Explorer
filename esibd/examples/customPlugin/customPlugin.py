@@ -1,13 +1,15 @@
-# pylint: disable=[missing-module-docstring] # see class docstrings
+# pylint: disable=[missing-module-docstring]  # see class docstrings
 
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QDialog, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [CustomPlugin]
+
 
 class CustomPlugin(Plugin):
     """The minimal code in "examples/Custom.py" demonstrates how to integrate your own
@@ -29,8 +31,8 @@ class CustomPlugin(Plugin):
         super().__init__(**kwargs)
         # TODO initialize any custom variables
 
-    def initGUI(self):
-        """Initialize your custom user interface"""
+    def initGUI(self) -> None:
+        """Initialize your custom user interface."""
         super().initGUI()
         lay = QGridLayout()
         self.btn = QPushButton()
@@ -40,8 +42,8 @@ class CustomPlugin(Plugin):
         self.btn.clicked.connect(self.onClick)
         self.addContentLayout(lay)
 
-    def onClick(self):
-        """Execute your custom code"""
+    def onClick(self) -> None:
+        """Execute your custom code."""
         dlg = QDialog(self, Qt.WindowType.WindowStaysOnTopHint)
         dlg.setWindowTitle('Custom Dialog')
         lbl = QLabel('This could run your custom code.')

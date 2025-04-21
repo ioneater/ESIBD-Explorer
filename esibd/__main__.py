@@ -4,18 +4,18 @@ import os
 import ctypes
 import warnings
 import matplotlib as mpl
-import matplotlib.backends.backend_pdf # pylint: disable = unused-import # required to assure backend is included
+import matplotlib.backends.backend_pdf  # pylint: disable = unused-import  # required to assure backend is included
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QSharedMemory
 from esibd.core import EsibdExplorer, MouseInterceptor, PROGRAM_NAME, PROGRAM_VERSION, colors
 
 mpl.use('Qt5Agg')
-mpl.rcParams['savefig.format']  = 'pdf' # make pdf default export format
-mpl.rcParams['savefig.bbox']  = 'tight' # trim white space by default (also when saving from toolBar)
+mpl.rcParams['savefig.format']  = 'pdf'  # make pdf default export format
+mpl.rcParams['savefig.bbox']  = 'tight'  # trim white space by default (also when saving from toolBar)
 mpl.rcParams['savefig.facecolor']  = colors.fg_light
-mpl.rcParams['figure.max_open_warning']  = 50 # not uncommon to exceed the default of 20 when using multiple plugins
-warnings.filterwarnings("ignore" , message='constrained_layout') # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
+mpl.rcParams['figure.max_open_warning']  = 50  # not uncommon to exceed the default of 20 when using multiple plugins
+warnings.filterwarnings("ignore" , message='constrained_layout')  # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
 # open bug with clearing shared log axis https://github.com/matplotlib/matplotlib/issues/9970 requires to ignore log-scaled messages
 warnings.filterwarnings("ignore", message="Attempted to set non-positive left xlim on a log-scaled axis.\nInvalid limit will be ignored.")
 warnings.filterwarnings("ignore", message="Attempt to set non-positive ylim on a log-scaled axis will be ignored.")
@@ -34,7 +34,7 @@ def main():
     appStr = f'{PROGRAM_NAME} {PROGRAM_VERSION}'
     if sys.platform == 'win32':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appStr)
-    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL) # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL)  # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
     shared = QSharedMemory(appStr)
     if not shared.create(512, QSharedMemory.AccessMode.ReadWrite):
         print(f"Can't start more than one instance of {appStr}.")

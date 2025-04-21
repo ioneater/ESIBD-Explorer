@@ -9,7 +9,7 @@
 import sys
 from pathlib import Path
 
-print(f'Running using {sys.executable}') # validate that we are running in correct environment
+print(f'Running using {sys.executable}')  # validate that we are running in correct environment
 
 docs_path = Path(__file__)
 package_path = docs_path.parents[1].as_posix()
@@ -17,7 +17,7 @@ package_path = docs_path.parents[1].as_posix()
 sys.path.insert(0, package_path)
 # print(sys.path)
 
-sphinx = True # used for conditional doc strings (direct HTML vs. rst)
+sphinx = True  # used for conditional doc strings (direct HTML vs. rst)
 
 project = 'ESIBD Explorer'
 project_copyright = '2025, Tim Esser'

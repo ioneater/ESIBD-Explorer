@@ -7,7 +7,7 @@ from esibd.core import (Parameter, INOUT, parameterDict, plotting,
     MetaChannel, MZCalculator)
 from esibd.plugins import Scan
 
-def providePlugins():
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MassSpec]
 
@@ -27,24 +27,24 @@ class MassSpec(Scan):
     class Display(Scan.Display):
         """Display for MassSpec scan."""
 
-        def initGUI(self):
+        def initGUI(self) -> None:
             self.mzCalc = MZCalculator(parentPlugin=self)
             super().initGUI()
             self.addAction(lambda: self.copyLineDataClipboard(line=self.ms), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
-        def initFig(self):
+        def initFig(self) -> None:
             super().initFig()
             self.axes.append(self.fig.add_subplot(111))
-            self.ms  = self.axes[0].plot([], [])[0] # dummy plot
+            self.ms  = self.axes[0].plot([], [])[0]  # dummy plot
             self.mzCalc.setAxis(self.axes[0])
             self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('ms scan.h5')
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.DISPLAY][Parameter.VALUE] = 'Detector'
         defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
@@ -56,19 +56,19 @@ class MassSpec(Scan):
         defaultSettings[self.STEP]    = parameterDict(value=1  , widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
         return defaultSettings
 
-    def initScan(self):
+    def initScan(self) -> None:
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
     @plotting
-    def plot(self, update=False, done=False, **kwargs): # pylint:disable=unused-argument
+    def plot(self, update=False, done=False, **kwargs):  # pylint:disable=unused-argument
         if len(self.outputs) > 0:
             self.display.ms.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
             if not update:
                 self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} ({self.outputs[self.getOutputIndex()].unit})')
                 self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
-        else: # no data
+        else:  # no data
             self.display.ms.set_data([],[])
-        self.display.axes[0].relim() # adjust to data
+        self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         self.display.mzCalc.update_mass_to_charge()
@@ -77,7 +77,7 @@ class MassSpec(Scan):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self):
+    def pythonPlotCode(self) -> None:
         return """# add your custom plot code here
 
 fig = plt.figure(constrained_layout=True)
@@ -90,11 +90,11 @@ ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
 fig.show()
 """
 
-    def loadData(self, file, _show=True):
+    def loadData(self, file, _show=True) -> None:
         super().loadData(file, _show)
         self.display.mzCalc.clear()
 
-    def loadDataInternal(self):
+    def loadDataInternal(self) -> None:
         """Loads data in internal standard format for plotting."""
         if self.file.name.endswith('ms scan.h5'):  # legacy file before removing space in plugin name
             with h5py.File(self.file, 'r') as h5file:

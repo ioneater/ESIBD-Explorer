@@ -1,9 +1,9 @@
 # keep separate from pyproject.toml -> clear separation, easier to share
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    ".pyinstaller_hooks", # added
-    ".pyinstaller_dist", # added
-    ".pyinstaller_build", # added
+    ".pyinstaller_hooks",  # added
+    ".pyinstaller_dist",  # added
+    ".pyinstaller_build",  # added
     ".bzr",
     ".direnv",
     ".eggs",
@@ -35,20 +35,24 @@ exclude = [
 include = ["esibd/**/*.py", "../ESIBD_Explorer_user/plugins/**/*.py"]
 
 # Same as Black.
-line-length = 140 # increased
+line-length = 140  # increased
 indent-width = 4
 
 # Assume Python 3.12
 target-version = "py312"
 
 [lint]
+preview = true
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-select = ["E4", "E7", "E9", "F", "D417"]
-# "D101", "D103" , "D102", # does not ignore child methods and classes where the parent method has a docstring -> only enable temporarily, ignore where irrelevant
+#"ANN001", "ANN201",
+select = ["B905", "D400", "E4", "E7", "E9", "E203", "E226", "E231", "E251", "E252", "E261", "E262", "E275", "E301", "E302", "F", "D417", "PTH201"]
+# select = ["ALL"]  # temporary use this to explore more rules and pick which ones to keep above
+# "D101", "D103" , "D102",  # does not ignore child methods and classes where the parent method has a docstring -> only enable temporarily, ignore where irrelevant
 # "D417"]
-ignore = ["F405"]
+ignore = ["E221", "F405", "N802", "N803", "N806", "N815", "Q000"]
+# Ignore `D` rules everywhere except for the `src/` directory.
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -56,6 +60,9 @@ unfixable = []
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+"!esibd/{config.py,const.py,core.py,plugins.py}" = ["ANN001"]  # ignore everywhere but here -> avoids false positives if parent method has types annotated
 
 [format]
 # Like Black, use double quotes for strings.

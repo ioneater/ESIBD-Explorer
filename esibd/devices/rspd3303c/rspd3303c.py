@@ -1,4 +1,4 @@
-# pylint: disable=[missing-module-docstring] # see class docstrings
+# pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
 from random import choices
 import numpy as np
@@ -7,9 +7,11 @@ from PyQt6.QtCore import QTimer
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [RSPD3303C]
+
 
 class RSPD3303C(Device):
     """Contains a list of voltages channels from a single RSPD3303C power supplies with 2 analog outputs.
@@ -23,35 +25,35 @@ class RSPD3303C(Device):
     useMonitors = True
     iconFile = 'RSPD3303C.png'
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = VoltageChannel
         self.shutDownTimer = QTimer(self)
         self.shutDownTimer.timeout.connect(self.updateTimer)
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         super().initGUI()
-        self.controller = VoltageController(_parent=self) # after all channels loaded
+        self.controller = VoltageController(_parent=self)  # after all channels loaded
 
-    def finalizeInit(self, aboutFunc=None):
+    def finalizeInit(self, aboutFunc=None) -> None:
         self.shutDownTime = 0
         super().finalizeInit(aboutFunc)
 
     ADDRESS = 'Address'
     SHUTDOWNTIMER = 'Shutdown timer'
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
-        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000  # overwrite default value
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
         defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, attr='shutDownTime', instantUpdate=False,
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
                                                                      event=lambda: self.initTimer(), internal=True)
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, attr='address')
         return defaultSettings
 
-    def initTimer(self):
+    def initTimer(self) -> None:
         """Initialized the shutdown timer."""
         if self.shutDownTime != 0:
             if (self.shutDownTime < 10 or
@@ -61,7 +63,7 @@ class RSPD3303C(Device):
                 self.print(f'Will turn off in {self.shutDownTime} minutes.')
             self.shutDownTimer.start(60000)  # 1 min steps steps
 
-    def updateTimer(self):
+    def updateTimer(self) -> None:
         """Updates the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.shutDownTime = max(0, self.shutDownTime - 1)
         if self.shutDownTime == 1:
@@ -75,71 +77,73 @@ class RSPD3303C(Device):
             self.shutDownTimer.stop()
             self.setOn(on=False)
 
+
 class VoltageChannel(Channel):
 
     CURRENT   = 'Current'
     POWER     = 'Power'
     ID        = 'ID'
 
-    def getDefaultChannel(self):
+    def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
+        channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MIN ][Parameter.VALUE] = 0
-        channel[self.MAX ][Parameter.VALUE] = 1 # start with safe limits
+        channel[self.MAX ][Parameter.VALUE] = 1  # start with safe limits
         channel[self.POWER ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                                                indicator=True, attr='power')
         channel[self.CURRENT ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=True,
                                                                indicator=True, attr='current')
-        channel[self.ID      ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
+        channel[self.ID      ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='ID', _min=0, _max=99, attr='id')
         return channel
 
-    def setDisplayedParameters(self):
+    def setDisplayedParameters(self) -> None:
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.CURRENT, before=self.MIN)
         self.insertDisplayedParameter(self.POWER, before=self.MIN)
         self.displayedParameters.append(self.ID)
 
-    def tempParameters(self):
+    def tempParameters(self) -> None:
         return super().tempParameters() + [self.POWER, self.CURRENT]
 
-    def monitorChanged(self):
+    def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
                                                                     or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
 
-    def realChanged(self):
+    def realChanged(self) -> None:
         self.getParameterByName(self.POWER).getWidget().setVisible(self.real)
         self.getParameterByName(self.CURRENT).getWidget().setVisible(self.real)
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
         super().realChanged()
+
 
 class VoltageController(DeviceController):
 
     def __init__(self, _parent):
         super().__init__(_parent=_parent)
 
-    def runInitialization(self):
+    def runInitialization(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
             # name = rm.list_resources()
             self.port = rm.open_resource(self.device.address, open_timeout=500)
             self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
             self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        self.currents   = [np.nan]*len(self.device.getChannels())
-        self.values = [np.nan]*len(self.device.getChannels())
-        return super().initComplete()
+    def initComplete(self) -> None:
+        self.currents   = [np.nan] * len(self.device.getChannels())
+        self.values = [np.nan] * len(self.device.getChannels())
+        super().initComplete()
 
-    def applyValue(self, channel):
+    def applyValue(self, channel) -> None:
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
-    def updateValues(self):
+    def updateValues(self) -> None:
         # Overwriting to also update custom current and power parameters.
         if getTestMode():
             self.fakeNumbers()
@@ -148,24 +152,24 @@ class VoltageController(DeviceController):
                 if channel.enabled and channel.real:
                     channel.monitor = self.values[i]
                     channel.current = self.currents[i]
-                    channel.power = channel.monitor*channel.current
+                    channel.power = channel.monitor * channel.current
 
-    def toggleOn(self):
+    def toggleOn(self) -> None:
         for channel in self.device.getChannels():
             self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
 
-    def fakeNumbers(self):
+    def fakeNumbers(self) -> None:
         for channel in self.device.getChannels():
             if channel.enabled and channel.real:
                 if self.device.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    channel.monitor = channel.value + 5*choices([0, 1],[.98,.02])[0] + np.random.rand()
+                    channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + np.random.rand()
                 else:
-                    channel.monitor = 0             + 5*choices([0, 1],[.9,.1])[0] + np.random.rand()
-                channel.current = 50/channel.monitor if channel.monitor != 0 else 0 # simulate 50 W
-                channel.power = channel.monitor*channel.current
+                    channel.monitor = 0             + 5 * choices([0, 1], [.9, .1])[0] + np.random.rand()
+                channel.current = 50 / channel.monitor if channel.monitor != 0 else 0  # simulate 50 W
+                channel.power = channel.monitor * channel.current
 
-    def runAcquisition(self, acquiring):
+    def runAcquisition(self, acquiring: callable) -> None:
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
@@ -173,10 +177,10 @@ class VoltageController(DeviceController):
                         for i, channel in enumerate(self.device.getChannels()):
                             self.values[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', lock_acquired=lock_acquired)
                             self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', lock_acquired=lock_acquired)
-                    self.signalComm.updateValuesSignal.emit() # signal main thread to update GUI
-            time.sleep(self.device.interval/1000)
+                    self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
+            time.sleep(self.device.interval / 1000)
 
-    def RSWrite(self, message):
+    def RSWrite(self, message) -> None:
         """RS specific pyvisa write.
 
         :param message: The message to be send.
@@ -186,7 +190,7 @@ class VoltageController(DeviceController):
             if lock_acquired:
                 self.port.write(message)
 
-    def RSQuery(self, message, lock_acquired=False):
+    def RSQuery(self, message, lock_acquired=False) -> str:
         """RS specific pyvisa query.
 
         :param message: The message to be send.

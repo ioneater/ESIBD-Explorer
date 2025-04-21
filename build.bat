@@ -88,10 +88,10 @@ REM call docs\make.bat html
 REM git
 :::::::
 
-REM git config --global user.email "XXX@XXX.com" # setup email
-REM git config --global user.name "ioneater" # setup user name
+REM git config --global user.email "XXX@XXX.com"  # setup email
+REM git config --global user.name "ioneater"  # setup user name
 
-REM git-init # (re)initialize current folder as git repository
+REM git-init  # (re)initialize current folder as git repository
 REM git remote add origin https://github.com/ioneater/ESIBD-Explorer
 
 REM git add .
@@ -111,7 +111,7 @@ call rm -r esibd_explorer.egg-info REM works in powershell
 python -m build
 
 REM pip install . REM test installation locally
-REM python -m esibd.explorer # start gui using module
+REM python -m esibd.explorer  # start gui using module
 
 twine check dist/*
 REM safer to use normal terminal instead of vscode to avoid issues when pasting token
@@ -122,7 +122,7 @@ conda create -y -n "estest" python=3.11 REM make sure no other environments (inc
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
 REM ==0.7.3 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
-REM python -m esibd.reset # clear registry settings to emulate fresh install
+REM python -m esibd.reset  # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
 REM test software using PluginManager.test() in testmode
@@ -155,7 +155,7 @@ create_esibd_offline.bat
 REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
 pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
-REM --noconsole # console can be useful for debugging. start .exe from command window to keep errors visible after crash
+REM --noconsole  # console can be useful for debugging. start .exe from command window to keep errors visible after crash
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time but are not imported at packaging time: e.g. modules only imported in plugins. modules added here should likely also be added to autodoc_mock_imports in docs/conf.py
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --copy-metadata nidaqmx is needed to avoid "No package metadata was found for nidaqmx"

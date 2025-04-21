@@ -6,7 +6,7 @@ Define all other plugins in devices, scans, examples, displays, or a user plugin
 from esibd.plugins import DeviceManager, Console, Browser, Explorer, Text, Tree, Notes, UCM, PID
 from esibd.extended import ESIBDSettings
 
-def providePlugins():
+def providePlugins() -> None:
     """Returns list of :class:`plugins<esibd.plugins.Plugin>` that are available for activation in the :class:`~esibd.core.PluginManager` user interface accessible from :ref:`sec:settings`.
 
     :return: Plugin list

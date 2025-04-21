@@ -2,7 +2,7 @@ from esibd.plugins import Plugin
 from esibd.core import PluginManager, PRINT
 from esibd.examples.calculator.calculator_standalone import Calculator as CalculatorWidget
 
-def providePlugins():
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Calculator]
 
@@ -16,11 +16,11 @@ class Calculator(Plugin):
     pluginType = PluginManager.TYPE.CONTROL
     iconFile = 'calculator.png'
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         """Initialize your custom user interface"""
         super().initGUI()
-        self.calculatorWidget = CalculatorWidget() # use this to import calculator as is
-        # self.calculatorWidget = ExtendedCalculatorWidget(parentPlugin=self) # use this to import calculator with interface to other plugins
+        self.calculatorWidget = CalculatorWidget()  # use this to import calculator as is
+        # self.calculatorWidget = ExtendedCalculatorWidget(parentPlugin=self)  # use this to import calculator with interface to other plugins
         self.addContentWidget(self.calculatorWidget)
 
 class ExtendedCalculatorWidget(CalculatorWidget):
@@ -33,7 +33,7 @@ class ExtendedCalculatorWidget(CalculatorWidget):
     def evaluate(self):
         channels = self.parentPlugin.pluginManager.DeviceManager.channels()
         channelNames = [channel.name for channel in channels if channel.name != '']
-        channelNames.sort(reverse=True, key=len) # avoid replacing a subset of a longer name with a matching shorter name of another channel
+        channelNames.sort(reverse=True, key=len)  # avoid replacing a subset of a longer name with a matching shorter name of another channel
         equ = self.display.text()
         for name in channelNames:
             if name in equ:

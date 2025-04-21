@@ -9,9 +9,11 @@ import numpy as np
 from esibd.core import INOUT, plotting, MetaChannel, getDarkMode, MultiState
 from esibd.scans import Beam
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [Spectra]
+
 
 class Spectra(Beam):
     """This scan shares many features of the Beam scan.
@@ -42,22 +44,22 @@ class Spectra(Beam):
             super(Beam.Display, self).__init__(scan, **kwargs)
             self.lines = None
 
-        def finalizeInit(self, aboutFunc=None):
+        def finalizeInit(self, aboutFunc=None) -> None:
             self.mouseActive = False
             super().finalizeInit(aboutFunc)
             self.averageAction = self.addStateAction(toolTipFalse='Show average.',
                                                         toolTipTrue='Hide average.',
-                                                        iconFalse=self.scan.getIcon(), # defined in updateTheme
+                                                        iconFalse=self.scan.getIcon(),  # defined in updateTheme
                                                         before=self.copyAction,
                                                         event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
             self.plotModeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
                                                                MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
                                                                MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
                                                         event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
-            self.updateTheme() # set icons
-            self.initFig() # axes aspect or plotMode may have changed
+            self.updateTheme()  # set icons
+            self.initFig()  # axes aspect or plotMode may have changed
 
-        def initFig(self):
+        def initFig(self) -> None:
             if self.plotModeAction is None:
                 return
             self.lines = None
@@ -66,10 +68,10 @@ class Spectra(Beam):
                 return
             super(Beam.Display, self).initFig()
             self.axes.append(self.fig.add_subplot(111))
-            if not self.axesAspectAction.state: # use qSet directly in case control is not yet initialized
+            if not self.axesAspectAction.state:  # use qSet directly in case control is not yet initialized
                 self.axes[0].set_aspect('equal', adjustable='box')
 
-        def updateTheme(self):
+        def updateTheme(self) -> None:
             if self.averageAction is not None:
                 self.averageAction.iconFalse = self.scan.makeIcon('average_dark.png' if getDarkMode() else 'average_light.png')
                 self.averageAction.iconTrue = self.averageAction.iconFalse
@@ -81,16 +83,16 @@ class Spectra(Beam):
         self.useDisplayChannel = True
         self.previewFileTypes.append('beam.h5')
 
-    def initScan(self):
+    def initScan(self) -> None:
         self.toggleDisplay(True)
         self.display.lines = None
         return super().initScan()
 
-    def loadDataInternal(self):
+    def loadDataInternal(self) -> None:
         self.display.lines = None
         if self.file.name.endswith('beam.h5'):
             with h5py.File(self.file, 'r') as h5file:
-                group = h5file[self.pluginManager.Beam.name] # only modification needed to open beam files. data structure is identical
+                group = h5file[self.pluginManager.Beam.name]  # only modification needed to open beam files. data structure is identical
                 input_group = group[self.INPUTCHANNELS]
                 for name, data in input_group.items():
                     self.inputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
@@ -101,7 +103,7 @@ class Spectra(Beam):
             return super(Beam, self).loadDataInternal()
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs): # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
 
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
@@ -114,16 +116,16 @@ class Spectra(Beam):
         y = np.linspace(self.inputs[1].getRecordingData()[0], self.inputs[1].getRecordingData()[-1], len(self.inputs[1].getRecordingData()))
         if self.display.lines is None:
             self.display.axes[0].clear()
-            self.display.lines = [] # dummy plots
+            self.display.lines = []  # dummy plots
             for i, z in enumerate(self.outputs[self.getOutputIndex()].getRecordingData()):
                 if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [])[0])
-                else: # self.display.plotModeAction.labels.overlay
+                else:  # self.display.plotModeAction.labels.overlay
                     self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
             if self.display.averageAction.state:
                 if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
-                else: # self.display.plotModeAction.labels.overlay
+                else:  # self.display.plotModeAction.labels.overlay
                     self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.overlay:
                 legend = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
@@ -134,21 +136,21 @@ class Spectra(Beam):
             self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
         for i, z in enumerate(self.outputs[self.getOutputIndex()].getRecordingData()):
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                if np.abs(z.max()-z.min()) != 0:
-                    z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
+                if np.abs(z.max() - z.min()) != 0:
+                    z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
                 self.display.lines[i].set_data(x, z + y[i] - z[0])
-            else: # self.display.plotModeAction.labels.overlay
+            else:  # self.display.plotModeAction.labels.overlay
                 self.display.lines[i].set_data(x, z)
         if self.display.averageAction.state:
             z = np.mean(self.outputs[self.getOutputIndex()].getRecordingData(), 0)
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                if np.abs(z.max()-z.min()) != 0:
-                    z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
-                self.display.lines[-1].set_data(x, z + y[-1] + y[1]-y[0] - z[0])
-            else: # self.display.plotModeAction.labels.overlay
+                if np.abs(z.max() - z.min()) != 0:
+                    z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
+                self.display.lines[-1].set_data(x, z + y[-1] + y[1] - y[0] - z[0])
+            else:  # self.display.plotModeAction.labels.overlay
                 self.display.lines[-1].set_data(x, z)
 
-        self.display.axes[0].relim() # adjust to data
+        self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         if len(self.outputs) > 0:
@@ -156,39 +158,39 @@ class Spectra(Beam):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def run(self, recording):
+    def run(self, recording) -> None:
         # definition of steps updated to scan along x instead of y axis.
         steps = [tuple[::-1] for tuple in list(itertools.product(*[i.getRecordingData() for i in [self.inputs[1], self.inputs[0]]]))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
-        for i, step in enumerate(steps): # scan over all steps
+        for i, step in enumerate(steps):  # scan over all steps
             waitLong = False
             for j, _input in enumerate(self.inputs):
-                if not waitLong and abs(_input.value-step[j]) > self.largestep:
+                if not waitLong and abs(_input.value - step[j]) > self.largestep:
                     waitLong=True
                 _input.updateValueSignal.emit(step[j])
-            time.sleep(((self.waitLong if waitLong else self.wait)+self.average)/1000) # if step is larger than threshold use longer wait time
+            time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             for j, output in enumerate(self.outputs):
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                output.recordingData[i//len(self.inputs[0].getRecordingData()), i%len(self.inputs[0].getRecordingData())] = np.mean(output.getValues(
+                output.recordingData[i // len(self.inputs[0].getRecordingData()), i%len(self.inputs[0].getRecordingData())] = np.mean(output.getValues(
                     subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
-            if i == len(steps)-1 or not recording(): # last step
+            if i == len(steps) - 1 or not recording():  # last step
                 for j, _input in enumerate(self.inputs):
                     _input.updateValueSignal.emit(_input.initialValue)
-                time.sleep(.5) # allow time to reset to initial value before saving
-                self.signalComm.scanUpdateSignal.emit(True) # update graph and save data
+                time.sleep(.5)  # allow time to reset to initial value before saving
+                self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
                 self.signalComm.updateRecordingSignal.emit(False)
-                break # in case this is last step
+                break  # in case this is last step
             else:
-                self.signalComm.scanUpdateSignal.emit(False) # update graph
+                self.signalComm.scanUpdateSignal.emit(False)  # update graph
 
-    def pythonPlotCode(self):
+    def pythonPlotCode(self) -> None:
         return """# add your custom plot code here
 
-_interpolate = False # set to True to interpolate data
-varAxesAspect = False # set to True to use variable axes aspect ratio
-average = False # set to True to display an average spectrum
-plotMode = 'stacked' # 'stacked', 'overlay', or 'contour' # select the representation of your data
+_interpolate = False  # set to True to interpolate data
+varAxesAspect = False  # set to True to use variable axes aspect ratio
+average = False  # set to True to display an average spectrum
+plotMode = 'stacked'  # 'stacked', 'overlay', or 'contour'  # select the representation of your data
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
@@ -213,12 +215,12 @@ if plotMode == 'contour':
 
     if _interpolate:
         rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].recordingData.ravel())
-        xi, yi = getMeshgrid(2) # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+        xi, yi = getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
         zi = rbf(xi, yi)
-        cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot') # contour with interpolation
+        cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
     else:
-        cont = ax.pcolormesh(x, y, outputs[output_index].recordingData, cmap='afmhot') # contour without interpolation
-    cbar = fig.colorbar(cont, cax=cax) # match axis and color bar size # , format='%d'
+        cont = ax.pcolormesh(x, y, outputs[output_index].recordingData, cmap='afmhot')  # contour without interpolation
+    cbar = fig.colorbar(cont, cax=cax)  # match axis and color bar size  # , format='%d'
     cbar.ax.set_title(outputs[0].unit)
 else:
     x = np.linspace(inputs[0].recordingData[0], inputs[0].recordingData[-1], len(inputs[0].recordingData))
@@ -228,7 +230,7 @@ else:
             if np.abs(z.max()-z.min()) != 0:
                 z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
             ax.plot(x, z + y[i] - z[0])
-        else: # 'overlay'
+        else:  # 'overlay'
             ax.plot(x, z, label=y[i])
     if average:
         z = np.mean(outputs[output_index].recordingData, 0)
@@ -236,7 +238,7 @@ else:
             if np.abs(z.max()-z.min()) != 0:
                 z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
             ax.plot(x, z + y[-1] + y[1]-y[0] - z[0], linewidth=4)
-        else: # 'overlay'
+        else:  # 'overlay'
             ax.plot(x, z, label='avg', linewidth=4)
     if plotMode == 'overlay':
         legend = ax.legend(loc='best', prop={'size': 10}, frameon=False)

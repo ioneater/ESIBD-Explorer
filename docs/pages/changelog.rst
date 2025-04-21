@@ -17,6 +17,7 @@ Fixed
 
 - Fixed error when canceling loading a file from DeviceManager.
 - Changing channel limits will now also update referencing channels (e.g. in UCM or PID).
+- Fixed liveDisplay copyClipboard function.
 
 Changed
 ~~~~~~~
@@ -37,6 +38,8 @@ Changed
 - Disallowed use of / in channel names.
 - Removed option to edit indicators through the context menu.
 - Enabled context menu for LedIndicators.
+- In liveDisplays, the mouse enabled mode of subplots is now linked.
+- Added type hints and improved consistency of formatting.
 
 Version 0.7.3 2025-03-24
 ========================

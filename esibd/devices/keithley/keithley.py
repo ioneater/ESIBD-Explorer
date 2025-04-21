@@ -1,11 +1,11 @@
-# pylint: disable=[missing-module-docstring] # see class docstrings
+# pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
 import numpy as np
 import pyvisa
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
-def providePlugins():
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [KEITHLEY]
 
@@ -19,27 +19,27 @@ class KEITHLEY(Device):
     unit = 'pA'
     iconFile = 'keithley.png'
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = CurrentChannel
-        self.useBackgrounds = True # record backgrounds for data correction
+        self.useBackgrounds = True  # record backgrounds for data correction
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         super().initGUI()
         self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100 # overwrite default value
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100  # overwrite default value
         return defaultSettings
 
-    def resetCharge(self):
+    def resetCharge(self) -> None:
         """Resets the charge of each channel."""
         for channel in self.channels:
             channel.resetCharge()
 
-    def updateTheme(self):
+    def updateTheme(self) -> None:
         super().updateTheme()
         self.onAction.iconTrue = self.getIcon()
         self.onAction.updateIcon(self.isOn())
@@ -47,16 +47,16 @@ class KEITHLEY(Device):
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality"""
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.controller = CurrentController(_parent=self)
-        self.preciseCharge = 0 # store independent of spin box precision to avoid rounding errors
+        self.preciseCharge = 0  # store independent of spin box precision to avoid rounding errors
 
     CHARGE     = 'Charge'
     ADDRESS    = 'Address'
     VOLTAGE    = 'Voltage'
 
-    def getDefaultChannel(self):
+    def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER ] = 'I (pA)'
         channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
@@ -64,13 +64,13 @@ class CurrentChannel(Channel):
         channel[self.VOLTAGE    ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda: self.controller.applyVoltage())
         return channel
 
-    def setDisplayedParameters(self):
+    def setDisplayedParameters(self) -> None:
         super().setDisplayedParameters()
         self.insertDisplayedParameter(self.CHARGE, before=self.DISPLAY)
         self.insertDisplayedParameter(self.VOLTAGE, before=self.DISPLAY)
         self.displayedParameters.append(self.ADDRESS)
 
-    def tempParameters(self):
+    def tempParameters(self) -> None:
         return super().tempParameters() + [self.CHARGE]
 
     def enabledChanged(self):
@@ -85,19 +85,19 @@ class CurrentChannel(Channel):
         super().appendValue(lenT, nan=nan)
         if not nan and not np.isnan(self.value) and not np.isinf(self.value):
             chargeIncrement = (self.value-self.background)*self.device.interval/1000/3600 if self.values.size > 1 else 0
-            self.preciseCharge += chargeIncrement # display accumulated charge # don't use np.sum(self.charges) to allow
-            self.charge = self.preciseCharge # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
+            self.preciseCharge += chargeIncrement  # display accumulated charge  # don't use np.sum(self.charges) to allow
+            self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
 
     def clearHistory(self, max_size=None):
         super().clearHistory(max_size)
         self.resetCharge()
 
-    def resetCharge(self):
+    def resetCharge(self) -> None:
         """Resets the charge."""
-        self.charge = 0 # pylint: disable=[attribute-defined-outside-init] # attribute defined dynamically
+        self.charge = 0  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
         self.preciseCharge = 0
 
-    def realChanged(self):
+    def realChanged(self) -> None:
         self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
         super().realChanged()
 
@@ -110,9 +110,9 @@ class CurrentController(DeviceController):
         self.channel = _parent
         self.device = self.channel.getDevice()
         self.port = None
-        self.phase = np.random.rand()*10 # used in test mode
-        self.omega = np.random.rand() # used in test mode
-        self.offset = np.random.rand()*10 # used in test mode
+        self.phase = np.random.rand()*10  # used in test mode
+        self.omega = np.random.rand()  # used in test mode
+        self.offset = np.random.rand()*10  # used in test mode
 
     def initializeCommunication(self):
         if self.channel.enabled and self.channel.active and self.channel.real:
@@ -120,14 +120,14 @@ class CurrentController(DeviceController):
         else:
             self.stopAcquisition()
 
-    def closeCommunication(self):
+    def closeCommunication(self) -> None:
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
-    def runInitialization(self):
+    def runInitialization(self) -> None:
         try:
             # name = rm.list_resources()
             self.rm = pyvisa.ResourceManager()
@@ -147,7 +147,7 @@ class CurrentController(DeviceController):
         if self.channel.active:
             super().startAcquisition()
 
-    def runAcquisition(self, acquiring):
+    def runAcquisition(self, acquiring: callable) -> None:
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
@@ -166,16 +166,16 @@ class CurrentController(DeviceController):
         if self.port is not None:
             self.port.write(f"SOUR:VOLT {self.channel.voltage}")
 
-    def toggleOn(self):
-        self.applyVoltage() # apply voltages before turning power supply on or off
+    def toggleOn(self) -> None:
+        self.applyVoltage()  # apply voltages before turning power supply on or off
         self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
-    def fakeNumbers(self):
+    def fakeNumbers(self) -> None:
         if not self.channel.device.pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
                 self.values=[np.sin(self.omega*time.time()/5+self.phase)*10+np.random.rand()+self.offset]
 
-    def readNumbers(self):
+    def readNumbers(self) -> None:
         if not self.channel.device.pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
                 try:

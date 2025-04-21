@@ -5,14 +5,17 @@ This allows to keep the bare UI initialization separated from the more meaningfu
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
+from pathlib import Path
 from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtCore import Qt, QTimer
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [HOLO]
+
 
 class HOLO(Plugin):
     """The Holo plugin was designed to display 3D NumPy arrays such as
@@ -28,7 +31,7 @@ class HOLO(Plugin):
     previewFileTypes = ['.npy']
     iconFile = 'holo.png'
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         """Initialize GUI to display Holograms."""
         super().initGUI()
         self.glAngleView = gl.GLViewWidget()
@@ -52,24 +55,24 @@ class HOLO(Plugin):
         self.update_timer.setSingleShot(True)
         self.update_timer.timeout.connect(self.drawSurface)
 
-    def provideDock(self):
+    def provideDock(self) -> None:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
 
-    def supportsFile(self, file):
+    def supportsFile(self, file: Path) -> None:
         if super().supportsFile(file):
-            data = np.load(file, mmap_mode='r') # only load header with shape and datatype
-            return len(data.shape) == 3 and data.dtype == np.complex128 # only support complex 3D arrays
+            data = np.load(file, mmap_mode='r')  # only load header with shape and datatype
+            return len(data.shape) == 3 and data.dtype == np.complex128  # only support complex 3D arrays
         return False
 
-    def loadData(self, file, _show=True):
+    def loadData(self, file, _show=True) -> None:
         self.provideDock()
         data = np.load(file)
-        self.angle = np.ascontiguousarray(np.angle(data)) # make c contiguous
-        self.amplitude = np.ascontiguousarray(np.abs(data)) # make c contiguous
-        self.glAngleView.setCameraPosition(distance=max(self.angle.shape)*2)
-        self.glAmplitudeView.setCameraPosition(distance=max(self.amplitude.shape)*2)
+        self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
+        self.amplitude = np.ascontiguousarray(np.abs(data))  # make c contiguous
+        self.glAngleView.setCameraPosition(distance=max(self.angle.shape) * 2)
+        self.glAmplitudeView.setCameraPosition(distance=max(self.amplitude.shape) * 2)
         self.angleSlider.setValue(10)
         self.amplitudeSlider.setValue(10)
         self.drawSurface(True)
@@ -86,7 +89,7 @@ class HOLO(Plugin):
         :return: Mapped data.
         :rtype: np.ndarray
         """
-        return data.min() + slider.value()/100*(data.max() - data.min())
+        return data.min() + slider.value() / 100 * (data.max() - data.min())
 
     def value_changed(self, plotAngle=True):
         """Triggers delayed plot after slider value change.
@@ -122,14 +125,14 @@ class HOLO(Plugin):
 
             m1 = gl.GLMeshItem(meshdata=md, smooth=True, shader='balloon')
             m1.setGLOptions('additive')
-            m1.translate(-self.angle.shape[0]/2, -self.angle.shape[1]/2, -self.angle.shape[2]/2)
+            m1.translate(-self.angle.shape[0] / 2, -self.angle.shape[1] / 2, -self.angle.shape[2] / 2)
 
             if self.plotAngle:
                 self.glAngleView.addItem(m1)
             else:
                 self.glAmplitudeView.addItem(m1)
 
-    def generatePythonPlotCode(self):
+    def generatePythonPlotCode(self) -> None:
         return f"""import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
@@ -160,8 +163,8 @@ class Foo(QMainWindow):
 
     def init(self):
         data = np.load('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
-        self.angle = np.ascontiguousarray(np.angle(data)) # make c contiguous
-        self.amplitude = np.ascontiguousarray(np.abs(data)) # make c contiguous
+        self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
+        self.amplitude = np.ascontiguousarray(np.abs(data))  # make c contiguous
         self.glAngleView.setCameraPosition(distance=max(self.angle.shape)*2)
         self.glAmplitudeView.setCameraPosition(distance=max(self.amplitude.shape)*2)
         self.angleSlider.setValue(10)
@@ -201,7 +204,7 @@ class Foo(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL) # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL)  # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
     mainWindow = Foo()
     mainWindow.show()
     sys.exit(app.exec())

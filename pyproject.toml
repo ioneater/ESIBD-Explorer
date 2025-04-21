@@ -1,5 +1,5 @@
 [project]
-name = "esibd-explorer" # package name can include hyphens, module names should be lower case without hyphens.
+name = "esibd-explorer"  # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
 version = "0.7.3"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
@@ -10,36 +10,36 @@ readme = "README.rst"
 # Since this project is both I minimize restraints. The windows installer will come with fixed dependencies.
 # commented version numbers only show the last tested stable configuration
 dependencies = [
-	'asteval', # ==0.9.31
-	'biopython', # ==1.81
-	'configobj', # ==5.0.8
-	'configparser', # ==5.3.0
-	'h5py', # ==3.10.0
-	'keyboard', # ==0.13.5
-	'matplotlib', # ==3.8.2
+	'asteval',  # ==0.9.31
+	'biopython',  # ==1.81
+	'configobj',  # ==5.0.8
+	'configparser',  # ==5.3.0
+	'h5py',  # ==3.10.0
+	'keyboard',  # ==0.13.5
+	'matplotlib',  # ==3.8.2
 	'contourpy==1.2.1',
 	'lakeshore',
 	'nidaqmx',
-	'numpy', # ==1.26.2
+	'numpy',  # ==1.26.2
 	'requests',
     'pfeiffer-vacuum-protocol',
 	'picosdk',
 	'opencv-python',
-	'openpyxl', # ==3.1.2
-	'PyOpenGL', # ==3.1.7
-	'pyperclip', # ==1.8.2
+	'openpyxl',  # ==3.1.2
+	'PyOpenGL',  # ==3.1.7
+	'pyperclip',  # ==1.8.2
     'pyqt6==6.6',
     'pyqt6-qt6==6.6',
     'pyqt6-webengine==6.6',
     'pyqt6-webengine-qt6==6.6',
-	'python-pptx', # ==0.6.23
-	'pyserial', # ==3.5
-	'python-socketio', # ==5.10.0
+	'python-pptx',  # ==0.6.23
+	'pyserial',  # ==3.5
+	'python-socketio',  # ==5.10.0
 	'pyvisa',
-	'pywin32; sys_platform == "win32"', # ==306
+	'pywin32; sys_platform == "win32"',  # ==306
 	'pyqtgraph==0.13.7',
-	'scipy', # ==1.11.4
-	'Send2Trash', # ==1.8.2
+	'scipy',  # ==1.11.4
+	'Send2Trash',  # ==1.8.2
 	'simple_pid',
 ]
 authors = [

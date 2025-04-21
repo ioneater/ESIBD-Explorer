@@ -1,13 +1,15 @@
-# pylint: disable=[missing-module-docstring] # see class docstrings
+# pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
 import serial
 import numpy as np
 from esibd.plugins import Device
 from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MAXIGAUGE]
+
 
 class MAXIGAUGE(Device):
     """Reads pressure values form a Pfeiffer MaxiGauge."""
@@ -19,66 +21,68 @@ class MAXIGAUGE(Device):
     unit = 'mbar'
     iconFile = 'pfeiffer_maxi.png'
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(_parent=self)
         self.logY = True
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500 # overwrite default value
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500  # overwrite default value
         defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, attr='COM')
-        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6 # overwrite default value
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 
+
 class PressureChannel(Channel):
-    """UI for pressure with integrated functionality"""
+    """UI for pressure with integrated functionality."""
 
     ID = 'ID'
 
-    def getDefaultChannel(self):
+    def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
         return channel
 
-    def setDisplayedParameters(self):
+    def setDisplayedParameters(self) -> None:
         super().setDisplayedParameters()
         self.displayedParameters.append(self.ID)
 
+
 class PressureController(DeviceController):
 
-    def closeCommunication(self):
+    def closeCommunication(self) -> None:
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
         super().closeCommunication()
 
-    def runInitialization(self):
+    def runInitialization(self) -> None:
         try:
             self.port=serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                                     parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
-            self.print(f"MaxiGauge Status: {TPGStatus}") # gauge identification
+            self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
             if TPGStatus == '':
                 raise ValueError('TPG did not return status.')
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e: # pylint: disable=[broad-except]
+        except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
 
-    def runAcquisition(self, acquiring):
+    def runAcquisition(self, acquiring: callable) -> None:
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval/1000)
+            time.sleep(self.device.interval / 1000)
 
     PRESSURE_READING_STATUS = {
       0: 'Measurement data okay',
@@ -90,7 +94,7 @@ class PressureController(DeviceController):
       6: 'Identification error'
     }
 
-    def readNumbers(self):
+    def readNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 if self.initialized:
@@ -98,7 +102,7 @@ class PressureController(DeviceController):
                     try:
                         status, pressure = msg.split(',')
                         if status == '0':
-                            self.values[i] = float(pressure) # set unit to mbar on device
+                            self.values[i] = float(pressure)  # set unit to mbar on device
                             # self.print(f'Read pressure for channel {channel.name}', flag=PRINT.DEBUG)
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', PRINT.WARNING)
@@ -110,38 +114,38 @@ class PressureController(DeviceController):
                 else:
                     self.values[i] = np.nan
 
-    def fakeNumbers(self):
+    def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i]*np.random.uniform(.99, 1.01) # allow for small fluctuation
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
 
-    def rndPressure(self):
+    def rndPressure(self) -> float:
         """Returns a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp
 
-    def TPGWrite(self, message):
+    def TPGWrite(self, message: str) -> None:
         """TPG specific serial write.
 
         :param message: The serial message to be send.
         :type message: str
         """
         self.serialWrite(self.port, f'{message}\r', encoding='ascii')
-        self.serialRead(self.port, encoding='ascii') # read acknowledgment
+        self.serialRead(self.port, encoding='ascii')  # read acknowledgment
 
-    def TPGRead(self):
+    def TPGRead(self) -> str:
         """TPG specific serial read.
 
         :return: The serial response received.
         :rtype: str
         """
-        self.serialWrite(self.port, '\x05\r', encoding='ascii') # Enquiry prompts sending return from previously send mnemonic
-        enq =  self.serialRead(self.port, encoding='ascii') # response
-        self.serialRead(self.port, encoding='ascii') # followed by NAK
+        self.serialWrite(self.port, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
+        enq =  self.serialRead(self.port, encoding='ascii')  # response
+        self.serialRead(self.port, encoding='ascii')  # followed by NAK
         return enq
 
-    def TPGWriteRead(self, message, lock_acquired=False):
+    def TPGWriteRead(self, message: str, lock_acquired: bool = False) -> str:
         """TPG specific serial write and read.
 
         :param message: The serial message to be send.
@@ -155,5 +159,5 @@ class PressureController(DeviceController):
         with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
             if lock_acquired:
                 self.TPGWrite(message)
-                response = self.TPGRead() # reads return value
+                response = self.TPGRead()  # reads return value
         return response

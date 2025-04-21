@@ -4,12 +4,15 @@ This allows to keep the bare UI initialization separated from the more meaningfu
 
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 from esibd.core import MZCalculator, PluginManager, getDarkMode, colors
 from esibd.plugins import Plugin
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [MS]
+
 
 class MS(Plugin):
     """The MS plugin allows to display simple mass spectra. Left clicking on peaks
@@ -33,45 +36,45 @@ class MS(Plugin):
     previewFileTypes = ['.txt']
     iconFile = 'MS.png'
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.file = None
         self.x = self.y = None
         self.paperAction = None
         self.dataClipboardIcon = self.makeIcon('clipboard-paste-document-text.png')
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         self.mzCalc = MZCalculator(parentPlugin=self)
         super().initGUI()
         self.initFig()
 
-    def initFig(self):
+    def initFig(self) -> None:
         self.provideFig()
         self.axes.append(self.fig.add_subplot(111))
-        self.mzCalc.setAxis(self.axes[0]) # update axis but reuse picked positions until reset explicitly
+        self.mzCalc.setAxis(self.axes[0])  # update axis but reuse picked positions until reset explicitly
         self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
-        self.msLine = None # self.axes[0].plot([],[])[0] # dummy plot
+        self.msLine = None  # self.axes[0].plot([],[])[0]  # dummy plot
 
-    def provideDock(self):
+    def provideDock(self) -> None:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
 
-    def finalizeInit(self, aboutFunc=None):
+    def finalizeInit(self, aboutFunc=None) -> None:
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
         self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(event=lambda: self.plot(), toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
-    def runTestParallel(self):
+    def runTestParallel(self) -> None:
         if self.initializedDock:
             self.testControl(self.copyAction, True)
             self.testControl(self.dataAction, True)
             self.testControl(self.paperAction, not self.paperAction.state)
         super().runTestParallel()
 
-    def supportsFile(self, file):
+    def supportsFile(self, file: Path) -> None:
         if super().supportsFile(file):
             first_line = ''
             try:
@@ -80,11 +83,11 @@ class MS(Plugin):
             except UnicodeDecodeError:
                 return False
                 # self.print(f'could not decode first line of file {file}: {e}', PRINT.ERROR)
-            if 'spectrum' in first_line.lower(): # mass spectrum
+            if 'spectrum' in first_line.lower():  # mass spectrum
                 return True
         return False
 
-    def loadData(self, file, _show=True):
+    def loadData(self, file, _show=True) -> None:
         self.provideDock()
         self.file = file
         self.mzCalc.clear()
@@ -92,8 +95,8 @@ class MS(Plugin):
         self.plot()
         self.raiseDock(_show)
 
-    def plot(self):
-        """plots MS data"""
+    def plot(self) -> None:
+        """Plots MS data."""
         self.axes[0].clear()
         self.axes[0].set_xlabel('m/z (Th)')
         if self.paperAction.state:
@@ -102,24 +105,24 @@ class MS(Plugin):
             self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, self.smooth(self.y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
-            self.axes[0].set_ylim([1, 100+2])
+            self.axes[0].set_ylim([1, 100 + 2])
             self.axes[0].set_yticks([1, 50, 100])
-            self.axes[0].set_yticklabels(['0','%','100'])
+            self.axes[0].set_yticklabels(['0', '%', '100'])
         else:
             self.axes[0].set_ylabel('Intensity')
             self.msLine = self.axes[0].plot(self.x, self.y)[0]
-            self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared exponent for short y labels, even for smaller numbers
+            self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
 
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
         self.axes[0].autoscale_view(True, True, False)
         self.setLabelMargin(self.axes[0], 0.15)
-        self.navToolBar.update() # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') # set up save file dialog
+        self.navToolBar.update()  # reset history for zooming and home view
+        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
         self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
 
-    def find_nearest(self, array, value):
+    def find_nearest(self, array, value) -> float:
         """Returns the nearest value in the given array.
 
         :param array: Array to search in.
@@ -133,7 +136,7 @@ class MS(Plugin):
         idx = (np.abs(array - value)).argmin()
         return array[idx]
 
-    def map_percent(self, x, y):
+    def map_percent(self, x, y) -> np.array:
         """Maps the range between y(x_min) and y(x_max) to 0 to 100 %.
 
         :param x: X values.
@@ -148,9 +151,9 @@ class MS(Plugin):
         x_max_i=np.where(x == self.find_nearest(x, max(x)))[0]
         x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
         y_sub=y[x_min_i:x_max_i]
-        return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
+        return (y - np.min(y)) / np.max(y_sub - np.min(y_sub)) * 100
 
-    def smooth(self, y, box_pts):
+    def smooth(self, y, box_pts) -> np.array:
         """Smooths a 1D array.
 
         :param y: Array to be smoothed.
@@ -160,18 +163,18 @@ class MS(Plugin):
         :return: convolvedArray
         :rtype: np.array
         """
-        box = np.ones(box_pts)/box_pts
+        box = np.ones(box_pts) / box_pts
         y_smooth = np.convolve(y, box, mode='same')
         return y_smooth
 
-    def updateTheme(self):
+    def updateTheme(self) -> None:
         super().updateTheme()
         if self.paperAction is not None:
             self.paperAction.iconFalse = self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png')
             self.paperAction.iconTrue = self.getIcon()
             self.paperAction.updateIcon(self.paperAction.state)
 
-    def generatePythonPlotCode(self):
+    def generatePythonPlotCode(self) -> None:
         return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -240,5 +243,5 @@ with mpl.style.context('default'):
     else:
         ax.set_ylabel('Intensity')
         ax.plot(x, y)[0]
-        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0)) # use shared exponent for short y labels, even for smaller numbers
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
     fig.show()"""

@@ -1,13 +1,15 @@
-# pylint: disable=[missing-module-docstring] # see class docstrings
+# pylint: disable=[missing-module-docstring]  # see class docstrings
 import socket
 import time
 import numpy as np
 from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
-def providePlugins():
+
+def providePlugins() -> None:
     """Indicates that this module provides plugins. Returns list of provided plugins."""
     return [ISEG]
+
 
 class ISEG(Device):
     """Contains a list of voltages channels from an ISEG ECH244 power supply.
@@ -23,63 +25,65 @@ class ISEG(Device):
     useMonitors = True
     iconFile = 'ISEG.png'
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.channelType = VoltageChannel
         self.useOnOffLogic = True
 
-    def initGUI(self):
+    def initGUI(self) -> None:
         super().initGUI()
-        self.controller = VoltageController(_parent=self, modules = self.getModules()) # after all channels loaded
+        self.controller = VoltageController(_parent=self, modules=self.getModules())  # after all channels loaded
 
-    def getDefaultSettings(self):
+    def getDefaultSettings(self) -> None:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
                                                                 widgetType=Parameter.TYPE.TEXT, attr='ip')
         defaultSettings[f'{self.name}/Port']     = parameterDict(value=10001, toolTip='SCPI port of ECH244',
                                                                 widgetType=Parameter.TYPE.INT, attr='port')
-        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000 # overwrite default value
-        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5 # overwrite default value
+        defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000  # overwrite default value
+        defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
         return defaultSettings
 
-    def getModules(self):
+    def getModules(self) -> list[int]:
         """Get list of used modules."""
         return set([channel.module for channel in self.channels])
 
-    def closeCommunication(self):
+    def closeCommunication(self) -> None:
         self.setOn(False)
         self.controller.toggleOnFromThread(parallel=False)
         super().closeCommunication()
+
 
 class VoltageChannel(Channel):
 
     MODULE    = 'Module'
     ID        = 'ID'
 
-    def getDefaultChannel(self):
+    def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)' # overwrite to change header
-        channel[self.MODULE  ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
+        channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
+        channel[self.MODULE  ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='Mod', _min=0, _max=99, attr='module')
-        channel[self.ID      ] = parameterDict(value=0, widgetType= Parameter.TYPE.INT, advanced=True,
+        channel[self.ID      ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='ID', _min=0, _max=99, attr='id')
         return channel
 
-    def setDisplayedParameters(self):
+    def setDisplayedParameters(self) -> None:
         super().setDisplayedParameters()
         self.displayedParameters.append(self.MODULE)
         self.displayedParameters.append(self.ID)
 
-    def monitorChanged(self):
+    def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.device.controller.acquiring
                                 and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
                                 or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
 
-    def realChanged(self):
+    def realChanged(self) -> None:
         self.getParameterByName(self.MODULE).getWidget().setVisible(self.real)
         self.getParameterByName(self.ID).getWidget().setVisible(self.real)
         super().realChanged()
+
 
 class VoltageController(DeviceController):
 
@@ -87,26 +91,26 @@ class VoltageController(DeviceController):
         super().__init__(_parent=_parent)
         self.modules    = modules or [0]
         self.socket     = None
-        self.maxID      = max([channel.id if channel.real else 0 for channel in self.device.getChannels()]) # used to query correct amount of monitors
+        self.maxID      = max([channel.id if channel.real else 0 for channel in self.device.getChannels()])  # used to query correct amount of monitors
 
-    def runInitialization(self):
+    def runInitialization(self) -> None:
         try:
             self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
             self.print(self.ISEGWriteRead(message='*IDN?\r\n'.encode('utf-8')))
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e: # pylint: disable=[broad-except] # socket does not throw more specific exception
+        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
             self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
-    def initComplete(self):
-        self.values = np.zeros([len(self.modules), self.maxID+1])
-        return super().initComplete()
+    def initComplete(self) -> None:
+        self.values = np.zeros([len(self.modules), self.maxID + 1])
+        super().initComplete()
 
-    def applyValue(self, channel):
+    def applyValue(self, channel) -> None:
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode('utf-8'))
 
-    def updateValues(self):
+    def updateValues(self) -> None:
         # Overwriting to use values for multiple modules
         if getTestMode():
             self.fakeNumbers()
@@ -115,35 +119,35 @@ class VoltageController(DeviceController):
                 if channel.enabled and channel.real:
                     channel.monitor = self.values[channel.module][channel.id]
 
-    def toggleOn(self):
+    def toggleOn(self) -> None:
         for module in self.modules:
             self.ISEGWriteRead(message=f":VOLT {'ON' if self.device.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode('utf-8'))
 
-    def fakeNumbers(self):
+    def fakeNumbers(self) -> None:
         for channel in self.device.getChannels():
             if channel.enabled and channel.real:
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
                 channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (np.random.choice([0, 1], p=[0.98, 0.02])) + np.random.random() - 0.5
 
-    def runAcquisition(self, acquiring):
+    def runAcquisition(self, acquiring: callable) -> None:
         while acquiring():
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
                         for module in self.modules:
-                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID+1})\r\n'.encode('utf-8'), lock_acquired=lock_acquired)
+                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n'.encode('utf-8'), lock_acquired=lock_acquired)
                             if res != '':
                                 try:
-                                    monitors = [float(x[:-1]) for x in res[:-4].split(',')] # res[:-4] to remove trailing '\r\n'
+                                    monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
                                     # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                                    self.values[module] = np.hstack([monitors, np.zeros(self.maxID+1-len(monitors))])
+                                    self.values[module] = np.hstack([monitors, np.zeros(self.maxID + 1 - len(monitors))])
                                 except (ValueError, TypeError) as e:
                                     self.print(f'Parsing error: {e} for {res}.')
                                     self.errorCount += 1
-                    self.signalComm.updateValuesSignal.emit() # signal main thread to update GUI
-            time.sleep(self.device.interval/1000)
+                    self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
+            time.sleep(self.device.interval / 1000)
 
-    def ISEGWriteRead(self, message, lock_acquired=False):
+    def ISEGWriteRead(self, message, lock_acquired=False) -> str:
         """ISEG specific serial write and read.
 
         :param message: The serial message to be send.
@@ -157,6 +161,6 @@ class VoltageController(DeviceController):
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
                 if lock_acquired:
-                    self.socket.sendall(message) # get channel name
+                    self.socket.sendall(message)  # get channel name
                     response = self.socket.recv(4096).decode("utf-8")
         return response
