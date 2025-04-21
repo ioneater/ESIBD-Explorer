@@ -3868,6 +3868,12 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         # self.print(f"Plot time: {timeit.timeit('self.plot(update=not done, done=done)', number=1, globals={'self': self, 'done': done})}", flag=PRINT.DEBUG)
         self.plot(update=not done, done=done)
         if done:  # save data
+            if hasattr(self.pluginManager, 'Notes'):
+                self.pluginManager.Notes.saveData()  # save to current session
+            notesFile = self.pluginManager.Settings.getFullSessionPath() / 'notes.txt'
+            if notesFile.exists():
+                with open(notesFile, 'r', encoding=UTF8) as file:
+                    self.notes = f'{self.notes}\n{file.read()}'  # append notes from file # has to run in main thread
             self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,), name=f'{self.name} saveThread')
             self.saveThread.daemon = True  # Terminate with main app independent of stop condition
             self.saveThread.start()
@@ -3883,8 +3889,6 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         self.saveData(file=file)  # save data to same file
         self.pluginManager.DeviceManager.exportConfiguration(file=file)  # save corresponding device settings in measurement file
         self.pluginManager.Settings.saveSettings(file=file)
-        if hasattr(self.pluginManager, 'Notes'):
-            self.pluginManager.Notes.saveData(file=file)
         self.signalComm.saveScanCompleteSignal.emit()
         self.print(f'Saved {file.name}')
 
@@ -5917,6 +5921,8 @@ class Notes(Plugin):
         :type default: bool, optional
         """
         if default:
+            if file is None:
+                file = self.pluginManager.Settings.getFullSessionPath()
             self.file = file / 'notes.txt'
             if self.editor.toPlainText() != '':
                 with open(self.file, 'w', encoding=self.UTF8) as textFile:
