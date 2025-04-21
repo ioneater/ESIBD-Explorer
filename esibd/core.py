@@ -1,19 +1,15 @@
-"""This module contains internally used functions and classes.
+"""Internally used functions and classes.
+
 Generally all objects that are used across multiple modules should be defined here to avoid circular imports and keep things consistent.
 Whenever it is possible to make definitions only locally where they are needed, this is preferred.
-For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique."""
+For now, English is the only supported language and use of hard coded error messages etc. in other files is tolerated if they are unique.
+"""
 
 import re
 import sys
 import traceback
-from threading import Timer, Thread, current_thread, main_thread
 import threading
 import time
-from typing import Any, TYPE_CHECKING
-from contextlib import contextmanager
-from pathlib import Path
-from datetime import datetime
-from enum import Enum
 import configparser
 import serial
 import numpy as np
@@ -23,6 +19,12 @@ import keyboard as kb
 import cv2
 import matplotlib as mpl
 import matplotlib.pyplot as plt  # pylint: disable = unused-import  # need to import to access mpl.axes.Axes
+from threading import Timer, Thread, current_thread, main_thread
+from typing import Any, TYPE_CHECKING
+from contextlib import contextmanager
+from pathlib import Path
+from datetime import datetime
+from enum import Enum
 from matplotlib.widgets import Cursor
 from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
@@ -91,7 +93,6 @@ class EsibdExplorer(QMainWindow):
         try:
             self.restoreGeometry(qSet.value(GEOMETRY, self.saveGeometry()))
             # Note that the state on startup will not include dynamic displays which open only as needed. Thus the state cannot be restored.
-            # self.mainWindow.restoreState(qSet.value(self.WINDOWSTATE, self.mainWindow.saveState()))
             # * need to restore before starting event loop to avoid Unable to set geometry warning
         except TypeError as e:
             print(f'Could not restore window state: {e}')
@@ -99,15 +100,13 @@ class EsibdExplorer(QMainWindow):
             self.saveUiState()
 
     def saveUiState(self) -> None:
-        """Saves size and location of main window."""
+        """Save size and location of main window."""
         qSet.setValue(GEOMETRY, self.saveGeometry())
         self.pluginManager.Settings.raiseDock(True)  # need to be visible to give right dimensions
         QApplication.processEvents()
         qSet.setValue(SETTINGSWIDTH, self.pluginManager.Settings.mainDisplayWidget.width())  # store width
         qSet.setValue(SETTINGSHEIGHT, self.pluginManager.Settings.mainDisplayWidget.height())  # store height
         qSet.setValue(CONSOLEHEIGHT, self.pluginManager.Console.mainDisplayWidget.height())  # store height
-        # qSet.setValue(GEOMETRY, self.mainWindow.geometry())
-        # qSet.setValue(self.WINDOWSTATE, self.mainWindow.saveState())
 
     def closeEvent(self, event) -> None:
         """Triggers PluginManager to close all plugins and all related communication.
@@ -130,19 +129,22 @@ class EsibdExplorer(QMainWindow):
 
 
 class PluginManager():
-    """The :class:`~esibd.core.PluginManager` is responsible for loading all internal and external
-        Plugins. It catches errors or incompatibilities while loading,
-        initializing, and closing plugins. Users will only see the plugin selection
-        interface accessed from the :ref:`sec:settings` plugin.
-        The :class:`~esibd.core.PluginManager` can be accessed from the :ref:`sec:console` as `PluginManager`.
-        It allows plugins to interact by using unique plugin names as attributes, e.g.
-        `self.pluginManager.ISEG` or `self.pluginManager.DeviceManager`."""
+    """The :class:`~esibd.core.PluginManager` is responsible for loading all internal and external Plugins.
+
+    It catches errors or incompatibilities while loading,
+    initializing, and closing plugins. Users will only see the plugin selection
+    interface accessed from the :ref:`sec:settings` plugin.
+    The :class:`~esibd.core.PluginManager` can be accessed from the :ref:`sec:console` as `PluginManager`.
+    It allows plugins to interact by using unique plugin names as attributes, e.g.
+    `self.pluginManager.ISEG` or `self.pluginManager.DeviceManager`.
+    """
 
     class SignalCommunicate(QObject):
         finalizeSignal = pyqtSignal()
 
     class TYPE(Enum):
         """Each plugin must be of one of the following types to define its location and behavior."""
+
         CONSOLE       = 'Console'
         """The internal Console."""
         CONTROL       = 'Generic Control'
@@ -256,7 +258,7 @@ class PluginManager():
 
         obsoletePluginNames = []
         for name in self.confParser.keys():
-            if not name == Parameter.DEFAULT.upper() and not name == INFO and name not in self.pluginNames:
+            if name != Parameter.DEFAULT.upper() and name != INFO and name not in self.pluginNames:
                 obsoletePluginNames.append(name)
         if len(obsoletePluginNames) > 0:
             self.logger.print(f"Removing obsolete plugin data: {', '.join(obsoletePluginNames)}", flag=PRINT.WARNING)
@@ -273,9 +275,8 @@ class PluginManager():
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Tree)))  # move Tree to end to have lowest priority to handle files
         if hasattr(self, 'Text'):
             self.plugins.append(self.plugins.pop(self.plugins.index(self.Text)))  # move Text to end to have lowest priority to handle files
-        if hasattr(self, 'PID'):
-            if self.PID in self.plugins:
-                self.plugins.append(self.plugins.pop(self.plugins.index(self.PID)))  # move PID to end to connectAllSources after all devices are initialized
+        if hasattr(self, 'PID') and self.PID in self.plugins:
+            self.plugins.append(self.plugins.pop(self.plugins.index(self.PID)))  # move PID to end to connectAllSources after all devices are initialized
         if hasattr(self, 'UCM'):
             if self.UCM in self.plugins:
                 self.plugins.append(self.plugins.pop(self.plugins.index(self.UCM)))  # move UCM to end to connectAllSources after all devices and PID are initialized
@@ -828,8 +829,7 @@ class Logger(QObject):
         self.timer.setInterval(3600000)  # every 1 hour
         self.printFromThreadSignal.connect(self.print)
         self.backLog = []  # stores messages to be displayed later if console is not initialized
-        if qSet.value(LOGGING, defaultValue=True, type=bool):
-            self.open()
+        self.open()
 
     def open(self) -> None:
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""

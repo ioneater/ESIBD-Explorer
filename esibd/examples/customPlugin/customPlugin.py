@@ -7,15 +7,17 @@ from esibd.plugins import Plugin
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [CustomPlugin]
 
 
 class CustomPlugin(Plugin):
-    """The minimal code in "examples/Custom.py" demonstrates how to integrate your own
-    custom elements to the ESIBD Explorer. This should be sufficient as
+    """The minimal code in "examples/Custom.py" demonstrates how to integrate your own custom elements to the ESIBD Explorer.
+
+    This should be sufficient as
     long as your code does not requires interaction with any other elements
-    of the ESIBD Explorer. See :ref:`sec:plugin_system` for more information."""
+    of the ESIBD Explorer. See :ref:`sec:plugin_system` for more information.
+    """
     documentation = """The minimal code in examples/Custom.py demonstrates how to integrate your own
     custom elements to the ESIBD Explorer. This should be sufficient as
     long as your code does not requires interaction with any other elements

@@ -3,7 +3,7 @@ from esibd.core import PluginManager, PRINT
 from esibd.examples.calculator.calculator_standalone import Calculator as CalculatorWidget
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Calculator]
 
 class Calculator(Plugin):

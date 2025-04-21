@@ -7,13 +7,15 @@ from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [PICO]
 
 
 class PICO(Device):
     """Reads the temperature of sensors attached to a pico PT-104.
-    It allows to switch units between K and °C."""
+
+    It allows to switch units between K and °C.
+    """
 
     name = 'PICO'
     version = '1.0'
@@ -72,13 +74,13 @@ class TemperatureChannel(Channel):
 
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)'
-        channel[self.VALUE][Parameter.VALUE ] = np.nan  # undefined until communication established
-        channel[self.CHANNEL ] = parameterDict(value='USBPT104_CHANNEL_1', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
+        channel[self.VALUE][Parameter.VALUE] = np.nan  # undefined until communication established
+        channel[self.CHANNEL] = parameterDict(value='USBPT104_CHANNEL_1', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                     attr='channel', items='USBPT104_CHANNEL_1, USBPT104_CHANNEL_2, USBPT104_CHANNEL_3, USBPT104_CHANNEL_4')
-        channel[self.DATATYPE ] = parameterDict(value='USBPT104_PT100', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.DATATYPE] = parameterDict(value='USBPT104_PT100', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                     attr='datatype', items='USBPT104_PT100')
-        channel[self.NOOFWIRES ] = parameterDict(value='4', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.NOOFWIRES] = parameterDict(value='4', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                     attr='noOfWires', items='2, 3, 4')
         return channel
 
@@ -152,5 +154,5 @@ class TemperatureController(DeviceController):
                 self.values[i] = np.random.randint(1, 300) if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndTemperature(self) -> float:
-        """Returns a random temperature."""
+        """Return a random temperature."""
         return np.random.uniform(0, 400)

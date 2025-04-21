@@ -6,7 +6,7 @@ from esibd.plugins import Device
 from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, getTestMode
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [KEITHLEY]
 
 class KEITHLEY(Device):

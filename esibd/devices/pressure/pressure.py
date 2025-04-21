@@ -8,13 +8,15 @@ from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceC
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Pressure]
 
 
 class Pressure(Device):
-    """Bundles pressure values form an Edwards TIC and Pfeiffer MaxiGauge into
-    a consistent list of channels. This demonstrates handling of values on a logarithmic scale."""
+    """Bundle pressure values form an Edwards TIC and Pfeiffer MaxiGauge into a consistent list of channels.
+
+    This demonstrates handling of values on a logarithmic scale.
+    """
 
     name = 'Pressure'
     version = '1.0'
@@ -95,23 +97,23 @@ class PressureController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.ticPort=serial.Serial(
+            self.ticPort = serial.Serial(
                 f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f"TIC Status: {TICStatus}")  # query status
-            if TICStatus == '':
+            if not TICStatus:
                 raise ValueError('TIC did not return status.')
             self.ticInitialized = True
         except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
         try:
-            self.tpgPort=serial.Serial(
+            self.tpgPort = serial.Serial(
                 f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
-            if TPGStatus == '':
+            if not TPGStatus:
                 raise ValueError('TPG did not return status.')
             self.tpgInitialized = True
         except Exception as e:  # pylint: disable=[broad-except]
@@ -145,7 +147,6 @@ class PressureController(DeviceController):
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
                         self.values[i] = float(re.split(' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
-                        # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
@@ -156,7 +157,6 @@ class PressureController(DeviceController):
                         a, pressure = msg.split(',')
                         if a == '0':
                             self.values[i] = float(pressure)  # set unit to mbar on device
-                            # self.print(f'Read pressure for channel {channel.name}', flag=PRINT.DEBUG)
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
                             self.values[i] = np.nan
@@ -173,7 +173,7 @@ class PressureController(DeviceController):
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndPressure(self) -> float:
-        """Returns a random pressure."""
+        """Return a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp

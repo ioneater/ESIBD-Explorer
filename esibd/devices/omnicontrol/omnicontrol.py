@@ -8,7 +8,7 @@ from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceC
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [OMNICONTROL]
 
 
@@ -65,7 +65,7 @@ class PressureController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.port=serial.Serial(self.device.com, timeout=1)
+            self.port = serial.Serial(self.device.com, timeout=1)
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]
@@ -98,7 +98,7 @@ class PressureController(DeviceController):
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndPressure(self) -> float:
-        """Returns a random pressure."""
+        """Return a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp

@@ -8,13 +8,15 @@ from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Temperature]
 
 
 class Temperature(Device):
     """Reads the temperature of a silicon diode sensor via Sunpower CryoTel controller.
-    It allows to switch units between K and °C."""
+
+    It allows to switch units between K and °C.
+    """
 
     name = 'Temperature'
     version = '1.0'
@@ -77,7 +79,7 @@ class TemperatureChannel(Channel):
 
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'Temp (K)'
+        channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
         return channel
 
 
@@ -96,7 +98,7 @@ class TemperatureController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.port=serial.Serial(
+            self.port = serial.Serial(
                 self.device.CRYOTELCOM,
                 baudrate=9600,  # used to be 4800
                 bytesize=serial.EIGHTBITS,
@@ -104,11 +106,11 @@ class TemperatureController(DeviceController):
                 stopbits=serial.STOPBITS_ONE,
                 xonxoff=False,
                 timeout=3)
-            # self.CryoTelWriteRead('SET TBAND=5')  # set temperature band
-            # self.CryoTelWriteRead('SET PID=2')# set temperature control mode
-            # self.CryoTelWriteRead('SET SSTOPM=0')  # enable use of SET SSTOP
-            # self.CryoTelWriteRead('SENSOR')  # test if configured for correct temperature sensor DT-670
-            # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable
+            # self.CryoTelWriteRead('SET TBAND=5')  # set temperature band  # noqa: ERA001
+            # self.CryoTelWriteRead('SET PID=2')# set temperature control mode # noqa: ERA001
+            # self.CryoTelWriteRead('SET SSTOPM=0')  # enable use of SET SSTOP # noqa: ERA001
+            # self.CryoTelWriteRead('SENSOR')  # test if configured for correct temperature sensor DT-670 # noqa: ERA001
+            # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable # noqa: ERA001
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -157,7 +159,7 @@ class TemperatureController(DeviceController):
                 self.values[i] = max((self.values[i] + np.random.uniform(-1, 1)) + 0.1 * ((channel.value if self.device.isOn() else 300) - self.values[i]), 0)
 
     def rndTemperature(self) -> float:
-        """Returns a random temperature."""
+        """Return a random temperature."""
         return np.random.uniform(0, 400)
 
     def toggleOn(self) -> None:

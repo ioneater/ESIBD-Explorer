@@ -7,15 +7,17 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [ISEG]
 
 
 class ISEG(Device):
     """Contains a list of voltages channels from an ISEG ECH244 power supply.
+
     The voltages are monitored and a warning is given if the set potentials are not reached.
     In case of any issues, first make sure ISEG ECH244 and all modules are turned on, and communicating.
-    Use SNMP Control to quickly test this independent of this plugin."""
+    Use SNMP Control to quickly test this independent of this plugin.
+    """
 
     name = 'ISEG'
     version = '1.1'
@@ -62,9 +64,9 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
-        channel[self.MODULE  ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.MODULE] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='Mod', _min=0, _max=99, attr='module')
-        channel[self.ID      ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='ID', _min=0, _max=99, attr='id')
         return channel
 
@@ -136,7 +138,7 @@ class VoltageController(DeviceController):
                     if not getTestMode():
                         for module in self.modules:
                             res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n'.encode('utf-8'), lock_acquired=lock_acquired)
-                            if res != '':
+                            if res:
                                 try:
                                     monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
                                     # fill up to self.maxID to handle all modules the same independent of the number of channels.

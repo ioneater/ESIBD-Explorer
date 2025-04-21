@@ -1,7 +1,3 @@
-"""Functions in this file will generally require direct access to UI elements as well as data structures.
-Note this will be imported in ES_IBD_Explorer so that it is equivalent to defining the methods there directly.
-This allows to keep the bare UI initialization separated from the more meaningful methods."""
-
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
@@ -13,14 +9,15 @@ from esibd.plugins import Plugin
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [HOLO]
 
 
 class HOLO(Plugin):
-    """The Holo plugin was designed to display 3D NumPy arrays such as
-    holograms from low energy electron holography (LEEH).\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`
-    Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
+    """The Holo plugin was designed to display 3D NumPy arrays such as holograms from low energy electron holography (LEEH)\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`.
+
+    Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files.
+    """
     documentation = """The Holo plugin was designed to display 3D NumPy arrays such as
     holograms from low energy electron holography (LEEH).
     Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
@@ -80,7 +77,7 @@ class HOLO(Plugin):
         self.raiseDock(_show)
 
     def mapSliderToData(self, slider, data):
-        """Maps the position of the slider in percent to the corresponding data value.
+        """Map the position of the slider in percent to the corresponding data value.
 
         :param slider: Slider providing threshold for drawing.
         :type slider: QSlider
@@ -99,16 +96,15 @@ class HOLO(Plugin):
         """
         self.plotAngle = plotAngle
         self.update_timer.start(200)
-        # QTimer.singleShot(500, lambda: self.drawSurface(plotAngle=plotAngle))
 
     def drawSurface(self, plotAngle=None):
-        """Draws an isosurface at a value defined by the sliders.
+        """Draw an isosurface at a value defined by the sliders.
 
         :param plotAngle: True for angle, False for amplitude, defaults to None
         :type plotAngle: bool, optional
         """
         if plotAngle is not None:
-            self.plotAngle=plotAngle
+            self.plotAngle = plotAngle
         if self.angle is not None:
             if self.plotAngle:
                 self.glAngleView.clear()
@@ -179,7 +175,7 @@ class Foo(QMainWindow):
         self.drawSurface(plotAngle=plotAngle)
 
     def drawSurface(self, plotAngle):
-        '''Draws an isosurface at a value defined by the sliders.'''
+        '''Draw an isosurface at a value defined by the sliders.'''
         if plotAngle:
             self.glAngleView.clear()
             verts, faces = pg.isosurface(self.angle, self.mapSliderToData(self.angleSlider, self.angle))

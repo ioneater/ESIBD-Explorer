@@ -1,7 +1,3 @@
-"""This module contains classes that contain and manage a list of (extended) UI elements.
-In addition it contains classes used to manage data acquisition.
-Finally it contains classes for data export, and data import."""
-
 import time
 from datetime import datetime
 from PyQt6.QtCore import QObject
@@ -12,13 +8,13 @@ from esibd.plugins import Scan
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [GA]
 
 
 class GA(Scan):
-    """This plugin allows to integrate an independently developed genetic
-    algorithm (GA) for automated optimization of signals.\ :cite:`esser_cryogenic_2019`
+    """Allows to integrate an independently developed genetic algorithm (GA) for automated optimization of signals\ :cite:`esser_cryogenic_2019`.
+
     Multiple input channels can be selected to be included in the optimization. Make sure to choose safe
     limits for optimized channels and choose appropriate wait and average
     values to get valid feedback. The performance and reliability of the
@@ -26,7 +22,8 @@ class GA(Scan):
     selected output channel. The output channel can be virtual and contain an
     equation that references many other channels. At the end of the optimization the changed
     parameters will be shown in the plugin. The initial parameters can
-    always be restored in case the optimization fails."""
+    always be restored in case the optimization fails.
+    """
     documentation = """This plugin allows to integrate an independently developed genetic
     algorithm (GA) for automated optimization of signals.
     Multiple input channels can be selected to be included in the optimization. Make sure to choose safe
@@ -58,7 +55,6 @@ class GA(Scan):
             legend.set_in_layout(False)
             self.axes[0].set_xlabel(self.TIME)
             self.axes[0].set_ylabel('Fitness Value')
-            # self.axes[0].margins(y=.1)  # not yet supported for individual sides https://stackoverflow.com/questions/49382105/set-different-margins-for-left-and-right-side
             self.tilt_xlabels(self.axes[0])
 
     def __init__(self, **kwargs):
@@ -105,7 +101,6 @@ class GA(Scan):
         self.gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
         self.ga.init()  # don't mix up with init method from Scan
         self.ga.maximize(True)
-        # self.restore(True)
         if self.gaChannel is None:
             self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
             return False
@@ -146,7 +141,7 @@ class GA(Scan):
 
     @plotting
     def plot(self, update=False, **kwargs):  # pylint:disable=unused-argument, missing-param-doc
-        """Plots fitness data.
+        """Plot fitness data.
 
         :param update: Indicates if this is just an incremental update or the final plot (e.g. when loading data from file), defaults to False
         :type update: bool, optional
@@ -212,7 +207,7 @@ fig.show()
         self.signalComm.scanUpdateSignal.emit(True)
 
     def updateValues(self, index=None, initial=False):
-        """Updates all optimized values or restores initial values.
+        """Update all optimized values or restores initial values.
 
         :param index: Index of being in GA population. -1 is current being. 0 is best after sorting. Defaults to None
         :type index: int, optional

@@ -46,12 +46,12 @@ preview = true
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-#"ANN001", "ANN201",
-select = ["B905", "D400", "E4", "E7", "E9", "E203", "E226", "E231", "E251", "E252", "E261", "E262", "E275", "E301", "E302", "F", "D417", "PTH201"]
+#"ANN001", "ANN201", "ANN202",, "DOC201"
+select = ["B905", "D102", "D205", "D208", "D209", "D400", "D401", "D404", "E4", "E7", "E9", "E117", "E202", "E203", "E225", "E226", "E231", "E251", "E252", "E261", "E262", "E275", "E301", "E302", "ERA001", "F", "D417", "PLC1901", "PTH201", "T201"]
 # select = ["ALL"]  # temporary use this to explore more rules and pick which ones to keep above
 # "D101", "D103" , "D102",  # does not ignore child methods and classes where the parent method has a docstring -> only enable temporarily, ignore where irrelevant
 # "D417"]
-ignore = ["E221", "F405", "N802", "N803", "N806", "N815", "Q000"]
+ignore = ["BLE001", "CPY001", "E221", "E501", "F405", "N802", "N803", "N806", "N815", "N816", "Q000", "S603", "S607", "SLF001", "ANN001", "ANN201", "ANN202", "D102"]
 # Ignore `D` rules everywhere except for the `src/` directory.
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

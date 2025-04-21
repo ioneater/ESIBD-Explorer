@@ -8,12 +8,13 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, DeviceC
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [CustomDevice]
 
 
 class CustomDevice(Device):
     """The minimal code in *examples/CustomDevice.py* is an example of how to integrate a custom device.
+
     Usually only a fraction of the methods shown here need to be implemented. Look at the other examples and :ref:`sec:plugin_system` for more details.
     """
     documentation = """The minimal code in examples/CustomDevice.py is an example of how to integrate a custom device.
@@ -41,14 +42,14 @@ class CustomDevice(Device):
         """Initialize your custom user interface."""
         super().initGUI()
         # a base UI is provided by parent class, it can be extended like this if required
-        self.addAction(self.customAction, 'Custom tooltip.', self.makeIcon('cookie.png'))
+        self.customAction = self.addAction(self.customActionEvent, 'Custom tooltip.', self.makeIcon('cookie.png'))
 
     def finalizeInit(self, aboutFunc=None) -> None:
         # TODO (optional) add code that should be executed after all other Plugins are initialized.
         super().finalizeInit(aboutFunc)
 
     def runTestParallel(self) -> None:
-        # self.testControl(self.customAction, self.customAction.state)
+        self.testControl(self.customAction, self.customAction.state)
         # TODO (optional) add custom tests (avoid tests that require user interaction!)
         super().runTestParallel()
 
@@ -56,9 +57,9 @@ class CustomDevice(Device):
         super().setOn(on)
         # TODO (optional) do something if device is turned on or off
         if self.isOn():
-            self.customAction()
+            self.customActionEvent()
 
-    def customAction(self):
+    def customActionEvent(self):
         """Execute your custom code."""
         if not self.testing or self.pluginManager.closing:
             self.messageBox.setWindowTitle('Custom Dialog')
@@ -106,7 +107,7 @@ class CustomChannel(Channel):
 
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE   ][Parameter.HEADER] = 'Value (X)'  # overwrite to change header
+        channel[self.VALUE][Parameter.HEADER] = 'Value (X)'  # overwrite to change header
         channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, header='ID    ', attr='id')
         # TODO (optional) add and modify any channel parameters as needed
         return channel
@@ -182,9 +183,12 @@ class CustomController(DeviceController):
                     if getTestMode():
                         self.values = [channel.value for channel in self.device.getChannels()]  # TODO implement fake feedback
                     else:
-                        pass  # TODO implement real feedback
-                        # TODO increment error count if you catch a communication error here
-                        # self.errorCount += 1
+                        if True:
+                            # TODO implement real feedback
+                            pass
+                        else:
+                            # TODO increment error count if you catch a communication error here
+                            self.errorCount += 1
                     self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval / 1000)  # release lock before waiting!
 

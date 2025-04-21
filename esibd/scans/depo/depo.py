@@ -1,7 +1,3 @@
-"""This module contains classes that contain and manage a list of (extended) UI elements.
-In addition it contains classes used to manage data acquisition.
-Finally it contains classes for data export, and data import."""
-
 import time
 from datetime import datetime, timedelta
 import sys
@@ -23,18 +19,20 @@ else:
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Depo]
 
 
 class Depo(Scan):
-    """Scan that records the sample current and accumulated charge during deposition. A
-    target charge and current threshold can be defined and a message will be
+    """Scan that records the sample current and accumulated charge during deposition.
+
+    A target charge and current threshold can be defined and a message will be
     played back when the target has been reached or the current drops below
     the threshold. The time until completion is estimated based on recent data.
     As data analysis is decoupled from data
     acquisition, you can continue to use all other scan modes and
-    optimization while the deposition recording is running."""
+    optimization while the deposition recording is running.
+    """
 
     name = 'Depo'
     version = '1.0'
@@ -82,11 +80,13 @@ class Depo(Scan):
 
         class CustomScientificFormatter(ScalarFormatter):
             """Custom formatter that prevents waste of vertical space by offset or scale factor.
+
             There is still an issue with very large or very small values if log=False.
-            In that case the corresponding device should use self.logY = True."""
+            In that case the corresponding device should use self.logY = True.
+            """
             def __init__(self, *args, log=False, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.log=log
+                self.log = log
                 self.set_scientific(True)  # Enable scientific notation
                 self.set_useOffset(False)  # Disable the offset/scaling factor above the axis
 
@@ -113,7 +113,6 @@ class Depo(Scan):
                     if output.logY:
                         self.axes[2 + self.scan.getExtraUnits().index(output.unit)].set_yscale('log')
                     self.axes[2 + self.scan.getExtraUnits().index(output.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=output.logY))
-                # self.axes[2+i].get_yaxis().set_major_formatter(mpl.ticker.FuncFormatter(lambda x, p: self.scientificNotation(x)))
             for i, unit in enumerate(self.scan.getExtraUnits()):
                 legend = self.axes[2 + i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
@@ -136,11 +135,10 @@ class Depo(Scan):
             self.tilt_xlabels(self.axes[-1])
             self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=6, ha='left', va='top',
                                                             bbox=dict(boxstyle='square, pad=.2', fc=plt.rcParams['axes.facecolor'], ec='none'))
-            # self.fig.xticks(rotation = 30)
             self.updateDepoTarget()
 
         def updateDepoTarget(self) -> None:
-            """Updates the deposition target line in the plot."""
+            """Update the deposition target line in the plot."""
             if self.depoChargeTarget is not None:
                 self.depoChargeTarget.set_ydata([self.scan.target])
                 if np.sign(self.scan.target) == 1:
@@ -166,14 +164,13 @@ class Depo(Scan):
         self.depoCheckList = QTextEdit()
         self.depoCheckList.setReadOnly(True)
         self.depoCheckList.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        # self.depoCheckList.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Ignored)
         self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n' +
                                    '- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
         self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') + self.depoCheckList.verticalScrollBar().sizeHint().width() + 10)
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
     def getExtraUnits(self):
-        """Gets all units that are not representing a current or a charge."""
+        """Get all units that are not representing a current or a charge."""
         return list(set([channel.unit for channel in self.outputs if channel.unit not in ['pA', 'pAh'] and channel.display]))
 
     def getDefaultSettings(self) -> None:
@@ -200,14 +197,16 @@ class Depo(Scan):
         return defaultSettings
 
     def updateDepoTarget(self) -> None:
-        """Updates the deposition target line in the plot."""
+        """Update the deposition target line in the plot."""
         if self.display is not None and self.display.initializedDock:
             self.display.updateDepoTarget()
 
     def initScan(self) -> None:
         # overwrite parent
-        """Initialized all data and metadata.
-        Returns True if initialization successful and scan is ready to start."""
+        """Initialize all data and metadata.
+
+        Returns True if initialization successful and scan is ready to start.
+        """
         self.initializing = True
         for name in self.settingsMgr.settings[self.DISPLAY].items:
             sourceChannel = self.getChannelByName(name, inout=INOUT.OUT)
@@ -259,7 +258,7 @@ class Depo(Scan):
         super().updateDisplayChannel()
 
     def updateWarnLevel(self):
-        """Updates the warning level line in the plot."""
+        """Update the warning level line in the plot."""
         if self.display is not None and self.display.currentWarnLine is not None:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
@@ -270,7 +269,6 @@ class Depo(Scan):
         if self.loading:
             return
         if len(self.outputs) > 0 and len(self.inputs) > 0:
-            # self.print('plot', flag=PRINT.DEBUG)
             _timeInt = self.getData(0, INOUT.IN)
             _time = [datetime.fromtimestamp(float(_time)) for _time in _timeInt]  # convert timestamp to datetime
             charge = []
@@ -298,11 +296,8 @@ class Depo(Scan):
                 if done:
                     time_done_str = self.roundDateTime(datetime.fromtimestamp(float(_timeInt[-1]))).strftime('%H:%M')
             if len(_time) > 0:  # predict scan based on last 10 data points
-                # hh, mm= divmod(int(np.ceil((_timeInt[-1]-_timeInt[0])//60)), 60)
                 self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(_time[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
                                         + f"{charge[-1] - charge[0]:2.1f} pAh deposited")
-                                        # do not show deposition time as scan time also includes thermalization and ice growth.
-                                        # + f"{charge[-1]-charge[0]:2.1f} pAh deposited within " + (f"{hh} h {mm} min" if hh > 0 else f"{mm} min"))
         else:  # no data
             self.removeAnnotations(self.display.axes[1])
             self.display.currentLine.set_data([], [])
@@ -385,7 +380,7 @@ fig.show()
         """
 
     def roundDateTime(self, interval):
-        """Rounds to nearest minute.
+        """Round to nearest minute.
 
         :param interval: The original time interval.
         :type interval: datetime.datetime

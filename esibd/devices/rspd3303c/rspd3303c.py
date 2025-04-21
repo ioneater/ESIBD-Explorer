@@ -9,13 +9,15 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [RSPD3303C]
 
 
 class RSPD3303C(Device):
     """Contains a list of voltages channels from a single RSPD3303C power supplies with 2 analog outputs.
-    In case of any issues, first test communication independently with EasyPowerX."""
+
+    In case of any issues, first test communication independently with EasyPowerX.
+    """
 
     name = 'RSPD3303C'
     version = '1.0'
@@ -54,7 +56,7 @@ class RSPD3303C(Device):
         return defaultSettings
 
     def initTimer(self) -> None:
-        """Initialized the shutdown timer."""
+        """Initialize the shutdown timer."""
         if self.shutDownTime != 0:
             if (self.shutDownTime < 10 or
             (self.shutDownTime < 60 and self.shutDownTime % 10 == 0) or
@@ -64,7 +66,7 @@ class RSPD3303C(Device):
             self.shutDownTimer.start(60000)  # 1 min steps steps
 
     def updateTimer(self) -> None:
-        """Updates the shutdowntimer, notifies about remaining time and turns of the device once expired."""
+        """Update the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.shutDownTime = max(0, self.shutDownTime - 1)
         if self.shutDownTime == 1:
             self.print('Timer expired. Setting PID off and heater voltages to 0 V.')
@@ -87,13 +89,13 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
-        channel[self.MIN ][Parameter.VALUE] = 0
-        channel[self.MAX ][Parameter.VALUE] = 1  # start with safe limits
-        channel[self.POWER ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.MIN][Parameter.VALUE] = 0
+        channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
+        channel[self.POWER] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
                                                                indicator=True, attr='power')
-        channel[self.CURRENT ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=True,
+        channel[self.CURRENT] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=True,
                                                                indicator=True, attr='current')
-        channel[self.ID      ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='ID', _min=0, _max=99, attr='id')
         return channel
 
@@ -126,7 +128,7 @@ class VoltageController(DeviceController):
     def runInitialization(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
-            # name = rm.list_resources()
+            # name = rm.list_resources()  # noqa: ERA001
             self.port = rm.open_resource(self.device.address, open_timeout=500)
             self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()

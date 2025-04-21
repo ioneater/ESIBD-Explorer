@@ -1,7 +1,3 @@
-"""This module contains classes that contain and manage a list of (extended) UI elements.
-In addition it contains classes used to manage data acquisition.
-Finally it contains classes for data export, and data import."""
-
 import itertools
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import h5py
@@ -13,13 +9,14 @@ from esibd.plugins import Scan
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Beam]
 
 
 class Beam(Scan):
-    """Scan that records the ion-beam current on one electrode as a function of two voltage
-    channels, typically deflectors. The recorded data can be interpolated to
+    """Scan that records the ion-beam current on one electrode as a function of two voltage channels, typically deflectors.
+
+    The recorded data can be interpolated to
     enhance the visualization. A 1:1 aspect ratio is used by default, but a variable ratio
     can be enabled to maximize use of space. The resulting image is used to identify
     elements like apertures, samples, and detectors. The beam can be moved
@@ -27,7 +24,8 @@ class Beam(Scan):
     holding down the Ctrl key. Limits can be coupled to have the same step
     size in both directions. Scan limits can be adopted from the figure or
     centered around the current value, e.g., to zoom in and center on a
-    specific feature."""
+    specific feature.
+    """
 
     LEFTRIGHT = 'Left-Right'
     UPDOWN = 'Up-Down'
@@ -103,7 +101,7 @@ class Beam(Scan):
         super().runTestParallel()
 
     def loadDataInternal(self) -> None:
-        """Loads data in internal standard format for plotting."""
+        """Load data in internal standard format for plotting."""
         if self.file.name.endswith('.S2D.dat'):  # legacy ESIBD Control file
             try:
                 data = np.flip(np.loadtxt(self.file).transpose())
@@ -206,7 +204,7 @@ class Beam(Scan):
         return defaultSettings
 
     def useLimits(self) -> None:
-        """Uses current display limits as scan limits."""
+        """Use current display limits as scan limits."""
         if self.display is not None and self.display.initializedDock:
             self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
@@ -293,7 +291,7 @@ fig.show()
         """
 
     def getMeshgrid(self, scaling=1) -> np.meshgrid:
-        """Gets a mesh grid of x a coordinates.
+        """Get a mesh grid of x a coordinates.
 
         :param scaling: _descCan be used to increase resolution, e.g. when interpolating. Defaults to 1
         :type scaling: int, optional

@@ -1,7 +1,3 @@
-"""Functions in this file will generally require direct access to UI elements as well as data structures.
-Note this will be imported in ES_IBD_Explorer so that it is equivalent to defining the methods there directly.
-This allows to keep the bare UI initialization separated from the more meaningful methods."""
-
 import numpy as np
 from pathlib import Path
 from Bio.PDB import PDBParser
@@ -10,15 +6,17 @@ from esibd.plugins import Plugin
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [PDB]
 
 
 class PDB(Plugin):
-    """The PDB plugin allows to display atoms defined in the .pdb and .pdb1
-    file formats used by the protein data bank. While the visualization is
+    """The PDB plugin allows to display atoms defined in the .pdb and .pdb1 file formats used by the protein data bank.
+
+    While the visualization is
     not very sophisticated it may get you started on interacting
-    programmatically with those files."""
+    programmatically with those files.
+    """
 
     name = 'PDB'
     version = '1.0'
@@ -47,11 +45,10 @@ class PDB(Plugin):
         :param pdb_file: PDB input file.
         :type pdb_file: pathlib.Path
         :return: PDBParser object, XYZ
-        :rtype: PDBParser, np.array, np.array, np.array
+        :rtype: PDBParser, np.ndarray
         """
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
-        XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
-        return structure, XYZ
+        return structure, np.array([atom.get_coord() for atom in structure.get_atoms()])
 
     def loadData(self, file, _show=True) -> None:
         self.provideDock()
@@ -72,8 +69,9 @@ class PDB(Plugin):
         self.canvas.draw_idle()
 
     def set_axes_equal(self, ax) -> None:
-        """Make axes of 3D plot have equal scale so that spheres appear as spheres,
-        cubes as cubes, etc..  This is one possible solution to Matplotlib's
+        """Make axes of 3D plot have equal scale so that spheres appear as spheres, cubes as cubes, etc.
+
+        This is one possible solution to Matplotlib's
         ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
 
         :param ax: A matplotlib axes.
@@ -106,12 +104,11 @@ def get_structure(pdb_file):  # read PDB file
 
     :param pdb_file: PDB input file.
     :type pdb_file: pathlib.Path
-    :return: PDBParser object, XYZ, X, Y, Z
-    :rtype: PDBParser, np.array, np.array, np.array
+    :return: PDBParser object, XYZ
+    :rtype: PDBParser, np.ndarray
     '''
     structure = PDBParser(QUIET=True).get_structure('', pdb_file)
-    XYZ=np.array([atom.get_coord() for atom in structure.get_atoms()])
-    return structure, XYZ
+    return structure, np.array([atom.get_coord() for atom in structure.get_atoms()])
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,

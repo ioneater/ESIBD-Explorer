@@ -7,7 +7,7 @@ from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceC
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [MAXIGAUGE]
 
 
@@ -64,11 +64,11 @@ class PressureController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.port=serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+            self.port = serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                                     parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
-            if TPGStatus == '':
+            if not TPGStatus:
                 raise ValueError('TPG did not return status.')
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]
@@ -103,7 +103,6 @@ class PressureController(DeviceController):
                         status, pressure = msg.split(',')
                         if status == '0':
                             self.values[i] = float(pressure)  # set unit to mbar on device
-                            # self.print(f'Read pressure for channel {channel.name}', flag=PRINT.DEBUG)
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', PRINT.WARNING)
                             self.values[i] = np.nan
@@ -120,7 +119,7 @@ class PressureController(DeviceController):
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndPressure(self) -> float:
-        """Returns a random pressure."""
+        """Return a random pressure."""
         exp = np.random.randint(-11, 3)
         significand = 0.9 * np.random.random() + 0.1
         return significand * 10**exp

@@ -8,13 +8,15 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [MIPS]
 
 
 class MIPS(Device):
     """Contains a list of voltages channels from one or multiple MIPS power supplies with 8 channels each.
-    The voltages are monitored and a warning is given if the set potentials are not reached."""
+
+    The voltages are monitored and a warning is given if the set potentials are not reached.
+    """
 
     name = 'MIPS'
     version = '1.0'
@@ -54,7 +56,7 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           widgetType=Parameter.TYPE.COMBO, advanced=True, attr='com')
-        channel[self.ID      ] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
                                     header='ID', _min=1, _max=8, attr='id')
         return channel
 
@@ -88,7 +90,7 @@ class VoltageController(DeviceController):
             self.ports = [serial.Serial(baudrate=9600, port=COM, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                                         bytesize=serial.EIGHTBITS, timeout=2) for COM in self.COMs]
             result = self.MIPSWriteRead(self.COMs[0], 'GDCBV,1\r\n')
-            if result != '':
+            if result:
                 self.signalComm.initCompleteSignal.emit()
             else:
                 self.closeCommunication()

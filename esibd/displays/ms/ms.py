@@ -1,7 +1,3 @@
-"""Functions in this file will generally require direct access to UI elements as well as data structures.
-Note this will be imported in ES_IBD_Explorer so that it is equivalent to defining the methods there directly.
-This allows to keep the bare UI initialization separated from the more meaningful methods."""
-
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -10,19 +6,21 @@ from esibd.plugins import Plugin
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [MS]
 
 
 class MS(Plugin):
-    """The MS plugin allows to display simple mass spectra. Left clicking on peaks
-    in a charge state series while holding down the Ctrl key provides a
+    """The MS plugin allows to display simple mass spectra.
+
+    Left clicking on peaks in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states. The
     detailed results are shown in the graph, and help to evaluate the
     quality of the estimate. Use Ctrl + right mouse click to reset. In most cases you will need to create your own version of this plugin
     that is inheriting from the built-in version and redefines how data is
-    loaded for your specific data format. See :ref:`sec:plugin_system` for more information."""
+    loaded for your specific data format. See :ref:`sec:plugin_system` for more information.
+    """
     documentation = """The MS plugin allows to display simple mass spectra. Left clicking on peaks
     in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
@@ -82,7 +80,6 @@ class MS(Plugin):
                     first_line = _file.readline()
             except UnicodeDecodeError:
                 return False
-                # self.print(f'could not decode first line of file {file}: {e}', PRINT.ERROR)
             if 'spectrum' in first_line.lower():  # mass spectrum
                 return True
         return False
@@ -96,7 +93,7 @@ class MS(Plugin):
         self.raiseDock(_show)
 
     def plot(self) -> None:
-        """Plots MS data."""
+        """Plot MS data."""
         self.axes[0].clear()
         self.axes[0].set_xlabel('m/z (Th)')
         if self.paperAction.state:
@@ -123,7 +120,7 @@ class MS(Plugin):
         self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value) -> float:
-        """Returns the nearest value in the given array.
+        """Return the nearest value in the given array.
 
         :param array: Array to search in.
         :type array: np.array
@@ -137,7 +134,7 @@ class MS(Plugin):
         return array[idx]
 
     def map_percent(self, x, y) -> np.array:
-        """Maps the range between y(x_min) and y(x_max) to 0 to 100 %.
+        """Map the range between y(x_min) and y(x_max) to 0 to 100 %.
 
         :param x: X values.
         :type x: np.array
@@ -146,11 +143,11 @@ class MS(Plugin):
         :return: Mapped input values.
         :rtype: np.array
         """
-        x_min_i=np.where(x == self.find_nearest(x, min(x)))[0]
-        x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
-        x_max_i=np.where(x == self.find_nearest(x, max(x)))[0]
-        x_max_i=np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
-        y_sub=y[x_min_i:x_max_i]
+        x_min_i = np.where(x == self.find_nearest(x, min(x)))[0]
+        x_min_i = np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
+        x_max_i = np.where(x == self.find_nearest(x, max(x)))[0]
+        x_max_i = np.max(x_max_i) if x_max_i.shape[0] > 0 else x.shape[0]
+        y_sub = y[x_min_i:x_max_i]
         return (y - np.min(y)) / np.max(y_sub - np.min(y_sub)) * 100
 
     def smooth(self, y, box_pts) -> np.array:
@@ -180,7 +177,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def map_percent(x, y):
-    '''Maps the range between y(x_min) and y(x_max) to 0 to 100 %.
+    '''Map the range between y(x_min) and y(x_max) to 0 to 100 %.
 
     :param x: X values.
     :type x: np.array
@@ -197,7 +194,7 @@ def map_percent(x, y):
     return (y-np.min(y))/np.max(y_sub-np.min(y_sub))*100
 
 def smooth(y, box_pts):
-    '''Smooths a 1D array.
+    '''Smooth a 1D array.
 
     :param y: Array to be smoothed.
     :type y: np.array
@@ -211,7 +208,7 @@ def smooth(y, box_pts):
     return y_smooth
 
 def find_nearest(array, value):
-    '''Returns the nearest value in the given array.
+    '''Return the nearest value in the given array.
 
     :param array: Array to search in.
     :type array: np.array

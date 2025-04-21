@@ -8,7 +8,7 @@ from esibd.core import (Parameter, INOUT, parameterDict, plotting,
 from esibd.plugins import Scan
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [MassSpec]
 
 class MassSpec(Scan):

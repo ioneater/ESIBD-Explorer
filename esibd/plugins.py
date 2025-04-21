@@ -1,7 +1,9 @@
-""" This module contains only :class:`plugins<esibd.plugins.Plugin>` and plugin templates.
+"""Contains only :class:`plugins<esibd.plugins.Plugin>` and plugin templates.
+
 The user controls generally have a large amount of logic integrated and can act as an intelligent database.
 This avoids complex and error prone synchronization between redundant data in the UI and a separate database.
-Every Parameter should only exist in one unique location at run time."""
+Every Parameter should only exist in one unique location at run time.
+"""
 # Separating the logic from the PyQt specific UI elements may be required in the future,
 # but only if there are practical and relevant advantages that outweigh the drawbacks of managing synchronization."""
 
@@ -51,9 +53,11 @@ aeval = Interpreter()
 
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
+
     All plugins are ultimately derived from the :class:`~esibd.plugins.Plugin` class.
     The doc string of the plugin class will be shown in the corresponding help window
-    unless documentation is implemented explicitly."""
+    unless documentation is implemented explicitly.
+    """
 
     LOAD    = 'Load'
     SAVE    = 'Save'
@@ -158,8 +162,9 @@ class Plugin(QWidget):
         self.signalComm.testCompleteSignal.connect(self.testComplete)
 
     def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
-        """The print function will send a message to stdout, the statusbar, the
-        Console, and if enabled to the logfile. It will automatically add a
+        """Send a message to stdout, the statusbar, the Console, and to the logfile.
+
+        It will automatically add a
         timestamp and the name of the sending plugin.
 
         :param message: A short informative message.
@@ -172,7 +177,9 @@ class Plugin(QWidget):
     @property
     def loading(self) -> None:
         """A flag that can be used to suppress certain events while loading data or initializing the user interface.
-        Make sure the flag is reset after every use. Internal logic allows nested use."""
+
+        Make sure the flag is reset after every use. Internal logic allows nested use.
+        """
         return self._loading != 0
 
     @loading.setter
@@ -191,7 +198,7 @@ class Plugin(QWidget):
         Timer(0, self.runTestParallel).start()
 
     def stopTest(self) -> None:
-        """Stops testing."""
+        """Stop testing."""
         self.signalComm.testCompleteSignal.emit()
 
     def testControl(self, control, value: any, delay: int = 0, label: str = None) -> None:
@@ -259,8 +266,10 @@ class Plugin(QWidget):
         time.sleep(max(delay, 0.5) if self.pluginManager.Settings.showVideoRecorders else delay)
 
     def runTestParallel(self) -> None:
-        """Runs a series of tests by changing values of selected controls and triggering the corresponding events.
-        NOTE: Extend and add call to super().runTestParallel() to the end to make sure testing flag is set to False after all test completed."""
+        """Run a series of tests by changing values of selected controls and triggering the corresponding events.
+
+        Extend and add call to super().runTestParallel() to the end to make sure testing flag is set to False after all test completed.
+        """
         # ... add sequence of spaced events to trigger and test all functionality
         if self.initializedDock:
             self.testControl(self.aboutAction, True)
@@ -287,7 +296,8 @@ class Plugin(QWidget):
             QApplication.processEvents()
 
     def waitForCondition(self, condition: callable, interval: float = 0.1, timeout: int = 5, timeoutMessage: str = '') -> bool:
-        """Waits until condition returns False or timeout expires.
+        """Wait until condition returns False or timeout expires.
+
         This can be safer and easier to understand than using signals and locks.
         The flag not just blocks other functions but informs them and allows them to react instantly.
 
@@ -313,7 +323,7 @@ class Plugin(QWidget):
         return True
 
     def addToolbarStretch(self) -> None:
-        """Adds a dummy action that can be used to stretch the gap between actions on the left and right of a toolbar."""
+        """Add a dummy action that can be used to stretch the gap between actions on the left and right of a toolbar."""
         self.stretchAction = QAction()  # allows adding actions in front of stretch later on
         self.stretchAction.setVisible(False)
         self.titleBar.addAction(self.stretchAction)
@@ -322,14 +332,14 @@ class Plugin(QWidget):
         self.titleBar.addWidget(self.stretch)
 
     def setFloat(self) -> None:
-        """Turns the plugin into a popup. It can be combined with others or docked in another place in the main window."""
+        """Turn the plugin into a popup. It can be combined with others or docked in another place in the main window."""
         if self.initializedDock:
             self.dock.setFloating(self.floatAction.state)
             if not self.floatAction.state:
                 self.raiseDock()
 
     def initGUI(self) -> None:
-        """Initializes the graphic user interface (GUI), independent of all other plugins."""
+        """Initialize the graphic user interface (GUI), independent of all other plugins."""
         # hierarchy: self -> mainDisplayLayout -> mainDisplayWidget -> mainLayout
         # mainDisplayLayout and mainDisplayWidget only exist to enable conversion into a dockArea
         # mainLayout contains the actual content
@@ -359,7 +369,9 @@ class Plugin(QWidget):
             self.initializedGUI = True
 
     def finalizeInit(self, aboutFunc: callable = None) -> None:
-        """Executed after all other Plugins are initialized. Use this for code
+        """Execute final initialization code after all other Plugins are initialized.
+
+        Use this for code
         that modifies other :class:`Plugins<esibd.plugins.Plugin>`, e.g. adding an :class:`~esibd.core.Action` to the :class:`~esibd.plugins.DeviceManager`.
 
         :param aboutFunc: Function displaying the about dialog of the plugin, defaults to None.
@@ -515,8 +527,7 @@ class Plugin(QWidget):
                                      iconTrue=iconTrue, event=event, before=before, attr=attr, restore=restore, default=default)
 
     def addMultiStateAction(self, event: callable = None, states: list[EsibdCore.MultiState] = None, before: QAction = None, attr: str = None, restore: bool = True, default: int = 0) -> EsibdCore.MultiStateAction:
-        """Adds an action with can be toggled between two states, each having a
-        dedicated tooltip and icon.
+        """Add an action with can be toggled between two states, each having a dedicated tooltip and icon.
 
         :param event: The function triggered by the stateAction, defaults to None
         :type event: method, optional
@@ -539,7 +550,8 @@ class Plugin(QWidget):
         return EsibdCore.MultiStateAction(parentPlugin=self, states=states, event=event, before=before, attr=attr, restore=restore, default=default)
 
     def toggleTitleBar(self) -> None:
-        """Adjusts the title bar layout and :attr:`~esibd.plugins.Plugin.titleBarLabel` depending on the state of the :attr:`~esibd.plugins.Plugin.dock` (tabbed, floating, ...).
+        """Adjust the title bar layout and :attr:`~esibd.plugins.Plugin.titleBarLabel` depending on the state of the :attr:`~esibd.plugins.Plugin.dock` (tabbed, floating, ...).
+
         Extend to make sure toggleTitleBar is called for dependent plugins if applicable.
         """
         self.dock.toggleTitleBar()
@@ -569,7 +581,7 @@ class Plugin(QWidget):
         self.vertLayout.addLayout(layout)
 
     def supportsFile(self, file) -> bool:
-        """Tests if a file is supported by the plugin, based on file name or content.
+        """Test if a file is supported by the plugin, based on file name or content.
 
         :param file: File that has been selected by the user.
         :type file: pathlib.Path
@@ -579,7 +591,8 @@ class Plugin(QWidget):
         return any(file.name.lower().endswith(fileType.lower()) for fileType in self.previewFileTypes)
 
     def loadData(self, file, _show=True) -> None:
-        """Loads and displays data from file.
+        """Load and displays data from file.
+
         This should only be called for files where :meth:`~esibd.plugins.Plugin.supportsFile` returns True.
         Overwrite depending on data supported by the plugin.
 
@@ -591,7 +604,7 @@ class Plugin(QWidget):
         self.print(f'Loading data from {file} not implemented.', PRINT.ERROR)
 
     def getSupportedFiles(self) -> list[str]:
-        """Returns supported file types."""
+        """Return supported file types."""
         # extend to include previewFileTypes of associated displays if applicable
         return self.previewFileTypes
 
@@ -606,7 +619,7 @@ class Plugin(QWidget):
             info_group.attrs[key] = value
 
     def requireGroup(self, group, name) -> h5py.Group:
-        """Replaces require_group from h5py, and adds support for track_order.
+        """Replace require_group from h5py, and adds support for track_order.
 
         :param group: Valid group.
         :type group: h5py.Group
@@ -627,7 +640,7 @@ class Plugin(QWidget):
             self.videoRecorder.stopRecording()
 
     def about(self) -> None:
-        """Displays the about dialog of the plugin using the :ref:`sec:browser`."""
+        """Display the about dialog of the plugin using the :ref:`sec:browser`."""
         self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
             <p>{self.documentation if self.documentation is not None else self.__doc__}<br></p>
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
@@ -641,7 +654,7 @@ class Plugin(QWidget):
             )
 
     def getToolBarActionsHTML(self) -> str:
-        """Returns HTML code that lists all toolbar actions including the corresponding icons.
+        """Return HTML code that lists all toolbar actions including the corresponding icons.
 
         :return: HTML code documenting toolbar actions.
         :rtype: str
@@ -650,7 +663,7 @@ class Plugin(QWidget):
             return ''
         actionsHTML = '<p>Icon Legend:<br>'
         for action in self.titleBar.actions():
-            if action.iconText() != '':
+            if action.iconText():
                 if isinstance(action, (EsibdCore.Action, EsibdCore.StateAction, EsibdCore.MultiStateAction)) and hasattr(action.getIcon(), 'fileName'):
                     actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;'" +
                     f" width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n")
@@ -663,8 +676,7 @@ class Plugin(QWidget):
         return actionsHTML
 
     def makeFigureCanvasWithToolbar(self, figure) -> None:
-        """Creates :meth:`~esibd.plugins.Plugin.canvas`, which can be added to the user interface, and
-        adds the corresponding :meth:`~esibd.plugins.Plugin.navToolBar` to the plugin :meth:`~esibd.plugins.Plugin.titleBar`.
+        """Create :meth:`~esibd.plugins.Plugin.canvas`, which can be added to the user interface, and adds the corresponding :meth:`~esibd.plugins.Plugin.navToolBar` to the plugin :meth:`~esibd.plugins.Plugin.titleBar`.
 
         :param figure: A matplotlib figure.
         :type figure: matplotlib.pyplot.figure
@@ -682,7 +694,7 @@ class Plugin(QWidget):
                 self.titleBar.addAction(action)
 
     def labelPlot(self, ax, label) -> None:
-        """Adds file name labels to plot to trace back which file it is based on.
+        """Add file name labels to plot to trace back which file it is based on.
 
         :param ax: A matplotlib axes.
         :type ax: matplotlib.axes
@@ -702,14 +714,12 @@ class Plugin(QWidget):
         labelWidth = self.labelAnnotation.get_window_extent(renderer=ax.get_figure().canvas.get_renderer()).width
         axisWidth = ax.get_window_extent().transformed(ax.get_figure().dpi_scale_trans.inverted()).width * ax.get_figure().dpi * .9
         self.labelAnnotation.set_size(min(max(fontsize / labelWidth * axisWidth, 1), 10))
-        # ax.plot([0.8, 1], [0.95, 0.95], transform=ax.transAxes, color='green')  # workaround for label vs legend clash not working
-        # https://stackoverflow.com/questions/57328170/draw-a-line-with-matplotlib-using-the-axis-coordinate-system
         if hasattr(ax, 'cursor'):  # cursor position changes after adding label... -> restore
             ax.cursor.updatePosition()
         ax.figure.canvas.draw_idle()
 
     def removeAnnotations(self, ax) -> None:
-        """Removes all annotations from an axes.
+        """Remove all annotations from an axes.
 
         :param ax: A matplotlib axes.
         :type ax: matplotlib.axes
@@ -718,7 +728,8 @@ class Plugin(QWidget):
             ann.remove()
 
     def getIcon(self, desaturate: bool = False) -> Icon:
-        """Gets the plugin icon. Consider using a themed icon that works in dark and light modes.
+        """Get the plugin icon. Consider using a themed icon that works in dark and light modes.
+
         Overwrite only if definition of iconFile and iconFileDark is not sufficient.
 
         :param desaturate: Indicates if color should be removed from icon, defaults to False
@@ -727,13 +738,13 @@ class Plugin(QWidget):
         :rtype: :class:`~esibd.core.Icon`
         """
         # e.g. return self.darkIcon if getDarkMode() else self.lightIcon
-        if self.iconFile != '':
-            return self.makeIcon(self.iconFileDark if getDarkMode() and self.iconFileDark != '' else self.iconFile, desaturate=desaturate)
+        if self.iconFile:
+            return self.makeIcon(self.iconFileDark if getDarkMode() and self.iconFileDark else self.iconFile, desaturate=desaturate)
         else:
             return self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png', desaturate=desaturate)
 
     def makeCoreIcon(self, file, desaturate=False) -> Icon:
-        """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
+        """Return an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
 
         :param file: Icon file name.
         :type file: str
@@ -745,7 +756,7 @@ class Plugin(QWidget):
         return self.makeIcon(file=file, path=internalMediaPath, desaturate=desaturate)
 
     def makeIcon(self, file, path=None, desaturate=False) -> Icon:
-        """Returns an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath` unless otherwise specified.
+        """Return an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath` unless otherwise specified.
 
         :param file: Icon file name.
         :type file: str
@@ -763,8 +774,9 @@ class Plugin(QWidget):
         return Icon(iconPath, desaturate=desaturate)
 
     def updateTheme(self) -> None:
-        """Changes between dark and light themes. Most
-        controls should update automatically as the color pallet is changed.
+        """Change between dark and light themes.
+
+        Most controls should update automatically as the color pallet is changed.
         Only update the remaining controls using style sheets.
         Extend to adjust colors to app theme.
         """
@@ -779,13 +791,15 @@ class Plugin(QWidget):
             self.aboutAction.setIcon(self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
 
     def initFig(self) -> None:
-        """Will be called when a :ref:`display<sec:displays>` is closed and reopened or the theme
-        is changed. Overwrite your figure initialization here to make sure all references are updated correctly."""
+        """Will be called when a :ref:`display<sec:displays>` is closed and reopened or the theme is changed.
+
+        Overwrite your figure initialization here to make sure all references are updated correctly.
+        """
         self.fig = None
         self.canvas = None
 
     def provideFig(self) -> None:
-        """Creates or reinitializes a matplotlib figure."""
+        """Create or reinitialize a matplotlib figure."""
         if self.fig is not None and rgb_to_hex(self.fig.get_facecolor()) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
@@ -805,7 +819,8 @@ class Plugin(QWidget):
         """If applicable, overwrite with a plugin specific plot method."""
 
     def generatePythonPlotCode(self) -> str:
-        """Provides plugin specific code to plot data exported by the plugin independently.
+        """Provide plugin specific code to plot data exported by the plugin independently.
+
         This is a starting point to reproduce and adjust figures e.g. for publications or independent data analysis.
 
         :return: Python plot code
@@ -832,11 +847,9 @@ class Plugin(QWidget):
                     ax.set_ylim(limits[i][1])
                 self.fig.set_size_inches(size)
                 self.canvas.draw_idle()
-                # QApplication.clipboard().setPixmap(self.canvas.grab())  # does not work on just drawn image -> pixelated -> use buffer
                 self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI(), facecolor='w')  # safeFig in default context
         else:
             self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
-            # QApplication.clipboard().setPixmap(self.canvas.grab())  # grabs entire canvas and not just figure
         QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
         buffer.close()
         if getDarkMode() and not getClipboardTheme():
@@ -850,7 +863,7 @@ class Plugin(QWidget):
 
     @synchronized()
     def copyLineDataClipboard(self, line) -> None:
-        """Copies data as text to clipboard.
+        """Copy data as text to clipboard.
 
         :param line: The line with the data do be copied.
         :type line: matplotlib.lines.Line2D
@@ -862,7 +875,7 @@ class Plugin(QWidget):
             QApplication.clipboard().setText(text)
 
     def setLabelMargin(self, ax, margin) -> None:
-        """Sets top margin only, to reserve space for file name label.
+        """Set top margin only, to reserve space for file name label.
 
         :param ax: The axis to which to add the top margin
         :type ax: matplotlib.pyplot.axis
@@ -877,7 +890,7 @@ class Plugin(QWidget):
         ax.set_ylim(lim[0], lim[1] + delta * margin)
 
     def addRightAxis(self, ax) -> None:
-        """Adds additional y labels on the right.
+        """Add additional y labels on the right.
 
         :param ax: A matplotlib axes.
         :type ax: matplotlib.axes
@@ -892,7 +905,7 @@ class Plugin(QWidget):
             axr.set_yscale('log')
 
     def tilt_xlabels(self, ax, rotation=30) -> None:
-        """Replaces autofmt_xdate which is currently not compatible with constrained_layout.
+        """Replace autofmt_xdate which is currently not compatible with constrained_layout.
 
         :param ax: The axis for which to tilt the labels.
         :type ax: matplotlib.Axes
@@ -905,35 +918,40 @@ class Plugin(QWidget):
             label.set_rotation(rotation)
 
     def getDefaultSettings(self) -> dict[str, parameterDict]:
-        """Defines a dictionary of :meth:`~esibd.core.parameterDict` which specifies default settings for this plugin.
+        """Define a dictionary of :meth:`~esibd.core.parameterDict` which specifies default settings for this plugin.
+
         Overwrite or extend as needed to define specific settings that will be added to :ref:`sec:settings` section.
 
         :return: Settings dictionary
         :rtype: {:meth:`~esibd.core.parameterDict`}
         """
         ds = {}
-        # ds[f'{self.name}/SettingName'] = parameterDict(...)
+        # ds[f'{self.name}/SettingName'] = parameterDict(...)  # noqa: ERA001
         return ds
 
     def displayActive(self) -> bool:
-        """Indicates if the display is active."""
+        """Indicate if the display is active."""
         return self.display is not None and self.display.initializedDock
 
     def close(self) -> None:
-        """Closes plugin cleanly without leaving any data or communication
-        running. Extend to make sure your custom data and custom
-        communication is closed as well."""
+        """Close plugin cleanly without leaving any data or communication running.
+
+        Extend to make sure your custom data and custom
+        communication is closed as well.
+        """
 
     def closeUserGUI(self) -> None:
-        """Called when the user closes a single plugin.
+        """Call when the user closes a single plugin.
+
         Extend to react to user triggered closing.
         """
         self.closeGUI()
 
     def closeGUI(self) -> None:
-        """Closes the user interface but might keep data available in case the
-        user interface is restored later.
-        Closes all open references. Extend to save data and make hardware save if needed."""
+        """Close the user interface but might keep data available in case the user interface is restored later.
+
+        Closes all open references. Extend to save data and make hardware save if needed.
+        """
         self.close()
         if self.dock is not None and self.initializedDock:
             self.dock.deleteLater()
@@ -1221,6 +1239,7 @@ fig.show()
 
 class LiveDisplay(Plugin):
     """Live displays show the history of measured data over time.
+
     Use the start/pause icon to control data recording. The toolbar
     provides icons to initialize and stop acquisition, optionally
     subtract backgrounds, or export displayed data to the current session.
@@ -1234,7 +1253,8 @@ class LiveDisplay(Plugin):
     the graphs are updated less frequently and select a smaller but
     consistent subset of data points for a smooth visualization. While
     PyQtGraph provides its own algorithms for down sampling data (accessible
-    via the context menu), they tend to cause a flicker when updating data."""
+    via the context menu), they tend to cause a flicker when updating data.
+    """
     documentation = """Live displays show the history of measured data over time.
     Use the start/pause icon to control data recording. The toolbar
     provides icons to initialize and stop acquisition, optionally
@@ -1313,7 +1333,7 @@ class LiveDisplay(Plugin):
             self.clearHistoryAction.setVisible(self.advancedAction.state)
 
     def displayTimeChanged(self) -> None:
-        """Adjusts displayed section to display time and activates autorange."""
+        """Adjust displayed section to display time and activates autorange."""
         self.autoScaleAction.state = False
         self.updateMouseEnabled(x=False, y=True)
         # if len(self.livePlotWidgets) > 0:
@@ -2691,7 +2711,7 @@ class Device(ChannelManager):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, widgetType=Parameter.TYPE.INT, attr='maxDataPoints',
         toolTip='Maximum number of data points saved per channel, based on max storage.\n' +
         'If this is reached, older data will be thinned to allow to keep longer history.')
-        defaultSettings[f'{self.name}/Logging'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
+        defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           widgetType=Parameter.TYPE.BOOL, attr='log')
         defaultSettings[f'{self.name}/Error count'] = parameterDict(value=0, toolTip='Communication errors within last 10 minutes.\n' +
                                                                    'Communication will be stopped if this reaches 10.\n' +
@@ -4695,14 +4715,16 @@ class Tree(Plugin):
 
 class Console(Plugin):
     # ! Might need to switch to to more stable QtConsole eventually
-    """The console should typically not be needed, unless you are a developer
-    or assist in debugging an issue. It is activated from the tool bar of
+    """The console should typically not be needed, unless you are a developer or assist in debugging an issue.
+
+    It is activated from the tool bar of
     the :ref:`sec:settings`. Status messages will be logged here. In addition you can
     also enable writing status messages to a log file, that can be shared
     with a developer for debugging. All features implemented in the user
     interface and more can be accessed directly from this console. Use at
     your own Risk! You can select some commonly used examples directly from
-    the combo box to get started."""
+    the combo box to get started.
+    """
     documentation = """The console should typically not be needed, unless you are a developer
     or assist in debugging an issue. It is activated from the tool bar of
     the settings. Status messages will be logged here. In addition you can
@@ -4731,8 +4753,6 @@ class Console(Plugin):
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1)  # enable hiding
         self.historyFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / 'console_history.bin'
-        # self.historyFile.touch(exist_ok=True)  # will be created next time the program closes, touch creates an invalid file
-        # self.historyFile = open(hf, 'w')
         self.mainConsole    = EsibdCore.ThemedConsole(parentPlugin=self, historyFile=self.historyFile)
         self.mainConsole.repl._lastCommandRow = 0  # not checking for None if uninitialized! -> initialize
         self.vertLayout.addWidget(self.mainConsole, 1)  # https://github.com/pyqtgraph/pyqtgraph/issues/404  # add before hintsTextEdit
@@ -4767,10 +4787,8 @@ class Console(Plugin):
         self.mainConsole.repl.inputLayout.insertWidget(1, self.commonCommandsComboBox)
         self.mainConsole.historyBtn.deleteLater()
         self.mainConsole.exceptionBtn.deleteLater()
-        # self.triggerComboBoxSignal.connect(self.triggerCombo)
         self.signalComm.writeSignal.connect(self.write)
         self.signalComm.executeSignal.connect(self.execute)
-        # self.mainConsole.repl.input.installEventFilter(self.pluginManager.mainWindow)  # clears input on Ctrl + C like a terminal. Not using it as it also prevents copy paste!
         for message in self.pluginManager.logger.backLog:
             self.write(message)
         self.pluginManager.logger.backLog = []
@@ -4791,17 +4809,14 @@ class Console(Plugin):
         self.warningFilterAction = self.addStateAction(toolTipFalse='Show only warnings.', iconFalse=self.makeCoreIcon('unicode_warning.png'),
                                               toolTipTrue='Show all messages.', iconTrue=self.makeCoreIcon('unicode_warning.png'),
                                               before=self.aboutAction, event=lambda: self.toggleMessageFilter(error=False))
-        self.toggleLoggingAction = self.addStateAction(toolTipFalse='Write to log file.', iconFalse=self.makeCoreIcon('blue-document-list.png'), attr='logging',
-                                              toolTipTrue='Disable logging to file.', iconTrue=self.makeCoreIcon('blue-document-medium.png'),
-                                              before=self.aboutAction, event=lambda: self.toggleLogging(), default=True)
         self.openLogAction = self.addAction(toolTip='Open log file.', icon=self.makeCoreIcon('blue-folder-open-document-text.png'),
                                             before=self.aboutAction, event=lambda: self.pluginManager.logger.openLog())
         self.inspectAction = self.addAction(toolTip='Inspect object currently in input.', icon=self.makeCoreIcon('zoom_to_rect_large_dark.png' if getDarkMode() else 'zoom_to_rect_large.png'),
-                                            before=self.toggleLoggingAction, event=lambda: self.inspect())
+                                            before=self.aboutAction, event=lambda: self.inspect())
         self.closeAction = self.addAction(lambda: self.hide(), 'Hide.', self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
     def addToNamespace(self, key, value):
-        """Adds an attribute to the namespace of the Console.
+        """Add an attribute to the namespace of the Console.
 
         :param key: Attribute used to access the object
         :type key: str
@@ -4811,14 +4826,10 @@ class Console(Plugin):
         self.mainConsole.localNamespace[key] = value
 
     def runTestParallel(self) -> None:
-        # if self.initializedDock:
-            # self.testControl(self.openLogAction, True)  # will be opened at the end as to not interfere with video recording
         # test all predefined commands. Make sure critical commands are commented out to avoid reset and testing loop etc.
         for i in range(self.commonCommandsComboBox.count())[1:]:
             if not self.testing:
                 break
-            # self.triggerComboBoxSignal.emit(i)  # ? causes logger to break: print no longer redirected to console, terminal, or file!
-            # self.mainConsole.input.sigExecuteCmd.emit(self.commonCommandsComboBox.itemText(i))  # works but does not add command to history
             command = self.commonCommandsComboBox.itemText(i)
             self.print(f"Testing command: {command if len(command) <= 70 else f'{command[:67]}…'}")
             with self.lock.acquire_timeout(timeout=1, timeoutMessage=f'Could not acquire lock to test {self.commonCommandsComboBox.itemText(i)}') as lock_acquired:
@@ -4826,18 +4837,15 @@ class Console(Plugin):
                     self.signalComm.executeSignal.emit(self.commonCommandsComboBox.itemText(i))
         super().runTestParallel()
 
-    # def triggerCombo(self, i):
-    #     self.commonCommandsComboBox.setCurrentIndex(i)
-
     def commandChanged(self, _):
-        """Executes selected command from combobox."""
+        """Execute selected command from combobox."""
         # ignoring second argument
         if self.commonCommandsComboBox.currentIndex() != 0:
             self.execute(self.commonCommandsComboBox.currentText())
             self.commonCommandsComboBox.setCurrentIndex(0)
 
     def write(self, message):
-        """Writes to integrated console to keep track of message history.
+        """Write to integrated console to keep track of message history.
 
         :param message: The message to be added to the console.
         :type message: str
@@ -4881,14 +4889,6 @@ class Console(Plugin):
     def toggleVisible(self):
         """Toggles visibility of Console."""
         self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state)
-
-    def toggleLogging(self):
-        """Toggles logging of all messages in the log file."""
-        qSet.setValue(LOGGING, self.toggleLoggingAction.state)
-        if self.toggleLoggingAction.state:
-            self.pluginManager.logger.open()
-        else:
-            self.pluginManager.logger.close()
 
     def inspect(self):
         """Uses inspect function of Tree plugin to inspect element currently in the Console input."""
@@ -6954,20 +6954,20 @@ class PID(ChannelManager):
                                                  toolTip='Output channel', header='Controlled')
             channel[self.OUTPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Output device.', header='')
-            channel[self.INPUT ] = parameterDict(value='Input',  widgetType=Parameter.TYPE.TEXT, attr='input', event=lambda: self.connectSource(),
+            channel[self.INPUT] = parameterDict(value='Input',  widgetType=Parameter.TYPE.TEXT, attr='input', event=lambda: self.connectSource(),
                                                  toolTip='Input channel', header='Controlling')
             channel[self.INPUTDEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
                                                  toolTip='Input device.', header='')
-            channel[self.ACTIVE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, attr='active', toolTip='Activate PID control.')
+            channel[self.ACTIVE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, attr='active', toolTip='Activate PID control.')
             channel[self.PROPORTIONAL] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='p', header='P        ',
                                                        event=lambda: self.updatePID(), toolTip='Proportional')
-            channel[self.INTEGRAL    ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='i', header='I        ',
+            channel[self.INTEGRAL] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='i', header='I        ',
                                                        event=lambda: self.updatePID(), toolTip='Integral')
-            channel[self.DERIVATIVE  ] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='d', header='D        ',
+            channel[self.DERIVATIVE] = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='d', header='D        ',
                                                        event=lambda: self.updatePID(), toolTip='Derivative')
-            channel[self.SAMPLETIME  ] = parameterDict(value=10, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='sample_time',
+            channel[self.SAMPLETIME] = parameterDict(value=10, widgetType=Parameter.TYPE.FLOAT, advanced=True, attr='sample_time',
                                                        header='Time   ', event=lambda: self.updateSampleTime(), toolTip='Sample time in s')
-            channel[self.NOTES  ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
+            channel[self.NOTES] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
             return channel
 
         def setDisplayedParameters(self) -> None:

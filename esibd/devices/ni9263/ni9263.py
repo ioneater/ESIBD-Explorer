@@ -5,7 +5,7 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [NI9263]
 
 
@@ -36,8 +36,8 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
-        channel[self.MIN ][Parameter.VALUE] = 0
-        channel[self.MAX ][Parameter.VALUE] = 1  # start with safe limits
+        channel[self.MIN][Parameter.VALUE] = 0
+        channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
         channel[self.ADDRESS] = parameterDict(value='cDAQ1Mod1/ao0', toolTip='Address of analog output',
                                           widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
         return channel

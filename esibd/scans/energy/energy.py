@@ -1,7 +1,3 @@
-"""This module contains classes that contain and manage a list of (extended) UI elements.
-In addition it contains classes used to manage data acquisition.
-Finally it contains classes for data export, and data import."""
-
 import matplotlib as mpl
 import h5py
 from scipy import optimize
@@ -12,17 +8,18 @@ from esibd.plugins import Scan
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Energy]
 
 
 class Energy(Scan):
-    """Scan that records the current on one electrode, typically a detector plate, as a
-    function of one potential, typically a retarding grid. The display
-    shows the measured transmission data, a discrete derivative,
+    """Scan that records the current on one electrode, typically a detector plate, as a function of one potential, typically a retarding grid.
+
+    The display shows the measured transmission data, a discrete derivative,
     and a Gaussian fit that reveals beam-energy center and width. The
     potential on the selected channel can be changed by clicking and
-    dragging on the image while holding down the Ctrl key."""
+    dragging on the image while holding down the Ctrl key.
+    """
 
     name = 'Energy'
     version = '1.0'
@@ -61,7 +58,7 @@ class Energy(Scan):
         self.previewFileTypes.append('.swp.h5')
 
     def loadDataInternal(self) -> None:
-        """Loads data in internal standard format for plotting."""
+        """Load data in internal standard format for plotting."""
         if self.file.name.endswith('.swp.dat'):  # legacy ESIBD Control file
             headers = []
             with open(self.file, 'r', encoding=self.UTF8) as dataFile:
@@ -103,7 +100,7 @@ class Energy(Scan):
         return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
 
     def map_percent(self, x) -> np.array:
-        """Maps any range on range 0 to 100.
+        """Map any range on range 0 to 100.
 
         :param x: Input values.
         :type x: np.array
@@ -144,7 +141,6 @@ class Energy(Scan):
                         	        arrowprops=dict(arrowstyle="<->", color=self.MYRED), va='center')
                                 self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
-                                #self.display.axes[1].set_xlim([u-3*fwhm, u+3*fwhm])  # can screw up x range if fit fails
                             else:
                                 self.print('Fitted mean outside data range. Ignore fit.', PRINT.ERROR)
                         except (RuntimeError, ValueError) as e:
@@ -253,7 +249,7 @@ fig.show()
         """
 
     def gaussian(self, x, amp1, cen1, sigma1) -> np.array:
-        """Simple gaussian function.
+        """Return simple gaussian.
 
         :param x: X values.
         :type x: np.array
@@ -269,7 +265,7 @@ fig.show()
         return amp1 * (1 / (sigma1 * (np.sqrt(2 * np.pi)))) * (np.exp(-((x - cen1)**2) / (2 * (sigma1)**2)))
 
     def gauss_fit(self, x, y, c):
-        """Simple gaussian fit.
+        """Perform simple gaussian fit.
 
         :param x: X values.
         :type x: np.array
@@ -285,5 +281,5 @@ fig.show()
         sigma1 = 2
         gauss, *_ = optimize.curve_fit(self.gaussian, x, y, p0=[amp1, c, sigma1])
         fwhm = round(2.355 * gauss[2], 1)  # Calculate FWHM
-        x_fine=np.arange(np.min(x), np.max(x), 0.05)
+        x_fine = np.arange(np.min(x), np.max(x), 0.05)
         return x_fine, -self.gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm

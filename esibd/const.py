@@ -1,12 +1,12 @@
-""" Defines constants used throughout the package."""
+"""Defines constants used throughout the package."""
 
-from enum import Enum
 import sys
 import subprocess
 import importlib
 import numpy as np
 import traceback
 from types import ModuleType
+from enum import Enum
 from datetime import datetime
 from scipy import signal
 from functools import wraps
@@ -21,7 +21,6 @@ PLUGIN          = 'Plugin'
 INFO            = 'Info'
 TIMESTAMP       = 'Time'
 GENERAL         = 'General'
-LOGGING         = 'Logging'
 DATAPATH        = 'Data path'
 CONFIGPATH      = 'Config path'
 PLUGINPATH      = 'Plugin path'
@@ -62,7 +61,7 @@ class Colors():
     """Provides dark mode dependent default colors."""
 
     fg_dark = '#e4e7eb'
-    fg_light ='#000000'
+    fg_light = '#000000'
 
     @property
     def fg(self) -> str:
@@ -70,7 +69,7 @@ class Colors():
         return self.fg_dark if getDarkMode() else self.fg_light
 
     bg_dark = '#202124'
-    bg_light ='#ffffff'
+    bg_light = '#ffffff'
 
     @property
     def bg(self) -> str:
@@ -90,13 +89,14 @@ class Colors():
     @property
     def highlight(self) -> str:
         """Highlight color."""
-        return '#8ab4f7' if getDarkMode() else '#8ab4f7'
+        return '#8ab4f7'
+
 
 colors = Colors()
 
 
 def rgb_to_hex(rgba: tuple) -> str:
-    """Converts colors from rgb to hex.
+    """Convert colors from rgb to hex.
 
     :param rgba: RGBA color tuple.
     :type rgba: tuple
@@ -108,6 +108,7 @@ def rgb_to_hex(rgba: tuple) -> str:
 
 class INOUT(Enum):
     """Used to specify if a function affects only input, only output, or all Channels."""
+
     IN = 0
     """Input"""
     OUT = 1
@@ -135,7 +136,7 @@ class PRINT(Enum):
 
 
 def pluginSupported(pluginVersion: str) -> bool:
-    """Tests if given version is supported by comparing to current program version.
+    """Test if given version is supported by comparing to current program version.
 
     :param pluginVersion: Version that the plugin supports.
     :type pluginVersion: str
@@ -147,6 +148,7 @@ def pluginSupported(pluginVersion: str) -> bool:
 
 def makeSettingWrapper(name: str, settingsMgr, docstring: str = None) -> property:
     """Neutral Setting wrapper for convenient access to the value of a Setting.
+
     If you need to handle events on value change, link these directly to the events of the corresponding control.
 
     :param name: The Setting name.
@@ -165,6 +167,7 @@ def makeSettingWrapper(name: str, settingsMgr, docstring: str = None) -> propert
 
 def makeWrapper(name: str, docstring: str = None) -> property:
     """Neutral property wrapper for convenient access to the value of a Parameter inside a Channel.
+
     If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
 
     :param name: The Parameter name.
@@ -195,7 +198,7 @@ def makeStateWrapper(stateAction, docstring: str = None) -> property:
 
 
 def dynamicImport(module, path: Path) -> ModuleType:
-    """Imports a module from the given path at runtime.
+    """Import a module from the given path at runtime.
 
     :param module: module name
     :type module: str
@@ -211,7 +214,7 @@ def dynamicImport(module, path: Path) -> ModuleType:
 
 
 def getShowDebug() -> bool:
-    """Gets the debug mode from :ref:`sec:settings`.
+    """Get the debug mode from :ref:`sec:settings`.
 
     :return: Debug mode
     :rtype: bool
@@ -220,7 +223,7 @@ def getShowDebug() -> bool:
 
 
 def getDarkMode() -> bool:
-    """Gets the dark mode from :ref:`sec:settings`.
+    """Get the dark mode from :ref:`sec:settings`.
 
     :return: Dark mode
     :rtype: bool
@@ -229,17 +232,16 @@ def getDarkMode() -> bool:
 
 
 def setDarkMode(darkMode: bool) -> None:
-    """Sets the dark mode from :ref:`sec:settings`.
+    """Set the dark mode from :ref:`sec:settings`.
 
     :param darkMode: True if dark mode active.
     :type darkMode: bool
     """
     qSet.setValue(f'{GENERAL}/{DARKMODE}', darkMode)
-    # qSet.value(f'{GENERAL}/{DARKMODE}', defaultValue=True, type=bool)
 
 
 def getClipboardTheme() -> bool:
-    """Gets the dark clipboard mode from :ref:`sec:settings`.
+    """Get the dark clipboard mode from :ref:`sec:settings`.
 
     :return: Dark clipboard mode
     :rtype: bool
@@ -248,7 +250,7 @@ def getClipboardTheme() -> bool:
 
 
 def getDPI() -> int:
-    """Gets the DPI from :ref:`sec:settings`.
+    """Get the DPI from :ref:`sec:settings`.
 
     :return: DPI
     :rtype: int
@@ -257,7 +259,7 @@ def getDPI() -> int:
 
 
 def getIconMode() -> str:
-    """Gets the icon mode from :ref:`sec:settings`.
+    """Get the icon mode from :ref:`sec:settings`.
 
     :return: Icon mode
     :rtype: str
@@ -266,7 +268,7 @@ def getIconMode() -> str:
 
 
 def getTestMode() -> bool:
-    """Gets the test mode from :ref:`sec:settings`.
+    """Get the test mode from :ref:`sec:settings`.
 
     :return: Test mode
     :rtype: bool
@@ -275,7 +277,7 @@ def getTestMode() -> bool:
 
 
 def infoDict(name: str) -> dict[str, str]:
-    """Dictionary with general information, usually used to add this information to exported files.
+    """Return a dictionary with general information, usually used to add this information to exported files.
 
     :param name: Usually the name of the plugin requesting the infoDict.
     :type name: str
@@ -286,7 +288,8 @@ def infoDict(name: str) -> dict[str, str]:
 
 
 def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
-    """Returns a valid path. If the path does not exist, falling back to default.
+    """Return a valid path. If the path does not exist, falling back to default.
+
     If default does not exist it will be created.
 
     :param path: Valid path
@@ -306,12 +309,12 @@ def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
             print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')
         default.mkdir(parents=True, exist_ok=True)
         return default, True
-    else:
-        return path, False
+    return path, False
 
 
 def smooth(array: np.array, smooth: int) -> np.array:
-    """Smooths a 1D array while keeping edges meaningful.
+    """Smooth a 1D array while keeping edges meaningful.
+
     This method is robust if array contains np.nan.
 
     :param array: Array to be smoothed.
@@ -332,7 +335,7 @@ def smooth(array: np.array, smooth: int) -> np.array:
 
 
 def shorten_text(text: str, max_length: int = 100) -> str:
-    """Shortens text e.g. for concise and consistent log file format.
+    """Shorten text e.g. for concise and consistent log file format.
 
     :param text: Original text.
     :type text: str
@@ -347,7 +350,8 @@ def shorten_text(text: str, max_length: int = 100) -> str:
 
 
 def synchronized(timeout: int = 5) -> callable:
-    """Decorator to add thread-safety using a lock from the instance.
+    """Decorate to add thread-safety using a lock from the instance.
+
     Use with @synchronized() or @synchronized(timeout=5).
 
     :param timeout: Will wait this long for lock to become available. Defaults to 5
@@ -359,12 +363,9 @@ def synchronized(timeout: int = 5) -> callable:
     def decorator(func: callable):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            # self.print(f'Acquiring lock for {func.__name__}', flag=PRINT.DEBUG)
             with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:  #
                 if lock_acquired:
-                    # self.print(f'Lock acquired for {func.__name__}', flag=PRINT.DEBUG)
                     result = func(self, *args, **kwargs)
-                # self.print(f'Releasing lock for {func.__name__}', flag=PRINT.DEBUG)
                     return result
                 return None
         return wrapper
@@ -372,7 +373,8 @@ def synchronized(timeout: int = 5) -> callable:
 
 
 def plotting(func: callable) -> callable:
-    """Decorator that checks for and sets the plotting flag to make sure func is not executed before previous call is processed.
+    """Decorate to check for and sets the plotting flag to make sure func is not executed before previous call is processed.
+
     Only use within a class that contains the plotting flag.
     This is intended for Scans, but might be used elsewhere.
 
@@ -397,7 +399,7 @@ def plotting(func: callable) -> callable:
 
 
 def openInDefaultApplication(file) -> None:
-    """Opens file in system default application for file type.
+    """Open file in system default application for file type.
 
     :param file: Path to the file to open.
     :type file: str / pathlib.Path

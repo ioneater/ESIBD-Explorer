@@ -1,7 +1,3 @@
-"""Functions in this file will generally require direct access to UI elements as well as data structures.
-Note this will be imported in ES_IBD_Explorer so that it is equivalent to defining the methods there directly.
-This allows to keep the bare UI initialization separated from the more meaningful methods."""
-
 import numpy as np
 from pathlib import Path
 from esibd.core import PluginManager
@@ -9,16 +5,18 @@ from esibd.plugins import Plugin
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [LINE]
 
 
 class LINE(Plugin):
-    """The Line plugin allows to display simple 2D data. It is made to work
-    with simple xy text files with a three line header.
+    """The Line plugin allows to display simple 2D data.
+
+    It is made to work with simple xy text files with a three line header.
     In most cases you will need to create your own version of this plugin
     that is inheriting from the build in version and redefines how data is
-    loaded for your specific data format. See :ref:`sec:plugin_system` for more information."""
+    loaded for your specific data format. See :ref:`sec:plugin_system` for more information.
+    """
     documentation = """The Line plugin allows to display simple 2D data. It is made to work
     with simple xy text files with a three line header."""
 
@@ -68,7 +66,7 @@ class LINE(Plugin):
         return False
 
     def loadData(self, file, _show=True) -> None:
-        """Plots one dimensional data for multiple file types.
+        """Plot one dimensional data for multiple file types.
 
         :param file: The file from which to load data.
         :type file: pathlib.Path

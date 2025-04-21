@@ -43,6 +43,10 @@ Changed
 - In liveDisplays, the mouse enabled mode of subplots is now linked.
 - Added type hints and improved consistency of formatting.
 
+Removed
+~~~~~~~
+- Removed option to turn of logging.
+
 Version 0.7.3 2025-03-24
 ========================
 

@@ -1,7 +1,3 @@
-"""This module contains classes that contain and manage a list of (extended) UI elements.
-In addition it contains classes used to manage data acquisition.
-Finally it contains classes for data export, and data import."""
-
 import time
 import itertools
 import h5py
@@ -11,19 +7,21 @@ from esibd.scans import Beam
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [Spectra]
 
 
 class Spectra(Beam):
-    """This scan shares many features of the Beam scan.
+    """Shares many features of the Beam scan.
+
     The main difference is that it adds the option to plot the data in the form
     of multiple spectra instead of a single 2D plot.
     The spectra can be plotted stacked (Y axis represents value of Y input channel and data of display channel is normalized.)
     or overlaid (Y axis represents data of display channel and value of Y input channels are indicated in a legend).
     In addition, the average of all spectra can be displayed.
     If you want to remeasure the same spectrum several times,
-    consider defining a dummy channel that can be used as an index."""
+    consider defining a dummy channel that can be used as an index.
+    """
     # * by inheriting from Beam, this creates another independent instance which allows the user to use both at the same time.
     # This allows for a more flexible use compared to adding these features as options to Beam directly.
     # It also serves as an example for how to inherit from scans that can help users to make their own versions.
@@ -166,7 +164,7 @@ class Spectra(Beam):
             waitLong = False
             for j, _input in enumerate(self.inputs):
                 if not waitLong and abs(_input.value - step[j]) > self.largestep:
-                    waitLong=True
+                    waitLong = True
                 _input.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             for j, output in enumerate(self.outputs):

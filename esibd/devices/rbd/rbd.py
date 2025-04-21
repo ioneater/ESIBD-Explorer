@@ -9,15 +9,17 @@ from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, 
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [RBD]
 
 
 class RBD(Device):
-    """Contains a list of current channels, each corresponding to a single RBD
-    9103 picoammeter. The channels show the accumulated charge over time,
+    """Contains a list of current channels, each corresponding to a single RBD 9103 picoammeter.
+
+    The channels show the accumulated charge over time,
     which is proportional to the number of deposited ions. It can also
-    reveal on which elements ions are lost."""
+    reveal on which elements ions are lost.
+    """
 
     name = 'RBD'
     version = '1.0'
@@ -90,7 +92,7 @@ class RBD(Device):
         return defaultSettings
 
     def resetCharge(self) -> None:
-        """Resets the charge of each channel."""
+        """Reset the charge of each channel."""
         for channel in self.channels:
             channel.resetCharge()
 
@@ -115,24 +117,24 @@ class CurrentChannel(Channel):
 
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER ] = 'I (pA)'
-        channel[self.CHARGE     ] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
-        channel[self.COM        ] = parameterDict(value='COM1', widgetType=Parameter.TYPE.COMBO, advanced=True, toolTip='COM port',
+        channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
+        channel[self.CHARGE] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.COM] = parameterDict(value='COM1', widgetType=Parameter.TYPE.COMBO, advanced=True, toolTip='COM port',
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')
-        channel[self.DEVICENAME ] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
-        channel[self.RANGE      ] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.DEVICENAME] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
+        channel[self.RANGE] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
                                         event=lambda: self.updateRange(), toolTip='Sample range. Defines resolution.')
-        channel[self.AVERAGE    ] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.AVERAGE] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
                                         event=lambda: self.updateAverage(), toolTip='Running average on hardware side.')
-        channel[self.BIAS       ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.BIAS] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
                                         toolTip='Apply internal bias.', attr='bias', event=lambda: self.updateBias())
-        channel[self.OUTOFRANGE ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
+        channel[self.OUTOFRANGE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
-        channel[self.UNSTABLE   ] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
+        channel[self.UNSTABLE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
                                         header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
-        channel[self.ERROR      ] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='error', indicator=True)
+        channel[self.ERROR] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='error', indicator=True)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -173,7 +175,7 @@ class CurrentChannel(Channel):
         self.resetCharge()
 
     def resetCharge(self) -> None:
-        """Resets the charge."""
+        """Reset the charge."""
         self.charge = 0  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
         self.preciseCharge = 0
 
@@ -195,17 +197,17 @@ class CurrentChannel(Channel):
         return super().activeChanged()
 
     def updateAverage(self) -> None:
-        """Sets flag to trigger update of average."""
+        """Set flag to trigger update of average."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateAverageFlag = True
 
     def updateRange(self) -> None:
-        """Sets flag to trigger update of range."""
+        """Set flag to trigger update of range."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateRangeFlag = True
 
     def updateBias(self) -> None:
-        """Sets flag to trigger update of bias."""
+        """Set flag to trigger update of bias."""
         if self.controller is not None and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
@@ -247,7 +249,7 @@ class CurrentController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.port=serial.Serial(
+            self.port = serial.Serial(
                 f'{self.channel.com}',
                 baudrate=57600,
                 bytesize=serial.EIGHTBITS,
@@ -260,7 +262,7 @@ class CurrentController(DeviceController):
             self.setGrounding()
             self.setBias()
             name = self.getName()
-            if name == '':
+            if not name:
                 self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
                 return
             self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
@@ -292,7 +294,7 @@ class CurrentController(DeviceController):
                 time.sleep(self.channel.getDevice().interval / 1000)
 
     def updateDeviceName(self, name) -> None:
-        """Updates the name received from the device in the channel.
+        """Update the name received from the device in the channel.
 
         :param name: The received device name.
         :type name: str
@@ -305,32 +307,32 @@ class CurrentController(DeviceController):
         self.channel.outOfRange = outOfRange
         self.channel.unstable = unstable
         self.channel.error = error
-        if error != '' and self.channel.getDevice().log:
+        if error and self.channel.getDevice().log:
             self.print(error)
 
     def setRange(self) -> None:
-        """Sets the range. Typically autorange is sufficient."""
+        """Set the range. Typically autorange is sufficient."""
         self.RBDWriteRead(message=f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}')  # set range
-        self.updateRangeFlag=False
+        self.updateRangeFlag = False
 
     def setAverage(self) -> None:
-        """Sets the averaging filter."""
+        """Set the averaging filter."""
         _filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
         _filter = 2**_filter if _filter > 0 else 0
         self.RBDWriteRead(message=f'F0{_filter:02}')  # set filter
-        self.updateAverageFlag=False
+        self.updateAverageFlag = False
 
     def setBias(self) -> None:
-        """Sets the bias voltage on or off."""
+        """Set the bias voltage on or off."""
         self.RBDWriteRead(message=f'B{int(self.channel.bias)}')  # set bias, convert from bool to int
-        self.updateBiasFlag=False
+        self.updateBiasFlag = False
 
     def setGrounding(self) -> None:
-        """Sets grounding off."""
+        """Set grounding off."""
         self.RBDWriteRead(message='G0')  # input grounding off
 
     def getName(self) -> str:
-        """Gets the name set on the device."""
+        """Get the name set on the device."""
         if not getTestMode():
             name = self.RBDWriteRead(message='P')  # get channel name
         else:
@@ -341,7 +343,7 @@ class CurrentController(DeviceController):
             return ''
 
     def updateParameters(self) -> None:
-        """Updates Range, Average, and Bias."""
+        """Update Range, Average, and Bias."""
         # call from runAcquisition to make sure there are no race conditions
         if self.updateRangeFlag:
             self.setRange()
@@ -351,29 +353,25 @@ class CurrentController(DeviceController):
             self.setBias()
 
     def command_identify(self) -> None:
-        """Queries and reads identification and status."""
+        """Query and read identification and status."""
         with self.lock:
             self.RBDWrite('Q')  # put in autorange
             for _ in range(13):
                 message = self.RBDRead()
                 self.print(message)
-            #if 'PID' in message:
-           #     return message.split('=')[1]  # return channel name
-       # return 'channel name not found'
-        # self.print(message, message.split('='))
-        # self.print(self.RBDRead())  # -> b'RBD Instruments: PicoAmmeter\r\n'
-        # self.print(self.RBDRead())  # -> b'Firmware Version: 02.09\r\n'
-        # self.print(self.RBDRead())  # -> b'Build: 1-25-18\r\n'
-        # self.print(self.RBDRead())  # -> b'R, Range=AutoR\r\n'
-        # self.print(self.RBDRead())  # -> b'I, sample Interval=0000 mSec\r\n'
-        # self.print(self.RBDRead())  # -> b'L, Chart Log Update Interval=0200 mSec\r\n'
-        # self.print(self.RBDRead())  # -> b'F, Filter=032\r\n'
-        # self.print(self.RBDRead())  # -> b'B, BIAS=OFF\r\n'
-        # self.print(self.RBDRead())  # -> b'V, FormatLen=5\r\n'
-        # self.print(self.RBDRead())  # -> b'G, AutoGrounding=DISABLED\r\n'
-        # self.print(self.RBDRead())  # -> b'Q, State=MEASURE\r\n'
-        # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'
-        # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'
+        # self.print(self.RBDRead())  # -> b'RBD Instruments: PicoAmmeter\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'Firmware Version: 02.09\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'Build: 1-25-18\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'R, Range=AutoR\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'I, sample Interval=0000 mSec\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'L, Chart Log Update Interval=0200 mSec\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'F, Filter=032\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'B, BIAS=OFF\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'V, FormatLen=5\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'G, AutoGrounding=DISABLED\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'Q, State=MEASURE\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
+        # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
 
     def fakeNumbers(self) -> None:
         if not self.channel.getDevice().pluginManager.closing:
@@ -384,7 +382,7 @@ class CurrentController(DeviceController):
         if not self.channel.getDevice().pluginManager.closing:
             if self.channel.enabled and self.channel.active and self.channel.real:
                 msg = ''
-                msg=self.RBDRead()
+                msg = self.RBDRead()
                 if not self.acquiring:  # may have changed while waiting on message
                     return
                 parsed = self.parse_message_for_sample(msg)
@@ -392,7 +390,7 @@ class CurrentController(DeviceController):
                     self.signalComm.updateValuesSignal.emit(0, True, False, parsed)
                 elif '*' in parsed:
                     self.signalComm.updateValuesSignal.emit(0, False, True, parsed)
-                elif parsed == '':
+                elif not parsed:
                     self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')
                 else:
                     self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')
@@ -412,7 +410,7 @@ class CurrentController(DeviceController):
             return ''
 
     def readingToNum(self, parsed) -> float:  # convert to pA
-        """Converts string to float value of pA based on unit.
+        """Convert string to float value of pA based on unit.
 
         :param parsed: Parsed current response from RBD.
         :type parsed: str
@@ -421,7 +419,7 @@ class CurrentController(DeviceController):
         """
         try:
             _, _, x, unit = parsed.split(',')
-            x=float(x)
+            x = float(x)
         except ValueError as e:
             self.print(f'Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
             self.errorCount += 1
@@ -438,7 +436,6 @@ class CurrentController(DeviceController):
             case _:
                 self.print(f'Error: No handler for unit {unit} implemented!', PRINT.ERROR)
                 return self.channel.value  # keep last valid value
-                #raise ValueError(f'No handler for unit {u} implemented!')
 
     def RBDWrite(self, message) -> None:
         """RBD specific serial write.

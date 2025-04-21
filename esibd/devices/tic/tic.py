@@ -7,16 +7,17 @@ from esibd.core import PRINT
 
 
 def providePlugins() -> None:
-    """Indicates that this module provides plugins. Returns list of provided plugins."""
+    """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [TIC]
 
 
 class TIC(OMNICONTROL):
-    """Reads pressure values form an Edwards TIC.
+    """Read pressure values form an Edwards TIC.
 
     This is inheriting many functions from the OMNICONTROL plugin.
     Thus it exemplifies how to build a new plugin by only changing a few specific lines of code.
-    As an added advantage, all improvements and bug fixes made to the OMNICONTROL plugin will be inherited as well."""
+    As an added advantage, all improvements and bug fixes made to the OMNICONTROL plugin will be inherited as well.
+    """
 
     name = 'TIC'
     iconFile = 'edwards_tic.png'
@@ -32,12 +33,12 @@ class TICPressureController(PressureController):
 
     def runInitialization(self) -> None:
         try:
-            self.port=serial.Serial(
+            self.port = serial.Serial(
                 f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f"Status: {TICStatus}")  # query status
-            if TICStatus == '':
+            if not TICStatus:
                 raise ValueError('TIC did not return status.')
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]
@@ -52,7 +53,6 @@ class TICPressureController(PressureController):
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
                     try:
                         self.values[i] = float(re.split(' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
-                        # self.print(f'Read pressure for channel {c.name}', flag=PRINT.DEBUG)
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
