@@ -1298,11 +1298,14 @@ class LiveDisplay(Plugin):
         self.displayTimeComboBox = EsibdCore.RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=lambda: self.displayTimeChanged(), _min=.2, _max=3600,
                                                         toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
+        self.autoScaleAction = self.addStateAction(event=lambda: self.updateMouseEnabled(x=self.autoScaleAction.state, y=None), toolTipFalse='Scale x manually.', iconFalse=self.makeCoreIcon('scaleX_manual.png'),
+                                                   toolTipTrue='Scale x automatically.', iconTrue=self.makeCoreIcon('scaleX_auto.png'), restore=False, default=False)
 
     def finalizeInit(self, aboutFunc=None) -> None:
         super().finalizeInit(aboutFunc)
         self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.titleBar.insertWidget(self.copyAction, self.displayTimeComboBox)
+        self.titleBar.insertAction(self.copyAction, self.autoScaleAction)
         self.plot(apply=True)
 
     def toggleAdvanced(self, advanced=None) -> None:
@@ -1311,11 +1314,13 @@ class LiveDisplay(Plugin):
 
     def displayTimeChanged(self) -> None:
         """Adjusts displayed section to display time and activates autorange."""
-        if len(self.livePlotWidgets) > 0:
-            for livePlotWidget in self.livePlotWidgets:
-                livePlotWidget.enableAutoRange(x=False, y=True)
-                if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0]:
-                    livePlotWidget.setMouseEnabled(x=False, y=True)
+        self.autoScaleAction.state = False
+        self.updateMouseEnabled(x=False, y=True)
+        # if len(self.livePlotWidgets) > 0:
+            # for livePlotWidget in self.livePlotWidgets:
+            #     livePlotWidget.enableAutoRange(x=False, y=True)
+            #     if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0]:
+            #         livePlotWidget.setMouseEnabled(x=False, y=True)
         self.plot(apply=True)
 
     def subtractBackgroundChanged(self) -> None:
@@ -1435,7 +1440,6 @@ class LiveDisplay(Plugin):
                         livePlotWidget.showLabel('right', show=False)
                         livePlotWidget.getAxis('right').setStyle(showValues=False)
                     livePlotWidget.axis_leftright = livePlotWidget.getAxis('left')
-                    livePlotWidget.hideButtons()  # remove autorange button
                     if len(self.channelGroups) > 2:
                         livePlotWidget.dummyAx = pg.AxisItem(orientation='bottom')  # Blank axis used for aligning extra y axes
                         livePlotWidget.dummyAx.setPen(colors.bg)
@@ -1479,7 +1483,7 @@ class LiveDisplay(Plugin):
                 livePlotWidget.setGeometry(self.livePlotWidgets[0].vb.sceneBoundingRect())
                 livePlotWidget.linkedViewChanged(self.livePlotWidgets[0].vb, livePlotWidget.XAxis)
 
-    def updateMouseEnabled(self, x: bool, y: bool) -> None:
+    def updateMouseEnabled(self, x: bool, y: bool = None) -> None:
         """Sets same x mouse enabled state for all livePlotWidgets.
 
         :param x: x enabled
@@ -1487,9 +1491,12 @@ class LiveDisplay(Plugin):
         :param y: y enabled
         :type y: bool
         """
-        for livePlotWidget in self.livePlotWidgets:
-            if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0] is not x:
-                livePlotWidget.setMouseEnabled(x=x, y=y)
+        if len(self.livePlotWidgets) > 0:
+            for livePlotWidget in self.livePlotWidgets:
+                if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0] is not x:
+                    if y is None:
+                        y = livePlotWidget.getViewBox().mouseEnabled()[1]
+                    livePlotWidget.setMouseEnabled(x=x, y=y)
 
     def getIcon(self, **kwargs) -> Icon:
         return self.parentPlugin.getIcon(**kwargs)
@@ -1536,7 +1543,6 @@ class LiveDisplay(Plugin):
                 self.initFig()
                 self.plotSplitter.setSizes(sizes)
                 if not restoreAutoRange:
-                    # self.livePlotWidgets[0].getViewBox().enableAutoRange(x=False)
                     self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)
                     self.processEvents()  # update GUI before restoring range
                     self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)

@@ -4107,6 +4107,7 @@ class PlotItem(pg.PlotItem):
             self.getAxis(pos).setWidth(self.tickWidth)  # fixed space independent on tick formatting. labels may be hidden if too small!
         # self.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.1, labelTextSize='8pt')  # before adding plots  # call externally if needed
         # self.disableAutoRange()  # 50 % less CPU usage for about 1000 data points. For 10000 and more it does not make a big difference anymore.
+        self.hideButtons()  # remove autorange button
 
     def connectMouse(self) -> None:
         """Connect the mouse to the scene to update xyLabel. Plot when user moves or rescales x range."""
