@@ -18,6 +18,7 @@ Fixed
 - Fixed error when canceling loading a file from DeviceManager.
 - Changing channel limits will now also update referencing channels (e.g. in UCM or PID).
 - Fixed liveDisplay copyClipboard function.
+- Scans will now append session notes to scan notes. Used to be notes of current directory in explorer.
 
 Changed
 ~~~~~~~

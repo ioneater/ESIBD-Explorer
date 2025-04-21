@@ -3869,7 +3869,7 @@ output_index = next((i for i, output in enumerate(outputs) if output.name == '{s
         self.plot(update=not done, done=done)
         if done:  # save data
             if hasattr(self.pluginManager, 'Notes'):
-                self.pluginManager.Notes.saveData()  # save to current session
+                self.pluginManager.Notes.saveData(file=self.pluginManager.Explorer.root, default=True)  # to current root ( == session if in session folder)
             notesFile = self.pluginManager.Settings.getFullSessionPath() / 'notes.txt'
             if notesFile.exists():
                 with open(notesFile, 'r', encoding=UTF8) as file:
@@ -4453,8 +4453,10 @@ class Tree(Plugin):
                 if expansionLevel < 1:
                     groupItem.setExpanded(True)
                 for attribute, value in item.attrs.items():
-                    attribute_widget = QTreeWidgetItem(groupItem, [f'{attribute}: {value}'])
+                    attribute_str = f'{attribute}: {value}'
+                    attribute_widget = QTreeWidgetItem(groupItem, [attribute_str.split('\n')[0]])
                     attribute_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
+                    attribute_widget.setToolTip(0, attribute_str)
                 self.hdfShow(item, groupItem, expansionLevel + 1)
             elif isinstance(item, h5py.Dataset):
                 dataset_widget = QTreeWidgetItem(tree, [name])
@@ -5921,8 +5923,6 @@ class Notes(Plugin):
         :type default: bool, optional
         """
         if default:
-            if file is None:
-                file = self.pluginManager.Settings.getFullSessionPath()
             self.file = file / 'notes.txt'
             if self.editor.toPlainText() != '':
                 with open(self.file, 'w', encoding=self.UTF8) as textFile:
