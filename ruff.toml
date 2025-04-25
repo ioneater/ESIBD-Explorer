@@ -57,7 +57,7 @@ ignore = ["ANN002", "ANN003", "BLE001", "CPY001", "C901", "DOC201", "D100",
 "DOC402",  # only considers google doc strings
 "E221", "E501", "F405", "FIX002", "FBT001",
 "FBT002", "FBT003", "N802", "N803", "N806", "N815", "N816", "PLW0108", "PLR0904", "PLR0912", "PLR0913", "PLR0915", "PLR6301", "Q000", "RET505",
-"S311", "S404", "S603", "S607", "S608", "SLF001", "TD002", "TD003", "TD004", "W293"]  # ,          "ANN001", "ANN201", "ANN202", "D102",
+"S311", "S404", "S603", "S607", "S608", "SLF001", "TD002", "TD003", "TD004", "W293"]
 # Ignore `D` rules everywhere except for the `src/` directory.
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

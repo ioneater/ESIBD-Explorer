@@ -54,6 +54,7 @@ Changed
 - Renamed PluginManager.TYPE to PLUGINTYPE.
 - Renamed Parameter.TYPE to PARAMETERTYPE and widgetType to parameterType.
 - Renamed outputs to outputChannels and inputs to inputChannels for scans and staticDisplays.
+
 - Data files are now only saved while closing if new data has been recorded since starting the program.
 
 Removed
@@ -71,6 +72,8 @@ Added
 - Running scans will be indicated by icons in the DeviceManager.
 - Added lagging indicator in advanced mode of device settings.
 - Added option to filter warning and error messages in the Console.
+- Tests now write a log to a dedicated file in the current session path.
+- Added log level setting to determine level of information in logs.
 
 Fixed
 ~~~~~

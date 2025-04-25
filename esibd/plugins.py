@@ -197,7 +197,7 @@ class Plugin(QWidget):
         self.signalComm = self.SignalCommunicate()
         self.signalComm.testCompleteSignal.connect(self.testComplete)
 
-    def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
+    def print(self, message: str, flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:
         """Send a message to stdout, the statusbar, the Console, and to the logfile.
 
         It will automatically add a
@@ -207,8 +207,10 @@ class Plugin(QWidget):
         :type message: str
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
+        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
+        :type logLevel: int, optional
         """
-        self.pluginManager.logger.print(message=message, sender=self.name, flag=flag)
+        self.pluginManager.logger.print(message=message, sender=self.name, flag=flag, logLevel=logLevel)
 
     @property
     def loading(self) -> None:
@@ -229,6 +231,7 @@ class Plugin(QWidget):
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
         self.raiseDock(True)
         self.testing = True
+        self.pluginManager.logger.openTestLogFile(tester=self.name)
         self.print(f'Starting testing for {self.name} {self.version}.')
         if isinstance(self, StaticDisplay):
             self.pluginManager.Console.mainConsole.input.setText(f'{self.parentPlugin.name}.staticDisplay.stopTest()')  # prepare to stop
@@ -350,6 +353,7 @@ class Plugin(QWidget):
         """Resets testing flag after last test completed."""
         # queue this behind any other synchronized function that is still being tested
         self.testing = False
+        self.pluginManager.logger.closeTestLogFile()
 
     @property
     def testing(self) -> None:
@@ -3123,7 +3127,7 @@ class Device(ChannelManager):
             self.time.add(time.time())  # add time in seconds
             if self.liveDisplayActive():
                 if skipPlotting:
-                    # self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.DEBUG)
+                    self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.DEBUG, logLevel=2)
                     self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
                 else:
                     self.signalComm.plotSignal.emit()
@@ -4728,7 +4732,7 @@ class Tree(Plugin):
         """
         contextMenu = QMenu(self.tree)
         consoleAction = None
-        if getShowDebug():
+        if getDebugMode():
             consoleAction = contextMenu.addAction('Add item to Console')
         copyClipboardAction = contextMenu.addAction('Copy to clipboard')
         contextMenu = contextMenu.exec(self.tree.mapToGlobal(pos))
@@ -5122,7 +5126,7 @@ class SettingsManager(Plugin):
         setToDefaultAction = None
         makeDefaultAction = None
         addSettingToConsoleAction = None
-        if getShowDebug():
+        if getDebugMode():
             addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
         if not setting.indicator:
             if setting.parameterType == PARAMETERTYPE.PATH:
@@ -5516,8 +5520,11 @@ class Settings(SettingsManager):
         ds[f'{GENERAL}/{TESTMODE}']               = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
                                     event=lambda: self.pluginManager.DeviceManager.closeCommunication()  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized
                                     , internal=True, advanced=True)
-        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Shows debug messages and enables additional functionality like\n sending Channels, Parameters, and Settings to the Console.',
+        ds[f'{GENERAL}/{DEBUG}']                  = parameterDict(value=False, toolTip='Enables additional functionality like sending\nChannels, Parameters, and Settings to the Console.',
                                                                    internal=True, parameterType=PARAMETERTYPE.BOOL, advanced=True)
+        ds[f'{GENERAL}/{LOGLEVEL}']               = parameterDict(value='Basic', toolTip='Determine which messages should be logged.',
+                                                                   internal=True, parameterType=PARAMETERTYPE.COMBO, advanced=True,
+                                                                   items='Basic, Debug, Verbose', fixedItems=True)
         ds[f'{GENERAL}/{DARKMODE}']               = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=lambda: self.pluginManager.updateTheme(),
                                                                 parameterType=PARAMETERTYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}']          = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
@@ -6813,7 +6820,7 @@ class UCM(ChannelManager):
                     if self.sourceChannel.useMonitors:
                         self.monitor = self.sourceChannel.monitor
 
-        def onDelete(self) -> None:  # noqa: D102
+        def onDelete(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().onDelete()
             self.removeEvents()
 
@@ -6829,7 +6836,7 @@ class UCM(ChannelManager):
                     self.updateDisplay in self.sourceChannel.getParameterByName(parameterName).extraEvents):
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.remove(self.updateDisplay)
 
-        def getDefaultChannel(self) -> None:  # noqa: D102
+        def getDefaultChannel(self) -> dict[str, dict]:  # noqa: D102  # pylint: disable = missing-function-docstring
             channel = super().getDefaultChannel()
             channel.pop(Channel.EQUATION)
             channel.pop(Channel.ACTIVE)
@@ -6848,7 +6855,7 @@ class UCM(ChannelManager):
             channel[self.NAME][Parameter.EVENT] = lambda: self.connectSource()
             return channel
 
-        def setDisplayedParameters(self) -> None:  # noqa: D102
+        def setDisplayedParameters(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().setDisplayedParameters()
             self.displayedParameters.remove(self.ENABLED)
             self.displayedParameters.remove(self.EQUATION)
@@ -6862,10 +6869,10 @@ class UCM(ChannelManager):
             self.insertDisplayedParameter(self.DEVICE, self.NAME)
             self.insertDisplayedParameter(self.UNIT, self.DISPLAY)
 
-        def tempParameters(self) -> None:  # noqa: D102
+        def tempParameters(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             return [*super().tempParameters(), self.VALUE, self.NOTES, self.DEVICE, self.UNIT]
 
-        def initGUI(self, item: dict) -> None:  # noqa: D102
+        def initGUI(self, item: dict) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().initGUI(item)
             device = self.getParameterByName(self.DEVICE)
             device.widget = QPushButton()
@@ -7064,7 +7071,7 @@ class PID(ChannelManager):
             if self.pid is not None:
                 self.pid.tunings = self.p, self.i, self.d
 
-        def onDelete(self) -> None:  # noqa: D102
+        def onDelete(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().onDelete()
             self.removeEvents()
 
@@ -7076,7 +7083,7 @@ class PID(ChannelManager):
                 if self.sourceChannel.useMonitors and self.stepPID in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.stepPID)
 
-        def getDefaultChannel(self) -> None:  # noqa: D102
+        def getDefaultChannel(self) -> dict[str, dict]:  # noqa: D102  # pylint: disable = missing-function-docstring
             channel = super().getDefaultChannel()
             channel.pop(Channel.EQUATION)
             channel.pop(Channel.ACTIVE)
@@ -7105,7 +7112,7 @@ class PID(ChannelManager):
             channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', indicator=True)
             return channel
 
-        def setDisplayedParameters(self) -> None:  # noqa: D102
+        def setDisplayedParameters(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().setDisplayedParameters()
             self.displayedParameters.remove(self.ENABLED)
             self.displayedParameters.remove(self.EQUATION)
@@ -7123,10 +7130,10 @@ class PID(ChannelManager):
             self.insertDisplayedParameter(self.SAMPLETIME, before=self.SCALING)
             self.insertDisplayedParameter(self.NOTES, before=self.SCALING)
 
-        def tempParameters(self) -> None:  # noqa: D102
+        def tempParameters(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             return [*super().tempParameters(), self.NOTES, self.OUTPUTDEVICE, self.INPUTDEVICE]
 
-        def initGUI(self, item: dict) -> None:  # noqa: D102
+        def initGUI(self, item: dict) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
             super().initGUI(item)
             active = self.getParameterByName(self.ACTIVE)
             value = active.value

@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from functools import wraps
 from types import ModuleType
-from typing import TYPE_CHECKING, NewType, Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 from PyQt6.QtCore import QSettings
@@ -33,6 +33,7 @@ DATAPATH        = 'Data path'
 CONFIGPATH      = 'Config path'
 PLUGINPATH      = 'Plugin path'
 DEBUG           = 'Debug mode'
+LOGLEVEL        = 'Log level'
 DARKMODE        = 'Dark mode'
 CLIPBOARDTHEME  = 'Clipboard theme'
 DPI             = 'DPI'
@@ -143,8 +144,10 @@ class PRINT(Enum):
     EXPLORER = 4
     """Key messages by Explorer"""
 
+
 class PLUGINTYPE(Enum):
     """Each plugin must be of one of the following types to define its location and behavior."""
+
     CONSOLE       = 'Console'
     """The internal Console."""
     CONTROL       = 'Generic Control'
@@ -166,8 +169,10 @@ class PLUGINTYPE(Enum):
     INTERNAL      = 'Internal'
     """A plugin without user interface."""
 
+
 class PARAMETERTYPE(Enum):
     """Specifies what type of widget should be used to represent the Parameter in the user interface."""
+
     LABEL = 'LABEL'
     """A label that displays information."""
     PATH  = 'PATH'
@@ -190,6 +195,7 @@ class PARAMETERTYPE(Enum):
     """A floating point spinbox."""
     EXP   = 'EXP'
     """A spinbox with scientific format."""
+
 
 def pluginSupported(pluginVersion: str) -> bool:
     """Test if given version is supported by comparing to current program version.
@@ -256,13 +262,31 @@ def dynamicImport(module: str, path: Path) -> ModuleType:
     return Module
 
 
-def getShowDebug() -> bool:
+def getDebugMode() -> bool:
     """Get the debug mode from :ref:`sec:settings`.
 
     :return: Debug mode
     :rtype: bool
     """
     return qSet.value(f'{GENERAL}/{DEBUG}', defaultValue=True, type=bool)
+
+
+def getLogLevel(asString: bool = False) -> int | str:
+    """Get the log level from :ref:`sec:settings`.
+
+    :param asString: Indicate if the log level should be returned as a string.
+    :type asString: str
+    :return: Log level
+    :rtype: int | str
+    """
+    if asString:
+        return qSet.value(f'{GENERAL}/{LOGLEVEL}', defaultValue='Basic')
+    match qSet.value(f'{GENERAL}/{LOGLEVEL}', defaultValue='Basic'):
+        case 'Basic':
+            return 0
+        case 'Debug':
+            return 1
+    return 2  # Verbose
 
 
 def getDarkMode() -> bool:
@@ -428,7 +452,7 @@ def plotting(func: callable) -> callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
         if self.plotting:
-            # self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
+            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG, logLevel=2)
             if hasattr(self, 'measureInterval'):
                 self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
             return None

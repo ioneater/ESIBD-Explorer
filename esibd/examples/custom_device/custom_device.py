@@ -108,7 +108,7 @@ class CustomChannel(Channel):
         channelId = self.getParameterByName(self.ID)
         self.print(repr(channelId.getWidget()), flag=PRINT.MESSAGE)
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Value (X)'  # overwrite to change header
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True, header='ID    ', attr='id')

@@ -43,7 +43,7 @@ class PressureChannel(Channel):
 
     ID = 'ID'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,

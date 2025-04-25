@@ -74,7 +74,7 @@ class TemperatureChannel(Channel):
     DATATYPE = 'Datatype'
     NOOFWIRES = 'noOfWires'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
         channel[self.VALUE][Parameter.VALUE] = np.nan  # undefined until communication established

@@ -63,7 +63,7 @@ class VoltageChannel(Channel):
     MODULE    = 'Module'
     ID        = 'ID'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MODULE] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,

@@ -118,7 +118,7 @@ class CurrentChannel(Channel):
     UNSTABLE   = 'Unstable'
     ERROR      = 'Error'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
         channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')

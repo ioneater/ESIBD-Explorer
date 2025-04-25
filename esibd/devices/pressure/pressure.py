@@ -57,7 +57,7 @@ class PressureChannel(Channel):
     TPG = 'TPG'
     ID = 'ID'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, parameterType=PARAMETERTYPE.COMBO, advanced=True,

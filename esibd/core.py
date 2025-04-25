@@ -485,6 +485,7 @@ class PluginManager:
         self.testing = True
         self.Settings.updateSessionPath()  # avoid interference with undefined files from previous test run
         self.logger.print('Start testing.')
+        self.logger.openTestLogFile()
         time.sleep(1)
         timer = Timer(0, self.runTestParallel)
         timer.start()
@@ -514,8 +515,8 @@ class PluginManager:
             if not self.testing:
                 break
         self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, False)
-        self.Console.testControl(self.Console.openLogAction, True, 1)
         self.testing = False
+        self.logger.closeTestLogFile()
 
     def showThreads(self) -> None:
         """Show all currently running threads in the Text plugin."""
@@ -848,7 +849,7 @@ class Logger(QObject):
     Use :meth:`~esibd.plugins.Plugin.print` to send messages to the logger.
     """
 
-    printFromThreadSignal = pyqtSignal(str, str, PRINT)
+    printFromThreadSignal = pyqtSignal(str, str, PRINT, int)
 
     def __init__(self, pluginManager: PluginManager) -> None:
         """Initialize a logger.
@@ -859,10 +860,12 @@ class Logger(QObject):
         super().__init__()
         self.pluginManager = pluginManager
         self.active = False
+        self.testLogFileActive = False
         self.lock = TimeoutLock(lockParent=self)
         self.purgeTo = 10000
         self.purgeLimit = 30000
         self.lastCallTime = None
+        self.testLogFile = None
         self.errorCount = 0
         self.timer = QTimer()
         self.timer.timeout.connect(self.purge)
@@ -889,6 +892,46 @@ class Logger(QObject):
         else:
             self.print('Start logging to create log file.')
 
+    def openTestLogFile(self, tester: str = '') -> None:
+        """Open the test log file for writing.
+
+        :param tester: The testing plugin
+        :type tester: str
+        """
+        self.testLogFilePath = self.pluginManager.Settings.getMeasurementFileName('_test.log')
+        self.testLogFile = self.testLogFilePath.open('w', encoding="utf-8-sig")
+        self.testStartTime = datetime.now()
+        self.tester = tester
+        self.testLogFileActive = True
+
+    def closeTestLogFile(self) -> None:
+        """Add header and close test log file."""
+        self.testLogFileActive = False
+        self.testLogFile.close()
+        seconds = int((datetime.now() - self.testStartTime).total_seconds())
+        with self.testLogFilePath.open('r', encoding="utf-8-sig") as original:
+            lines = original.readlines()
+            original.seek(0)
+            content = original.read()
+            with self.testLogFilePath.open('w', encoding="utf-8-sig") as header:
+                header.write(f'{PROGRAM_NAME} {PROGRAM_VERSION!s}\n')
+                if self.tester:
+                    header.write(f'Testing Plugin: {self.tester}\n')
+                header.write(f"""Test Mode: {getTestMode()}
+Debug Mode: {getDebugMode()}
+Log Level: {getLogLevel(asString=True)}
+Begin: {self.testStartTime.strftime('%Y-%m-%d %H:%M:%S')}
+End: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Time: {seconds // 60:02d}:{seconds % 60:02d}
+Total Log: {len(lines)} lines
+Messages: {content.count('ℹ️')}
+Errors: {content.count('❌')}
+Warnings: {content.count('⚠️')}
+Debug Messages: {content.count('🪲')}\n\n""")  # noqa: RUF001
+                header.write(content)
+        openInDefaultApplication(self.testLogFilePath)
+        QTimer.singleShot(0, self.pluginManager.Explorer.populateTree)
+
     def write(self, message: str) -> None:
         """Direct messages to terminal, log file, and :ref:`sec:console`.
 
@@ -904,6 +947,9 @@ class Logger(QObject):
                 if lock_acquired:
                     self.log.write(message)  # write to log file
                     self.log.flush()
+                if self.testLogFileActive:
+                    self.testLogFile.write(message)  # write to test log file
+                    self.testLogFile.flush()
 
         if hasattr(self.pluginManager, 'Console') and self.pluginManager.Console.initializedGUI:
             # handles new lines in system error messages better than Console.repl.write()
@@ -924,25 +970,26 @@ class Logger(QObject):
                         for line in lines[-self.purgeTo:]:
                             purged.write(line)
 
-    def print(self, message: str, sender: str = f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag: PRINT = PRINT.MESSAGE) -> None:  # only used for program messages
+    def print(self, message: str, sender: str = f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:  # only used for program messages
         """Augments messages and redirects to log file, statusbar, and console.
 
         :param message: A short and descriptive message.
         :type message: str
-        :param sender: The name of the sending plugin'
+        :param sender: The name of the sending plugin.
         :type sender: str, optional
         :param flag: Signals the status of the message, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :class:`~esibd.const.PRINT`, optional
+        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
+        :type logLevel: int, optional
         """
         if current_thread() is not main_thread():
             # redirect to main thread if needed to avoid changing GUI from parallel thread.
-            self.printFromThreadSignal.emit(message, sender, flag)
+            self.printFromThreadSignal.emit(message, sender, flag, logLevel)
             return
         match flag:
             case PRINT.DEBUG:
-                if not getShowDebug():
-                    return
                 flagString = '🪲'
+                logLevel = max(logLevel, 1)
             case PRINT.WARNING:
                 flagString = '⚠️'
             case PRINT.ERROR:
@@ -951,8 +998,10 @@ class Logger(QObject):
                 flagString = ' ❖'  # noqa: RUF001
             case _:  # PRINT.MESSAGE
                 flagString = 'ℹ️'  # noqa: RUF001
+        if logLevel > getLogLevel():
+            return
         timerString = ''
-        if getShowDebug():
+        if getLogLevel() > 0:
             ms = ((datetime.now() - self.lastCallTime).total_seconds() * 1000) if self.lastCallTime is not None else 0
             timerString = f'🕐 {ms:4.0f} ms '
             self.lastCallTime = datetime.now()
@@ -2661,7 +2710,7 @@ class Channel(QTreeWidgetItem):
         settingsContextMenu = QMenu(self.tree)
         addParameterToConsoleAction = None
         addChannelToConsoleAction = None
-        if getShowDebug():
+        if getDebugMode():
             addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
             addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
         # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
@@ -2698,7 +2747,7 @@ class ScanChannel(RelayChannel, Channel):
 
     DEVICE   = 'Device'
 
-    def getDefaultChannel(self) -> None:  # noqa: D102
+    def getDefaultChannel(self) -> dict[str, dict]:  # noqa: D102
         channel = super().getDefaultChannel()
         channel.pop(Channel.SELECT)
         channel.pop(Channel.ACTIVE)
@@ -4516,7 +4565,7 @@ class TimeoutLock:
         """
         result = already_acquired or self._lock.acquire(timeout=timeout)
 
-        if getShowDebug():
+        if getLogLevel() > 0:
             # get more information on errors (file and line number not available when using except)
             yield result
             if result and not already_acquired:
@@ -4627,19 +4676,20 @@ class DeviceController(QObject):
     def errorCount(self, count: int) -> None:
         self.device.errorCount = count
 
-    def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
+    def print(self, message: str, flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:
         """Send a message to stdout, the statusbar, the Console, and if enabled to the logfile.
 
-        It will automatically add a
-        timestamp and the name of the sending plugin.
+        It will automatically add a timestamp and the name of the sending plugin.
 
         :param message: A short informative message.
         :type message: str
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
+        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
+        :type logLevel: int, optional
         """
         controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'
-        self.device.print(f'{controller_name}: {message}', flag=flag)
+        self.device.print(f'{controller_name}: {message}', flag=flag, logLevel=logLevel)
 
     def initializeCommunication(self) -> None:
         """Start the :meth:`~esibd.core.DeviceController.initThread`."""

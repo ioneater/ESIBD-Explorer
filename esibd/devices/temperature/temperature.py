@@ -79,7 +79,7 @@ class TemperatureChannel(Channel):
 
     CRYOTEL = 'CryoTel'
 
-    def getDefaultChannel(self) -> None:
+    def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
         return channel
