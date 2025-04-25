@@ -22,6 +22,7 @@ Fixed
 - Fixed liveDisplay copyClipboard function.
 - Scans will now append session notes to scan notes. Used to be notes of current directory in explorer.
 - Fixed update of colors of in linked channels.
+- Fixed issue with scans starting even through output channels were not recording.
 
 Changed
 ~~~~~~~

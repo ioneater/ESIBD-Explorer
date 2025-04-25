@@ -223,7 +223,7 @@ class Depo(Scan):
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
             elif not sourceChannel.getDevice().initialized():
                 self.print(f'{sourceChannel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif not sourceChannel.acquiring and not sourceChannel.getDevice().recording:
+            elif not sourceChannel.acquiring or not sourceChannel.getDevice().recording:
                 self.print(f'{sourceChannel.name} is not acquiring.', PRINT.WARNING)
         self.addOutputChannels()
         self.initializing = False

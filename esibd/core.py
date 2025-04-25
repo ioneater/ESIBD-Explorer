@@ -3404,10 +3404,10 @@ class MultiStateAction(Action):
         self.attr = attr
         self.fullName = ''
         if self.attr:
-            self.setObjectName(f'{self.parentPlugin.name}/{states[0].toolTip}')
-        else:
             self.fullName = f'{self.parentPlugin.name}/{self.attr}'
             self.setObjectName(self.fullName)
+        else:
+            self.setObjectName(f'{self.parentPlugin.name}/{states[0].toolTip}')
         self.event = event
         if event is not None:
             self.triggered.connect(lambda: (self.rollState(), event()))

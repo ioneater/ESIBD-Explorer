@@ -1237,7 +1237,11 @@ class StaticDisplay(Plugin):
             channel.connectSource()
 
     def reconnectSource(self, name: str) -> None:
-        """Reconnect a specific source channel."""
+        """Reconnect a specific source channel.
+
+        :param name: name of channel to reconnect
+        :type name: str
+        """
         for channel in self.outputChannels:
             if channel.name == name:
                 self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
@@ -1409,9 +1413,6 @@ class LiveDisplay(Plugin):
 
     def displayTimeChanged(self) -> None:
         """Adjust displayed section to display time and activates autorange."""
-        if len(self.livePlotWidgets) > 0:
-            for livePlotWidget in self.livePlotWidgets:
-                livePlotWidget.enableAutoRange(x=False, y=True)
         self.autoScaleAction.state = False
         self.updateMouseEnabled(x=False, y=True)
         self.plot(apply=True)
@@ -1580,18 +1581,19 @@ class LiveDisplay(Plugin):
     def updateMouseEnabled(self, x: bool, y: 'bool | None' = None) -> None:
         """Set same x mouse enabled state for all livePlotWidgets.
 
-        :param x: x enabled
+        :param x: x mouse enabled
         :type x: bool
-        :param y: y enabled
+        :param y: y mouse enabled
         :type y: bool
         """
         if self.autoScaleAction.state != x:
             self.autoScaleAction.state = x
-            autoscale
         if len(self.livePlotWidgets) > 0:
             for livePlotWidget in self.livePlotWidgets:
                 if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0] is not x:
-                    if y is None:
+                    if y:
+                        livePlotWidget.enableAutoRange(x=False, y=True)
+                    elif y is None:
                         y = livePlotWidget.getViewBox().mouseEnabled()[1]
                     livePlotWidget.setMouseEnabled(x=x, y=y)
 
@@ -3518,7 +3520,11 @@ class Scan(Plugin):
             channel.connectSource()
 
     def reconnectSource(self, name: str) -> None:
-        """Reconnect a specific source channel."""
+        """Reconnect a specific source channel.
+
+        :param name: name of channel to reconnect
+        :type name: str
+        """
         for channel in self.channels:
             if channel.name == name:
                 self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
@@ -3676,7 +3682,7 @@ class Scan(Plugin):
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
             elif not channel.getDevice().initialized():
                 self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif not channel.acquiring and not channel.getDevice().recording:
+            elif not channel.acquiring or not channel.getDevice().recording:
                 self.print(f'{channel.name} is not acquiring.', PRINT.WARNING)
             else:
                 initializedOutputChannels += 1
