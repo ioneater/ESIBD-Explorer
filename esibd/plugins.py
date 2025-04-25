@@ -1919,6 +1919,7 @@ class ChannelManager(Plugin):
         super().__init__(**kwargs)
         self.channels = []
         self.channelsChanged = False
+        self.hasRecorded = False  # only save data if new data has been recorded
         self.channelPlot = None
         self.confINI = f'{self.name}.ini'  # not a file extension, but complete filename to save and restore configurations
         self.confh5 = f'_{self.name.lower()}.h5'
@@ -2551,6 +2552,7 @@ class ChannelManager(Plugin):
         self.dataThread = Thread(target=self.runDataThread, args=(lambda: self.recording,), name=f'{self.name} dataThread')
         self.dataThread.daemon = True  # Terminate with main app independent of stop condition
         self.dataThread.start()
+        self.hasRecorded = True
 
     def toggleRecording(self, on: 'bool | None' = None, manual: bool = True) -> None:  # noqa: ARG002
         """Turn recording on or off or toggles state.
@@ -3049,7 +3051,8 @@ class Device(ChannelManager):
 
     def close(self) -> None:  # noqa: D102
         self.closeCommunication()
-        self.exportOutputData(useDefaultFile=True)
+        if self.hasRecorded:
+            self.exportOutputData(useDefaultFile=True)
         super().close()
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
