@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from PyQt6.QtCore import QObject
 
-from esibd.core import INOUT, PRINT, DynamicNp, MetaChannel, Parameter, dynamicImport, parameterDict, plotting, pyqtSignal
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, dynamicImport, parameterDict, plotting, pyqtSignal
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -89,12 +89,12 @@ class GA(Scan):
         defaultSettings['GA Channel'] = defaultSettings.pop(self.DISPLAY)  # keep display for using displayChannel functionality but modify properties as needed
         defaultSettings['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
         defaultSettings['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
-        defaultSettings['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', widgetType=Parameter.TYPE.BOOL, attr='log')
+        defaultSettings['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', parameterType=PARAMETERTYPE.BOOL, attr='log')
         return defaultSettings
 
     def toggleInitial(self) -> None:
         """Toggles between initial and optimized values."""
-        if len(self.outputs) > 0:
+        if len(self.outputChannels) > 0:
             self.gaSignalComm.updateValuesSignal.emit(0, self.initialAction.state)
         else:
             self.initialAction.state = False
@@ -114,7 +114,7 @@ class GA(Scan):
             self.print(f'Channel {self.gaChannel.name} not acquiring. Cannot start optimization.', PRINT.WARNING)
             return False
         else:
-            self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
+            self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
             self.addOutputChannels()
             self.toggleDisplay(True)
             self.display.axes[0].set_ylabel(self.gaChannel.name)
@@ -126,7 +126,7 @@ class GA(Scan):
                 # add entry but set rate to 0 to prevent value change. Can be activated later.
                 self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
         self.ga.genesis()
-        self.measurementsPerStep = max(int(self.average / self.outputs[self.getOutputIndex()].getDevice().interval) - 1, 1)
+        self.measurementsPerStep = max(int(self.average / self.outputChannels[self.getOutputIndex()].getDevice().interval) - 1, 1)
         self.updateFile()
         self.ga.file_path(self.file.parent.as_posix())
         self.ga.file_name(self.file.name)
@@ -134,13 +134,13 @@ class GA(Scan):
         return True
 
     def addOutputChannels(self) -> None:
-        for channel in self.outputs:
+        for channel in self.outputChannels:
             channel.onDelete()
         if self.channelTree is not None:
             self.channelTree.clear()
         self.addOutputChannel(name=f'{self.displayDefault}', recordingData=DynamicNp())
-        if len(self.outputs) > 0:
-            self.outputs.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
+        if len(self.outputChannels) > 0:
+            self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
         self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced()
@@ -155,7 +155,7 @@ class GA(Scan):
         # timing test with 160 generations: update True: 25 ms, update False: 37 ms
         if self.loading:
             return
-        if len(self.outputs) > 0:
+        if len(self.outputChannels) > 0:
             time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in self.getData(0, INOUT.IN)]  # convert timestamp to datetime
             self.display.bestLine.set_data(time_axis, self.getData(0, INOUT.OUT))
             self.display.avgLine.set_data(time_axis, self.getData(1, INOUT.OUT))
@@ -181,32 +181,32 @@ ax0.set_ylabel('Fitness Value')
 for label in ax0.get_xticklabels(which='major'):
     label.set_ha('right')
     label.set_rotation(30)
-time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in inputs[0].recordingData]
-ax0.plot(time_axis, outputs[0].recordingData, label='best fitness')[0]
-ax0.plot(time_axis, outputs[1].recordingData, label='avg fitness')[0]
+time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in inputChannels[0].recordingData]
+ax0.plot(time_axis, outputChannels[0].recordingData, label='best fitness')[0]
+ax0.plot(time_axis, outputChannels[1].recordingData, label='avg fitness')[0]
 ax0.legend(loc='lower right', prop={{'size': 10}}, frameon=False)
 fig.show()
         """
 
     def run(self, recording) -> None:
         # first datapoint before optimization
-        self.inputs[0].recordingData.add(time.time())
-        fitnessStart = np.mean(self.outputs[0].getValues(subtractBackground=self.outputs[0].subtractBackgroundActive(), length=self.measurementsPerStep))
-        self.outputs[0].recordingData.add(fitnessStart)
-        self.outputs[1].recordingData.add(fitnessStart)
+        self.inputChannels[0].recordingData.add(time.time())
+        fitnessStart = np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep))
+        self.outputChannels[0].recordingData.add(fitnessStart)
+        self.outputChannels[1].recordingData.add(fitnessStart)
         while recording():
             self.gaSignalComm.updateValuesSignal.emit(-1, False)
             time.sleep((self.wait + self.average) / 1000)
-            self.ga.fitness(np.mean(self.outputs[0].getValues(subtractBackground=self.outputs[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
+            self.ga.fitness(np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
                 self.print(self.ga.step_string().replace('GA: ', ''))
             _, session_saved = self.ga.check_restart()
             if session_saved:
                 self.print(f'Session Saved -- Average Fitness: {self.ga.average_fitness():6.2f} Best Fitness: {self.ga.best_fitness():6.2f}')
                 self.print(f'Starting Generation {self.ga.current_generation}:')
-                self.inputs[0].recordingData.add(time.time())
-                self.outputs[0].recordingData.add(self.ga.best_fitness())
-                self.outputs[1].recordingData.add(self.ga.average_fitness())
+                self.inputChannels[0].recordingData.add(time.time())
+                self.outputChannels[0].recordingData.add(self.ga.best_fitness())
+                self.outputChannels[1].recordingData.add(self.ga.average_fitness())
                 self.signalComm.scanUpdateSignal.emit(False)
         self.ga.check_restart(True)  # sort population
         self.gaSignalComm.updateValuesSignal.emit(0, False)

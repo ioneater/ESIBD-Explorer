@@ -18,6 +18,10 @@ Install using::
 
    pip install esibd-explorer
 
+or::
+
+   python -m pip install esibd-explorer
+
 Run the program using::
 
    python -m esibd.explorer

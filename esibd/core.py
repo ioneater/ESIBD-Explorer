@@ -14,7 +14,6 @@ import traceback
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
 from typing import TYPE_CHECKING
@@ -203,37 +202,13 @@ class PluginManager:
 
         finalizeSignal = pyqtSignal()
 
-    class TYPE(Enum):
-        """Each plugin must be of one of the following types to define its location and behavior."""
-
-        CONSOLE       = 'Console'
-        """The internal Console."""
-        CONTROL       = 'Generic Control'
-        """Any control plugin, will be placed next to Settings, Explorer, Devices, and Scans."""
-        INPUTDEVICE   = 'Input Device'
-        """Device plugin sending user input to hardware."""
-        OUTPUTDEVICE  = 'Output Device'
-        """Device plugin sending hardware output to user."""
-        CHANNELMANAGER  = 'Channel Manager'
-        """A plugin that manages channels which are neither inputs or outputs."""
-        DISPLAY       = 'Display'
-        """Any display plugin, will be places next to scan displays and static displays."""
-        LIVEDISPLAY   = 'LiveDisplay'
-        """Live display associated with a device."""
-        SCAN          = 'Scan'
-        """Scan plugin, will be placed with other controls."""
-        DEVICEMGR     = 'DeviceManager'
-        """Device manager, will be placed below live displays."""
-        INTERNAL      = 'Internal'
-        """A plugin without user interface."""
-
     VERSION             = 'Version'
     SUPPORTEDVERSION    = 'Supported Version'
     ENABLED             = 'Enabled'
     PREVIEWFILETYPES    = 'PREVIEWFILETYPES'
     DESCRIPTION         = 'DESCRIPTION'
     OPTIONAL            = 'OPTIONAL'
-    PLUGINTYPE          = 'PLUGINTYPE'
+    PLUGIN_TYPE          = 'PLUGINTYPE'
     DEPENDENCYPATH      = 'dependencyPath'
     ICONFILE            = 'iconFile'
     ICONFILEDARK        = 'iconFileDark'
@@ -389,7 +364,7 @@ class PluginManager:
             if Plugin.name not in self.confParser:  # add plugin to confParser
                 self.confParser[Plugin.name] = {self.ENABLED: not Plugin.optional, self.VERSION: Plugin.version, self.SUPPORTEDVERSION: Plugin.supportedVersion,
                                                 self.DEPENDENCYPATH: dependencyPath, self.ICONFILE: Plugin.iconFile, self.ICONFILEDARK: Plugin.iconFileDark,
-                                                self.PLUGINTYPE: str(Plugin.pluginType.value), self.PREVIEWFILETYPES: '',
+                                                self.PLUGIN_TYPE: str(Plugin.pluginType.value), self.PREVIEWFILETYPES: '',
                                                 self.DESCRIPTION: Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL: str(Plugin.optional)}
             else:  # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
@@ -397,7 +372,7 @@ class PluginManager:
                 self.confParser[Plugin.name][self.DEPENDENCYPATH] = dependencyPath.as_posix()
                 self.confParser[Plugin.name][self.ICONFILE] = Plugin.iconFile
                 self.confParser[Plugin.name][self.ICONFILEDARK] = Plugin.iconFileDark
-                self.confParser[Plugin.name][self.PLUGINTYPE] = str(Plugin.pluginType.value)
+                self.confParser[Plugin.name][self.PLUGIN_TYPE] = str(Plugin.pluginType.value)
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
@@ -453,10 +428,10 @@ class PluginManager:
         self.Settings.provideDock()
         self.Console.provideDock()
         self.Browser.provideDock()
-        pluginTypeOrder = [self.TYPE.DEVICEMGR, self.TYPE.CONTROL, self.TYPE.CONSOLE, self.TYPE.CHANNELMANAGER, self.TYPE.INPUTDEVICE, self.TYPE.OUTPUTDEVICE, self.TYPE.SCAN]
+        pluginTypeOrder = [PLUGINTYPE.DEVICEMGR, PLUGINTYPE.CONTROL, PLUGINTYPE.CONSOLE, PLUGINTYPE.CHANNELMANAGER, PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE, PLUGINTYPE.SCAN]
         for plugin in sorted((plugin for plugin in self.plugins if plugin.pluginType in pluginTypeOrder),
             key=lambda x: pluginTypeOrder.index(x.pluginType)):
-            # Note: Plugins with type self.TYPE.INTERNAL, self.TYPE.DISPLAY will be loaded by their parent items later if needed
+            # Note: Plugins with type PLUGINTYPE.INTERNAL, PLUGINTYPE.DISPLAY will be loaded by their parent items later if needed
             # display plugins will be initialized when needed, internal plugins do not need GUI
             try:
                 plugin.provideDock()
@@ -625,7 +600,7 @@ class PluginManager:
         supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
         tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
         typeLabel = QLabel()
-        typeLabel.setText(item[self.PLUGINTYPE])
+        typeLabel.setText(item[self.PLUGIN_TYPE])
         tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
         previewFileTypesLabel = QLabel()
         previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
@@ -700,13 +675,13 @@ class PluginManager:
 
     def getMainPlugins(self) -> list['Plugin']:
         """Return all plugins found in the control section, including devices, controls, and scans."""
-        return self.getPluginsByType([self.TYPE.INPUTDEVICE, self.TYPE.OUTPUTDEVICE, self.TYPE.CONTROL, self.TYPE.SCAN])
+        return self.getPluginsByType([PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE, PLUGINTYPE.CONTROL, PLUGINTYPE.SCAN])
 
-    def getPluginsByType(self, pluginTypes: TYPE | list[TYPE]) -> list['Plugin']:
+    def getPluginsByType(self, pluginTypes: PLUGINTYPE | list[PLUGINTYPE]) -> list['Plugin']:
         """Return all plugins of the specified type.
 
         :param pluginTypes: A single type or list of types.
-        :type pluginTypes: :meth:`~esibd.core.PluginManager.TYPE`
+        :type pluginTypes: :meth:`~esibd.const.PLUGINTYPE`
         :return: List of matching plugins.
         :rtype: [:class:`~esibd.plugins.Plugin`]
         """
@@ -815,30 +790,40 @@ class PluginManager:
             splash.close()
         self.toggleTitleBarDelayed(update=True)
 
-    def reconnectSource(self, channel: 'Channel') -> None:
+    def reconnectSource(self, name: str) -> None:
         """Try to reconnect linked channels if applicable.
 
         This is needed e.g. after renaming, moving, or deleting channels.
         If the channel has been deleted, the reconnection attempt will fail and and the linking channel will indicated that no source has been found.
 
-        :param channel: Channel to reconnect.
-        :type channel: esibd.core.Channel
+        :param name: Channel name to reconnect.
+        :type name: str
         """
         # keep docstring synchronized with PID.reconnectSource and UCM.reconnectSource
-        self.DeviceManager.reconnectStaticSources(channel.name)
+        for staticDisplay in self.DeviceManager.getActiveStaticDisplays():
+            staticDisplay.reconnectSource(name)
+        for scan in self.getPluginsByType(PLUGINTYPE.SCAN):
+            scan.reconnectSource(name)
         if hasattr(self, 'PID'):
-            self.PID.reconnectSource(channel.name)
+            self.PID.reconnectSource(name)
         if hasattr(self, 'UCM'):
-            self.UCM.reconnectSource(channel.name)
+            self.UCM.reconnectSource(name)
 
-    def connectAllSources(self) -> None:
-        """Connect all available source channels."""
+    def connectAllSources(self, update: bool = True) -> None:
+        """Connect all available source channels.
+
+        :param update: Indicates that all channels should be (re-)connected. Otherwise will only attempt to connect channels that are not yet connected. Defaults to False
+        :type update: bool, optional
+        """
         # keep docstring synchronized with PID.connectAllSources and UCM.connectAllSources
-        self.DeviceManager.connectAllStaticSources(update=True)
+        for staticDisplay in self.DeviceManager.getActiveStaticDisplays():
+            staticDisplay.connectAllSources()
+        for scan in self.getPluginsByType(PLUGINTYPE.SCAN):
+            scan.connectAllSources()
         if hasattr(self, 'PID'):
-            self.PID.connectAllSources(update=True)
+            self.PID.connectAllSources(update=update)
         if hasattr(self, 'UCM'):
-            self.UCM.connectAllSources(update=True)
+            self.UCM.connectAllSources(update=update)
 
     def toggleVideoRecorder(self) -> None:
         """Toggles visibility of videoRecorderActions for all plugins."""
@@ -1148,32 +1133,6 @@ class Parameter:
     DISPLAYDECIMALS  = 'DISPLAYDECIMALS'
     WIDGET      = 'WIDGET'
 
-    class TYPE(Enum):
-        """Specifies what type of widget should be used to represent the Parameter in the user interface."""
-
-        LABEL = 'LABEL'
-        """A label that displays information."""
-        PATH  = 'PATH'
-        """A path to a file or directory."""
-        COMBO = 'COMBO'
-        """A combobox providing text options."""
-        INTCOMBO = 'INTCOMBO'
-        """A combobox providing integer options."""
-        FLOATCOMBO = 'FLOATCOMBO'
-        """A combobox providing floating point options."""
-        TEXT  = 'TEXT'
-        """An editable text field."""
-        COLOR = 'COLOR'
-        """A ColorButton that allows to select a color."""
-        BOOL  = 'BOOL'
-        """A boolean, represented by a checkbox."""
-        INT   = 'INT'
-        """An integer spinbox."""
-        FLOAT = 'FLOAT'
-        """A floating point spinbox."""
-        EXP   = 'EXP'
-        """A spinbox with scientific format."""
-
     name: str
     """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
     value: ParameterType
@@ -1188,8 +1147,8 @@ class Parameter:
     """List of options for parameters with a combobox."""
     fixedItems: bool
     """Indicates if list of items can be edited by the user or should remain fixed."""
-    widgetType: TYPE
-    """The widgetType determines which widget is used to represent the parameter in the user interface."""
+    parameterType: PARAMETERTYPE
+    """The parameterType determines which widget is used to represent the parameter in the user interface."""
     advanced: bool
     """If True, parameter will only be visible in advanced mode."""
     header: str
@@ -1239,7 +1198,7 @@ class Parameter:
     extraEvents: list[callable]
     """Used to add internal events on top of the user assigned ones."""
 
-    def __init__(self, name: str, parameterParent: 'SettingsManager | RestoreFloatComboBox | Channel' = None, default: 'ParameterType | None' = None, widgetType: TYPE = None,  # noqa: PLR0917
+    def __init__(self, name: str, parameterParent: 'SettingsManager | RestoreFloatComboBox | Channel' = None, default: 'ParameterType | None' = None, parameterType: PARAMETERTYPE = None,  # noqa: PLR0917
                  column: int = 1, items: str = '', fixedItems: bool = False, widget: QWidget = None, internal: bool = False,
                     tree: QTreeWidget = None, itemWidget: QTreeWidgetItem = None, toolTip: str = '', event: 'callable | None' = None,
                       minimum: 'float | None' = None, maximum: 'float | None' = None, indicator: bool = False, restore: bool = True, instantUpdate: bool = True, displayDecimals: int = 2) -> None:
@@ -1251,8 +1210,8 @@ class Parameter:
         :type parameterParent: SettingsManager | RestoreFloatComboBox | Channel, optional
         :param default: Default value, defaults to None
         :type default: ParameterType | None, optional
-        :param widgetType: Widget type, defaults to None
-        :type widgetType: TYPE, optional
+        :param parameterType: Widget type, defaults to None
+        :type parameterType: PARAMETERTYPE, optional
         :param column: The column of the parameter in the QTreeWidget, defaults to 1
         :type column: int, optional
         :param items: Items for ComboBox, defaults to ''
@@ -1285,7 +1244,7 @@ class Parameter:
         :type displayDecimals: int, optional
         """
         self.parameterParent = parameterParent
-        self.widgetType = widgetType if widgetType is not None else self.TYPE.LABEL
+        self.parameterType = parameterType if parameterType is not None else PARAMETERTYPE.LABEL
         self.column = column
         self.print = parameterParent.print
         self.fullName = name
@@ -1319,26 +1278,26 @@ class Parameter:
 
     @property
     def value(self) -> ParameterType:
-        """Return value in correct format, based on widgetType."""
+        """Return value in correct format, based on parameterType."""
         # use widget even for internal settings, should always be synchronized to allow access via both attribute and qSet
         value = None
-        if self.widgetType == self.TYPE.COMBO:
+        if self.parameterType == PARAMETERTYPE.COMBO:
             value = self.combo.currentText()
-        if self.widgetType == self.TYPE.INTCOMBO:
+        if self.parameterType == PARAMETERTYPE.INTCOMBO:
             value = int(self.combo.currentText())
-        if self.widgetType == self.TYPE.FLOATCOMBO:
+        if self.parameterType == PARAMETERTYPE.FLOATCOMBO:
             value = float(self.combo.currentText())
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             value = self.line.text()
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             value = self.spin.value()
-        elif self.widgetType == self.TYPE.BOOL:
+        elif self.parameterType == PARAMETERTYPE.BOOL:
             value = self.check.isChecked() if self.check is not None else self.button.isChecked()
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             value = self.colorButton.color().name()
-        elif self.widgetType == self.TYPE.LABEL:
+        elif self.parameterType == PARAMETERTYPE.LABEL:
             value = self.label.text()
-        elif self.widgetType == self.TYPE.PATH:
+        elif self.parameterType == PARAMETERTYPE.PATH:
             value = Path(self.label.text())
         return value
 
@@ -1348,33 +1307,33 @@ class Parameter:
             qSet.setValue(self.fullName, value)
             if self._items is not None:
                 qSet.setValue(self.fullName + self.ITEMS, ','.join(self.items))
-        if self.widgetType == self.TYPE.BOOL:
+        if self.parameterType == PARAMETERTYPE.BOOL:
             value = value if isinstance(value, (bool, np.bool_)) else value in {'True', 'true'}  # accepts strings (from ini file or qSet) and bools
             if self.check is not None:
                 self.check.setChecked(value)
             else:
                 self.button.setChecked(value)
-        elif self.widgetType == self.TYPE.INT:
+        elif self.parameterType == PARAMETERTYPE.INT:
             self.spin.setValue(int(float(value)))
-        elif self.widgetType in {self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             self.spin.setValue(float(value))
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             self.colorButton.setColor(value, True)
-        elif self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        elif self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             if value is None:
                 i = 0
             else:
                 i = self.combo.findText(str(value))
-                if i == -1 and self.widgetType is self.TYPE.FLOATCOMBO:
+                if i == -1 and self.parameterType is PARAMETERTYPE.FLOATCOMBO:
                     i = self.combo.findText(str(int(float(value))))  # try to find int version if float version not found. e.g. 1 instead of 1.0
             if i == -1:
                 self.print(f'Value {value} not found for {self.fullName}. Defaulting to {self.combo.itemText(0)}.', PRINT.WARNING)
                 self.combo.setCurrentIndex(0)
             else:
                 self.combo.setCurrentIndex(i)
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line.setText(str(value))  # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
-        elif self.widgetType in {self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
             if not self.indicator:
@@ -1387,11 +1346,11 @@ class Parameter:
 
     @default.setter
     def default(self, default: ParameterType) -> None:  # casting does not change anything if the value is already supplied in the right type, but will convert strings to correct value if needed
-        if self.widgetType == self.TYPE.BOOL:
+        if self.parameterType == PARAMETERTYPE.BOOL:
             self._default = default
-        elif self.widgetType == self.TYPE.INT:
+        elif self.parameterType == PARAMETERTYPE.INT:
             self._default = int(default)
-        elif self.widgetType in {self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             self._default = float(default)
         else:
             self._default = str(default)
@@ -1399,7 +1358,7 @@ class Parameter:
     @property
     def items(self) -> list[str]:
         """List of items for parameters with a combobox."""
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             return [self.combo.itemText(i) for i in range(self.combo.count())]
         else:
             return ''
@@ -1414,7 +1373,7 @@ class Parameter:
         """
         if not (self.loading or self.parameterParent.loading):
             self.settingEvent()  # always save changes even when event is not triggered
-            if not self.instantUpdate and self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+            if not self.instantUpdate and self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
                 if self._valueChanged:
                     self._valueChanged = False  # reset and continue event loop
                 else:
@@ -1434,27 +1393,27 @@ class Parameter:
 
         Even indicators should be able to trigger events, e.g. to update dependent channels.
         """
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             self.safeConnect(self.combo, self.combo.currentIndexChanged, self.changedEvent)
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             self.safeConnect(self.line, self.line.userEditingFinished, self.changedEvent)
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if self.instantUpdate:
                 # by default trigger events on every change, not matter if through user interface or software
                 self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent)
             else:
                 self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
                 self.safeConnect(self.spin, self.spin.editingFinished, self.changedEvent)
-        elif self.widgetType == self.TYPE.BOOL:
+        elif self.parameterType == PARAMETERTYPE.BOOL:
             if isinstance(self.check, QCheckBox):
                 self.safeConnect(self.check, self.check.stateChanged, self.changedEvent)
             elif isinstance(self.check, QAction):
                 self.safeConnect(self.check, self.check.toggled, self.changedEvent)
             else:  # isinstance(self.check, QToolButton, QPushButton)
                 self.safeConnect(self.check, self.check.clicked, self.changedEvent)
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             self.safeConnect(self.colorButton, self.colorButton.sigColorChanged, self.changedEvent)
-        elif self.widgetType in {self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             pass  # self.label.changeEvent.connect(self.changedEvent)  # no change events for labels
 
     def safeConnect(self, control: QWidget, signal: pyqtSignal, event: callable) -> None:
@@ -1481,7 +1440,7 @@ class Parameter:
 
     def setToDefault(self) -> None:
         """Set Parameter value to its default."""
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             i = self.combo.findText(str(self.default))
             if i == -1:  # add default entry in case it has been deleted
                 self.print(f'Adding Default value {self.default} for {self.fullName}.', PRINT.WARNING)
@@ -1493,11 +1452,11 @@ class Parameter:
         self.default = self.value
 
     def applyWidget(self) -> None:
-        """Create UI widget depending on :attr:`~esibd.core.Parameter.widgetType`.
+        """Create UI widget depending on :attr:`~esibd.core.Parameter.parameterType`.
 
         Links dedicated :attr:`~esibd.core.Parameter.widget` if provided.
         """
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             self.combo = CompactComboBox() if self.widget is None else self.widget
             self.combo.setMaximumWidth(100)
             if self.widget is not None:  # potentially reuse widget with old data!
@@ -1505,23 +1464,23 @@ class Parameter:
             self.combo.wheelEvent = lambda event: None  # disable wheel event to avoid accidental change of setting  # noqa: ARG005
             for item in [item.strip(' ') for item in self._items]:
                 self.combo.insertItem(self.combo.count(), item)
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line = self.widget if self.widget is not None else LineEdit(parentParameter=self, tree=self.tree)
             self.line.setFrame(False)
             if self.indicator:
                 self.line.setEnabled(False)
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if self.widget is None:
-                if self.widgetType == self.TYPE.INT:
+                if self.parameterType == PARAMETERTYPE.INT:
                     self.spin = QLabviewSpinBox(indicator=self.indicator)
-                elif self.widgetType == self.TYPE.FLOAT:
+                elif self.parameterType == PARAMETERTYPE.FLOAT:
                     self.spin = QLabviewDoubleSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
-                else:  # self.TYPE.EXP
+                else:  # PARAMETERTYPE.EXP
                     self.spin = QLabviewSciSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
                 self.spin.lineEdit().setObjectName(self.fullName)
             else:
                 self.spin = self.widget
-        elif self.widgetType == self.TYPE.BOOL:
+        elif self.parameterType == PARAMETERTYPE.BOOL:
             if self.widget is None:
                 if self.indicator:
                     self.check = LedIndicator()
@@ -1534,14 +1493,14 @@ class Parameter:
             else:
                 self.check = self.widget
                 self.setEnabled(not self.indicator)
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             if self.widget is None:
                 self.colorButton = pg.ColorButton()
                 self.colorButton.padding = (2, 2, -3, -3)
             else:
                 self.colorButton = self.widget
 
-        elif self.widgetType in {self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label = QLabel() if self.widget is None else self.widget
 
         if self.spin is not None:  # apply limits  # no limits by default to avoid unpredictable behavior.
@@ -1589,8 +1548,8 @@ class Parameter:
         :param height: Target height, defaults to None
         :type height: float, optional
         """
-        if self.widgetType not in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.BOOL, self.TYPE.COLOR, self.TYPE.FLOATCOMBO,
-                                   self.TYPE.TEXT, self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP, self.TYPE.LABEL, self.TYPE.PATH}:
+        if self.parameterType not in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.BOOL, PARAMETERTYPE.COLOR, PARAMETERTYPE.FLOATCOMBO,
+                                   PARAMETERTYPE.TEXT, PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP, PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             return
         if height is None:
             height = self.rowHeight
@@ -1600,14 +1559,14 @@ class Parameter:
         self.getWidget().setMaximumHeight(self.rowHeight)
         font = self.getWidget().font()
         font.setPointSize(int(height / 2))
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             self.combo.setFont(font)
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line.setFont(font)
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             self.spin.setMinimumWidth(int(scaling * 50) + 10)  # empirical fixed width
             self.spin.lineEdit().setFont(font)
-        elif self.widgetType == self.TYPE.BOOL:
+        elif self.parameterType == PARAMETERTYPE.BOOL:
             if isinstance(self.check, QCheckBox):
                 checkBoxHeight = min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
                 self.check.checkBoxHeight = checkBoxHeight  # remember for updateColor
@@ -1616,23 +1575,23 @@ class Parameter:
                 iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
                 self.check.setFont(font)
                 self.check.setIconSize(QSize(iconHeight, iconHeight))
-        elif self.widgetType in {self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label.setFont(font)
 
     def getWidget(self) -> QWidget:
         """Return the widget used to display the Parameter value in the user interface."""
         widget = None
-        if self.widgetType in {self.TYPE.COMBO, self.TYPE.INTCOMBO, self.TYPE.FLOATCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             widget = self.combo
-        elif self.widgetType == self.TYPE.TEXT:
+        elif self.parameterType == PARAMETERTYPE.TEXT:
             widget = self.line
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.FLOAT, self.TYPE.EXP}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             widget = self.spin
-        elif self.widgetType == self.TYPE.BOOL:
+        elif self.parameterType == PARAMETERTYPE.BOOL:
             widget = self.check if self.check is not None else self.button
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             widget = self.colorButton
-        elif self.widgetType in {self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             widget = self.label
         return widget
 
@@ -1683,9 +1642,9 @@ class Parameter:
         :return: True if valid.
         :rtype: bool
         """
-        if self.widgetType == self.TYPE.COMBO:
+        if self.parameterType == PARAMETERTYPE.COMBO:
             return True
-        elif self.widgetType == self.TYPE.INTCOMBO:
+        elif self.parameterType == PARAMETERTYPE.INTCOMBO:
             try:
                 int(value)
             except ValueError:
@@ -1693,7 +1652,7 @@ class Parameter:
                 return False
             else:
                 return True
-        elif self.widgetType == self.TYPE.FLOATCOMBO:
+        elif self.parameterType == PARAMETERTYPE.FLOATCOMBO:
             try:
                 float(value)
             except ValueError:
@@ -1712,17 +1671,17 @@ class Parameter:
         :rtype: bool
         """
         equals = False
-        if self.widgetType == self.TYPE.BOOL:
+        if self.parameterType == PARAMETERTYPE.BOOL:
             equals = self.value == value if isinstance(value, (bool, np.bool_)) else self.value == (value in {'True', 'true'})  # accepts strings (from ini file or qSet) and bools
-        elif self.widgetType in {self.TYPE.INT, self.TYPE.INTCOMBO}:
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.INTCOMBO}:
             equals = self.value == int(value)
-        elif self.widgetType in {self.TYPE.FLOAT, self.TYPE.FLOATCOMBO}:
+        elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.FLOATCOMBO}:
             equals = f'{self.value:.{self.displayDecimals}f}' == f'{float(value):.{self.displayDecimals}f}'
-        elif self.widgetType == self.TYPE.EXP:
+        elif self.parameterType == PARAMETERTYPE.EXP:
             equals = f'{self.value:.{self.displayDecimals}e}' == f'{float(value):.{self.displayDecimals}e}'
-        elif self.widgetType == self.TYPE.COLOR:
+        elif self.parameterType == PARAMETERTYPE.COLOR:
             equals = self.value == value.name() if isinstance(value, QColor) else self.value == value
-        elif self.widgetType in {self.TYPE.TEXT, self.TYPE.LABEL, self.TYPE.PATH}:
+        elif self.parameterType in {PARAMETERTYPE.TEXT, PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             equals = self.value == str(value)  # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
         else:
             equals = self.value == value
@@ -1739,10 +1698,10 @@ class Parameter:
         value = value if value is not None else self.value
         if value is None:
             return str(value)
-        if self.widgetType in {self.TYPE.INT, self.TYPE.INTCOMBO}:
+        if self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.INTCOMBO}:
             return f'{int(value)}'
-        elif self.widgetType in {self.TYPE.FLOAT, self.TYPE.FLOATCOMBO, self.TYPE.EXP}:
-            if self.widgetType == self.TYPE.EXP:
+        elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.FLOATCOMBO, PARAMETERTYPE.EXP}:
+            if self.parameterType == PARAMETERTYPE.EXP:
                 return f'{float(value):.{self.displayDecimals}e}'
             else:
                 return f'{float(value):.{self.displayDecimals}f}'
@@ -1759,7 +1718,7 @@ class Parameter:
 
 
 def parameterDict(name: str = '', value: 'ParameterType | None' = None, default: 'ParameterType | None' = None, minimum: 'float | None' = None, maximum: 'float | None' = None, toolTip: str = '', items: 'list[str] | None' = None,  # noqa: PLR0917
-                  fixedItems: bool = False, tree: QTreeWidget = None, widgetType: Parameter.TYPE = None, advanced: bool = False, header: str = '',
+                  fixedItems: bool = False, tree: QTreeWidget = None, parameterType: PARAMETERTYPE = None, advanced: bool = False, header: str = '',
                     widget: QWidget = None, event: 'callable | None' = None, internal: bool = False, attr: str = '', indicator: bool = False, restore: bool = True,
                     instantUpdate: bool = True, displayDecimals: int = 2) -> dict[str, ParameterType]:
     """Provide default values for all properties of a Parameter.
@@ -1782,8 +1741,8 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :type fixedItems: bool, optional
     :param tree: None, unless the Parameter is used for settings., defaults to None
     :type tree: QTreeWidget, optional
-    :param widgetType: The widgetType determines which widget is used to represent the Parameter in the user interface, defaults to None
-    :type widgetType: esibd.core.Parameter.TYPE, optional
+    :param parameterType: The parameterType determines which widget is used to represent the Parameter in the user interface, defaults to None
+    :type parameterType: esibd.core.PARAMETERTYPE, optional
     :param advanced: If True, Parameter will only be visible in advanced mode, defaults to False
     :type advanced: bool, optional
     :param header: Header used for the corresponding column in list of Channels. The Parameter name is used if not specified. Only applies to Channel Parameters. Defaults to ''
@@ -1808,7 +1767,7 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :rtype: dict[str, ParameterType]
     """
     return {Parameter.NAME: name, Parameter.VALUE: value, Parameter.DEFAULT: default if default is not None else value, Parameter.MIN: minimum, Parameter.MAX: maximum, Parameter.ADVANCED: advanced,
-            Parameter.HEADER: header, Parameter.TOOLTIP: toolTip, Parameter.ITEMS: items, Parameter.FIXEDITEMS: fixedItems, Parameter.TREE: tree, Parameter.WIDGETTYPE: widgetType,
+            Parameter.HEADER: header, Parameter.TOOLTIP: toolTip, Parameter.ITEMS: items, Parameter.FIXEDITEMS: fixedItems, Parameter.TREE: tree, Parameter.WIDGETTYPE: parameterType,
             Parameter.WIDGET: widget, Parameter.EVENT: event, Parameter.INTERNAL: internal, Parameter.ATTR: attr, Parameter.INDICATOR: indicator, Parameter.RESTORE: restore, Parameter.INSTANTUPDATE: instantUpdate,
             Parameter.DISPLAYDECIMALS: displayDecimals}
 
@@ -1878,7 +1837,7 @@ class Setting(QTreeWidgetItem, Parameter):
         Finally executes Setting specific event if applicable.
         """
         if not self.indicator:  # Setting indicators should never need to trigger events
-            if self.widgetType == self.TYPE.PATH:
+            if self.parameterType == PARAMETERTYPE.PATH:
                 path, changed = validatePath(self.value, self.default)
                 if changed:
                     self.value = path
@@ -2120,16 +2079,17 @@ class Channel(QTreeWidgetItem):
     backgrounds: DynamicNp
     """List of backgrounds. Only defined if corresponding device uses backgrounds."""
 
-    def __init__(self, device: 'ChannelManager' = None, tree: QTreeWidget = None) -> None:
+    def __init__(self, device: 'ChannelManager', tree: QTreeWidget = None) -> None:
         """Initialize a Channel.
 
-        :param device: Channel Parent, defaults to None
+        :param device: Channel Parent
         :type device: ChannelManager, optional
         :param tree: Channel tree, defaults to None
         :type tree: QTreeWidget, optional
         """
         super().__init__()  # need to init without tree, otherwise channels will always appended to the end when trying to change order using insertTopLevelItem
         self.device = device
+        self.pluginManager = self.device.pluginManager
         self.parentPlugin = device  # name may be more appropriate for some use cases
         self.print = self.device.print
         self.convertDataDisplay = self.device.convertDataDisplay if hasattr(self.device, 'convertDataDisplay') else None
@@ -2164,7 +2124,7 @@ class Channel(QTreeWidgetItem):
                 setattr(self.__class__, default[Parameter.ATTR], makeWrapper(name))
 
         for column, (name, default) in enumerate(self.getSortedDefaultChannel().items()):
-            self.parameters.append(Parameter(parameterParent=self, name=name, widgetType=default[Parameter.WIDGETTYPE],
+            self.parameters.append(Parameter(parameterParent=self, name=name, parameterType=default[Parameter.WIDGETTYPE],
                                                     items=default.get(Parameter.ITEMS, None),
                                                     fixedItems=default.get(Parameter.FIXEDITEMS, False),
                                                     minimum=default.get(Parameter.MIN, None), maximum=default.get(Parameter.MAX, None),
@@ -2233,65 +2193,65 @@ class Channel(QTreeWidgetItem):
     def getDefaultChannel(self) -> dict[str, dict]:
         """Define Parameter(s) of the default Channel.
 
-        This is also use to assign widgetTypes, if Parameters are visible outside of advanced mode,
+        This is also use to assign parameterTypes, if Parameters are visible outside of advanced mode,
         and many other parameter properties. See :meth:`~esibd.core.parameterDict`.
         If parameters do not exist in the settings file, the default Parameter will be added.
         Overwrite in dependent classes as needed.
         """
         channel = {}
-        channel[self.COLLAPSE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
+        channel[self.COLLAPSE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL,
                                     toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header='')
-        channel[self.SELECT] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.SELECT] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                     toolTip='Select channel for deleting, moving, or duplicating.', event=lambda: self.device.channelSelection(selectedChannel=self), attr='select')
-        channel[self.ENABLED] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.ENABLED] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                     header='E', toolTip='If enabled, channel will communicate with the device.',
                                     event=lambda: self.enabledChanged(), attr='enabled')
-        channel[self.NAME] = parameterDict(value=f'{self.device.name}_parameter', widgetType=Parameter.TYPE.TEXT, advanced=False, attr='name',
+        channel[self.NAME] = parameterDict(value=f'{self.device.name}_parameter', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='name',
                                                event=lambda: self.nameChanged())
         channel[self.VALUE] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0,
-                                               widgetType=Parameter.TYPE.EXP if hasattr(self.device, 'logY') and self.device.logY else Parameter.TYPE.FLOAT,
+                                               parameterType=PARAMETERTYPE.EXP if hasattr(self.device, 'logY') and self.device.logY else PARAMETERTYPE.FLOAT,
                                                advanced=False, header='Unit', attr='value',
-                                               event=lambda: self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
+                                               event=lambda: self.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
                                                indicator=self.inout == INOUT.OUT)
-        channel[self.EQUATION] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='equation',
+        channel[self.EQUATION] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='equation',
                                     event=lambda: self.equationChanged())
-        channel[self.ACTIVE] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.ACTIVE] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                     header='A', toolTip='If not active, value will be determined from equation.',
                                     event=lambda: self.activeChanged(), attr='active')
-        channel[self.REAL] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.REAL] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                     header='R', toolTip='Check for physically exiting channels.',
                                     event=lambda: self.realChanged(), attr='real')
-        channel[self.SCALING] = parameterDict(value='normal', default='normal', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
+        channel[self.SCALING] = parameterDict(value='normal', default='normal', parameterType=PARAMETERTYPE.COMBO, advanced=True, attr='scaling', event=lambda: self.scalingChanged(),
                                                        items='small, normal, large, larger, huge', toolTip='Scaling used to display channels.')
         # * avoid using middle gray colors, as the bitwise NOT which is used for the caret color has very poor contrast
         # https://stackoverflow.com/questions/55877769/qt-5-8-qtextedit-text-cursor-color-wont-change
-        channel[self.COLOR] = parameterDict(value='#e8e8e8', widgetType=Parameter.TYPE.COLOR, advanced=True,
+        channel[self.COLOR] = parameterDict(value='#e8e8e8', parameterType=PARAMETERTYPE.COLOR, advanced=True,
                                     event=lambda: self.updateColor(), attr='color')
         if self.useMonitors:
-            channel[self.MONITOR] = parameterDict(value=np.nan, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+            channel[self.MONITOR] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
                                                   event=lambda: self.monitorChanged(), attr='monitor', indicator=True)
         if self.useDisplays:
-            channel[self.DISPLAY] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+            channel[self.DISPLAY] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=False,
                                         header='D', toolTip='Display channel history.',
                                         event=lambda: self.updateDisplay(), attr='display')
-            channel[self.SMOOTH] = parameterDict(value='0', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+            channel[self.SMOOTH] = parameterDict(value='0', parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                             items='0, 2, 4, 8, 16, 32', attr='smooth',
                                             toolTip='Smooth using running average with selected window.')
-            channel[self.LINEWIDTH] = parameterDict(value='4', widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+            channel[self.LINEWIDTH] = parameterDict(value='4', parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                             items='2, 4, 6, 8, 10, 12, 14, 16', attr='linewidth', event=lambda: self.updateDisplay(), toolTip='Line width used in plots.')
-            channel[self.LINESTYLE] = parameterDict(value='solid', widgetType=Parameter.TYPE.COMBO, advanced=True,
+            channel[self.LINESTYLE] = parameterDict(value='solid', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                             items='solid, dotted, dashed, dashdot', attr='linestyle', event=lambda: self.updateDisplay(), toolTip='Line style used in plots.')
-            channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', widgetType=Parameter.TYPE.COMBO, advanced=True, attr='displayGroup', event=lambda: self.updateDisplay(),
+            channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', parameterType=PARAMETERTYPE.COMBO, advanced=True, attr='displayGroup', event=lambda: self.updateDisplay(),
                                                            items='0, 1, 2, 3, 4, 5', fixedItems=False, toolTip='Used to group channels in the live display.')
         if self.inout == INOUT.IN:
-            channel[self.MIN] = parameterDict(value=-50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
+            channel[self.MIN] = parameterDict(value=-50, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
                                     event=lambda: self.updateMin(), attr='min', header='Min       ')
-            channel[self.MAX] = parameterDict(value=+50, widgetType=Parameter.TYPE.FLOAT, advanced=True,
+            channel[self.MAX] = parameterDict(value=+50, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
                                     event=lambda: self.updateMax(), attr='max', header='Max       ')
-            channel[self.OPTIMIZE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
+            channel[self.OPTIMIZE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
                                     header='O', toolTip='Selected channels will be optimized using GA.', attr='optimize')
         if self.useBackgrounds:
-            channel[self.BACKGROUND] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+            channel[self.BACKGROUND] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
                                 header='BG      ', attr='background')
         return channel
 
@@ -2396,12 +2356,12 @@ class Channel(QTreeWidgetItem):
         self.toggleBackgroundVisible()
         self.updateColor()
         if not self.device.loading:
-            self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+            self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def equationChanged(self) -> None:
         """Update channel after equation has changed."""
         if not self.device.loading:
-            self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+            self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def collapseChanged(self, toggle: bool = True) -> None:
         """Update visible channels after collapse has changed.
@@ -2461,7 +2421,7 @@ class Channel(QTreeWidgetItem):
         :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
         :type max_size: int, optional
         """
-        if self.device.pluginManager.DeviceManager is not None and (self.device.pluginManager.Settings is not None and not self.device.pluginManager.Settings.loading):
+        if self.pluginManager.DeviceManager is not None and (self.pluginManager.Settings is not None and not self.pluginManager.Settings.loading):
             self.values = DynamicNp(max_size=max_size if max_size is not None else 600000 / int(self.device.interval))  # 600000 -> only keep last 10 min to save ram unless otherwise specified
         self.clearPlotCurve()
         if self.useBackgrounds:
@@ -2522,6 +2482,10 @@ class Channel(QTreeWidgetItem):
                 widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
         self.updateDisplay()
         self.defaultStyleSheet = f'background-color: {color.name()}'
+        if not self.device.loading and self.parentPlugin.pluginType in {PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE}:
+            # Update color in relay channels.
+            # Only called by device channels! Relay channels should not call this to prevent infinite loops.
+            self.device.pluginManager.reconnectSource(self.name)
         return color
 
     def scalingChanged(self) -> None:
@@ -2554,13 +2518,13 @@ class Channel(QTreeWidgetItem):
         if self.useMonitors:
             self.getParameterByName(self.MONITOR).getWidget().setVisible(self.real)
         if not self.device.loading:
-            self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+            self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def enabledChanged(self) -> None:
         """Extend as needed. Already linked to enabled checkbox."""
         if not self.device.loading:
             self.toggleBackgroundVisible()
-            self.device.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+            self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
             self.clearPlotCurve()
             if self.enabled:
                 self.device.appendData(nan=True)  # prevent interpolation to old data
@@ -2585,7 +2549,7 @@ class Channel(QTreeWidgetItem):
         """Update display and linked channels if channel name changed."""
         if self.inout == INOUT.OUT:
             self.updateDisplay()
-        self.device.pluginManager.connectAllSources()
+        self.pluginManager.connectAllSources()
 
     def updateDisplay(self) -> None:
         """Update live and static displays."""
@@ -2593,7 +2557,7 @@ class Channel(QTreeWidgetItem):
             self.clearPlotCurve()
             if not self.device.recording and self.device.liveDisplay is not None:
                 self.device.liveDisplay.plot(apply=True)
-            self.device.pluginManager.DeviceManager.updateStaticPlot()
+            self.pluginManager.DeviceManager.updateStaticPlot()
 
     def monitorChanged(self) -> None:
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
@@ -2672,13 +2636,13 @@ class Channel(QTreeWidgetItem):
         """Apply new minimum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
         if not self.device.loading:
-            self.device.pluginManager.reconnectSource(self)  # update limits in relay channels
+            self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
 
     def updateMax(self) -> None:
         """Apply new maximum to value widget."""
         self.getParameterByName(self.VALUE).spin.setMaximum(self.max)
         if not self.device.loading:
-            self.device.pluginManager.reconnectSource(self)  # update limits in relay channels
+            self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
 
     def onDelete(self) -> None:
         """Extend to handle events on deleting. E.g. handle references that should remain available."""
@@ -2700,18 +2664,18 @@ class Channel(QTreeWidgetItem):
         if getShowDebug():
             addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
             addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
-        # if parameter.widgetType in [Parameter.TYPE.COMBO, Parameter.TYPE.INTCOMBO, Parameter.TYPE.FLOATCOMBO]:
+        # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
         #     NOTE channels do only save current value but not the items -> thus editing items is currently not supported
         if not settingsContextMenu.actions():
             return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction is not None:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addParameterToConsoleAction:
-                self.device.pluginManager.Console.addToNamespace('parameter', parameter)
-                self.device.pluginManager.Console.execute('parameter')
+                self.pluginManager.Console.addToNamespace('parameter', parameter)
+                self.pluginManager.Console.execute('parameter')
             if settingsContextMenuAction is addChannelToConsoleAction:
-                self.device.pluginManager.Console.addToNamespace('channel', parameter.parameterParent)
-                self.device.pluginManager.Console.execute('channel')
+                self.pluginManager.Console.addToNamespace('channel', parameter.parameterParent)
+                self.pluginManager.Console.execute('channel')
 
 
 class ScanChannel(RelayChannel, Channel):
@@ -2745,13 +2709,13 @@ class ScanChannel(RelayChannel, Channel):
         channel[self.VALUE][Parameter.INDICATOR] = True
         channel[self.NAME][Parameter.INDICATOR] = True
         if self.scan.useDisplayParameter:
-            channel[self.DISPLAY] = parameterDict(value=True, widgetType=Parameter.TYPE.BOOL, advanced=False,
+            channel[self.DISPLAY] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=False,
                                         header='D', toolTip='Display channel history.',
                                         event=lambda: self.updateDisplay(), attr='display')
-        channel[self.DEVICE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False,
+        channel[self.DEVICE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
                                                  toolTip='Source: Unknown.', header='')
-        channel[self.UNIT] = parameterDict(value='', widgetType=Parameter.TYPE.TEXT, attr='unit', header='Unit   ', indicator=True)
-        channel[self.NOTES] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='notes', indicator=True)
+        channel[self.UNIT] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, attr='unit', header='Unit   ', indicator=True)
+        channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', indicator=True)
         return channel
 
     def tempParameters(self) -> list[str]:
@@ -2802,12 +2766,12 @@ class ScanChannel(RelayChannel, Channel):
                 self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
             self.getParameterByName(self.DEVICE).getWidget().setToolTip(f'Source: {self.sourceChannel.getDevice().name}')
             if self.sourceChannel.useMonitors:
-                self.getParameterByName(self.VALUE).widgetType = self.sourceChannel.getParameterByName(self.MONITOR).widgetType
+                self.getParameterByName(self.VALUE).parameterType = self.sourceChannel.getParameterByName(self.MONITOR).parameterType
                 self.getParameterByName(self.VALUE).applyWidget()
                 self.value = self.sourceChannel.monitor
                 self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayValueEvent)
             else:
-                self.getParameterByName(self.VALUE).widgetType = self.sourceChannel.getParameterByName(self.VALUE).widgetType
+                self.getParameterByName(self.VALUE).parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
                 self.getParameterByName(self.VALUE).applyWidget()
                 self.value = self.sourceChannel.value
                 self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
@@ -3160,7 +3124,7 @@ class RestoreFloatComboBox(QComboBox):
         self.attr = attr
         self.fullName = f'{self.parentPlugin.name}/{self.attr}'
         self.parentPlugin.pluginManager.Settings.loading = True
-        self.setting = Setting(parameterParent=self.parentPlugin.pluginManager.Settings, name=self.fullName, widgetType=Parameter.TYPE.FLOATCOMBO,
+        self.setting = Setting(parameterParent=self.parentPlugin.pluginManager.Settings, name=self.fullName, parameterType=PARAMETERTYPE.FLOATCOMBO,
                                value=qSet.value(self.fullName, default), default=default,
                                 items=items, widget=self, internal=True, **kwargs)
         self.parentPlugin.pluginManager.Settings.loading = False

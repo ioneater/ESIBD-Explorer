@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getDarkMode, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -22,7 +22,7 @@ class PICO(Device):
     name = 'PICO'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'K'
     iconFile = 'pico_104.png'
 
@@ -78,11 +78,11 @@ class TemperatureChannel(Channel):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
         channel[self.VALUE][Parameter.VALUE] = np.nan  # undefined until communication established
-        channel[self.CHANNEL] = parameterDict(value='USBPT104_CHANNEL_1', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.CHANNEL] = parameterDict(value='USBPT104_CHANNEL_1', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                     attr='channel', items='USBPT104_CHANNEL_1, USBPT104_CHANNEL_2, USBPT104_CHANNEL_3, USBPT104_CHANNEL_4')
-        channel[self.DATATYPE] = parameterDict(value='USBPT104_PT100', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.DATATYPE] = parameterDict(value='USBPT104_PT100', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                     attr='datatype', items='USBPT104_PT100')
-        channel[self.NOOFWIRES] = parameterDict(value='4', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.NOOFWIRES] = parameterDict(value='4', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                     attr='noOfWires', items='2, 3, 4')
         return channel
 

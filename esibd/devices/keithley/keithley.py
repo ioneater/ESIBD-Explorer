@@ -4,7 +4,7 @@ import time
 import numpy as np
 import pyvisa
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -19,7 +19,7 @@ class KEITHLEY(Device):
     name = 'KEITHLEY'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'keithley.png'
 
@@ -64,9 +64,9 @@ class CurrentChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
-        channel[self.CHARGE] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
-        channel[self.ADDRESS] = parameterDict(value='GPIB0::22::INSTR', widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
-        channel[self.VOLTAGE] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, attr='voltage', event=lambda: self.controller.applyVoltage())
+        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.ADDRESS] = parameterDict(value='GPIB0::22::INSTR', parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='address')
+        channel[self.VOLTAGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, attr='voltage', event=lambda: self.controller.applyVoltage())
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -176,11 +176,11 @@ class CurrentController(DeviceController):
         self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeNumbers(self) -> None:
-        if not self.channel.device.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             self.values = [np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset]
 
     def readNumbers(self) -> None:
-        if not self.channel.device.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             try:
                 self.port.write("INIT")
                 self.values = [float(self.port.query("FETCh?").split(',')[0][:-1]) * 1E12]

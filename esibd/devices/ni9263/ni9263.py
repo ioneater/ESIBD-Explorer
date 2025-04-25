@@ -1,7 +1,7 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import nidaqmx
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -16,7 +16,7 @@ class NI9263(Device):
     name = 'NI9263'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     iconFile = 'NI9263.png'
 
@@ -40,7 +40,7 @@ class VoltageChannel(Channel):
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
         channel[self.ADDRESS] = parameterDict(value='cDAQ1Mod1/ao0', toolTip='Address of analog output',
-                                          widgetType=Parameter.TYPE.TEXT, advanced=True, attr='address')
+                                          parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='address')
         return channel
 
     def setDisplayedParameters(self) -> None:

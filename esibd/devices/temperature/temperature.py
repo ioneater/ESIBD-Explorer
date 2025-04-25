@@ -5,7 +5,7 @@ import numpy as np
 import serial
 from PyQt6.QtWidgets import QMessageBox
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getDarkMode, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -23,7 +23,7 @@ class Temperature(Device):
     name = 'Temperature'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
     iconFile = 'temperature.png'
@@ -55,9 +55,9 @@ class Temperature(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000  # overwrite default value
         defaultSettings[f'{self.name}/CryoTel COM'] = parameterDict(value='COM3', toolTip='COM port of Sunpower CryoTel.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='CRYOTELCOM')
+                                          parameterType=PARAMETERTYPE.COMBO, attr='CRYOTELCOM')
         defaultSettings[f'{self.name}/Toggle threshold'] = parameterDict(value=15, toolTip='Cooler is toggled on and off to stay within threshold from set value.',
-                                          widgetType=Parameter.TYPE.INT, attr='toggleThreshold')
+                                          parameterType=PARAMETERTYPE.INT, attr='toggleThreshold')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 

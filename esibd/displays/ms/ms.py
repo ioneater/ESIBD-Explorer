@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from esibd.core import MZCalculator, PluginManager, colors, getDarkMode
+from esibd.core import PLUGINTYPE, MZCalculator, colors, getDarkMode
 from esibd.plugins import Plugin
 
 
@@ -33,7 +33,7 @@ class MS(Plugin):
 
     name = 'MS'
     version = '1.0'
-    pluginType = PluginManager.TYPE.DISPLAY
+    pluginType = PLUGINTYPE.DISPLAY
     iconFile = 'MS.png'
 
     def __init__(self, **kwargs) -> None:
@@ -225,7 +225,7 @@ def find_nearest(array, value):
 
 paperStyle = False
 
-x, y = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
+x, y = np.loadtxt('{self.file.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
 
 with mpl.style.context('default'):
     fig = plt.figure(num='{self.name} plot', constrained_layout=True)

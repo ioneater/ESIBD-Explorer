@@ -1,4 +1,4 @@
-from esibd.core import PRINT, PluginManager
+from esibd.core import PLUGINTYPE, PRINT
 from esibd.examples.calculator.calculator_standalone import Calculator as CalculatorWidget
 from esibd.plugins import Plugin
 
@@ -14,7 +14,7 @@ class Calculator(Plugin):
     name = 'Calculator'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.CONTROL
+    pluginType = PLUGINTYPE.CONTROL
     iconFile = 'calculator.png'
 
     useExtendedCalculator = True

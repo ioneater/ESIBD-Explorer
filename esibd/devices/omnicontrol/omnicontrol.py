@@ -5,7 +5,7 @@ import numpy as np
 import pfeiffer_vacuum_protocol as pvp
 import serial
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -20,7 +20,7 @@ class OMNICONTROL(Device):
     name = 'OMNICONTROL'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_omni.png'
 
@@ -34,7 +34,7 @@ class OMNICONTROL(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500  # overwrite default value
         defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='com')
+                                          parameterType=PARAMETERTYPE.COMBO, attr='com')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 
@@ -47,7 +47,7 @@ class PressureChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
-        channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+        channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
         return channel
 

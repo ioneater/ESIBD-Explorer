@@ -6,7 +6,7 @@ import numpy as np
 import pyvisa
 from PyQt6.QtCore import QTimer
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -24,7 +24,7 @@ class RSPD3303C(Device):
     name = 'RSPD3303C'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
     iconFile = 'RSPD3303C.png'
@@ -51,10 +51,10 @@ class RSPD3303C(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000  # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
-        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, attr='shutDownTime', instantUpdate=False,
+        defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, attr='shutDownTime', instantUpdate=False,
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
                                                                      event=lambda: self.initTimer(), internal=True)
-        defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', widgetType=Parameter.TYPE.TEXT, attr='address')
+        defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', parameterType=PARAMETERTYPE.TEXT, attr='address')
         return defaultSettings
 
     def initTimer(self) -> None:
@@ -93,11 +93,11 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
-        channel[self.POWER] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False,
+        channel[self.POWER] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
                                                                indicator=True, attr='power')
-        channel[self.CURRENT] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=True,
+        channel[self.CURRENT] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
                                                                indicator=True, attr='current')
-        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=0, maximum=99, attr='id')
         return channel
 

@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QSlider  # , QTextEdit  #, QSizePolicy  # QLabel, QMessageBox
 from scipy.stats import binned_statistic
 
-from esibd.core import DynamicNp, Parameter, parameterDict, plotting
+from esibd.core import PARAMETERTYPE, DynamicNp, Parameter, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -58,8 +58,8 @@ class Omni(Scan):
             :param value: Slider value.
             :type value: float
             """
-            if self.scan.inputs[0].sourceChannel is not None:
-                self.scan.inputs[0].value = self.scan.start + value / self.xSlider.maximum() * (self.scan.stop - self.scan.start)  # map slider range onto range
+            if self.scan.inputChannels[0].sourceChannel is not None:
+                self.scan.inputChannels[0].value = self.scan.start + value / self.xSlider.maximum() * (self.scan.stop - self.scan.start)  # map slider range onto range
 
         def updateInteractive(self) -> None:
             """Adjust the scan based on the interactive Setting.
@@ -68,22 +68,22 @@ class Omni(Scan):
             """
             if self.xSlider is not None:
                 self.xSlider.setVisible(self.scan.interactive)
-                if self.scan.interactive and len(self.scan.inputs) > 0:
-                    self.xSlider.setValue(int((self.scan.inputs[0].value - self.scan.inputs[0].min) *
-                                              self.xSlider.maximum() / (self.scan.inputs[0].max - self.scan.inputs[0].min)))
+                if self.scan.interactive and len(self.scan.inputChannels) > 0:
+                    self.xSlider.setValue(int((self.scan.inputChannels[0].value - self.scan.inputChannels[0].min) *
+                                              self.xSlider.maximum() / (self.scan.inputChannels[0].max - self.scan.inputChannels[0].min)))
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
-        defaultSettings[self.START]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STOP]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+        defaultSettings[self.START]    = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STOP]      = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
         self.BINS = 'Bins'
-        defaultSettings[self.BINS]    = parameterDict(value=20, widgetType=Parameter.TYPE.INT, toolTip='Number of bins used in interactive mode.', minimum=10, maximum=200, attr='bins')
+        defaultSettings[self.BINS]    = parameterDict(value=20, parameterType=PARAMETERTYPE.INT, toolTip='Number of bins used in interactive mode.', minimum=10, maximum=200, attr='bins')
         self.INTERACTIVE = 'Interactive'
-        defaultSettings[self.INTERACTIVE]    = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL,
+        defaultSettings[self.INTERACTIVE]    = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL,
         toolTip='Use the slider to define channel value in interactive mode.\nUse short wait and average when possible to get fast feedback.\nStop scan when done.',
                                                 attr='interactive', event=lambda: self.updateInteractive())
         return defaultSettings
@@ -112,8 +112,8 @@ class Omni(Scan):
             self.display.lines = None
             self.display.updateInteractive()
             if self.interactive:
-                self.inputs[0].recordingData = DynamicNp()
-                for output in self.outputs:
+                self.inputChannels[0].recordingData = DynamicNp()
+                for output in self.outputChannels:
                     output.recordingData = DynamicNp()
             return True
         return False
@@ -124,11 +124,11 @@ class Omni(Scan):
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
-        if len(self.outputs) > 0:
+        if len(self.outputChannels) > 0:
             if self.display.lines is None:
                 self.display.axes[0].clear()
                 self.display.lines = []  # dummy plots
-                for output in self.outputs:
+                for output in self.outputChannels:
                     if output.sourceChannel is not None:
                         self.display.lines.append(self.display.axes[0].plot([], [], label=f'{output.name} ({output.unit})', color=output.color)[0])
                     else:
@@ -136,22 +136,22 @@ class Omni(Scan):
                 legend = self.display.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
                 legend.set_in_layout(False)
             if not update:
-                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
                 if self.recording:  # show all data if loaded from file
                     self.display.axes[0].set_xlim(self.start, self.stop)
             if self.interactive:
-                for i, output in enumerate(self.outputs):
+                for i, output in enumerate(self.outputChannels):
                     if output.display:
-                        x = self.inputs[0].getRecordingData()
+                        x = self.inputChannels[0].getRecordingData()
                         y = output.getRecordingData()
                         mean, bin_edges, _ = binned_statistic(x, y, bins=self.bins, range=(int(self.start), int(self.stop)))
                         self.display.lines[i].set_data((bin_edges[:-1] + bin_edges[1:]) / 2, mean)
                     else:
                         self.display.lines[i].set_data([], [])
             else:
-                for i, output in enumerate(self.outputs):
+                for i, output in enumerate(self.outputChannels):
                     if output.display:
-                        self.display.lines[i].set_data(self.inputs[0].getRecordingData(), output.getRecordingData())
+                        self.display.lines[i].set_data(self.inputChannels[0].getRecordingData(), output.getRecordingData())
                     else:
                         self.display.lines[i].set_data([], [])
             self.display.axes[0].relim()  # adjust to data
@@ -165,18 +165,18 @@ from scipy.stats import binned_statistic
 
 _interactive = False  # set to True to use histogram
 bins = 20  # choose number of bins
-start   = min(inputs[0].recordingData)
-to      = max(inputs[0].recordingData)
+start   = min(inputChannels[0].recordingData)
+to      = max(inputChannels[0].recordingData)
 
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax0 = fig.add_subplot(111)
-ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
-for output in outputs:
+ax0.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
+for output in outputChannels:
     if _interactive:
-        mean, bin_edges, _ = binned_statistic(inputs[0].recordingData, output.recordingData, bins=bins, range=(int(start), int(to)))
+        mean, bin_edges, _ = binned_statistic(inputChannels[0].recordingData, output.recordingData, bins=bins, range=(int(start), int(to)))
         ax0.plot((bin_edges[:-1] + bin_edges[1:]) / 2, mean, label=f'{{output.name}} ({{output.unit}})')
     else:
-        ax0.plot(inputs[0].recordingData, output.recordingData, label=f'{{output.name}} ({{output.unit}})')
+        ax0.plot(inputChannels[0].recordingData, output.recordingData, label=f'{{output.name}} ({{output.unit}})')
 ax0.legend(loc='best', prop={{'size': 7}}, frameon=False)
 fig.show()
         """  # similar to staticDisplay
@@ -186,30 +186,30 @@ fig.show()
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
                 time.sleep((self.wait + self.average) / 1000)  # if step is larger than threshold use longer wait time
-                if self.inputs[0].recording:  # get average
-                    self.inputs[0].recordingData.add(np.mean(self.inputs[0].getValues(subtractBackground=self.inputs[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
+                if self.inputChannels[0].recording:  # get average
+                    self.inputChannels[0].recordingData.add(np.mean(self.inputChannels[0].getValues(subtractBackground=self.inputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
                 else:  # use last value
-                    self.inputs[0].recordingData.add(self.inputs[0].value)
-                for j, outputChannel in enumerate(self.outputs):
-                    self.outputs[j].recordingData.add(np.mean(outputChannel.getValues(subtractBackground=outputChannel.subtractBackgroundActive(), length=self.measurementsPerStep)))
+                    self.inputChannels[0].recordingData.add(self.inputChannels[0].value)
+                for j, outputChannel in enumerate(self.outputChannels):
+                    self.outputChannels[j].recordingData.add(np.mean(outputChannel.getValues(subtractBackground=outputChannel.subtractBackgroundActive(), length=self.measurementsPerStep)))
                 if not recording():  # last step
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
                     self.signalComm.updateRecordingSignal.emit(False)
                 else:
                     self.signalComm.scanUpdateSignal.emit(False)  # update graph
         else:
-            steps = self.inputs[0].getRecordingData()
+            steps = self.inputChannels[0].getRecordingData()
             self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
             for i, step in enumerate(steps):  # scan over all steps
                 waitLong = False
-                if not waitLong and abs(self.inputs[0].value - step) > self.largestep:
+                if not waitLong and abs(self.inputChannels[0].value - step) > self.largestep:
                     waitLong = True
-                self.inputs[0].updateValueSignal.emit(step)
+                self.inputChannels[0].updateValueSignal.emit(step)
                 time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
-                for outputChannel in self.outputs:
+                for outputChannel in self.outputChannels:
                     outputChannel.recordingData[i] = np.mean(outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
                 if i == len(steps) - 1 or not recording():  # last step
-                    self.inputs[0].updateValueSignal.emit(self.inputs[0].initialValue)
+                    self.inputChannels[0].updateValueSignal.emit(self.inputChannels[0].initialValue)
                     time.sleep(.5)  # allow time to reset to initial value before saving
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
                     self.signalComm.updateRecordingSignal.emit(False)

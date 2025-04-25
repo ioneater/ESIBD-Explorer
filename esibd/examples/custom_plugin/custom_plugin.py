@@ -3,7 +3,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QGridLayout, QLabel, QPushButton, QSizePolicy
 
-from esibd.core import PluginManager
+from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
@@ -28,7 +28,7 @@ class CustomPlugin(Plugin):
     name = 'CustomControl'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.CONTROL
+    pluginType = PLUGINTYPE.CONTROL
     iconFile = 'cookie.png'
 
     def __init__(self, **kwargs) -> None:

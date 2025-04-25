@@ -7,7 +7,7 @@ import numpy as np
 import serial
 from PyQt6.QtCore import pyqtSignal
 
-from esibd.core import PRINT, Channel, DeviceController, MetaChannel, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, MetaChannel, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin, Scan, StaticDisplay
 
 
@@ -27,7 +27,7 @@ class RBD(Device):
     name = 'RBD'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'RBD.png'
 
@@ -54,28 +54,28 @@ class RBD(Device):
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
                     return False
                 for dat, header in zip(data, headers, strict=True):
-                    self.outputs.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
-                if len(self.outputs) > 0:  # might be empty
+                    self.outputChannels.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
+                if len(self.outputChannels) > 0:  # might be empty
                     # need to fake time axis as it was not implemented
-                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=np.linspace(0, 120000, self.outputs[0].getRecordingData().shape[0])))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=np.linspace(0, 120000, self.outputChannels[0].getRecordingData().shape[0])))
             elif file.name.endswith('.cur.h5'):
                 with h5py.File(file, 'r') as h5file:
-                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[self.TIME][:]))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[self.TIME][:]))
                     output_group = h5file['Current']
                     for name, item in output_group.items():
                         if '_BG' in name:
-                            self.outputs[-1].recordingBackground = item[:]
+                            self.outputChannels[-1].recordingBackground = item[:]
                         else:
-                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit='pA'))
+                            self.outputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit='pA'))
             elif file.name.endswith('OUT.h5'):  # old Output format when EBD was the only output
                 with h5py.File(file, 'r') as h5file:
-                    self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
                     output_group = h5file[Scan.OUTPUTCHANNELS]
                     for name, item in output_group.items():
                         if '_BG' in name:
-                            self.outputs[-1].recordingBackground = item[:]
+                            self.outputChannels[-1].recordingBackground = item[:]
                         else:
-                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs.get(Scan.UNIT, '')))
+                            self.outputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs.get(Scan.UNIT, '')))
             else:
                 return super().loadDataInternal(file)
             return True
@@ -121,23 +121,23 @@ class CurrentChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
-        channel[self.CHARGE] = parameterDict(value=0, widgetType=Parameter.TYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
-        channel[self.COM] = parameterDict(value='COM1', widgetType=Parameter.TYPE.COMBO, advanced=True, toolTip='COM port',
+        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.COM] = parameterDict(value='COM1', parameterType=PARAMETERTYPE.COMBO, advanced=True, toolTip='COM port',
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')
-        channel[self.DEVICENAME] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
-        channel[self.RANGE] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.DEVICENAME] = parameterDict(value='smurf', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='devicename')
+        channel[self.RANGE] = parameterDict(value='auto', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',  # noqa: RUF001
                                         event=lambda: self.updateRange(), toolTip='Sample range. Defines resolution.')
-        channel[self.AVERAGE] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.AVERAGE] = parameterDict(value='off', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
                                         event=lambda: self.updateAverage(), toolTip='Running average on hardware side.')
-        channel[self.BIAS] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=True,
+        channel[self.BIAS] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                         toolTip='Apply internal bias.', attr='bias', event=lambda: self.updateBias())
-        channel[self.OUTOFRANGE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
+        channel[self.OUTOFRANGE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
-        channel[self.UNSTABLE] = parameterDict(value=False, widgetType=Parameter.TYPE.BOOL, advanced=False, indicator=True,
+        channel[self.UNSTABLE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
-        channel[self.ERROR] = parameterDict(value='', widgetType=Parameter.TYPE.LABEL, advanced=False, attr='error', indicator=True)
+        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=False, attr='error', indicator=True)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -376,11 +376,11 @@ class CurrentController(DeviceController):
         # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
 
     def fakeNumbers(self) -> None:
-        if not self.channel.getDevice().pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')
 
     def readNumbers(self) -> None:
-        if not self.channel.getDevice().pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             msg = ''
             msg = self.RBDRead()
             if not self.acquiring:  # may have changed while waiting on message

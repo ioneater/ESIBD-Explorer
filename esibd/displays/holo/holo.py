@@ -6,7 +6,7 @@ import pyqtgraph.opengl as gl
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QHBoxLayout, QSlider
 
-from esibd.core import PluginManager
+from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
@@ -27,7 +27,7 @@ class HOLO(Plugin):
 
     name = 'Holo'
     version = '1.0'
-    pluginType = PluginManager.TYPE.DISPLAY
+    pluginType = PLUGINTYPE.DISPLAY
     iconFile = 'holo.png'
 
     def __init__(self, **kwargs) -> None:
@@ -164,7 +164,7 @@ class Foo(QMainWindow):
         self.init()
 
     def init(self):
-        data = np.load('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
+        data = np.load('{self.file.as_posix()}')
         self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
         self.amplitude = np.ascontiguousarray(np.abs(data))  # make c contiguous
         self.glAngleView.setCameraPosition(distance=max(self.angle.shape)*2)

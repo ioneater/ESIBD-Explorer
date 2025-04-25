@@ -5,7 +5,7 @@ from random import choices
 import numpy as np
 import serial
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -23,7 +23,7 @@ class MIPS(Device):
     name = 'MIPS'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
     iconFile = 'mips.png'
@@ -57,8 +57,8 @@ class VoltageChannel(Channel):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, advanced=True, attr='com')
-        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+                                          parameterType=PARAMETERTYPE.COMBO, advanced=True, attr='com')
+        channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=1, maximum=8, attr='id')
         return channel
 

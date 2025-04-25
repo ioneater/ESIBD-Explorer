@@ -21,6 +21,7 @@ Fixed
 - Changing channel limits will now also update referencing channels (e.g. in UCM or PID).
 - Fixed liveDisplay copyClipboard function.
 - Scans will now append session notes to scan notes. Used to be notes of current directory in explorer.
+- Fixed update of colors of in linked channels.
 
 Changed
 ~~~~~~~
@@ -49,6 +50,9 @@ Changed
 - Renamed _parent to more descriptive name in DeviceController, TimeoutLock, PlotItem, PlotWidget, Parameter, Setting.
 - Renamed _min, _max with minimum, maximum for Setting, Parameter, and DynamicNp.
 - Renamed _from and to in scans to start and stop. Change does not affect user interface and files.
+- Renamed PluginManager.TYPE to PLUGINTYPE.
+- Renamed Parameter.TYPE to PARAMETERTYPE and widgetType to parameterType.
+- Renamed outputs to outputChannels and inputs to inputChannels for scans and staticDisplays.
 
 Removed
 ~~~~~~~

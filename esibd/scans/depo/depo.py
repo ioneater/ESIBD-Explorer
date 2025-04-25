@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontMetrics
 from PyQt6.QtWidgets import QTextEdit  # , QSizePolicy  # QLabel, QMessageBox
 
-from esibd.core import INOUT, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -114,7 +114,7 @@ class Depo(Scan):
             for i, unit in enumerate(self.scan.getExtraUnits()):
                 self.axes.append(self.fig.add_subplot(rows, 1, 3 + i, sharex=self.axes[0]))
                 self.axes[2 + i].set_ylabel(unit)
-            for output in self.scan.outputs:
+            for output in self.scan.outputChannels:
                 if output.unit not in {'pA', 'pAh'} and output.unit in self.scan.getExtraUnits():
                     output.line = self.axes[2 + self.scan.getExtraUnits().index(output.unit)].plot([[datetime.now()]], [0], color=output.color, label=output.name)[0]
                     if output.logY:
@@ -126,8 +126,8 @@ class Depo(Scan):
 
             self.currentWarnLine    = self.axes[0].axhline(y=float(self.scan.warnLevel), color=self.scan.MYRED)
             self.depoChargeTarget   = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
-            if len(self.scan.outputs) > 0:
-                selected_output = self.scan.outputs[self.scan.getOutputIndex()]
+            if len(self.scan.outputChannels) > 0:
+                selected_output = self.scan.outputChannels[self.scan.getOutputIndex()]
                 self.currentLine        = self.axes[0].plot([[datetime.now()]], [0], color=selected_output.color)[0]  # need to be initialized with datetime on x axis
                 self.chargeLine         = self.axes[1].plot([[datetime.now()]], [0], color=selected_output.color)[0]
                 self.chargePredictionLine = self.axes[1].plot([[datetime.now()]], [0], '--', color=selected_output.color)[0]
@@ -178,7 +178,7 @@ class Depo(Scan):
 
     def getExtraUnits(self) -> list[str]:
         """Get all units that are not representing a current or a charge."""
-        return list({channel.unit for channel in self.outputs if channel.unit not in {'pA', 'pAh'} and channel.display})
+        return list({channel.unit for channel in self.outputChannels if channel.unit not in {'pA', 'pAh'} and channel.display})
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -190,17 +190,17 @@ class Depo(Scan):
         defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Any channel that should be recorded during deposition, including at least one current channel.'
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
         defaultSettings[self.AVERAGE][Parameter.VALUE] = 4000
-        defaultSettings[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
+        defaultSettings[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', parameterType=PARAMETERTYPE.INT,
                                                                 minimum=1000, maximum=60000, attr='interval')
         defaultSettings['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
-                                                                widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
+                                                                parameterType=PARAMETERTYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
         defaultSettings['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
-                                                            items='20, 15, 10, 0, -10, -15, -20', widgetType=Parameter.TYPE.INTCOMBO, attr='warnLevel')
+                                                            items='20, 15, 10, 0, -10, -15, -20', parameterType=PARAMETERTYPE.INTCOMBO, attr='warnLevel')
         defaultSettings['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
-                                                            widgetType=Parameter.TYPE.BOOL, attr='warn')
+                                                            parameterType=PARAMETERTYPE.BOOL, attr='warn')
         defaultSettings['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
-                                                            widgetType=Parameter.TYPE.BOOL, attr='autoscale')
-        defaultSettings['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', widgetType=Parameter.TYPE.BOOL, attr='dialog')
+                                                            parameterType=PARAMETERTYPE.BOOL, attr='autoscale')
+        defaultSettings['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', parameterType=PARAMETERTYPE.BOOL, attr='dialog')
         return defaultSettings
 
     def updateDepoTarget(self) -> None:
@@ -227,8 +227,8 @@ class Depo(Scan):
                 self.print(f'{sourceChannel.name} is not acquiring.', PRINT.WARNING)
         self.addOutputChannels()
         self.initializing = False
-        if len([output for output in self.outputs if output.unit == 'pA']) > 0:  # at least one current channel
-            self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
+        if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
+            self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
             self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
             self.toggleDisplay(True)
             self.display.progressAnnotation.set_text('')
@@ -254,7 +254,7 @@ class Depo(Scan):
         # overwrite parent to hide charge channels
         self.loading = True
         self.display.displayComboBox.clear()
-        for output in self.outputs:
+        for output in self.outputChannels:
             if output.unit == 'pA':
                 self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
         self.loading = False
@@ -277,11 +277,11 @@ class Depo(Scan):
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
         if self.loading:
             return
-        if len(self.outputs) > 0 and len(self.inputs) > 0:
+        if len(self.outputChannels) > 0 and len(self.inputChannels) > 0:
             time_axis = self.getData(0, INOUT.IN)
             time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime
             charge = []
-            for i, output in enumerate(self.outputs):
+            for i, output in enumerate(self.outputChannels):
                 if i == self.getOutputIndex():
                     self.display.currentLine.set_data(time_stamp_axis, output.getRecordingData())
                 elif i == self.getOutputIndex() + 1:
@@ -320,8 +320,8 @@ class Depo(Scan):
         if self.autoscale:
             self.setLabelMargin(self.display.axes[0], 0.3)
         self.updateToolBar(update=update)
-        if len(self.outputs) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        if len(self.outputChannels) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
@@ -346,7 +346,7 @@ def tilt_xlabels(ax, rotation=30):
         label.set_rotation(rotation)
 
 def getExtraUnits():
-    return list(set([channel.unit for channel in outputs if channel.unit not in ['pA', 'pAh']]))
+    return list(set([channel.unit for channel in outputChannels if channel.unit not in ['pA', 'pAh']]))
 
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 fig.set_constrained_layout_pads(h_pad=-4.0)  # reduce space between axes
@@ -361,12 +361,12 @@ for i, unit in enumerate(getExtraUnits()):
     axes.append(fig.add_subplot(rows, 1, 3+i, sharex = axes[0]))
     axes[2+i].set_ylabel(unit)
 
-time_axis = inputs[0].recordingData
+time_axis = inputChannels[0].recordingData
 time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime
-axes[0].plot(time_stamp_axis, outputs[output_index].recordingData, color=MYBLUE)[0]
-axes[1].plot(time_stamp_axis, outputs[output_index+1].recordingData, color=MYBLUE)[0]
+axes[0].plot(time_stamp_axis, outputChannels[output_index].recordingData, color=MYBLUE)[0]
+axes[1].plot(time_stamp_axis, outputChannels[output_index+1].recordingData, color=MYBLUE)[0]
 
-for output in outputs:
+for output in outputChannels:
     if output.unit not in ['pA', 'pAh'] and output.unit in getExtraUnits():
         axes[2+getExtraUnits().index(output.unit)].plot(time_stamp_axis, output.recordingData, label=output.name)[0]
         if output.logY:
@@ -407,8 +407,8 @@ fig.show()
     def run(self, recording) -> None:
         while recording():
             time.sleep(self.interval / 1000)
-            self.inputs[0].recordingData.add(time.time())
-            for output in self.outputs:
+            self.inputChannels[0].recordingData.add(time.time())
+            for output in self.outputChannels:
                 if output.isChargeChannel:
                     output.recordingData.add(output.sourceChannel.charge)
                 else:

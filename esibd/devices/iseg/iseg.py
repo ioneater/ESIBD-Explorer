@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -24,7 +24,7 @@ class ISEG(Device):
     name = 'ISEG'
     version = '1.1'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
     iconFile = 'ISEG.png'
@@ -41,9 +41,9 @@ class ISEG(Device):
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
-                                                                widgetType=Parameter.TYPE.TEXT, attr='ip')
+                                                                parameterType=PARAMETERTYPE.TEXT, attr='ip')
         defaultSettings[f'{self.name}/Port']     = parameterDict(value=10001, toolTip='SCPI port of ECH244',
-                                                                widgetType=Parameter.TYPE.INT, attr='port')
+                                                                parameterType=PARAMETERTYPE.INT, attr='port')
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000  # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
         return defaultSettings
@@ -66,9 +66,9 @@ class VoltageChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
-        channel[self.MODULE] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.MODULE] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='Mod', minimum=0, maximum=99, attr='module')
-        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True,
+        channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=0, maximum=99, attr='id')
         return channel
 

@@ -5,7 +5,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
-from esibd.core import INOUT, PRINT, ControlCursor, MetaChannel, Parameter, colors, getDarkMode, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, MetaChannel, colors, getDarkMode, parameterDict, plotting
 from esibd.plugins import Plugin, Scan
 
 
@@ -113,18 +113,18 @@ class Beam(Scan):
                 self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
                 return
             self.addOutputChannel(name='', unit='pA', recordingData=data)
-            self.inputs.append(MetaChannel(parentPlugin=self, name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputs[0].getRecordingData().shape[1]), unit='V'))
-            self.inputs.append(MetaChannel(parentPlugin=self, name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputs[0].getRecordingData().shape[0]), unit='V'))
+            self.inputChannels.append(MetaChannel(parentPlugin=self, name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[1]), unit='V'))
+            self.inputChannels.append(MetaChannel(parentPlugin=self, name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[0]), unit='V'))
         elif self.file.name.endswith('.s2d.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 lr = h5file['S2DSETTINGS']['Left-Right']
                 start, stop, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
-                self.inputs.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                unit='V', inout=INOUT.IN))
                 ud = h5file['S2DSETTINGS']['Up-Down']
                 start, stop, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
-                self.inputs.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
@@ -149,7 +149,7 @@ class Beam(Scan):
         seconds = 0  # estimate scan time
         for i in range(len(steps)):
             waitLong = False
-            for j in range(len(self.inputs)):
+            for j in range(len(self.inputChannels)):
                 if not waitLong and abs(steps[i - 1][j] - steps[i][j]) > self.largestep:
                     waitLong = True
                     break
@@ -193,15 +193,15 @@ class Beam(Scan):
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
-                                                                widgetType=Parameter.TYPE.COMBO, attr='LR_channel')
-        defaultSettings[f'{self.LEFTRIGHT}/{self.START}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_stop', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.LR_step))
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='LR_channel')
+        defaultSettings[f'{self.LEFTRIGHT}/{self.START}']    = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}']      = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_stop', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.LR_step))
         defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
-                                                                widgetType=Parameter.TYPE.COMBO, attr='UD_channel')
-        defaultSettings[f'{self.UPDOWN}/{self.START}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.STOP}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_stop', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.UD_step))
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='UD_channel')
+        defaultSettings[f'{self.UPDOWN}/{self.START}']       = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.STOP}']         = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_stop', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.UD_step))
         return defaultSettings
 
     def useLimits(self) -> None:
@@ -213,36 +213,36 @@ class Beam(Scan):
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
-        if self.loading or len(self.outputs) == 0:
+        if self.loading or len(self.outputChannels) == 0:
             return
         x, y = self.getMeshgrid()  # data coordinates
         if update:
-            z = self.outputs[self.getOutputIndex()].getRecordingData().ravel()
+            z = self.outputChannels[self.getOutputIndex()].getRecordingData().ravel()
             self.display.cont.set_array(z.ravel())
             self.display.cbar.mappable.set_clim(vmin=np.min(z), vmax=np.max(z))
         else:
             self.display.axes[0].clear()  # only update would be preferred but not yet possible with contourf
             self.display.cax.clear()
-            if len(self.outputs) > 0:
-                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
-                self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
+            if len(self.outputChannels) > 0:
+                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+                self.display.axes[0].set_ylabel(f'{self.inputChannels[1].name} ({self.inputChannels[1].unit})')
                 if done and self.display.interpolateAction.state:
-                    rbf = interpolate.Rbf(x.ravel(), y.ravel(), self.outputs[self.getOutputIndex()].getRecordingData().ravel())
+                    rbf = interpolate.Rbf(x.ravel(), y.ravel(), self.outputChannels[self.getOutputIndex()].getRecordingData().ravel())
                     xi, yi = self.getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
                     zi = rbf(xi, yi)
                     self.display.cont = self.display.axes[0].contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
                 else:
-                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputs[self.getOutputIndex()].getRecordingData(), cmap='afmhot')  # contour without interpolation
+                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputChannels[self.getOutputIndex()].getRecordingData(), cmap='afmhot')  # contour without interpolation
                 # ax=self.display.axes[0] instead of cax -> colorbar using all available height and does not scale to plot
                 self.display.cbar = self.display.fig.colorbar(self.display.cont, cax=self.display.cax)  # match axis and color bar size  # , format='%d'
-                self.display.cbar.ax.set_title(self.outputs[0].unit)
+                self.display.cbar.ax.set_title(self.outputChannels[0].unit)
                 self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight)  # has to be initialized last, otherwise axis limits may be affected
 
-        if len(self.outputs) > 0 and self.inputs[0].sourceChannel is not None and self.inputs[1].sourceChannel is not None:
-            self.display.axes[-1].cursor.setPosition(self.inputs[0].value, self.inputs[1].value)
+        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and self.inputChannels[1].sourceChannel is not None:
+            self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
         self.updateToolBar(update=update)
-        if len(self.outputs) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        if len(self.outputChannels) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
@@ -271,22 +271,22 @@ def getMeshgrid(scaling=1):
     :return: The meshgrid.
     :rtype: np.meshgrid
     '''
-    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputs])
+    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
 
 x, y = getMeshgrid()
-z = outputs[output_index].recordingData.ravel()
-ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
-ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
+z = outputChannels[output_index].recordingData.ravel()
+ax.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
+ax.set_ylabel(f'{{inputChannels[1].name}} ({{inputChannels[1].unit}})')
 
 if _interpolate:
-    rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].recordingData.ravel())
+    rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputChannels[output_index].recordingData.ravel())
     xi, yi = getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
     zi = rbf(xi, yi)
     cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
 else:
-    cont = ax.pcolormesh(x, y, outputs[output_index].recordingData, cmap='afmhot')  # contour without interpolation
+    cont = ax.pcolormesh(x, y, outputChannels[output_index].recordingData, cmap='afmhot')  # contour without interpolation
 cbar = fig.colorbar(cont, cax=cax)  # match axis and color bar size  # , format='%d'
-cbar.ax.set_title(outputs[0].unit)
+cbar.ax.set_title(outputChannels[0].unit)
 
 fig.show()
         """
@@ -301,4 +301,4 @@ fig.show()
         """
         # interpolation with more than 50 x 50 grid points gets slow and does not add much to the quality for typical scans
         return np.meshgrid(*[np.linspace(i.getRecordingData()[0], i.getRecordingData()[-1], len(i.getRecordingData()) if
-                                         scaling == 1 else min(len(i.getRecordingData()) * scaling, 50)) for i in self.inputs])
+                                         scaling == 1 else min(len(i.getRecordingData()) * scaling, 50)) for i in self.inputChannels])

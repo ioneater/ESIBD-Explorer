@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from esibd.core import PluginManager
+from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
@@ -25,7 +25,7 @@ class LINE(Plugin):
 
     name = 'Line'
     version = '1.0'
-    pluginType = PluginManager.TYPE.DISPLAY
+    pluginType = PLUGINTYPE.DISPLAY
     iconFile = 'line.png'
 
     def __init__(self, **kwargs) -> None:
@@ -106,7 +106,7 @@ class LINE(Plugin):
 import matplotlib.pyplot as plt
 import numpy as np
 
-profile = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=3)
+profile = np.loadtxt('{self.file.as_posix()}', skiprows=3)
 
 with mpl.style.context('default'):
     fig = plt.figure(num='{self.name} plot', constrained_layout=True)

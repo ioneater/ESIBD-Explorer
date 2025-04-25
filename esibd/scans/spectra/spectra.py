@@ -96,7 +96,7 @@ class Spectra(Beam):
                 group = h5file[self.pluginManager.Beam.name]  # only modification needed to open beam files. data structure is identical
                 input_group = group[self.INPUTCHANNELS]
                 for name, data in input_group.items():
-                    self.inputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
                 output_group = group[self.OUTPUTCHANNELS]
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
@@ -110,15 +110,15 @@ class Spectra(Beam):
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
             super().plot(update=update, done=done, **kwargs)
             return
-        if self.loading or len(self.outputs) == 0:
+        if self.loading or len(self.outputChannels) == 0:
             return
 
-        x = np.linspace(self.inputs[0].getRecordingData()[0], self.inputs[0].getRecordingData()[-1], len(self.inputs[0].getRecordingData()))
-        y = np.linspace(self.inputs[1].getRecordingData()[0], self.inputs[1].getRecordingData()[-1], len(self.inputs[1].getRecordingData()))
+        x = np.linspace(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1], len(self.inputChannels[0].getRecordingData()))
+        y = np.linspace(self.inputChannels[1].getRecordingData()[0], self.inputChannels[1].getRecordingData()[-1], len(self.inputChannels[1].getRecordingData()))
         if self.display.lines is None:
             self.display.axes[0].clear()
             self.display.lines = []  # dummy plots
-            for i in range(len(self.outputs[self.getOutputIndex()].getRecordingData())):
+            for i in range(len(self.outputChannels[self.getOutputIndex()].getRecordingData())):
                 if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [])[0])
                 else:  # self.display.plotModeAction.labels.overlay
@@ -133,9 +133,9 @@ class Spectra(Beam):
                 legend.set_in_layout(False)
 
         if not update:
-            self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
-            self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
-        for i, z in enumerate(self.outputs[self.getOutputIndex()].getRecordingData()):
+            self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+            self.display.axes[0].set_ylabel(f'{self.inputChannels[1].name} ({self.inputChannels[1].unit})')
+        for i, z in enumerate(self.outputChannels[self.getOutputIndex()].getRecordingData()):
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                 z_offset = None
                 if np.abs(z.max() - z.min()) != 0:
@@ -145,7 +145,7 @@ class Spectra(Beam):
             else:  # self.display.plotModeAction.labels.overlay
                 self.display.lines[i].set_data(x, z)
         if self.display.averageAction.state:
-            z = np.mean(self.outputs[self.getOutputIndex()].getRecordingData(), 0)
+            z = np.mean(self.outputChannels[self.getOutputIndex()].getRecordingData(), 0)
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                 if np.abs(z.max() - z.min()) != 0:
                     z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
@@ -156,29 +156,29 @@ class Spectra(Beam):
         self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        if len(self.outputs) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        if len(self.outputChannels) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
     def run(self, recording) -> None:
         # definition of steps updated to scan along x instead of y axis.
-        steps = [steps_1d[::-1] for steps_1d in list(itertools.product(*[i.getRecordingData() for i in [self.inputs[1], self.inputs[0]]]))]
+        steps = [steps_1d[::-1] for steps_1d in list(itertools.product(*[i.getRecordingData() for i in [self.inputChannels[1], self.inputChannels[0]]]))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps):  # scan over all steps
             waitLong = False
-            for j, inputChannel in enumerate(self.inputs):
+            for j, inputChannel in enumerate(self.inputChannels):
                 if not waitLong and abs(inputChannel.value - step[j]) > self.largestep:
                     waitLong = True
                 inputChannel.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
-            for output in self.outputs:
+            for output in self.outputChannels:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                output.recordingData[i // len(self.inputs[0].getRecordingData()), i % len(self.inputs[0].getRecordingData())] = np.mean(output.getValues(
+                output.recordingData[i // len(self.inputChannels[0].getRecordingData()), i % len(self.inputChannels[0].getRecordingData())] = np.mean(output.getValues(
                     subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
             if i == len(steps) - 1 or not recording():  # last step
-                for inputChannel in self.inputs:
+                for inputChannel in self.inputChannels:
                     inputChannel.updateValueSignal.emit(inputChannel.initialValue)
                 time.sleep(.5)  # allow time to reset to initial value before saving
                 self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
@@ -203,31 +203,31 @@ if not varAxesAspect:
     ax.set_aspect('equal', adjustable='box')
 
 def getMeshgrid(scaling=1):
-    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputs])
+    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
 
-ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
-ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
+ax.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
+ax.set_ylabel(f'{{inputChannels[1].name}} ({{inputChannels[1].unit}})')
 
 if plotMode == 'contour':
     divider = make_axes_locatable(ax)
     cont = None
     cax = divider.append_axes("right", size="5%", pad=0.15)
     x, y = getMeshgrid()
-    z = outputs[output_index].recordingData.ravel()
+    z = outputChannels[output_index].recordingData.ravel()
 
     if _interpolate:
-        rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].recordingData.ravel())
+        rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputChannels[output_index].recordingData.ravel())
         xi, yi = getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
         zi = rbf(xi, yi)
         cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
     else:
-        cont = ax.pcolormesh(x, y, outputs[output_index].recordingData, cmap='afmhot')  # contour without interpolation
+        cont = ax.pcolormesh(x, y, outputChannels[output_index].recordingData, cmap='afmhot')  # contour without interpolation
     cbar = fig.colorbar(cont, cax=cax)  # match axis and color bar size  # , format='%d'
-    cbar.ax.set_title(outputs[0].unit)
+    cbar.ax.set_title(outputChannels[0].unit)
 else:
-    x = np.linspace(inputs[0].recordingData[0], inputs[0].recordingData[-1], len(inputs[0].recordingData))
-    y = np.linspace(inputs[1].recordingData[0], inputs[1].recordingData[-1], len(inputs[1].recordingData))
-    for i, z in enumerate(outputs[output_index].recordingData):
+    x = np.linspace(inputChannels[0].recordingData[0], inputChannels[0].recordingData[-1], len(inputChannels[0].recordingData))
+    y = np.linspace(inputChannels[1].recordingData[0], inputChannels[1].recordingData[-1], len(inputChannels[1].recordingData))
+    for i, z in enumerate(outputChannels[output_index].recordingData):
         if plotMode == 'stacked':
             if np.abs(z.max()-z.min()) != 0:
                 z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])
@@ -235,7 +235,7 @@ else:
         else:  # 'overlay'
             ax.plot(x, z, label=y[i])
     if average:
-        z = np.mean(outputs[output_index].recordingData, 0)
+        z = np.mean(outputChannels[output_index].recordingData, 0)
         if plotMode == 'stacked':
             if np.abs(z.max()-z.min()) != 0:
                 z = z/(np.abs(z.max()-z.min()))*np.abs(y[1]-y[0])

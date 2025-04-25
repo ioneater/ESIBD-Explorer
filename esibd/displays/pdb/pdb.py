@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from Bio.PDB import PDBParser
 
-from esibd.core import PluginManager
+from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
@@ -22,7 +22,7 @@ class PDB(Plugin):
 
     name = 'PDB'
     version = '1.0'
-    pluginType = PluginManager.TYPE.DISPLAY
+    pluginType = PLUGINTYPE.DISPLAY
     iconFile = 'pdb.png'
 
     def __init__(self, **kwargs) -> None:
@@ -138,7 +138,7 @@ def set_axes_equal(ax):
     ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
-_, XYZ = get_structure('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}')
+_, XYZ = get_structure('{self.file.as_posix()}')
 x, y, z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
 with mpl.style.context('default'):

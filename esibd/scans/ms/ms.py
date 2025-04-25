@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import h5py
 
-from esibd.core import INOUT, MetaChannel, MZCalculator, Parameter, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, MetaChannel, MZCalculator, Parameter, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -55,10 +55,10 @@ class MassSpec(Scan):
         defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
         defaultSettings[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
-                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
-        defaultSettings[self.START]    = parameterDict(value=50, widgetType=Parameter.TYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STOP]      = parameterDict(value=200, widgetType=Parameter.TYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=1, widgetType=Parameter.TYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+        defaultSettings[self.START]    = parameterDict(value=50, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STOP]      = parameterDict(value=200, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=1, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
         return defaultSettings
 
     def initScan(self) -> None:
@@ -66,19 +66,19 @@ class MassSpec(Scan):
 
     @plotting
     def plot(self, update=False, done=False, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
-        if len(self.outputs) > 0:
-            self.display.ms.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
+        if len(self.outputChannels) > 0:
+            self.display.ms.set_data(self.inputChannels[0].getRecordingData(), self.outputChannels[self.getOutputIndex()].getRecordingData())
             if not update:
-                self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} ({self.outputs[self.getOutputIndex()].unit})')
-                self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
+                self.display.axes[0].set_ylabel(f'{self.outputChannels[self.getOutputIndex()].name} ({self.outputChannels[self.getOutputIndex()].unit})')
+                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
         else:  # no data
             self.display.ms.set_data([], [])
         self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         self.display.mzCalc.update_mass_to_charge()
-        if len(self.outputs) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        if len(self.outputChannels) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
@@ -88,9 +88,9 @@ class MassSpec(Scan):
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax0 = fig.add_subplot(111)
 
-ax0.plot(inputs[0].recordingData, outputs[output_index].recordingData)
-ax0.set_ylabel(f'{{outputs[output_index].name}} ({{outputs[output_index].unit}})')
-ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax0.plot(inputChannels[0].recordingData, outputChannels[output_index].recordingData)
+ax0.set_ylabel(f'{{outputChannels[output_index].name}} ({{outputChannels[output_index].unit}})')
+ax0.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
 
 fig.show()
 """
@@ -106,7 +106,7 @@ fig.show()
                 group = h5file['MS Scan']
                 input_group = group[self.INPUTCHANNELS]
                 for name, data in input_group.items():
-                    self.inputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
                 output_group = group[self.OUTPUTCHANNELS]
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])

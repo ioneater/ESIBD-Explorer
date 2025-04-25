@@ -5,7 +5,7 @@ import time
 import numpy as np
 import serial
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, TimeoutLock, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, TimeoutLock, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -23,7 +23,7 @@ class Pressure(Device):
     name = 'Pressure'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.OUTPUTDEVICE
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pressure_light.png'
     iconFileDark = 'pressure_dark.png'
@@ -42,9 +42,9 @@ class Pressure(Device):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500  # overwrite default value
         defaultSettings[f'{self.name}/TIC COM'] = parameterDict(value='COM1', toolTip='COM port of Edwards TIC.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='TICCOM')
+                                          parameterType=PARAMETERTYPE.COMBO, attr='TICCOM')
         defaultSettings[f'{self.name}/TPG366 COM'] = parameterDict(value='COM1', toolTip='COM port of Pfeiffer MaxiGauge.', items=','.join([f'COM{x}' for x in range(1, 25)]),
-                                          widgetType=Parameter.TYPE.COMBO, attr='TPGCOM')
+                                          parameterType=PARAMETERTYPE.COMBO, attr='TPGCOM')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 
@@ -60,9 +60,9 @@ class PressureChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
-        channel[self.CONTROLLER] = parameterDict(value=self.TIC, widgetType=Parameter.TYPE.COMBO, advanced=True,
+        channel[self.CONTROLLER] = parameterDict(value=self.TIC, parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items=f'{self.TIC},{self.TPG}', attr='_controller', toolTip='Controller used for communication.')
-        channel[self.ID] = parameterDict(value=1, widgetType=Parameter.TYPE.INTCOMBO, advanced=True,
+        channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id', toolTip='ID of channel on device.')
         return channel
 

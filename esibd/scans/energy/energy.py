@@ -5,7 +5,7 @@ import matplotlib as mpl
 import numpy as np
 from scipy import optimize
 
-from esibd.core import INOUT, PRINT, ControlCursor, MetaChannel, Parameter, colors, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, MetaChannel, Parameter, colors, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -77,13 +77,13 @@ class Energy(Scan):
             if data.shape[0] == 0:
                 self.print(f'No data found in file {self.file.name}.', PRINT.ERROR)
                 return
-            self.inputs.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
+            self.inputChannels.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
             for name, dat in zip(headers, data[1:][::2], strict=True):
                 self.addOutputChannel(name=name.strip(), unit='pA', recordingData=dat)
         elif self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
-                self.inputs.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'], recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'], recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
@@ -95,10 +95,10 @@ class Energy(Scan):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      widgetType=Parameter.TYPE.COMBO, attr='channel')
-        defaultSettings[self.START]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STOP]     = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+        defaultSettings[self.START]    = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STOP]     = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
         return defaultSettings
 
     def initScan(self) -> None:
@@ -120,19 +120,19 @@ class Energy(Scan):
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
-        if len(self.outputs) > 0:  # noqa: PLR1702
-            y = np.diff(self.outputs[self.getOutputIndex()].getRecordingData()) / np.diff(self.inputs[0].getRecordingData())
-            x = self.inputs[0].getRecordingData()[:y.shape[0]] + np.diff(self.inputs[0].getRecordingData())[0] / 2  # use as many data points as needed
+        if len(self.outputChannels) > 0:  # noqa: PLR1702
+            y = np.diff(self.outputChannels[self.getOutputIndex()].getRecordingData()) / np.diff(self.inputChannels[0].getRecordingData())
+            x = self.inputChannels[0].getRecordingData()[:y.shape[0]] + np.diff(self.inputChannels[0].getRecordingData())[0] / 2  # use as many data points as needed
             if update:  # only update data
-                self.display.seRaw.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
+                self.display.seRaw.set_data(self.inputChannels[0].getRecordingData(), self.outputChannels[self.getOutputIndex()].getRecordingData())
                 self.display.seGrad.set_data(x, self.map_percent(-y))
             else:
                 self.removeAnnotations(self.display.axes[1])
-                if len(self.outputs) > 0:
-                    self.display.axes[0].set_xlim(self.inputs[0].getRecordingData()[0], self.inputs[0].getRecordingData()[-1])
-                    self.display.axes[0].set_ylabel(f'{self.outputs[self.getOutputIndex()].name} {self.outputs[self.getOutputIndex()].unit}')
-                    self.display.axes[0].set_xlabel(f'{self.inputs[0].name} ({self.inputs[0].unit})')
-                    self.display.seRaw.set_data(self.inputs[0].getRecordingData(), self.outputs[self.getOutputIndex()].getRecordingData())
+                if len(self.outputChannels) > 0:
+                    self.display.axes[0].set_xlim(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1])
+                    self.display.axes[0].set_ylabel(f'{self.outputChannels[self.getOutputIndex()].name} {self.outputChannels[self.getOutputIndex()].unit}')
+                    self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+                    self.display.seRaw.set_data(self.inputChannels[0].getRecordingData(), self.outputChannels[self.getOutputIndex()].getRecordingData())
                     self.display.seFit.set_data([], [])  # init
                     self.display.seGrad.set_data(x, self.map_percent(-y))
                     for ann in [child for child in self.display.axes[1].get_children() if isinstance(child, mpl.text.Annotation)]:
@@ -140,7 +140,7 @@ class Energy(Scan):
                     if done:
                         try:
                             x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x))  # use center as starting guess
-                            if self.inputs[0].getRecordingData()[0] <= expected_value <= self.inputs[0].getRecordingData()[-1]:
+                            if self.inputChannels[0].getRecordingData()[0] <= expected_value <= self.inputChannels[0].getRecordingData()[-1]:
                                 self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
                                 self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data', xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
                                     arrowprops={'arrowstyle': "<->", 'color': self.MYRED}, va='center')
@@ -157,11 +157,11 @@ class Energy(Scan):
                     self.display.seGrad.set_data([], [])
             self.display.axes[0].relim()  # adjust to data
             self.setLabelMargin(self.display.axes[0], 0.15)
-        if len(self.outputs) > 0 and self.inputs[0].sourceChannel is not None:
-            self.display.axes[-1].cursor.setPosition(self.inputs[0].value, 0)
+        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None:
+            self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
-        if len(self.outputs) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputs[self.getOutputIndex()].name} from {self.file.name}')
+        if len(self.outputChannels) > 0:
+            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
@@ -227,19 +227,19 @@ ax1.set_ylabel('-dI/dV (%)')
 ax1.yaxis.label.set_color(MYRED)
 ax1.tick_params(axis='y', colors=MYRED)
 
-y = np.diff(outputs[output_index].recordingData)/np.diff(inputs[0].recordingData)
-x = inputs[0].recordingData[:y.shape[0]]+np.diff(inputs[0].recordingData)[0]/2
+y = np.diff(outputChannels[output_index].recordingData)/np.diff(inputChannels[0].recordingData)
+x = inputChannels[0].recordingData[:y.shape[0]]+np.diff(inputChannels[0].recordingData)[0]/2
 
-ax0.set_xlim(inputs[0].recordingData[0], inputs[0].recordingData[-1])
-ax0.set_ylabel(f'{{outputs[output_index].name}} ({{outputs[output_index].unit}})')
-ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax0.set_xlim(inputChannels[0].recordingData[0], inputChannels[0].recordingData[-1])
+ax0.set_ylabel(f'{{outputChannels[output_index].name}} ({{outputChannels[output_index].unit}})')
+ax0.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
 
-ax0.plot(inputs[0].recordingData, outputs[output_index].recordingData, marker='.', linestyle='None', color=MYBLUE, label='.')[0]
+ax0.plot(inputChannels[0].recordingData, outputChannels[output_index].recordingData, marker='.', linestyle='None', color=MYBLUE, label='.')[0]
 ax1.plot(x, map_percent(-y), marker='.', linestyle='None', color=MYRED)[0]
 
 try:
     x_fit, y_fit, expected_value, fwhm = gauss_fit(x, y, np.mean(x))
-    if inputs[0].recordingData[0] <= expected_value <= inputs[0].recordingData[-1]:
+    if inputChannels[0].recordingData[0] <= expected_value <= inputChannels[0].recordingData[-1]:
         ax1.plot(x_fit, map_percent(y_fit), color=MYRED)[0]
         ax1.annotate(text='', xy=(expected_value-fwhm/2.3, 50), xycoords='data', xytext=(expected_value+fwhm/2.3, 50), textcoords='data',
             arrowprops=dict(arrowstyle="<->", color=MYRED), va='center')

@@ -143,6 +143,53 @@ class PRINT(Enum):
     EXPLORER = 4
     """Key messages by Explorer"""
 
+class PLUGINTYPE(Enum):
+    """Each plugin must be of one of the following types to define its location and behavior."""
+    CONSOLE       = 'Console'
+    """The internal Console."""
+    CONTROL       = 'Generic Control'
+    """Any control plugin, will be placed next to Settings, Explorer, Devices, and Scans."""
+    INPUTDEVICE   = 'Input Device'
+    """Device plugin sending user input to hardware."""
+    OUTPUTDEVICE  = 'Output Device'
+    """Device plugin sending hardware output to user."""
+    CHANNELMANAGER  = 'Channel Manager'
+    """A plugin that manages channels which are neither inputs or outputs."""
+    DISPLAY       = 'Display'
+    """Any display plugin, will be places next to scan displays and static displays."""
+    LIVEDISPLAY   = 'LiveDisplay'
+    """Live display associated with a device."""
+    SCAN          = 'Scan'
+    """Scan plugin, will be placed with other controls."""
+    DEVICEMGR     = 'DeviceManager'
+    """Device manager, will be placed below live displays."""
+    INTERNAL      = 'Internal'
+    """A plugin without user interface."""
+
+class PARAMETERTYPE(Enum):
+    """Specifies what type of widget should be used to represent the Parameter in the user interface."""
+    LABEL = 'LABEL'
+    """A label that displays information."""
+    PATH  = 'PATH'
+    """A path to a file or directory."""
+    COMBO = 'COMBO'
+    """A combobox providing text options."""
+    INTCOMBO = 'INTCOMBO'
+    """A combobox providing integer options."""
+    FLOATCOMBO = 'FLOATCOMBO'
+    """A combobox providing floating point options."""
+    TEXT  = 'TEXT'
+    """An editable text field."""
+    COLOR = 'COLOR'
+    """A ColorButton that allows to select a color."""
+    BOOL  = 'BOOL'
+    """A boolean, represented by a checkbox."""
+    INT   = 'INT'
+    """An integer spinbox."""
+    FLOAT = 'FLOAT'
+    """A floating point spinbox."""
+    EXP   = 'EXP'
+    """A spinbox with scientific format."""
 
 def pluginSupported(pluginVersion: str) -> bool:
     """Test if given version is supported by comparing to current program version.

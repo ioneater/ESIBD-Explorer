@@ -590,7 +590,7 @@
      1426    0.007    0.000    0.022    0.000 GraphicsItem.py:563(informViewBoundsChanged)
       256    0.001    0.000    0.022    0.000 TIC.py:48(getDefaultChannel)
        24    0.001    0.000    0.022    0.001 PlotItem.py:638(addLegend)
-      445    0.002    0.000    0.022    0.000 plugins.py:4689(getInputs)
+      445    0.002    0.000    0.022    0.000 plugins.py:4689(getInputChannels)
        24    0.007    0.000    0.022    0.001 GraphicsView.py:40(__init__)
        19    0.001    0.000    0.022    0.001 LAKESHORE.py:80(applyValues)
        32    0.000    0.000    0.021    0.001 _compiler.py:738(compile)
@@ -867,7 +867,7 @@
       251    0.006    0.000    0.008    0.000 {built-in method setChecked}
         1    0.000    0.000    0.008    0.008 plugins.py:3490(finalizeInit)
        16    0.000    0.000    0.008    0.000 plugins.py:459(addMultiStateAction)
-      341    0.001    0.000    0.008    0.000 plugins.py:4692(getOutputs)
+      341    0.001    0.000    0.008    0.000 plugins.py:4692(getOutputChannels)
         2    0.000    0.000    0.008    0.004 KEITHLEY.py:143(initializeCommunication)
     20707    0.008    0.000    0.008    0.000 {built-in method sys.intern}
       597    0.002    0.000    0.008    0.000 core.py:1928(getValues)

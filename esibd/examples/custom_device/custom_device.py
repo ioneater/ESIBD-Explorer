@@ -3,7 +3,7 @@ import time
 
 from PyQt6.QtWidgets import QMessageBox
 
-from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 # TODO It is recommended to edit a copy of this file using VS Code with the Better Comments extension installed to highlight the sections that need to be customized.
@@ -26,7 +26,7 @@ class CustomDevice(Device):
     name = 'CustomDevice'
     version = '1.0'
     supportedVersion = '0.8'
-    pluginType = PluginManager.TYPE.INPUTDEVICE
+    pluginType = PLUGINTYPE.INPUTDEVICE
     iconFile = 'cookie.png'
     # TODO adjust flags to choose default behavior. All default functions can be extended or overwritten if more customization is required.
     useMonitors = True
@@ -80,7 +80,7 @@ class CustomDevice(Device):
     def getDefaultSettings(self) -> dict[str, dict]:
         settings = super().getDefaultSettings()
         settings[self.customSetting] = parameterDict(value=100, minimum=100, maximum=10000, toolTip='Custom Tooltip',
-                                                                                    widgetType=Parameter.TYPE.INT, attr='custom')
+                                                                                    parameterType=PARAMETERTYPE.INT, attr='custom')
         # TODO (optional) add additional custom settings as needed
         return settings
 
@@ -111,7 +111,7 @@ class CustomChannel(Channel):
     def getDefaultChannel(self) -> None:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Value (X)'  # overwrite to change header
-        channel[self.ID] = parameterDict(value=0, widgetType=Parameter.TYPE.INT, advanced=True, header='ID    ', attr='id')
+        channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True, header='ID    ', attr='id')
         # TODO (optional) add and modify any channel parameters as needed
         return channel
 

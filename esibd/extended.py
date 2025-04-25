@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from esibd.core import Parameter, parameterDict
+from esibd.core import PARAMETERTYPE, parameterDict
 from esibd.plugins import Settings
 
 
@@ -22,13 +22,13 @@ class ESIBDSettings(Settings):
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
-                                                                items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', widgetType=Parameter.TYPE.COMBO,
+                                                                items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='substrate')
         defaultSettings[f'{self.SESSION}/{self.ION}']            = parameterDict(value='GroEL', toolTip='Choose ion',
-                                                                items='Betagal, Ferritin, GroEL, ADH, GDH, BSA, DNA, BK', widgetType=Parameter.TYPE.COMBO,
+                                                                items='Betagal, Ferritin, GroEL, ADH, GDH, BSA, DNA, BK', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='molion')
         defaultSettings[f'{self.SESSION}/{self.SESSIONTYPE}']   = parameterDict(value='MS', toolTip='Choose session type',
-                                                                items='MS, depoHV, depoUHV, depoCryo, opt', widgetType=Parameter.TYPE.COMBO,
+                                                                items='MS, depoHV, depoUHV, depoCryo, opt', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='sessionType')
         return defaultSettings
 
