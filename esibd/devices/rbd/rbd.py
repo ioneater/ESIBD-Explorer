@@ -1,15 +1,18 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
+from pathlib import Path
+
 import h5py
-import serial
 import numpy as np
+import serial
 from PyQt6.QtCore import pyqtSignal
-from esibd.plugins import Device, StaticDisplay, Scan
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController, MetaChannel, getTestMode
+
+from esibd.core import PRINT, Channel, DeviceController, MetaChannel, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin, Scan, StaticDisplay
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [RBD]
 
 
@@ -23,7 +26,7 @@ class RBD(Device):
 
     name = 'RBD'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'RBD.png'
@@ -31,25 +34,25 @@ class RBD(Device):
     class StaticDisplay(StaticDisplay):
         """A display for device data from files."""
 
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs) -> None:
             super().__init__(**kwargs)
             self.previewFileTypes.append('.cur.rec')
             self.previewFileTypes.append('.cur.h5')
             self.previewFileTypes.append('OUT.h5')
 
-        def loadDataInternal(self, file) -> None:
+        def loadDataInternal(self, file: Path) -> None:
             if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
-                with open(file, 'r', encoding=self.UTF8) as dataFile:
+                with file.open('r', encoding=self.UTF8) as dataFile:
                     dataFile.readline()
                     headers = dataFile.readline().split(',')  # read names from second line
                 try:
                     data = np.loadtxt(file, skiprows=4, delimiter=',', unpack=True)
                 except ValueError as e:
                     self.print(f'Loading from {file.name} failed: {e}', PRINT.ERROR)
-                    return
+                    return False
                 if data.shape[0] == 0:
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
-                    return
+                    return False
                 for dat, header in zip(data, headers, strict=True):
                     self.outputs.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
                 if len(self.outputs) > 0:  # might be empty
@@ -72,12 +75,12 @@ class RBD(Device):
                         if '_BG' in name:
                             self.outputs[-1].recordingBackground = item[:]
                         else:
-                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs[Scan.UNIT] if Scan.UNIT in item.attrs else ''))
+                            self.outputs.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit=item.attrs.get(Scan.UNIT, '')))
             else:
                 return super().loadDataInternal(file)
             return True
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = CurrentChannel
         self.useBackgrounds = True  # record backgrounds for data correction
@@ -86,7 +89,7 @@ class RBD(Device):
         super().initGUI()
         self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 100  # overwrite default value
         return defaultSettings
@@ -100,9 +103,9 @@ class RBD(Device):
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.controller = CurrentController(_parent=self)
+        self.controller = CurrentController(controllerParent=self)
         self.preciseCharge = 0  # store independent of spin box precision to avoid rounding errors
 
     CHARGE     = 'Charge'
@@ -123,7 +126,7 @@ class CurrentChannel(Channel):
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')
         channel[self.DEVICENAME] = parameterDict(value='smurf', widgetType=Parameter.TYPE.LABEL, advanced=True, attr='devicename')
         channel[self.RANGE] = parameterDict(value='auto', widgetType=Parameter.TYPE.COMBO, advanced=True,
-                                        items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
+                                        items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',  # noqa: RUF001
                                         event=lambda: self.updateRange(), toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE] = parameterDict(value='off', widgetType=Parameter.TYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
@@ -150,7 +153,7 @@ class CurrentChannel(Channel):
         self.displayedParameters.append(self.ERROR)
 
     def tempParameters(self) -> None:
-        return super().tempParameters() + [self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
+        return [*super().tempParameters(), self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
 
     def enabledChanged(self) -> None:
         super().enabledChanged()
@@ -215,22 +218,24 @@ class CurrentChannel(Channel):
 class CurrentController(DeviceController):
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
+        """Bundle pyqtSignals."""
+
         updateValuesSignal = pyqtSignal(float, bool, bool, str)
         updateDeviceNameSignal = pyqtSignal(str)
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
-        #setup port
-        self.channel = _parent
+    def __init__(self, controllerParent) -> None:
+        super().__init__(controllerParent=controllerParent)
+        # setup port
+        self.channel = controllerParent
         self.device = self.channel.getDevice()
         self.port = None
         self.signalComm.updateDeviceNameSignal.connect(self.updateDeviceName)
         self.updateAverageFlag = False
         self.updateRangeFlag = False
         self.updateBiasFlag = False
-        self.phase = np.random.rand() * 10  # used in test mode
-        self.omega = np.random.rand()  # used in test mode
-        self.offset = np.random.rand() * 10  # used in test mode
+        self.phase = self.rng.random() * 10  # used in test mode
+        self.omega = self.rng.random()  # used in test mode
+        self.offset = self.rng.random() * 10  # used in test mode
 
     def initializeCommunication(self) -> None:
         if self.channel.enabled and self.channel.active and self.channel.real:
@@ -242,7 +247,7 @@ class CurrentController(DeviceController):
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.channel.devicename}.') as lock_acquired:
                 if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
-                    self.RBDWriteRead('I0000', lock_acquired=lock_acquired)  # stop sampling
+                    self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
                 self.port.close()
                 self.port = None
         super().closeCommunication()
@@ -317,9 +322,9 @@ class CurrentController(DeviceController):
 
     def setAverage(self) -> None:
         """Set the averaging filter."""
-        _filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
-        _filter = 2**_filter if _filter > 0 else 0
-        self.RBDWriteRead(message=f'F0{_filter:02}')  # set filter
+        average_filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
+        average_filter = 2**average_filter if average_filter > 0 else 0
+        self.RBDWriteRead(message=f'F0{average_filter:02}')  # set filter
         self.updateAverageFlag = False
 
     def setBias(self) -> None:
@@ -333,10 +338,7 @@ class CurrentController(DeviceController):
 
     def getName(self) -> str:
         """Get the name set on the device."""
-        if not getTestMode():
-            name = self.RBDWriteRead(message='P')  # get channel name
-        else:
-            name = 'UNREALSMURF'
+        name = self.RBDWriteRead(message='P') if not getTestMode() else 'UNREALSMURF'  # get channel name
         if '=' in name:
             return name.split('=')[1]
         else:
@@ -374,28 +376,26 @@ class CurrentController(DeviceController):
         # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
 
     def fakeNumbers(self) -> None:
-        if not self.channel.getDevice().pluginManager.closing:
-            if self.channel.enabled and self.channel.active and self.channel.real:
-                self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + np.random.rand() + self.offset, False, False, '')
+        if not self.channel.getDevice().pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+            self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')
 
     def readNumbers(self) -> None:
-        if not self.channel.getDevice().pluginManager.closing:
-            if self.channel.enabled and self.channel.active and self.channel.real:
-                msg = ''
-                msg = self.RBDRead()
-                if not self.acquiring:  # may have changed while waiting on message
-                    return
-                parsed = self.parse_message_for_sample(msg)
-                if any (sym in parsed for sym in ['<', '>']):
-                    self.signalComm.updateValuesSignal.emit(0, True, False, parsed)
-                elif '*' in parsed:
-                    self.signalComm.updateValuesSignal.emit(0, False, True, parsed)
-                elif not parsed:
-                    self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')
-                else:
-                    self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')
+        if not self.channel.getDevice().pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+            msg = ''
+            msg = self.RBDRead()
+            if not self.acquiring:  # may have changed while waiting on message
+                return
+            parsed = self.parse_message_for_sample(msg)
+            if any(sym in parsed for sym in ['<', '>']):
+                self.signalComm.updateValuesSignal.emit(0, True, False, parsed)
+            elif '*' in parsed:
+                self.signalComm.updateValuesSignal.emit(0, False, True, parsed)
+            elif not parsed:
+                self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')
+            else:
+                self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')
 
-    #Single sample (standard speed) message parsing
+    # Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg) -> str:
         """Only returns response if it contains a sample.
 
@@ -449,19 +449,19 @@ class CurrentController(DeviceController):
         """RBD specific serial read."""
         return self.serialRead(self.port)
 
-    def RBDWriteRead(self, message, lock_acquired=False) -> str:
+    def RBDWriteRead(self, message, already_acquired=False) -> str:
         """RBD specific serial write and read.
 
         :param message: The serial message to be send.
         :type message: str
-        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
-        :type lock_acquired: bool, optional
+        :param already_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type already_acquired: bool, optional
         :return: The serial response received.
         :rtype: str
         """
         response = ''
         if not getTestMode():
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', lock_acquired=lock_acquired) as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', already_acquired=already_acquired) as lock_acquired:
                 if lock_acquired:
                     self.RBDWrite(message)  # get channel name
                     response = self.RBDRead()

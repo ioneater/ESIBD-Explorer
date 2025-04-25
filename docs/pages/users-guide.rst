@@ -168,7 +168,7 @@ Other
 
 Custom device
 ~~~~~~~~~~~~~
-.. automodule:: esibd.examples.customDevice.customDevice.CustomDevice
+.. automodule:: esibd.examples.custom_device.custom_device.CustomDevice
    :noindex:
 
 .. _`sec:ISEG`:
@@ -437,7 +437,7 @@ Depo scan
 Custom extensions
 -----------------
 
-.. automodule:: esibd.examples.customPlugin.customPlugin.CustomPlugin
+.. automodule:: esibd.examples.custom_plugin.custom_plugin.CustomPlugin
    :noindex:
 
 .. _sec:displays:

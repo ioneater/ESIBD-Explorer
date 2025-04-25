@@ -1,11 +1,12 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import nidaqmx
-from esibd.plugins import Device
-from esibd.core import Parameter, parameterDict, PluginManager, Channel, PRINT, DeviceController
+
+from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, parameterDict
+from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [NI9263]
 
 
@@ -14,19 +15,19 @@ class NI9263(Device):
 
     name = 'NI9263'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'V'
     iconFile = 'NI9263.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = VoltageChannel
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.controller = VoltageController(_parent=self)  # after all channels loaded
+        self.controller = VoltageController(controllerParent=self)  # after all channels loaded
 
 
 class VoltageChannel(Channel):
@@ -56,7 +57,7 @@ class VoltageController(DeviceController):
     def runInitialization(self) -> None:
         try:
             with nidaqmx.Task() as task:
-                task.ao_channels  # will raise exception if connection failed
+                task.ao_channels  # will raise exception if connection failed  # noqa: B018
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
             self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)

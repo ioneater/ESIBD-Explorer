@@ -1,13 +1,15 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
-import time
 import ctypes
+import time
+
 import numpy as np
-from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
+
+from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getDarkMode, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [PICO]
 
 
@@ -19,15 +21,15 @@ class PICO(Device):
 
     name = 'PICO'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'K'
     iconFile = 'pico_104.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = TemperatureChannel
-        self.controller = TemperatureController(_parent=self)
+        self.controller = TemperatureController(controllerParent=self)
 
     def initGUI(self) -> None:
         super().initGUI()
@@ -46,7 +48,7 @@ class PICO(Device):
         if self.staticDisplayActive():
             self.staticDisplay.plot()
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000  # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
@@ -95,29 +97,29 @@ class TemperatureController(DeviceController):
 
     chandle = ctypes.c_int16()
 
-    def __init__(self, _parent):
-        super().__init__(_parent)
+    def __init__(self, controllerParent) -> None:
+        super().__init__(controllerParent)
         # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
         # If needed, add SDK installation path to PATH
         # importing modules here makes sure that the module is loaded without errors.
         # Missing SDK is only raised if users enable this plugin.
-        from picosdk.usbPT104 import usbPt104 as pt104
-        from picosdk.functions import assert_pico_ok
-        self.pt104 = pt104
+        from picosdk.functions import assert_pico_ok  # noqa: PLC0415
+        from picosdk.usbPT104 import usbPt104  # noqa: PLC0415
+        self.usbPt104 = usbPt104
         self.assert_pico_ok = assert_pico_ok
 
     def closeCommunication(self) -> None:
         if self.initialized:
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
-                self.pt104.UsbPt104CloseUnit(self.chandle)
+                self.usbPt104.UsbPt104CloseUnit(self.chandle)
         super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
-            self.pt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
+            self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
             for channel in self.device.getChannels():
-                self.assert_pico_ok(self.pt104.UsbPt104SetChannel(self.chandle, self.pt104.PT104_CHANNELS[channel.channel],
-                                                        self.pt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
+                self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],
+                                                        self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
@@ -137,7 +139,7 @@ class TemperatureController(DeviceController):
             if channel.enabled and channel.active and channel.real:
                 try:
                     meas = ctypes.c_int32()
-                    self.pt104.UsbPt104GetValue(self.chandle, self.pt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
+                    self.usbPt104.UsbPt104GetValue(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
                     if meas.value != ctypes.c_long(0).value:  # 0 during initialization phase
                         self.values[i] = float(meas.value) / 1000 + 273.15  # always return Kelvin
                     else:
@@ -150,9 +152,9 @@ class TemperatureController(DeviceController):
     def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-            # exponentially approach target or room temp + small fluctuation
-                self.values[i] = np.random.randint(1, 300) if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
+                # exponentially approach target or room temp + small fluctuation
+                self.values[i] = float(self.rng.integers(1, 300)) if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndTemperature(self) -> float:
         """Return a random temperature."""
-        return np.random.uniform(0, 400)
+        return self.rng.uniform(0, 400)

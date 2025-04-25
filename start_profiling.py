@@ -1,9 +1,11 @@
 """Starts the GUI."""
-from  esibd.__main__ import main
 import cProfile
-import pstats
-import debugpy  # Ensures debugger attaches
 import os
+import pstats
+
+import debugpy  # Ensures debugger attaches
+
+from esibd.__main__ import main
 
 if __name__ == "__main__":
     debugpy.listen(5678)  # Match the port in your VS Code launch config

@@ -16,7 +16,7 @@ the underlying framework that enables implementation of and communication betwee
 
 To add plugins, all you need to do is prepare a plugin file inside a
 sub folder of the user defined :ref:`plugin path<plugin_path>`. A plugin file is a python
-script that defines a :meth:`~esibd.providePlugins.providePlugins` function, which returns one or
+script that defines a :meth:`~esibd.provide_plugins.providePlugins` function, which returns one or
 multiple :class:`plugins<esibd.plugins.Plugin>`.
 :class:`Plugins<esibd.plugins.Plugin>` can be enabled in the plugin dialog
 found in :ref:`sec:Settings` after restarting the software. It is
@@ -26,7 +26,7 @@ All built-in :class:`plugins<esibd.plugins.Plugin>` can be imported from :mod:`e
 Many other helpful classes and methods can be imported from :mod:`esibd.core`.
 
 If you need to extend the internal plugins just give them another name and make sure to unselect the original one in the plugin manager dialog.
-Core plugins, like :ref:`sec:explorer`, :ref:`sec:settings`, :ref:`sec:console`, :ref:`sec:browser`, etc., can also be extended using *extended.py* and *providePlugins.py*.
+Core plugins, like :ref:`sec:explorer`, :ref:`sec:settings`, :ref:`sec:console`, :ref:`sec:browser`, etc., can also be extended using *extended.py* and *provide_plugins.py*.
 
 If you want to do something completely different to the already
 implemented functionality, get in touch and see if we can implement a

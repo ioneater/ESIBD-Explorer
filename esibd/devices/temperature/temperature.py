@@ -1,14 +1,16 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
-import serial
+
 import numpy as np
+import serial
 from PyQt6.QtWidgets import QMessageBox
-from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, PRINT, DeviceController, getDarkMode, getTestMode
+
+from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getDarkMode, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Temperature]
 
 
@@ -20,17 +22,17 @@ class Temperature(Device):
 
     name = 'Temperature'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
     iconFile = 'temperature.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useOnOffLogic = True
         self.channelType = TemperatureChannel
-        self.controller = TemperatureController(_parent=self)
+        self.controller = TemperatureController(controllerParent=self)
 
     def initGUI(self) -> None:
         super().initGUI()
@@ -49,7 +51,7 @@ class Temperature(Device):
         if self.staticDisplayActive():
             self.staticDisplay.plot()
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000  # overwrite default value
         defaultSettings[f'{self.name}/CryoTel COM'] = parameterDict(value='COM3', toolTip='COM port of Sunpower CryoTel.', items=','.join([f'COM{x}' for x in range(1, 25)]),
@@ -85,8 +87,8 @@ class TemperatureChannel(Channel):
 
 class TemperatureController(DeviceController):
 
-    def __init__(self, _parent):
-        super().__init__(_parent)
+    def __init__(self, controllerParent) -> None:
+        super().__init__(controllerParent)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self) -> None:
@@ -143,7 +145,7 @@ class TemperatureController(DeviceController):
         # only test once a minute as cooler takes 30 s to turn on or off
         # in case of over current error the cooler won't turn on and there is no need for additional safety check
         self.toggleCounter += 1
-        if self.device.isOn() and np.mod(self.toggleCounter, int(60000 / self.device.interval)) == 0 and self.device.getChannels()[0].monitor != 0 and self.device.getChannels()[0].monitor != np.nan:
+        if self.device.isOn() and np.mod(self.toggleCounter, int(60000 / self.device.interval)) == 0 and self.device.getChannels()[0].monitor != 0 and not np.isnan(self.device.getChannels()[0].monitor):
             if self.device.getChannels()[0].monitor < self.device.getChannels()[0].value - self.device.toggleThreshold:
                 self.print(f'Toggle cooler off. {self.device.getChannels()[0].monitor} K is under lower threshold of {self.device.getChannels()[0].value - self.device.toggleThreshold} K.')
                 self.CryoTelWriteRead(message='COOLER=OFF')
@@ -156,11 +158,11 @@ class TemperatureController(DeviceController):
         for i, channel in enumerate(self.device.getChannels()):
             # exponentially approach target or room temp + small fluctuation
             if channel.enabled and channel.real:
-                self.values[i] = max((self.values[i] + np.random.uniform(-1, 1)) + 0.1 * ((channel.value if self.device.isOn() else 300) - self.values[i]), 0)
+                self.values[i] = max((self.values[i] + self.rng.uniform(-1, 1)) + 0.1 * ((channel.value if self.device.isOn() else 300) - self.values[i]), 0)
 
     def rndTemperature(self) -> float:
         """Return a random temperature."""
-        return np.random.uniform(0, 400)
+        return self.rng.uniform(0, 400)
 
     def toggleOn(self) -> None:
         if self.device.isOn():
@@ -177,7 +179,7 @@ class TemperatureController(DeviceController):
     def applyValue(self, channel) -> None:
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
 
-    def CryoTelWriteRead(self, message: str):
+    def CryoTelWriteRead(self, message: str) -> str:
         """CryoTel specific serial write and read.
 
         :param message: The serial message to be send.
@@ -192,7 +194,7 @@ class TemperatureController(DeviceController):
                 response = self.CryoTelRead()  # reads return value
         return response
 
-    def CryoTelWrite(self, message: str):
+    def CryoTelWrite(self, message: str) -> None:
         """CryoTel specific serial write.
 
         :param message: The serial message to be send.
@@ -201,7 +203,7 @@ class TemperatureController(DeviceController):
         self.serialWrite(self.port, f'{message}\r')
         self.CryoTelRead()  # repeats query
 
-    def CryoTelRead(self):
+    def CryoTelRead(self) -> str:
         """TPG specific serial read.
 
         :return: The response received.

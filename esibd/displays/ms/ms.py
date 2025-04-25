@@ -1,12 +1,14 @@
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
-from esibd.core import MZCalculator, PluginManager, getDarkMode, colors
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from esibd.core import MZCalculator, PluginManager, colors, getDarkMode
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [MS]
 
 
@@ -21,6 +23,7 @@ class MS(Plugin):
     that is inheriting from the built-in version and redefines how data is
     loaded for your specific data format. See :ref:`sec:plugin_system` for more information.
     """
+
     documentation = """The MS plugin allows to display simple mass spectra. Left clicking on peaks
     in a charge state series while holding down the Ctrl key provides a
     quick estimate of charge state and mass, based on minimizing the standard
@@ -31,11 +34,11 @@ class MS(Plugin):
     name = 'MS'
     version = '1.0'
     pluginType = PluginManager.TYPE.DISPLAY
-    previewFileTypes = ['.txt']
     iconFile = 'MS.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.previewFileTypes = ['.txt']
         self.file = None
         self.x = self.y = None
         self.paperAction = None
@@ -58,8 +61,8 @@ class MS(Plugin):
             self.finalizeInit()
             self.afterFinalizeInit()
 
-    def finalizeInit(self, aboutFunc=None) -> None:
-        super().finalizeInit(aboutFunc)
+    def finalizeInit(self) -> None:
+        super().finalizeInit()
         self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
         self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(event=lambda: self.plot(), toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
@@ -76,7 +79,7 @@ class MS(Plugin):
         if super().supportsFile(file):
             first_line = ''
             try:
-                with open(file, encoding=self.UTF8) as _file:
+                with file.open(encoding=self.UTF8) as _file:
                     first_line = _file.readline()
             except UnicodeDecodeError:
                 return False
@@ -84,13 +87,13 @@ class MS(Plugin):
                 return True
         return False
 
-    def loadData(self, file, _show=True) -> None:
+    def loadData(self, file, showPlugin=True) -> None:
         self.provideDock()
         self.file = file
         self.mzCalc.clear()
         self.x, self.y = np.loadtxt(self.file, skiprows=10, usecols=[0, 1], unpack=True)
         self.plot()
-        self.raiseDock(_show)
+        self.raiseDock(showPlugin)
 
     def plot(self) -> None:
         """Plot MS data."""
@@ -161,8 +164,7 @@ class MS(Plugin):
         :rtype: np.array
         """
         box = np.ones(box_pts) / box_pts
-        y_smooth = np.convolve(y, box, mode='same')
-        return y_smooth
+        return np.convolve(y, box, mode='same')
 
     def updateTheme(self) -> None:
         super().updateTheme()
@@ -226,7 +228,7 @@ paperStyle = False
 x, y = np.loadtxt('{self.pluginManager.Explorer.activeFileFullPath.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
 
 with mpl.style.context('default'):
-    fig = plt.figure(constrained_layout=True)
+    fig = plt.figure(num='{self.name} plot', constrained_layout=True)
     ax = fig.add_subplot(111)
     ax.set_xlabel('m/z (Th)')
     if paperStyle:
@@ -236,7 +238,7 @@ with mpl.style.context('default'):
         ax.set_ylabel('')
         ax.set_ylim([1, 100+2])
         ax.set_yticks([1, 50, 100])
-        ax.set_yticklabels(['0','%','100'])
+        ax.set_yticklabels(['0', '%', '100'])
     else:
         ax.set_ylabel('Intensity')
         ax.plot(x, y)[0]

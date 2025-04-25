@@ -1,13 +1,16 @@
 import sys
+
 from asteval import Interpreter
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QGridLayout, QPushButton, QLineEdit, QSizePolicy
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QGridLayout, QLineEdit, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+
 aeval = Interpreter()
+
 
 class Calculator(QWidget):
     """Minimal calculator example in PyQt6."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.setWindowTitle("PyQt6 Calculator")
@@ -20,7 +23,6 @@ class Calculator(QWidget):
         # Display for input/output
         self.display = QLineEdit()
         self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
-        #self.display.setReadOnly(True)
         self.display.setStyleSheet("font-size: 24px")
         self.display.returnPressed.connect(self.evaluate)
         layout.addWidget(self.display)
@@ -31,7 +33,7 @@ class Calculator(QWidget):
             ('7', '8', '9', '/'),
             ('4', '5', '6', '*'),
             ('1', '2', '3', '-'),
-            ('0', 'C', '=', '+')
+            ('0', 'C', '=', '+'),
         ]
 
         for row_idx, row in enumerate(buttons):
@@ -40,13 +42,13 @@ class Calculator(QWidget):
                 button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
                 button.setMinimumSize(20, 20)
                 button.setStyleSheet("font-size: 18px")
-                button.clicked.connect(lambda checked, text=label: self.onButtonClick(text))
+                button.clicked.connect(lambda checked, text=label: self.onButtonClick(text))  # noqa: ARG005
                 grid.addWidget(button, row_idx, col_idx)
 
         layout.addLayout(grid)
         self.setLayout(layout)
 
-    def onButtonClick(self, label):
+    def onButtonClick(self, label) -> None:
         """Handle button clicks.
 
         :param label: Label representing function of the button.
@@ -59,13 +61,14 @@ class Calculator(QWidget):
         else:
             self.display.setText(self.display.text() + label)
 
-    def evaluate(self):
-        """Evaluates the equation."""
+    def evaluate(self) -> None:
+        """Evaluate the equation."""
         try:
             result = aeval(self.display.text())
             self.display.setText(str(result))
         except Exception:
             self.display.setText("Error")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

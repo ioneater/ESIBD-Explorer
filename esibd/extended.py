@@ -1,20 +1,25 @@
-"""Extend internal plugins here before they are loaded. Make sure to exchange them in providePlugins.py."""
+"""Extend internal plugins here before they are loaded. Make sure to exchange them in provide_plugins.py."""
 
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+from esibd.core import Parameter, parameterDict
 from esibd.plugins import Settings
-from esibd.core import parameterDict, Parameter
+
 
 class ESIBDSettings(Settings):
-    """ This version of the Settings plugin has a customized session path.
-    If you need to customize Settings for another experiment you only need to replace this class."""
+    """Settings plugin with customized session path.
+
+    If you need to customize Settings for another experiment you only need to replace this class.
+    """
+
     documentation = Settings.__doc__ + __doc__
 
     SUBSTRATE           = 'Substrate'
     ION                 = 'Ion'
     SESSIONTYPE         = 'Session type'
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
                                                                 items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', widgetType=Parameter.TYPE.COMBO,
@@ -27,5 +32,5 @@ class ESIBDSettings(Settings):
                                                                 event=self.updateSessionPath, attr='sessionType')
         return defaultSettings
 
-    def buildSessionPath(self):
+    def buildSessionPath(self) -> Path:
         return Path(*[self.substrate, self.molion, datetime.now().strftime(f'%Y-%m-%d_%H-%M_{self.substrate}_{self.molion}_{self.sessionType}')])

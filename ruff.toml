@@ -46,12 +46,18 @@ preview = true
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-#"ANN001", "ANN201", "ANN202",, "DOC201"
-select = ["B905", "D102", "D205", "D208", "D209", "D400", "D401", "D404", "E4", "E7", "E9", "E117", "E202", "E203", "E225", "E226", "E231", "E251", "E252", "E261", "E262", "E275", "E301", "E302", "ERA001", "F", "D417", "PLC1901", "PTH201", "T201"]
-# select = ["ALL"]  # temporary use this to explore more rules and pick which ones to keep above
-# "D101", "D103" , "D102",  # does not ignore child methods and classes where the parent method has a docstring -> only enable temporarily, ignore where irrelevant
-# "D417"]
-ignore = ["BLE001", "CPY001", "E221", "E501", "F405", "N802", "N803", "N806", "N815", "N816", "Q000", "S603", "S607", "SLF001", "ANN001", "ANN201", "ANN202", "D102"]
+#"ANN001", "ANN201", "ANN202",, "DOC201", "D107" # gradually introduce
+# select = ["A001", "ANN204", "B905", "C403", "C408", "C419", "COM812", "COM819", "D102", "D204", "D205", "D208", "D209", "D210", "D301", "D400",
+# "D401", "D404", "D417", "E4", "E7", "E9", "E117", "E202", "E203", "E225", "E226", "E228", "E231", "E251", "E252", "E261", "E262", "E265",
+# "E275", "E301", "E302", "ERA001", "F", "I001", "ISC003", "PIE790", "PERF401", "PLC1901", "PLR0911", "PLR0917", "PLR2044", "PLR6104", "PLR6201", "PLW0177", "PTH201", "PTH123", "RET504",
+# "RUF005", "RUF013", "RUF052", "RUF100", "SIM018", "SIM212", "SIM401", "T201", "TRY300", "UP039", "UP012", "W605"]
+select = ["ALL"]  # temporary use this to explore more rules and pick which ones to keep above
+ignore = ["ANN002", "ANN003", "BLE001", "CPY001", "C901", "DOC201", "D100",
+"DTZ005", "DTZ006", # would need to shift time stamps back to local time for display in graph
+"DOC402",  # only considers google doc strings
+"E221", "E501", "F405", "FIX002", "FBT001",
+"FBT002", "FBT003", "N802", "N803", "N806", "N815", "N816", "PLW0108", "PLR0904", "PLR0912", "PLR0913", "PLR0915", "PLR6301", "Q000", "RET505",
+"S311", "S404", "S603", "S607", "S608", "SLF001", "TD002", "TD003", "TD004", "W293"]  # ,          "ANN001", "ANN201", "ANN202", "D102",
 # Ignore `D` rules everywhere except for the `src/` directory.
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
@@ -62,7 +68,7 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [lint.per-file-ignores]
-"!esibd/{config.py,const.py,core.py,plugins.py}" = ["ANN001"]  # ignore everywhere but here -> avoids false positives if parent method has types annotated
+"!esibd/{config.py,const.py,core.py,plugins.py}" = ["ANN001", "D101" , "D102", "D103", "D106", "D107"]  # ignore everywhere but here -> avoids false positives if parent method has types annotated
 
 [format]
 # Like Black, use double quotes for strings.

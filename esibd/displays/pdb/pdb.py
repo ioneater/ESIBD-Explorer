@@ -1,12 +1,14 @@
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 from Bio.PDB import PDBParser
+
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [PDB]
 
 
@@ -21,8 +23,11 @@ class PDB(Plugin):
     name = 'PDB'
     version = '1.0'
     pluginType = PluginManager.TYPE.DISPLAY
-    previewFileTypes = ['.pdb', '.pdb1']
     iconFile = 'pdb.png'
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.previewFileTypes = ['.pdb', '.pdb1']
 
     def initGUI(self) -> None:
         self.file = None
@@ -50,13 +55,13 @@ class PDB(Plugin):
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
         return structure, np.array([atom.get_coord() for atom in structure.get_atoms()])
 
-    def loadData(self, file, _show=True) -> None:
+    def loadData(self, file, showPlugin=True) -> None:
         self.provideDock()
         self.file = file
         _, XYZ = self.get_structure(file)
         self.x, self.y, self.z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
         self.plot()
-        self.raiseDock(_show)
+        self.raiseDock(showPlugin)
 
     def plot(self) -> None:
         self.axes[0].clear()
@@ -137,7 +142,7 @@ _, XYZ = get_structure('{self.pluginManager.Explorer.activeFileFullPath.as_posix
 x, y, z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
 with mpl.style.context('default'):
-    fig = plt.figure(constrained_layout=True)
+    fig = num='{self.name} plot', constrained_layout=True)
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(x, y, z, marker='.', s=2)
     set_axes_equal(ax)

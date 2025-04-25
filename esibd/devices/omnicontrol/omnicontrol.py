@@ -1,14 +1,16 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
-import serial
+
 import numpy as np
 import pfeiffer_vacuum_protocol as pvp
-from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode
+import serial
+
+from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [OMNICONTROL]
 
 
@@ -17,18 +19,18 @@ class OMNICONTROL(Device):
 
     name = 'OMNICONTROL'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_omni.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
-        self.controller = PressureController(_parent=self)
+        self.controller = PressureController(controllerParent=self)
         self.logY = True
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500  # overwrite default value
         defaultSettings[f'{self.name}/COM'] = parameterDict(value='COM1', toolTip='COM port.', items=','.join([f'COM{x}' for x in range(1, 25)]),
@@ -95,10 +97,10 @@ class PressureController(DeviceController):
     def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndPressure(self) -> float:
         """Return a random pressure."""
-        exp = np.random.randint(-11, 3)
-        significand = 0.9 * np.random.random() + 0.1
+        exp = float(self.rng.integers(-11, 3))
+        significand = 0.9 * self.rng.random() + 0.1
         return significand * 10**exp

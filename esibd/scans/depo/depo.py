@@ -1,25 +1,31 @@
+import sys
 import time
 from datetime import datetime, timedelta
-import sys
-import matplotlib.pyplot as plt
+from typing import TYPE_CHECKING
+
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.ticker import ScalarFormatter
-from PyQt6.QtWidgets import QTextEdit  # , QSizePolicy  # QLabel, QMessageBox
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontMetrics
-import numpy as np
-from esibd.core import (Parameter, INOUT, parameterDict, DynamicNp, PRINT, plotting,
-    MetaChannel, ScanChannel)
+from PyQt6.QtWidgets import QTextEdit  # , QSizePolicy  # QLabel, QMessageBox
+
+from esibd.core import INOUT, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
 from esibd.plugins import Scan
+
+if TYPE_CHECKING:
+    from esibd.plugins import Plugin
+
 winsound = None
 if sys.platform == 'win32':
     import winsound
 else:
-    print('Module winsound only available on Windows.')
+    print('Module winsound only available on Windows.')  # noqa: T201
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Depo]
 
 
@@ -42,7 +48,7 @@ class Depo(Scan):
 
     class ScanChannel(ScanChannel):
 
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs) -> None:
             super().__init__(**kwargs)
             self.isChargeChannel = False
 
@@ -68,11 +74,11 @@ class Depo(Scan):
             super().connectSource()
             if self.isChargeChannel:
                 self.unit = 'pAh'
-                self.name = self.name + f'_{Depo.CHARGE}'
+                self.name += f'_{Depo.CHARGE}'
             if self.sourceChannel is not None and not hasattr(self.sourceChannel, 'resetCharge'):
                 # found channel with same name but likely from different device
                 super().connectSource()  # running again after changing name -> disconnect
-            if self.unit in ['pA', 'pAh']:
+            if self.unit in {'pA', 'pAh'}:
                 self.getParameterByName(self.DISPLAY).getWidget().setVisible(False)
 
     class Display(Scan.Display):
@@ -84,13 +90,14 @@ class Depo(Scan):
             There is still an issue with very large or very small values if log=False.
             In that case the corresponding device should use self.logY = True.
             """
-            def __init__(self, *args, log=False, **kwargs):
+
+            def __init__(self, *args, log=False, **kwargs) -> None:
                 super().__init__(*args, **kwargs)
                 self.log = log
                 self.set_scientific(True)  # Enable scientific notation
                 self.set_useOffset(False)  # Disable the offset/scaling factor above the axis
 
-            def _set_format(self):
+            def _set_format(self) -> None:
                 """Override the default format behavior to suppress scaling."""
                 self._useMathText = True
                 if self.log:
@@ -108,12 +115,12 @@ class Depo(Scan):
                 self.axes.append(self.fig.add_subplot(rows, 1, 3 + i, sharex=self.axes[0]))
                 self.axes[2 + i].set_ylabel(unit)
             for output in self.scan.outputs:
-                if output.unit not in ['pA', 'pAh'] and output.unit in self.scan.getExtraUnits():
+                if output.unit not in {'pA', 'pAh'} and output.unit in self.scan.getExtraUnits():
                     output.line = self.axes[2 + self.scan.getExtraUnits().index(output.unit)].plot([[datetime.now()]], [0], color=output.color, label=output.name)[0]
                     if output.logY:
                         self.axes[2 + self.scan.getExtraUnits().index(output.unit)].set_yscale('log')
                     self.axes[2 + self.scan.getExtraUnits().index(output.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=output.logY))
-            for i, unit in enumerate(self.scan.getExtraUnits()):
+            for i, _ in enumerate(self.scan.getExtraUnits()):
                 legend = self.axes[2 + i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
 
@@ -134,7 +141,7 @@ class Depo(Scan):
             self.axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))  # auto formatting will resort to only year if space is limited -> fix format
             self.tilt_xlabels(self.axes[-1])
             self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=6, ha='left', va='top',
-                                                            bbox=dict(boxstyle='square, pad=.2', fc=plt.rcParams['axes.facecolor'], ec='none'))
+                                                            bbox={'boxstyle': 'square, pad=.2', 'fc': plt.rcParams['axes.facecolor'], 'ec': 'none'})
             self.updateDepoTarget()
 
         def updateDepoTarget(self) -> None:
@@ -154,7 +161,7 @@ class Depo(Scan):
                 self.axes[1].relim()
                 self.canvas.draw_idle()
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useDisplayChannel = True
 
@@ -164,16 +171,16 @@ class Depo(Scan):
         self.depoCheckList = QTextEdit()
         self.depoCheckList.setReadOnly(True)
         self.depoCheckList.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n' +
+        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n'
                                    '- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
         self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') + self.depoCheckList.verticalScrollBar().sizeHint().width() + 10)
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
-    def getExtraUnits(self):
+    def getExtraUnits(self) -> list[str]:
         """Get all units that are not representing a current or a charge."""
-        return list(set([channel.unit for channel in self.outputs if channel.unit not in ['pA', 'pAh'] and channel.display]))
+        return list({channel.unit for channel in self.outputs if channel.unit not in {'pA', 'pAh'} and channel.display})
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings.pop(self.WAIT)
         defaultSettings.pop(self.WAITLONG)
@@ -184,7 +191,7 @@ class Depo(Scan):
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
         defaultSettings[self.AVERAGE][Parameter.VALUE] = 4000
         defaultSettings[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', widgetType=Parameter.TYPE.INT,
-                                                                _min=1000, _max=60000, attr='interval')
+                                                                minimum=1000, maximum=60000, attr='interval')
         defaultSettings['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
                                                                 widgetType=Parameter.TYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
         defaultSettings['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
@@ -222,7 +229,7 @@ class Depo(Scan):
         self.initializing = False
         if len([output for output in self.outputs if output.unit == 'pA']) > 0:  # at least one current channel
             self.inputs.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
-            self.measurementsPerStep = max(int((self.average / self.interval)) - 1, 1)
+            self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
             self.toggleDisplay(True)
             self.display.progressAnnotation.set_text('')
             self.updateFile()
@@ -233,17 +240,17 @@ class Depo(Scan):
             self.print('No initialized current output channel found.', PRINT.WARNING)
             return False
 
-    def addOutputChannels(self):
+    def addOutputChannels(self) -> None:
         for name in self.settingsMgr.settings[self.DISPLAY].items:
             channel = self.addOutputChannel(name=name, recordingData=DynamicNp())
             if hasattr(channel.sourceChannel, 'resetCharge'):
                 channel.sourceChannel.resetCharge()
                 self.addOutputChannel(name=f'{name}_{self.CHARGE}', unit='pAh', recordingData=DynamicNp())
-        self.channelTree.setHeaderLabels([(name.title() if dict[Parameter.HEADER] is None else dict[Parameter.HEADER])
-                                                for name, dict in self.channels[0].getSortedDefaultChannel().items()])
+        self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
+                                            for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced(False)
 
-    def populateDisplayChannel(self):
+    def populateDisplayChannel(self) -> None:
         # overwrite parent to hide charge channels
         self.loading = True
         self.display.displayComboBox.clear()
@@ -253,51 +260,53 @@ class Depo(Scan):
         self.loading = False
         self.updateDisplayDefault()
 
-    def updateDisplayChannel(self):
+    def updateDisplayChannel(self) -> None:
         self.display.initFig()  # need to reinitialize as displayed channels are changing
         super().updateDisplayChannel()
 
-    def updateWarnLevel(self):
+    def updateWarnLevel(self) -> None:
         """Update the warning level line in the plot."""
         if self.display is not None and self.display.currentWarnLine is not None:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 
+    MIN_FIT_DATA_POINTS = 10
+
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
         if self.loading:
             return
         if len(self.outputs) > 0 and len(self.inputs) > 0:
-            _timeInt = self.getData(0, INOUT.IN)
-            _time = [datetime.fromtimestamp(float(_time)) for _time in _timeInt]  # convert timestamp to datetime
+            time_axis = self.getData(0, INOUT.IN)
+            time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime
             charge = []
             for i, output in enumerate(self.outputs):
                 if i == self.getOutputIndex():
-                    self.display.currentLine.set_data(_time, output.getRecordingData())
+                    self.display.currentLine.set_data(time_stamp_axis, output.getRecordingData())
                 elif i == self.getOutputIndex() + 1:
                     charge = output.getRecordingData()
-                    self.display.chargeLine.set_data(_time, output.getRecordingData())
-                elif output.unit not in ['pA', 'pAh'] and output.display:  # only show current and charge for selected channel
+                    self.display.chargeLine.set_data(time_stamp_axis, output.getRecordingData())
+                elif output.unit not in {'pA', 'pAh'} and output.display:  # only show current and charge for selected channel
                     if hasattr(output, 'line'):
-                        output.line.set_data(_time, output.getRecordingData())
+                        output.line.set_data(time_stamp_axis, output.getRecordingData())
                     else:
                         self.print(f'Line not initialized for channel {output.name}', flag=PRINT.WARNING)
             time_done_str = 'unknown'
             end_str = 'end'
-            if len(_time) > 10 or done:  # predict scan based on last 10 data points
-                if len(_time) > 10 and update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]):  # only predict if below target and charge is increasing
-                    time_done = datetime.fromtimestamp(float(_timeInt[-1] + (_timeInt[-1] - _timeInt[-10]) / (charge[-1] - charge[-10]) * (float(self.target) - charge[-1])))  # t_t=t_i + dt/dQ * Q_missing
-                    self.display.chargePredictionLine.set_data([_time[-1], time_done], [charge[-1], self.target])
+            if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS or done:  # predict scan based on last 10 data points
+                if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS and update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]):  # only predict if below target and charge is increasing
+                    time_done = datetime.fromtimestamp(float(time_axis[-1] + (time_axis[-1] - time_axis[-10]) / (charge[-1] - charge[-10]) * (float(self.target) - charge[-1])))  # t_t=t_i + dt/dQ * Q_missing
+                    self.display.chargePredictionLine.set_data([time_stamp_axis[-1], time_done], [charge[-1], self.target])
                     time_done_str = self.roundDateTime(time_done).strftime('%H:%M')
                     end_str = 'estimated end'
                 else:
-                    self.display.chargePredictionLine.set_data([[_time[0]]], [0])  # hide at beginning and end of scan or if loaded from file
+                    self.display.chargePredictionLine.set_data([[time_stamp_axis[0]]], [0])  # hide at beginning and end of scan or if loaded from file
                 if done:
-                    time_done_str = self.roundDateTime(datetime.fromtimestamp(float(_timeInt[-1]))).strftime('%H:%M')
-            if len(_time) > 0:  # predict scan based on last 10 data points
-                self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(_time[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
-                                        + f"{charge[-1] - charge[0]:2.1f} pAh deposited")
+                    time_done_str = self.roundDateTime(datetime.fromtimestamp(float(time_axis[-1]))).strftime('%H:%M')
+            if len(time_stamp_axis) > 0:  # predict scan based on last 10 data points
+                self.display.progressAnnotation.set_text(f"start: {self.roundDateTime(time_stamp_axis[0]).strftime('%H:%M')}, {end_str}: {time_done_str}\n"
+                                        f"{charge[-1] - charge[0]:2.1f} pAh deposited")
         else:  # no data
             self.removeAnnotations(self.display.axes[1])
             self.display.currentLine.set_data([], [])
@@ -316,8 +325,8 @@ class Depo(Scan):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self) -> None:
-        return """# add your custom plot code here
+    def pythonPlotCode(self) -> str:
+        return f"""# add your custom plot code here
 
 from datetime import datetime
 import matplotlib.dates as mdates
@@ -339,7 +348,7 @@ def tilt_xlabels(ax, rotation=30):
 def getExtraUnits():
     return list(set([channel.unit for channel in outputs if channel.unit not in ['pA', 'pAh']]))
 
-fig = plt.figure(constrained_layout=True)
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 fig.set_constrained_layout_pads(h_pad=-4.0)  # reduce space between axes
 rows = len(getExtraUnits()) + 2
 axes = []
@@ -352,19 +361,19 @@ for i, unit in enumerate(getExtraUnits()):
     axes.append(fig.add_subplot(rows, 1, 3+i, sharex = axes[0]))
     axes[2+i].set_ylabel(unit)
 
-_timeInt = inputs[0].recordingData
-_time = [datetime.fromtimestamp(float(_time)) for _time in _timeInt]  # convert timestamp to datetime
-axes[0].plot(_time, outputs[output_index].recordingData, color=MYBLUE)[0]
-axes[1].plot(_time, outputs[output_index+1].recordingData, color=MYBLUE)[0]
+time_axis = inputs[0].recordingData
+time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime
+axes[0].plot(time_stamp_axis, outputs[output_index].recordingData, color=MYBLUE)[0]
+axes[1].plot(time_stamp_axis, outputs[output_index+1].recordingData, color=MYBLUE)[0]
 
 for output in outputs:
     if output.unit not in ['pA', 'pAh'] and output.unit in getExtraUnits():
-        axes[2+getExtraUnits().index(output.unit)].plot(_time, output.recordingData, label=output.name)[0]
+        axes[2+getExtraUnits().index(output.unit)].plot(time_stamp_axis, output.recordingData, label=output.name)[0]
         if output.logY:
             axes[2+getExtraUnits().index(output.unit)].set_yscale('log')
 
 for i, unit in enumerate(getExtraUnits()):
-    legend = axes[2+i].legend(loc='best', prop={'size': 6}, frameon=False)
+    legend = axes[2+i].legend(loc='best', prop={{'size': 6}}, frameon=False)
     legend.set_in_layout(False)
 
 for i in range(len(axes)-1):
@@ -379,7 +388,7 @@ fig.show()
 
         """
 
-    def roundDateTime(self, interval):
+    def roundDateTime(self, interval) -> datetime:
         """Round to nearest minute.
 
         :param interval: The original time interval.
@@ -405,11 +414,11 @@ fig.show()
                 else:
                     output.recordingData.add(np.mean(output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.warn and winsound is not None:  # Sound only supported for windows
-                if (np.sign(self.target) == 1 and self.getData(self.getOutputIndex() + 1, INOUT.OUT)[-1] > float(self.target) or
-                              np.sign(self.target) == -1 and self.getData(self.getOutputIndex() + 1, INOUT.OUT)[-1] < float(self.target)):
+                if ((np.sign(self.target) == 1 and self.getData(self.getOutputIndex() + 1, INOUT.OUT)[-1] > float(self.target)) or
+                              (np.sign(self.target) == -1 and self.getData(self.getOutputIndex() + 1, INOUT.OUT)[-1] < float(self.target))):
                     winsound.PlaySound(str(self.dependencyPath / 'done.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
-                elif (np.sign(self.warnLevel) == 1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] < float(self.warnLevel) or
-                              np.sign(self.warnLevel) == -1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] > float(self.warnLevel)):
+                elif ((np.sign(self.warnLevel) == 1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] < float(self.warnLevel)) or
+                              (np.sign(self.warnLevel) == -1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] > float(self.warnLevel))):
                     winsound.PlaySound(str(self.dependencyPath / 'alarm.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
             if recording():  # all but last step
                 self.signalComm.scanUpdateSignal.emit(False)  # update graph

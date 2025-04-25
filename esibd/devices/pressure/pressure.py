@@ -1,14 +1,16 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
-import time
 import re
-import serial
+import time
+
 import numpy as np
-from esibd.plugins import Device
-from esibd.core import Parameter, PluginManager, Channel, parameterDict, DeviceController, PRINT, getTestMode, TimeoutLock
+import serial
+
+from esibd.core import PRINT, Channel, DeviceController, Parameter, PluginManager, TimeoutLock, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Pressure]
 
 
@@ -20,23 +22,23 @@ class Pressure(Device):
 
     name = 'Pressure'
     version = '1.0'
-    supportedVersion = '0.7'
+    supportedVersion = '0.8'
     pluginType = PluginManager.TYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pressure_light.png'
     iconFileDark = 'pressure_dark.png'
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
-        self.controller = PressureController(_parent=self)
+        self.controller = PressureController(controllerParent=self)
         self.logY = True
 
-    def finalizeInit(self, aboutFunc=None) -> None:
-        super().finalizeInit(aboutFunc)
+    def finalizeInit(self) -> None:
+        super().finalizeInit()
         self.print('This plugin is deprecated and will be removed in the future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 500  # overwrite default value
         defaultSettings[f'{self.name}/TIC COM'] = parameterDict(value='COM1', toolTip='COM port of Edwards TIC.', items=','.join([f'COM{x}' for x in range(1, 25)]),
@@ -72,12 +74,12 @@ class PressureChannel(Channel):
 
 class PressureController(DeviceController):
 
-    def __init__(self, _parent):
-        super().__init__(_parent=_parent)
+    def __init__(self, controllerParent) -> None:
+        super().__init__(controllerParent=controllerParent)
         self.ticPort = None
-        self.ticLock = TimeoutLock(_parent=self)
+        self.ticLock = TimeoutLock(lockParent=self)
         self.tpgPort = None
-        self.tpgLock = TimeoutLock(_parent=self)
+        self.tpgLock = TimeoutLock(lockParent=self)
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.ticInitialized = False
         self.tpgInitialized = False
@@ -102,22 +104,26 @@ class PressureController(DeviceController):
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f"TIC Status: {TICStatus}")  # query status
-            if not TICStatus:
-                raise ValueError('TIC did not return status.')
-            self.ticInitialized = True
         except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+        else:
+            if not TICStatus:
+                msg = 'TIC did not return status.'
+                raise ValueError(msg)
+            self.ticInitialized = True
         try:
             self.tpgPort = serial.Serial(
                 f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
-            if not TPGStatus:
-                raise ValueError('TPG did not return status.')
-            self.tpgInitialized = True
         except Exception as e:  # pylint: disable=[broad-except]
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
+        else:
+            if not TPGStatus:
+                msg = 'TPG did not return status.'
+                raise ValueError(msg)
+            self.tpgInitialized = True
         if self.ticInitialized or self.tpgInitialized:
             self.signalComm.initCompleteSignal.emit()
         self.initializing = False
@@ -130,29 +136,29 @@ class PressureController(DeviceController):
                     self.signalComm.updateValuesSignal.emit()
             time.sleep(self.device.interval / 1000)
 
-    PRESSURE_READING_STATUS = {
+    PRESSURE_READING_STATUS = {  # noqa: RUF012
       0: 'Measurement data okay',
       1: 'Underrange',
       2: 'Overrange',
       3: 'Sensor error',
       4: 'Sensor off',
       5: 'No sensor',
-      6: 'Identification error'
+      6: 'Identification error',
     }
 
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 if channel._controller == channel.TIC and self.ticInitialized:
-                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', lock_acquired=True)
+                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
                     try:
-                        self.values[i] = float(re.split(' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
+                        self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
                     except Exception as e:
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan
                 elif channel._controller == channel.TPG and self.tpgInitialized:
-                    msg = self.TPGWriteRead(message=f'PR{channel.id}', lock_acquired=True)
+                    msg = self.TPGWriteRead(message=f'PR{channel.id}', already_acquired=True)
                     try:
                         a, pressure = msg.split(',')
                         if a == '0':
@@ -170,15 +176,15 @@ class PressureController(DeviceController):
     def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * np.random.uniform(.99, 1.01)  # allow for small fluctuation
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
     def rndPressure(self) -> float:
         """Return a random pressure."""
-        exp = np.random.randint(-11, 3)
-        significand = 0.9 * np.random.random() + 0.1
+        exp = float(self.rng.integers(-11, 3))
+        significand = 0.9 * self.rng.random() + 0.1
         return significand * 10**exp
 
-    def TICWrite(self, _id):
+    def TICWrite(self, _id) -> None:
         """TIC specific serial write.
 
         :param _id: The sensor id to be send.
@@ -186,29 +192,29 @@ class PressureController(DeviceController):
         """
         self.serialWrite(self.ticPort, f'?V{_id}\r')
 
-    def TICRead(self):
+    def TICRead(self) -> str:
         """TIC specific serial read."""
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
         return self.serialRead(self.ticPort, EOL='\r')
 
-    def TICWriteRead(self, message, lock_acquired=False):
+    def TICWriteRead(self, message, already_acquired=False) -> str:
         """TIC specific serial write and read.
 
         :param message: The serial message to be send.
         :type message: str
-        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
-        :type lock_acquired: bool, optional
+        :param already_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type already_acquired: bool, optional
         :return: The serial response received.
         :rtype: str
         """
         response = ''
-        with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
+        with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
             if lock_acquired:
                 self.TICWrite(message)
                 response = self.TICRead()  # reads return value
         return response
 
-    def TPGWrite(self, message):
+    def TPGWrite(self, message) -> None:
         """TPG specific serial write.
 
         :param message: The serial message to be send.
@@ -217,29 +223,29 @@ class PressureController(DeviceController):
         self.serialWrite(self.tpgPort, f'{message}\r', encoding='ascii')
         self.serialRead(self.tpgPort, encoding='ascii')  # read acknowledgment
 
-    def TPGRead(self):
+    def TPGRead(self) -> str:
         """TPG specific serial read.
 
         :return: The serial response received.
         :rtype: str
         """
         self.serialWrite(self.tpgPort, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
-        enq =  self.serialRead(self.tpgPort, encoding='ascii')  # response
+        enq = self.serialRead(self.tpgPort, encoding='ascii')  # response
         self.serialRead(self.tpgPort, encoding='ascii')  # followed by NAK
         return enq
 
-    def TPGWriteRead(self, message, lock_acquired=False):
+    def TPGWriteRead(self, message, already_acquired=False) -> str:
         """TPG specific serial write and read.
 
         :param message: The serial message to be send.
         :type message: str
-        :param lock_acquired: Indicates if the lock has already been acquired, defaults to False
-        :type lock_acquired: bool, optional
+        :param already_acquired: Indicates if the lock has already been acquired, defaults to False
+        :type already_acquired: bool, optional
         :return: The serial response received.
         :rtype: str
         """
         response = ''
-        with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', lock_acquired=lock_acquired) as lock_acquired:
+        with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
             if lock_acquired:
                 self.TPGWrite(message)
                 response = self.TPGRead()  # reads return value

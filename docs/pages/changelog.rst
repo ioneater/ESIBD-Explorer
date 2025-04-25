@@ -12,6 +12,7 @@ Added
 - The tree plugin can now filter content based on a search field.
 - In debugMode, items from the tree can be added to the Console.
 - Added action to liveDisplays to toggle between automatically or manually scale the x axis.
+- Integrated generating and running python plot code for tests of devices, scans, and displays.
 
 Fixed
 ~~~~~
@@ -42,12 +43,18 @@ Changed
 - Enabled context menu for LedIndicators.
 - In liveDisplays, the mouse enabled mode of subplots is now linked.
 - Added type hints and improved consistency of formatting.
+- Replaced EsibdConst and EsibdCore with esibd.const and esibd.core
+- Completed type hinting and implemented multiple improvements suggested by ruff.
+- Removed aboutFunc argument from finalizeInit.
+- Renamed _parent to more descriptive name in DeviceController, TimeoutLock, PlotItem, PlotWidget, Parameter, Setting.
+- Renamed _min, _max with minimum, maximum for Setting, Parameter, and DynamicNp.
+- Renamed _from and to in scans to start and stop. Change does not affect user interface and files.
 
 Removed
 ~~~~~~~
 - Removed option to turn of logging.
 
-Version 0.7.3 2025-03-24
+Version 0.8.0 2025-03-24
 ========================
 
 Added

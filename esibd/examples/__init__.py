@@ -1,4 +1,5 @@
-# Empty __init__.py to tell this is a module
+"""Label this directory as a Python package."""
+
 from .calculator.calculator_plugin import Calculator  # noqa: F401
-from .customDevice.customDevice import CustomDevice  # noqa: F401
-from .customPlugin.customPlugin import CustomPlugin  # noqa: F401
+from .custom_device.custom_device import CustomDevice  # noqa: F401
+from .custom_plugin.custom_plugin import CustomPlugin  # noqa: F401

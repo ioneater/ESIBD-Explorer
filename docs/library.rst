@@ -6,20 +6,19 @@ The plugin module
 
 .. automodule:: esibd.plugins
    :members: ChannelManager, Device, DeviceManager, LiveDisplay, Plugin, Scan, SettingsManager, Settings, StaticDisplay, UCM, PID
-    
 
-.. automodule:: esibd.providePlugins
+
+.. automodule:: esibd.provide_plugins
    :members: providePlugins
-    
+
 The core module
 ---------------
 
 .. automodule:: esibd.core
-   :members:    
-            
+   :members:
+
 Constants
 ---------
 
 .. automodule:: esibd.const
-   :members:    
-        
+   :members:

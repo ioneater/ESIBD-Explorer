@@ -1,15 +1,16 @@
 import itertools
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import h5py
-from scipy import interpolate
 import numpy as np
-from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, PRINT, plotting,
-    MetaChannel, colors, getDarkMode)
-from esibd.plugins import Scan
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy import interpolate
+
+from esibd.core import INOUT, PRINT, ControlCursor, MetaChannel, Parameter, colors, getDarkMode, parameterDict, plotting
+from esibd.plugins import Plugin, Scan
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Beam]
 
 
@@ -38,9 +39,9 @@ class Beam(Scan):
 
         axesAspectAction = None
 
-        def finalizeInit(self, aboutFunc=None) -> None:
+        def finalizeInit(self) -> None:
             self.mouseActive = True
-            super().finalizeInit(aboutFunc)
+            super().finalizeInit()
             self.interpolateAction = self.addStateAction(toolTipFalse='Interpolation on.', iconFalse=self.scan.makeIcon('interpolate_on.png'),
                                                          toolTipTrue='Interpolation off.', iconTrue=self.scan.makeIcon('interpolate_off.png'),
                                                          before=self.copyAction, event=lambda: self.scan.plot(update=False, done=True), attr='interpolate')
@@ -81,7 +82,7 @@ class Beam(Scan):
                 self.axesAspectAction.updateIcon(self.axesAspectAction.state)
             return super().updateTheme()
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('.S2D.dat')
@@ -118,12 +119,12 @@ class Beam(Scan):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 lr = h5file['S2DSETTINGS']['Left-Right']
-                _from, to, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
-                self.inputs.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(_from, to, int(abs(_from - to) / abs(step)) + 1),
+                start, stop, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
+                self.inputs.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                unit='V', inout=INOUT.IN))
                 ud = h5file['S2DSETTINGS']['Up-Down']
-                _from, to, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
-                self.inputs.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'], recordingData=np.linspace(_from, to, int(abs(_from - to) / abs(step)) + 1),
+                start, stop, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
+                self.inputs.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
@@ -136,12 +137,12 @@ class Beam(Scan):
         Scan.finished.fset(self, finished)
         # disable inputs while scanning
         for direction in [self.LEFTRIGHT, self.UPDOWN]:
-            for setting in [self.FROM, self.TO, self.STEP, self.CHANNEL]:
+            for setting in [self.START, self.STOP, self.STEP, self.CHANNEL]:
                 self.settingsMgr.settings[f'{direction}/{setting}'].setEnabled(finished)
 
     def estimateScanTime(self) -> None:
-        if self.LR_from != self.LR_to and self.UD_from != self.UD_to:
-            steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_to, self.LR_step), self.getSteps(self.UD_from, self.UD_to, self.UD_step)))
+        if self.LR_from != self.LR_stop and self.UD_from != self.UD_stop:
+            steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_stop, self.LR_step), self.getSteps(self.UD_from, self.UD_stop, self.UD_step)))
         else:
             self.print('Limits are equal.', PRINT.WARNING)
             return
@@ -154,22 +155,22 @@ class Beam(Scan):
                     break
             seconds += (self.waitLong if waitLong else self.wait) + self.average
         seconds = round((seconds) / 1000)
-        self.scantime = f'{seconds // 60:02d}:{seconds%60:02d}'
+        self.scantime = f'{seconds // 60:02d}:{seconds % 60:02d}'
 
     def centerLimits(self) -> None:
         """Centers scan range around current channel values."""
         channel = self.getChannelByName(self.LR_channel)
         if channel is not None:
-            delta = abs(self.LR_to - self.LR_from) / 2
+            delta = abs(self.LR_stop - self.LR_from) / 2
             self.LR_from = channel.value - delta
-            self.LR_to = channel.value + delta
+            self.LR_stop = channel.value + delta
         else:
             self.print(f'Could not find channel {self.LR_channel}')
         channel = self.getChannelByName(self.UD_channel)
         if channel is not None:
-            delta = abs(self.UD_to - self.UD_from) / 2
+            delta = abs(self.UD_stop - self.UD_from) / 2
             self.UD_from = channel.value - delta
-            self.UD_to = channel.value + delta
+            self.UD_stop = channel.value + delta
         else:
             self.print(f'Could not find channel {self.UD_channel}')
 
@@ -185,32 +186,32 @@ class Beam(Scan):
         self.estimateScanTime()
 
     def initScan(self) -> None:
-        return (self.addInputChannel(self.LR_channel, self.LR_from, self.LR_to, self.LR_step) and
-        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_to, self.UD_step) and
+        return (self.addInputChannel(self.LR_channel, self.LR_from, self.LR_stop, self.LR_step) and
+        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_stop, self.UD_step) and
          super().initScan())
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='LR_channel')
-        defaultSettings[f'{self.LEFTRIGHT}/{self.FROM}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.TO}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_to', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', _min=.1, _max=10, event=lambda: self.updateStep(self.LR_step))
+        defaultSettings[f'{self.LEFTRIGHT}/{self.START}']    = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}']      = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='LR_stop', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.LR_step))
         defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
                                                                 widgetType=Parameter.TYPE.COMBO, attr='UD_channel')
-        defaultSettings[f'{self.UPDOWN}/{self.FROM}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.TO}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_to', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', _min=.1, _max=10, event=lambda: self.updateStep(self.UD_step))
+        defaultSettings[f'{self.UPDOWN}/{self.START}']       = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.STOP}']         = parameterDict(value=5, widgetType=Parameter.TYPE.FLOAT, attr='UD_stop', event=lambda: self.estimateScanTime())
+        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, widgetType=Parameter.TYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.UD_step))
         return defaultSettings
 
     def useLimits(self) -> None:
         """Use current display limits as scan limits."""
         if self.display is not None and self.display.initializedDock:
-            self.LR_from, self.LR_to = self.display.axes[0].get_xlim()
-            self.UD_from, self.UD_to = self.display.axes[0].get_ylim()
+            self.LR_from, self.LR_stop = self.display.axes[0].get_xlim()
+            self.UD_from, self.UD_stop = self.display.axes[0].get_ylim()
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
         if self.loading or len(self.outputs) == 0:
             return
@@ -245,8 +246,8 @@ class Beam(Scan):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self) -> None:
-        return """# add your custom plot code here
+    def pythonPlotCode(self) -> str:
+        return f"""# add your custom plot code here
 
 _interpolate = False  # set to True to interpolate data
 varAxesAspect = False  # set to True to use variable axes aspect ratio
@@ -254,7 +255,7 @@ varAxesAspect = False  # set to True to use variable axes aspect ratio
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
-fig = plt.figure(constrained_layout=True)
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax = fig.add_subplot(111)
 if not varAxesAspect:
     ax.set_aspect('equal', adjustable='box')
@@ -274,8 +275,8 @@ def getMeshgrid(scaling=1):
 
 x, y = getMeshgrid()
 z = outputs[output_index].recordingData.ravel()
-ax.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
-ax.set_ylabel(f'{inputs[1].name} ({inputs[1].unit})')
+ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
 
 if _interpolate:
     rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputs[output_index].recordingData.ravel())

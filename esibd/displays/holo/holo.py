@@ -1,23 +1,26 @@
+from pathlib import Path
+
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
-from pathlib import Path
-from PyQt6.QtWidgets import QSlider, QHBoxLayout
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QHBoxLayout, QSlider
+
 from esibd.core import PluginManager
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [HOLO]
 
 
 class HOLO(Plugin):
-    """The Holo plugin was designed to display 3D NumPy arrays such as holograms from low energy electron holography (LEEH)\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`.
+    r"""The Holo plugin was designed to display 3D NumPy arrays such as holograms from low energy electron holography (LEEH)\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`.
 
     Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files.
     """
+
     documentation = """The Holo plugin was designed to display 3D NumPy arrays such as
     holograms from low energy electron holography (LEEH).
     Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files."""
@@ -25,8 +28,11 @@ class HOLO(Plugin):
     name = 'Holo'
     version = '1.0'
     pluginType = PluginManager.TYPE.DISPLAY
-    previewFileTypes = ['.npy']
     iconFile = 'holo.png'
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.previewFileTypes = ['.npy']
 
     def initGUI(self) -> None:
         """Initialize GUI to display Holograms."""
@@ -60,10 +66,10 @@ class HOLO(Plugin):
     def supportsFile(self, file: Path) -> None:
         if super().supportsFile(file):
             data = np.load(file, mmap_mode='r')  # only load header with shape and datatype
-            return len(data.shape) == 3 and data.dtype == np.complex128  # only support complex 3D arrays
+            return len(data.shape) == 3 and data.dtype == np.complex128  # only support complex 3D arrays  # noqa: PLR2004
         return False
 
-    def loadData(self, file, _show=True) -> None:
+    def loadData(self, file, showPlugin=True) -> None:
         self.provideDock()
         data = np.load(file)
         self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
@@ -74,9 +80,9 @@ class HOLO(Plugin):
         self.amplitudeSlider.setValue(10)
         self.drawSurface(True)
         self.drawSurface(False)
-        self.raiseDock(_show)
+        self.raiseDock(showPlugin)
 
-    def mapSliderToData(self, slider, data):
+    def mapSliderToData(self, slider, data) -> np.ndarray:
         """Map the position of the slider in percent to the corresponding data value.
 
         :param slider: Slider providing threshold for drawing.
@@ -88,7 +94,7 @@ class HOLO(Plugin):
         """
         return data.min() + slider.value() / 100 * (data.max() - data.min())
 
-    def value_changed(self, plotAngle=True):
+    def value_changed(self, plotAngle=True) -> None:
         """Triggers delayed plot after slider value change.
 
         :param plotAngle: True for angle, False for amplitude, defaults to None
@@ -97,7 +103,7 @@ class HOLO(Plugin):
         self.plotAngle = plotAngle
         self.update_timer.start(200)
 
-    def drawSurface(self, plotAngle=None):
+    def drawSurface(self, plotAngle=None) -> None:
         """Draw an isosurface at a value defined by the sliders.
 
         :param plotAngle: True for angle, False for amplitude, defaults to None

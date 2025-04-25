@@ -1,4 +1,5 @@
-# Empty __init__.py to tell this is a module
+"""Label this directory as a Python package."""
+
 from .iseg.iseg import ISEG  # noqa: F401
 from .keithley.keithley import KEITHLEY  # noqa: F401
 from .maxigauge.maxigauge import MAXIGAUGE  # noqa: F401

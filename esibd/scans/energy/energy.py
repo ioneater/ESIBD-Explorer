@@ -1,14 +1,19 @@
-import matplotlib as mpl
+from typing import TYPE_CHECKING
+
 import h5py
-from scipy import optimize
+import matplotlib as mpl
 import numpy as np
-from esibd.core import (Parameter, INOUT, ControlCursor, parameterDict, PRINT, plotting,
-    MetaChannel, colors)
+from scipy import optimize
+
+from esibd.core import INOUT, PRINT, ControlCursor, MetaChannel, Parameter, colors, parameterDict, plotting
 from esibd.plugins import Scan
 
+if TYPE_CHECKING:
+    from esibd.plugins import Plugin
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Energy]
 
 
@@ -51,7 +56,7 @@ class Energy(Scan):
             self.seFit  = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
             self.axes[-1].cursor = None
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('.swp.dat')
@@ -61,7 +66,7 @@ class Energy(Scan):
         """Load data in internal standard format for plotting."""
         if self.file.name.endswith('.swp.dat'):  # legacy ESIBD Control file
             headers = []
-            with open(self.file, 'r', encoding=self.UTF8) as dataFile:
+            with self.file.open('r', encoding=self.UTF8) as dataFile:
                 dataFile.readline()
                 headers = dataFile.readline().split(',')[1:][::2]  # read names from second line
             try:
@@ -86,18 +91,18 @@ class Energy(Scan):
         else:
             super().loadDataInternal()
 
-    def getDefaultSettings(self) -> None:
+    def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       widgetType=Parameter.TYPE.COMBO, attr='channel')
-        defaultSettings[self.FROM]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='_from', event=lambda: self.estimateScanTime())
-        defaultSettings[self.TO]      = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='to', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', _min=.1, _max=10, event=lambda: self.estimateScanTime())
+        defaultSettings[self.START]    = parameterDict(value=-10, widgetType=Parameter.TYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STOP]     = parameterDict(value=-5, widgetType=Parameter.TYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
+        defaultSettings[self.STEP]    = parameterDict(value=.2, widgetType=Parameter.TYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
         return defaultSettings
 
     def initScan(self) -> None:
-        return (self.addInputChannel(self.channel, self._from, self.to, self.step) and super().initScan())
+        return (self.addInputChannel(self.channel, self.start, self.stop, self.step) and super().initScan())
 
     def map_percent(self, x) -> np.array:
         """Map any range on range 0 to 100.
@@ -112,10 +117,10 @@ class Energy(Scan):
         return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else [0]
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
-        if len(self.outputs) > 0:
+        if len(self.outputs) > 0:  # noqa: PLR1702
             y = np.diff(self.outputs[self.getOutputIndex()].getRecordingData()) / np.diff(self.inputs[0].getRecordingData())
             x = self.inputs[0].getRecordingData()[:y.shape[0]] + np.diff(self.inputs[0].getRecordingData())[0] / 2  # use as many data points as needed
             if update:  # only update data
@@ -138,7 +143,7 @@ class Energy(Scan):
                             if self.inputs[0].getRecordingData()[0] <= expected_value <= self.inputs[0].getRecordingData()[-1]:
                                 self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
                                 self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data', xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
-                        	        arrowprops=dict(arrowstyle="<->", color=self.MYRED), va='center')
+                                    arrowprops={'arrowstyle': "<->", 'color': self.MYRED}, va='center')
                                 self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
                             else:
@@ -160,8 +165,8 @@ class Energy(Scan):
         else:
             self.labelPlot(self.display.axes[0], self.file.name)
 
-    def pythonPlotCode(self) -> None:
-        return """# add your custom plot code here
+    def pythonPlotCode(self) -> str:
+        return f"""# add your custom plot code here
 
 MYBLUE='#1f77b4'
 MYRED='#d62728'
@@ -213,7 +218,7 @@ def gauss_fit(x, y, c):
     x_fine=np.arange(np.min(x), np.max(x), 0.05)
     return x_fine,-gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
 
-fig = plt.figure(constrained_layout=True)
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax0 = fig.add_subplot(111)
 ax1 = ax0.twinx()
 ax0.yaxis.label.set_color(MYBLUE)
@@ -226,8 +231,8 @@ y = np.diff(outputs[output_index].recordingData)/np.diff(inputs[0].recordingData
 x = inputs[0].recordingData[:y.shape[0]]+np.diff(inputs[0].recordingData)[0]/2
 
 ax0.set_xlim(inputs[0].recordingData[0], inputs[0].recordingData[-1])
-ax0.set_ylabel(f'{outputs[output_index].name} ({outputs[output_index].unit})')
-ax0.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
+ax0.set_ylabel(f'{{outputs[output_index].name}} ({{outputs[output_index].unit}})')
+ax0.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
 
 ax0.plot(inputs[0].recordingData, outputs[output_index].recordingData, marker='.', linestyle='None', color=MYBLUE, label='.')[0]
 ax1.plot(x, map_percent(-y), marker='.', linestyle='None', color=MYRED)[0]
@@ -237,13 +242,13 @@ try:
     if inputs[0].recordingData[0] <= expected_value <= inputs[0].recordingData[-1]:
         ax1.plot(x_fit, map_percent(y_fit), color=MYRED)[0]
         ax1.annotate(text='', xy=(expected_value-fwhm/2.3, 50), xycoords='data', xytext=(expected_value+fwhm/2.3, 50), textcoords='data',
-	        arrowprops=dict(arrowstyle="<->", color=MYRED), va='center')
-        ax1.annotate(text=f'center: {expected_value:2.1f} V\\nFWHM: {fwhm:2.1f} V', xy=(expected_value-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
+            arrowprops=dict(arrowstyle="<->", color=MYRED), va='center')
+        ax1.annotate(text=f'center: {{expected_value:2.1f}} V\\nFWHM: {{fwhm:2.1f}} V', xy=(expected_value-fwhm/1.6, 50), xycoords='data', fontsize=10.0,
             textcoords='data', ha='right', va='center', color=MYRED)
     else:
         print('Fitted mean outside data range. Ignore fit.')
 except RuntimeError as e:
-    print(f'Fit failed with error: {e}')
+    print(f'Fit failed with error: {{e}}')
 
 fig.show()
         """
@@ -264,7 +269,7 @@ fig.show()
         """
         return amp1 * (1 / (sigma1 * (np.sqrt(2 * np.pi)))) * (np.exp(-((x - cen1)**2) / (2 * (sigma1)**2)))
 
-    def gauss_fit(self, x, y, c):
+    def gauss_fit(self, x, y, c) -> np.array:
         """Perform simple gaussian fit.
 
         :param x: X values.

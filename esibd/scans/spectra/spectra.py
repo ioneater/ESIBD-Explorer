@@ -1,27 +1,32 @@
-import time
 import itertools
+import time
+from typing import TYPE_CHECKING
+
 import h5py
 import numpy as np
-from esibd.core import INOUT, plotting, MetaChannel, getDarkMode, MultiState
+
+from esibd.core import INOUT, MetaChannel, MultiState, getDarkMode, plotting
 from esibd.scans import Beam
 
+if TYPE_CHECKING:
+    from esibd.plugins import Plugin
 
-def providePlugins() -> None:
-    """Indicate that this module provides plugins. Returns list of provided plugins."""
+
+def providePlugins() -> list['Plugin']:
+    """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Spectra]
 
 
 class Spectra(Beam):
-    """Shares many features of the Beam scan.
+    """Extend Beam scan to plot the data in the form of multiple spectra instead of a single 2D plot.
 
-    The main difference is that it adds the option to plot the data in the form
-    of multiple spectra instead of a single 2D plot.
     The spectra can be plotted stacked (Y axis represents value of Y input channel and data of display channel is normalized.)
     or overlaid (Y axis represents data of display channel and value of Y input channels are indicated in a legend).
     In addition, the average of all spectra can be displayed.
     If you want to remeasure the same spectrum several times,
     consider defining a dummy channel that can be used as an index.
     """
+
     # * by inheriting from Beam, this creates another independent instance which allows the user to use both at the same time.
     # This allows for a more flexible use compared to adding these features as options to Beam directly.
     # It also serves as an example for how to inherit from scans that can help users to make their own versions.
@@ -35,21 +40,19 @@ class Spectra(Beam):
 
     class Display(Beam.Display):
         """Displays data for Spectra scan."""
+
         plotModeAction = None
         averageAction = None
 
-        def __init__(self, scan, **kwargs):
+        def __init__(self, scan, **kwargs) -> None:
             super(Beam.Display, self).__init__(scan, **kwargs)
             self.lines = None
 
-        def finalizeInit(self, aboutFunc=None) -> None:
+        def finalizeInit(self) -> None:
             self.mouseActive = False
-            super().finalizeInit(aboutFunc)
-            self.averageAction = self.addStateAction(toolTipFalse='Show average.',
-                                                        toolTipTrue='Hide average.',
-                                                        iconFalse=self.scan.getIcon(),  # defined in updateTheme
-                                                        before=self.copyAction,
-                                                        event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
+            super().finalizeInit()
+            self.averageAction = self.addStateAction(toolTipFalse='Show average.', toolTipTrue='Hide average.', iconFalse=self.scan.getIcon(),  # defined in updateTheme
+                                                        before=self.copyAction, event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
             self.plotModeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
                                                                MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
                                                                MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
@@ -76,7 +79,7 @@ class Spectra(Beam):
                 self.averageAction.updateIcon(self.averageAction.state)
             return super().updateTheme()
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super(Beam, self).__init__(**kwargs)
         self.useDisplayChannel = True
         self.previewFileTypes.append('beam.h5')
@@ -98,7 +101,7 @@ class Spectra(Beam):
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
         else:
-            return super(Beam, self).loadDataInternal()
+            super(Beam, self).loadDataInternal()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
@@ -115,7 +118,7 @@ class Spectra(Beam):
         if self.display.lines is None:
             self.display.axes[0].clear()
             self.display.lines = []  # dummy plots
-            for i, z in enumerate(self.outputs[self.getOutputIndex()].getRecordingData()):
+            for i in range(len(self.outputs[self.getOutputIndex()].getRecordingData())):
                 if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
                     self.display.lines.append(self.display.axes[0].plot([], [])[0])
                 else:  # self.display.plotModeAction.labels.overlay
@@ -134,9 +137,11 @@ class Spectra(Beam):
             self.display.axes[0].set_ylabel(f'{self.inputs[1].name} ({self.inputs[1].unit})')
         for i, z in enumerate(self.outputs[self.getOutputIndex()].getRecordingData()):
             if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                z_offset = None
                 if np.abs(z.max() - z.min()) != 0:
-                    z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
-                self.display.lines[i].set_data(x, z + y[i] - z[0])
+                    z_normalized = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
+                    z_offset = z_normalized + y[i] - z_normalized[0]
+                self.display.lines[i].set_data(x, z_offset if z_offset is not None else z)
             else:  # self.display.plotModeAction.labels.overlay
                 self.display.lines[i].set_data(x, z)
         if self.display.averageAction.state:
@@ -158,32 +163,31 @@ class Spectra(Beam):
 
     def run(self, recording) -> None:
         # definition of steps updated to scan along x instead of y axis.
-        steps = [tuple[::-1] for tuple in list(itertools.product(*[i.getRecordingData() for i in [self.inputs[1], self.inputs[0]]]))]
+        steps = [steps_1d[::-1] for steps_1d in list(itertools.product(*[i.getRecordingData() for i in [self.inputs[1], self.inputs[0]]]))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps):  # scan over all steps
             waitLong = False
-            for j, _input in enumerate(self.inputs):
-                if not waitLong and abs(_input.value - step[j]) > self.largestep:
+            for j, inputChannel in enumerate(self.inputs):
+                if not waitLong and abs(inputChannel.value - step[j]) > self.largestep:
                     waitLong = True
-                _input.updateValueSignal.emit(step[j])
+                inputChannel.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
-            for j, output in enumerate(self.outputs):
+            for output in self.outputs:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                output.recordingData[i // len(self.inputs[0].getRecordingData()), i%len(self.inputs[0].getRecordingData())] = np.mean(output.getValues(
+                output.recordingData[i // len(self.inputs[0].getRecordingData()), i % len(self.inputs[0].getRecordingData())] = np.mean(output.getValues(
                     subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
             if i == len(steps) - 1 or not recording():  # last step
-                for j, _input in enumerate(self.inputs):
-                    _input.updateValueSignal.emit(_input.initialValue)
+                for inputChannel in self.inputs:
+                    inputChannel.updateValueSignal.emit(inputChannel.initialValue)
                 time.sleep(.5)  # allow time to reset to initial value before saving
                 self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
                 self.signalComm.updateRecordingSignal.emit(False)
                 break  # in case this is last step
-            else:
-                self.signalComm.scanUpdateSignal.emit(False)  # update graph
+            self.signalComm.scanUpdateSignal.emit(False)  # update graph
 
-    def pythonPlotCode(self) -> None:
-        return """# add your custom plot code here
+    def pythonPlotCode(self) -> str:
+        return f"""# add your custom plot code here
 
 _interpolate = False  # set to True to interpolate data
 varAxesAspect = False  # set to True to use variable axes aspect ratio
@@ -193,7 +197,7 @@ plotMode = 'stacked'  # 'stacked', 'overlay', or 'contour'  # select the represe
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
-fig = plt.figure(constrained_layout=True)
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax = fig.add_subplot(111)
 if not varAxesAspect:
     ax.set_aspect('equal', adjustable='box')
@@ -201,8 +205,8 @@ if not varAxesAspect:
 def getMeshgrid(scaling=1):
     return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputs])
 
-ax.set_xlabel(f'{inputs[0].name} ({inputs[0].unit})')
-ax.set_ylabel(f'{inputs[1].name} ({inputs[1].unit})')
+ax.set_xlabel(f'{{inputs[0].name}} ({{inputs[0].unit}})')
+ax.set_ylabel(f'{{inputs[1].name}} ({{inputs[1].unit}})')
 
 if plotMode == 'contour':
     divider = make_axes_locatable(ax)
@@ -239,7 +243,7 @@ else:
         else:  # 'overlay'
             ax.plot(x, z, label='avg', linewidth=4)
     if plotMode == 'overlay':
-        legend = ax.legend(loc='best', prop={'size': 10}, frameon=False)
+        legend = ax.legend(loc='best', prop={{'size': 10}}, frameon=False)
         legend.set_in_layout(False)
 fig.show()
         """

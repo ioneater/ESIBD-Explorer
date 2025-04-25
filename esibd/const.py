@@ -1,18 +1,26 @@
 """Defines constants used throughout the package."""
 
-import sys
-import subprocess
 import importlib
-import numpy as np
+import subprocess
+import sys
 import traceback
-from types import ModuleType
-from enum import Enum
 from datetime import datetime
-from scipy import signal
+from enum import Enum
 from functools import wraps
-from PyQt6.QtGui import QColor
+from types import ModuleType
+from typing import TYPE_CHECKING, NewType, Union
+
+import numpy as np
 from PyQt6.QtCore import QSettings
+from PyQt6.QtGui import QColor
+from scipy import signal
+
 from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
+
+if TYPE_CHECKING:
+    from esibd.plugins import SettingsManager
+
+ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007
 
 PROGRAM         = 'Program'
 VERSION         = 'Version'
@@ -57,7 +65,7 @@ UTF8    = 'utf-8'
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
 
-class Colors():
+class Colors:
     """Provides dark mode dependent default colors."""
 
     fg_dark = '#e4e7eb'
@@ -103,7 +111,7 @@ def rgb_to_hex(rgba: tuple) -> str:
     :return: Hex color string.
     :rtype: str
     """
-    return "#{:02x}{:02x}{:02x}".format(int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255))
+    return f'#{int(rgba[0] * 255):02x}{int(rgba[1] * 255):02x}{int(rgba[2] * 255):02x}'
 
 
 class INOUT(Enum):
@@ -123,6 +131,7 @@ class INOUT(Enum):
 
 class PRINT(Enum):
     """Used to specify if a function affects only input, only output, or all Channels."""
+
     MESSAGE = 0
     """A standard message."""
     WARNING = 1
@@ -146,7 +155,7 @@ def pluginSupported(pluginVersion: str) -> bool:
     return version.parse(pluginVersion).major == PROGRAM_VERSION.major and version.parse(pluginVersion).minor == PROGRAM_VERSION.minor
 
 
-def makeSettingWrapper(name: str, settingsMgr, docstring: str = None) -> property:
+def makeSettingWrapper(name: str, settingsMgr: 'SettingsManager', docstring: str = '') -> property:
     """Neutral Setting wrapper for convenient access to the value of a Setting.
 
     If you need to handle events on value change, link these directly to the events of the corresponding control.
@@ -158,14 +167,15 @@ def makeSettingWrapper(name: str, settingsMgr, docstring: str = None) -> propert
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
     """
-    def getter(self):  # pylint: disable=[unused-argument]  # self will be passed on when used in class
+    def getter(self) -> ParameterType:  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ANN001, ARG001
         return settingsMgr.settings[name].value
-    def setter(self, value: any):  # pylint: disable=[unused-argument]  # self will be passed on when used in class
+
+    def setter(self, value: ParameterType) -> None:  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ANN001, ARG001
         settingsMgr.settings[name].value = value
     return property(getter, setter, doc=docstring)
 
 
-def makeWrapper(name: str, docstring: str = None) -> property:
+def makeWrapper(name: str, docstring: str = '') -> property:
     """Neutral property wrapper for convenient access to the value of a Parameter inside a Channel.
 
     If you need to handle events on value change, link these directly to the events of the corresponding control in the finalizeInit method.
@@ -175,29 +185,15 @@ def makeWrapper(name: str, docstring: str = None) -> property:
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
     """
-    def getter(self):
+    def getter(self) -> ParameterType:  # noqa: ANN001
         return self.getParameterByName(name).value
-    def setter(self, value: any):
+
+    def setter(self, value: ParameterType) -> None:  # noqa: ANN001
         self.getParameterByName(name).value = value
     return property(getter, setter, doc=docstring)
 
 
-def makeStateWrapper(stateAction, docstring: str = None) -> property:
-    """State wrapper for convenient access to the value of a StateAction.
-
-    :param stateAction: The StateAction.
-    :type stateAction: esibd.core.StateAction
-    :param docstring: The docstring assigned to the attribute, defaults to None
-    :type docstring: str, optional
-    """
-    def getter(self):  # pylint: disable = unused-argument
-        return stateAction.state
-    def setter(self, state: bool):  # pylint: disable = unused-argument
-        stateAction.state = state
-    return property(getter, setter, doc=docstring)
-
-
-def dynamicImport(module, path: Path) -> ModuleType:
+def dynamicImport(module: str, path: Path) -> ModuleType:
     """Import a module from the given path at runtime.
 
     :param module: module name
@@ -304,9 +300,9 @@ def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
     if not path.exists():
         default = Path(default)
         if path == default:
-            print(f'Creating {default.as_posix()}.')
+            print(f'Creating {default.as_posix()}.')  # noqa: T201
         else:
-            print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')
+            print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')  # noqa: T201
         default.mkdir(parents=True, exist_ok=True)
         return default, True
     return path, False
@@ -360,13 +356,12 @@ def synchronized(timeout: int = 5) -> callable:
     :rtype: decorator
     """
     # avoid calling QApplication.processEvents() inside func as it may cause deadlocks
-    def decorator(func: callable):
+    def decorator(func: callable) -> callable:
         @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:  #
+        def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
+            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
                 if lock_acquired:
-                    result = func(self, *args, **kwargs)
-                    return result
+                    return func(self, *args, **kwargs)
                 return None
         return wrapper
     return decorator
@@ -384,12 +379,12 @@ def plotting(func: callable) -> callable:
     :rtype: callable
     """
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
         if self.plotting:
-            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
+            # self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG)
             if hasattr(self, 'measureInterval'):
                 self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
-            return
+            return None
         self.plotting = True
         try:
             return func(self, *args, **kwargs)
@@ -398,7 +393,7 @@ def plotting(func: callable) -> callable:
     return wrapper
 
 
-def openInDefaultApplication(file) -> None:
+def openInDefaultApplication(file: str | Path) -> None:
     """Open file in system default application for file type.
 
     :param file: Path to the file to open.
