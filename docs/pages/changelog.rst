@@ -54,6 +54,7 @@ Changed
 - Renamed PluginManager.TYPE to PLUGINTYPE.
 - Renamed Parameter.TYPE to PARAMETERTYPE and widgetType to parameterType.
 - Renamed outputs to outputChannels and inputs to inputChannels for scans and staticDisplays.
+- Data files are now only saved while closing if new data has been recorded since starting the program.
 
 Removed
 ~~~~~~~
