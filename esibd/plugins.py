@@ -1409,6 +1409,9 @@ class LiveDisplay(Plugin):
 
     def displayTimeChanged(self) -> None:
         """Adjust displayed section to display time and activates autorange."""
+        if len(self.livePlotWidgets) > 0:
+            for livePlotWidget in self.livePlotWidgets:
+                livePlotWidget.enableAutoRange(x=False, y=True)
         self.autoScaleAction.state = False
         self.updateMouseEnabled(x=False, y=True)
         self.plot(apply=True)
@@ -1584,6 +1587,7 @@ class LiveDisplay(Plugin):
         """
         if self.autoScaleAction.state != x:
             self.autoScaleAction.state = x
+            autoscale
         if len(self.livePlotWidgets) > 0:
             for livePlotWidget in self.livePlotWidgets:
                 if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0] is not x:
@@ -3976,7 +3980,10 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
             notesFile = self.pluginManager.Settings.getFullSessionPath() / 'notes.txt'
             if notesFile.exists():
                 with notesFile.open('r', encoding=UTF8) as file:
-                    self.notes = f'{self.notes}\n{file.read()}'  # append notes from file # has to run in main thread
+                    if self.notes:
+                        self.notes = f'{self.notes}\n{file.read()}'  # append notes from file # has to run in main thread
+                    else:
+                        self.notes = file.read()  # append notes from file # has to run in main thread
             self.saveThread = Thread(target=self.saveScanParallel, args=(self.file,), name=f'{self.name} saveThread')
             self.saveThread.daemon = True  # Terminate with main app independent of stop condition
             self.saveThread.start()
