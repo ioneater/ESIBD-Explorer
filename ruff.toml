@@ -56,6 +56,9 @@ ignore = [
 "CPY001", # do not use copy right notice in all files
 "D100",  # usually modules will have a single class, making a module docstring redundant
 "DOC201", "DOC402",  # only considers google doc strings but I use sphinx
+"DTZ005", "DTZ006", # It is very unlikely that experiments will span timezones.
+                    # The time in the log is usually not mission critical but the relative time in the scans which is independent of the time zone.
+                    # Considering the overhead of managing both local and utc timestamps I will stick to local only until there is a use case.
 "F405",  # ignoring star import warning
 "FBT001", "FBT002",  # in general, avoiding booleans as positional arguments is not possible. keeping "FBT003" to make sure they are called with keywords and not positional
 "N802", "N803", "N806", "N815", "N816",  # using camel case required due to PyQt

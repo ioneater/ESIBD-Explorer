@@ -518,8 +518,8 @@ class PluginManager:  # noqa: PLR0904
                 break
             self.DeviceManager.bufferLagging()
         self.DeviceManager.testControl(self.DeviceManager.videoRecorderAction, value=False)
+        QTimer.singleShot(0, self.logger.closeTestLogFile)
         self.testing = False
-        self.logger.closeTestLogFile()
 
     def showThreads(self) -> None:
         """Show all currently running threads in the Text plugin."""
@@ -908,8 +908,13 @@ class Logger(QObject):
         self.testLogFileActive = True
 
     def closeTestLogFile(self) -> None:
-        """Add header and close test log file."""
+        """Add header and close test log file.
+
+        This runs in the main thread!
+        """
         self.print(f'Finalizing and opening test log: {self.testLogFilePath.name}')
+        self.pluginManager.Explorer.goToCurrentSession()
+        self.pluginManager.Explorer.raiseDock(showPlugin=True)
         self.testLogFileActive = False
         self.testLogFile.close()
         seconds = int((datetime.now() - self.testStartTime).total_seconds())
@@ -918,7 +923,7 @@ class Logger(QObject):
             original.seek(0)
             content = original.read()
             with self.testLogFilePath.open('w', encoding='utf-8-sig') as header:
-                header.write(f'{PROGRAM_NAME} {PROGRAM_VERSION!s}\n')
+                header.write(f'{PROGRAM_NAME} {PROGRAM_VERSION!s} Test Report\n')
                 if self.tester:
                     header.write(f'Testing Plugin: {self.tester}\n')
                 header.write(f"""Test Mode: {getTestMode()}
@@ -926,15 +931,17 @@ Debug Mode: {getDebugMode()}
 Log Level: {getLogLevel(asString=True)}
 Begin: {self.testStartTime.strftime('%Y-%m-%d %H:%M:%S')}
 End: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Time: {seconds // 60:02d}:{seconds % 60:02d}
-Total Log: {len(lines)} lines
+Total Time: {seconds // 60:02d}:{seconds % 60:02d}
+Total Lines: {len(lines)} lines
 Messages: {content.count('ℹ️')} ℹ️
 Warnings: {content.count('⚠️')} ⚠️
 Errors: {content.count('❌')} ❌
-Debug Messages: {content.count('🪲')} 🪲\n\n""")  # noqa: RUF001
+Debug Messages: {content.count('🪲')} 🪲
+Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
+\n\n""")  # noqa: RUF001
                 header.write(content)
-        openInDefaultApplication(self.testLogFilePath)
-        QTimer.singleShot(0, self.pluginManager.Explorer.populateTree)
+        self.pluginManager.Explorer.activeFileFullPath = self.testLogFilePath
+        self.pluginManager.Explorer.displayContent()
 
     def write(self, message: str) -> None:
         """Direct messages to terminal, log file, and :ref:`sec:console`.
@@ -4459,7 +4466,7 @@ class PlotWidget(pg.PlotWidget):
         super().__init__(**kwargs, plotItem=PlotItem(parentPlugin=parentPlugin, **kwargs), viewBox=ViewBox())
         self.init = self.getPlotItem().init
         self.finalizeInit = self.getPlotItem().finalizeInit
-        self.setMinimumHeight(30)  # can fit more plots on top of each other
+        self.setMinimumHeight(15)  # can fit more plots on top of each other
         self.setBackground(colors.bg)
 
     @property

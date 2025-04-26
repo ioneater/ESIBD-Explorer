@@ -233,6 +233,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
         self.raiseDock(showPlugin=True)
         self.testing = True
+        self.pluginManager.Settings.updateSessionPath()  # avoid interference with undefined files from previous test run
         self.mainTester = True
         self.pluginManager.logger.openTestLogFile(tester=self.name)
         self.print(f'Starting testing for {self.name} {self.version}.')
@@ -927,7 +928,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                 self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI(), facecolor='w')  # safeFig in default context
         else:
             self.fig.savefig(buffer, format='png', bbox_inches='tight', dpi=getDPI())
-        QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
+        self.imageToClipboard(QImage.fromData(buffer.getvalue()))
         buffer.close()
         if getDarkMode() and not getClipboardTheme():
             # restore dark theme for use inside app
@@ -937,6 +938,23 @@ class Plugin(QWidget):  # noqa: PLR0904
                 ax.set_xlim(limits[i][0])
                 ax.set_ylim(limits[i][1])
             self.canvas.draw_idle()
+
+    def imageToClipboard(self, image: QPixmap | QImage) -> None:
+        """Set an image to the clipboard.
+
+        While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
+
+        :param image: The image to be set to the clipboard.
+        :type image: QPixmap | QImage
+        """
+        if self.testing_state:
+            if isinstance(image, QImage):
+                image = QPixmap.fromImage(image)
+            image.save(self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.replace(" ", "_")}_clipboard.png').as_posix())
+        elif isinstance(image, QImage):
+            QApplication.clipboard().setImage(image)
+        else:
+            QApplication.clipboard().setPixmap(image)
 
     @synchronized()
     def copyLineDataClipboard(self, line: mpl.lines.Line2D) -> None:
@@ -1120,7 +1138,7 @@ class StaticDisplay(Plugin):
                 self.updateTheme()  # use default light theme for clipboard
                 self.staticPlotWidget.setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
                 self.processEvents()  # update GUI before grabbing
-                QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
+                self.imageToClipboard(self.staticPlotWidget.grab())
             except Exception as e:  # noqa: BLE001
                 self.print(f'Error while plotting in light theme: {e}')
             finally:  # make sure darkmode is restored even after errors
@@ -1128,7 +1146,7 @@ class StaticDisplay(Plugin):
                 self.updateTheme()  # restore dark theme
                 self.staticPlotWidget.setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
         else:
-            QApplication.clipboard().setPixmap(self.staticPlotWidget.grab())
+            self.imageToClipboard(self.staticPlotWidget.grab())
 
     def provideDock(self) -> None:  # noqa: D102
         if super().provideDock():
@@ -1658,7 +1676,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
                 self.plot()
                 self.processEvents()  # update GUI before grabbing
-                QApplication.clipboard().setPixmap(self.plotSplitter.grab())
+                self.imageToClipboard(self.plotSplitter.grab())
             except Exception as e:  # noqa: BLE001
                 self.print(f'Error while plotting in light theme: {e}')
             finally:  # make sure darkmode is restored even after errors
@@ -1672,7 +1690,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                     self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
                 self.plot()
         else:
-            QApplication.clipboard().setPixmap(self.plotSplitter.grab())
+            self.imageToClipboard(self.plotSplitter.grab())
 
     def provideDock(self) -> None:  # noqa: D102
         if super().provideDock():
@@ -2030,7 +2048,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         super().runTestParallel()
 
     def copyClipboard(self) -> None:  # noqa: D102
-        QApplication.clipboard().setPixmap(self.tree.grabItems())
+        self.imageToClipboard(self.tree.grabItems())
 
     INTERVAL = 'Interval'
 
@@ -4371,6 +4389,7 @@ class Text(Plugin):
         super().__init__(**kwargs)
         self.previewFileTypes = ['.txt', '.dat', '.ter', '.cur', '.tt', '.log', '.py', '.star', '.pdb1', '.css', '.js', '.html', '.tex', '.ini', '.bat']
         self.signalComm.setTextSignal.connect(self.setText)
+        self.lineLimit = 10000
 
     def initGUI(self) -> None:  # noqa: D102
         super().initGUI()
@@ -4390,7 +4409,7 @@ class Text(Plugin):
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
         self.addAction(self.saveFile, 'Save', icon=self.makeCoreIcon('disk-black.png'), before=self.aboutAction)
-        self.wordWrapAction = self.addStateAction(event=lambda: self.toggleWordWrap, toolTipFalse='Word wrap on.', iconFalse=self.makeCoreIcon('ui-scroll-pane-text.png'),
+        self.wordWrapAction = self.addStateAction(event=self.toggleWordWrap, toolTipFalse='Word wrap on.', iconFalse=self.makeCoreIcon('ui-scroll-pane-text.png'),
                                                   toolTipTrue='Word wrap off.', before=self.aboutAction, attr='wordWrap')
         self.textClipboardAction = self.addAction(self.copyTextClipboard,
                        'Copy text to clipboard.', icon=self.makeCoreIcon('clipboard-paste-document-text.png'), before=self.aboutAction)
@@ -4425,8 +4444,10 @@ class Text(Plugin):
         if any(file.name.endswith(fileType) for fileType in self.previewFileTypes):
             try:
                 with file.open(encoding=self.UTF8) as dataFile:
-                    for line in islice(dataFile, 1000):  # dont use f.read() as files could potentially be very large
+                    for i, line in enumerate(islice(dataFile, self.lineLimit)):  # dont use f.read() as files could potentially be very large
                         self.editor.insertPlainText(line)  # always populate text box but only change to tab if no other display method is available
+                        if i == self.lineLimit - 1:
+                            self.print(f'Limited display to {self.lineLimit} lines.', flag=PRINT.WARNING)
             except UnicodeDecodeError as e:
                 self.print(f'Cant read file: {e}')
         self.editor.verticalScrollBar().triggerAction(QScrollBar.SliderAction.SliderToMinimum)   # scroll to top

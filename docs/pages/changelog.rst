@@ -96,6 +96,8 @@ Changed
 - Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
 - Channel backgrounds are only displayed and used for channels that are enabled, active, and real.
 - Scans will warn and not start if scan limits exceed limits of scan channels.
+- While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
+
 
 Version 0.7.2 2025-03-02
 ========================
