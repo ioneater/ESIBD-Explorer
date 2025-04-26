@@ -60,7 +60,8 @@ class Depo(Scan):
                     elif self.sourceChannel.useMonitors:
                         self.value = self.sourceChannel.monitor
                     else:
-                        self.value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
+                        self.value = (self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else
+                                       self.sourceChannel.value)
                 except RuntimeError:
                     self.removeEvents()
 
@@ -101,9 +102,9 @@ class Depo(Scan):
                 """Override the default format behavior to suppress scaling."""
                 self._useMathText = True
                 if self.log:
-                    self.format = "%.1e"  # Format ticks in scientific notation (e.g., 1.0e-10)
+                    self.format = '%.1e'  # Format ticks in scientific notation (e.g., 1.0e-10)
                 else:
-                    self.format = "%.1f"  # Format ticks in normal notation
+                    self.format = '%.1f'  # Format ticks in normal notation
 
         def initFig(self) -> None:
             super().initFig()
@@ -124,12 +125,12 @@ class Depo(Scan):
                 legend = self.axes[2 + i].legend(loc='best', prop={'size': 6}, frameon=False)
                 legend.set_in_layout(False)
 
-            self.currentWarnLine    = self.axes[0].axhline(y=float(self.scan.warnLevel), color=self.scan.MYRED)
-            self.depoChargeTarget   = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
+            self.currentWarnLine = self.axes[0].axhline(y=float(self.scan.warnLevel), color=self.scan.MYRED)
+            self.depoChargeTarget = self.axes[1].axhline(y=float(self.scan.target), color=self.scan.MYGREEN)
             if len(self.scan.outputChannels) > 0:
                 selected_output = self.scan.outputChannels[self.scan.getOutputIndex()]
-                self.currentLine        = self.axes[0].plot([[datetime.now()]], [0], color=selected_output.color)[0]  # need to be initialized with datetime on x axis
-                self.chargeLine         = self.axes[1].plot([[datetime.now()]], [0], color=selected_output.color)[0]
+                self.currentLine = self.axes[0].plot([[datetime.now()]], [0], color=selected_output.color)[0]  # need to be initialized with datetime on x axis
+                self.chargeLine = self.axes[1].plot([[datetime.now()]], [0], color=selected_output.color)[0]
                 self.chargePredictionLine = self.axes[1].plot([[datetime.now()]], [0], '--', color=selected_output.color)[0]
             for i in range(len(self.axes) - 1):
                 self.axes[i].tick_params(axis='x', which='both', bottom=False, labelbottom=False)
@@ -155,9 +156,9 @@ class Depo(Scan):
                     self.axes[0].set_ylim(1, 0)
                     self.axes[1].set_ylim(1, 0)
                 self.axes[0].autoscale(self.scan.autoscale, axis='y')
-                self.axes[0].autoscale(True, axis='x')
+                self.axes[0].autoscale(enable=True, axis='x')
                 self.axes[0].relim()
-                self.axes[1].autoscale(True)
+                self.axes[1].autoscale(enable=True)
                 self.axes[1].relim()
                 self.canvas.draw_idle()
 
@@ -171,9 +172,11 @@ class Depo(Scan):
         self.depoCheckList = QTextEdit()
         self.depoCheckList.setReadOnly(True)
         self.depoCheckList.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n'
+        self.depoCheckList.setText('Deposition checklist:\n- New session created?\n- Plasma cleaned?\n- Grid in place?\n'
+                                   '- Shield closed?\n- Shuttle inserted?\n- Landing energy set?\n'
                                    '- Right polarity?\n- Temperature set?\n- Mass selection on?\n- LN2 ready for transfer?')
-        self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') + self.depoCheckList.verticalScrollBar().sizeHint().width() + 10)
+        self.depoCheckList.setFixedWidth(QFontMetrics(self.depoCheckList.font()).horizontalAdvance('- LN2 ready for transfer?') +
+                                          self.depoCheckList.verticalScrollBar().sizeHint().width() + 10)
         self.settingsLayout.addWidget(self.depoCheckList, alignment=Qt.AlignmentFlag.AlignTop)
 
     def getExtraUnits(self) -> list[str]:
@@ -190,17 +193,17 @@ class Depo(Scan):
         defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Any channel that should be recorded during deposition, including at least one current channel.'
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'RT_Sample-Center, RT_Sample-End, C_Shuttle'
         defaultSettings[self.AVERAGE][Parameter.VALUE] = 4000
-        defaultSettings[self.INTERVAL]   = parameterDict(value=10000, toolTip='Deposition interval.', parameterType=PARAMETERTYPE.INT,
+        defaultSettings[self.INTERVAL] = parameterDict(value=10000, toolTip='Deposition interval.', parameterType=PARAMETERTYPE.INT,
                                                                 minimum=1000, maximum=60000, attr='interval')
-        defaultSettings['Target']        = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
-                                                                parameterType=PARAMETERTYPE.INTCOMBO, attr='target', event=lambda: self.updateDepoTarget())
-        defaultSettings['Warnlevel']     = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=lambda: self.updateWarnLevel(),
+        defaultSettings['Target'] = parameterDict(value='15', toolTip='Target coverage in pAh.', items='-20,-15,-10, 10, 15, 20',
+                                                                parameterType=PARAMETERTYPE.INTCOMBO, attr='target', event=self.updateDepoTarget)
+        defaultSettings['Warnlevel'] = parameterDict(value='10', toolTip='Warning sound will be played when value drops below this level.', event=self.updateWarnLevel,
                                                             items='20, 15, 10, 0, -10, -15, -20', parameterType=PARAMETERTYPE.INTCOMBO, attr='warnLevel')
-        defaultSettings['Warn']          = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
+        defaultSettings['Warn'] = parameterDict(value=False, toolTip='Warning sound will be played when value drops below warnLevel. Disable to Mute.',
                                                             parameterType=PARAMETERTYPE.BOOL, attr='warn')
-        defaultSettings['Autoscale']     = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
+        defaultSettings['Autoscale'] = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
                                                             parameterType=PARAMETERTYPE.BOOL, attr='autoscale')
-        defaultSettings['Dialog']     = parameterDict(value=True, toolTip='Show check list dialog on start.', parameterType=PARAMETERTYPE.BOOL, attr='dialog')
+        defaultSettings['Dialog'] = parameterDict(value=True, toolTip='Show check list dialog on start.', parameterType=PARAMETERTYPE.BOOL, attr='dialog')
         return defaultSettings
 
     def updateDepoTarget(self) -> None:
@@ -230,15 +233,14 @@ class Depo(Scan):
         if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
             self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
             self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
-            self.toggleDisplay(True)
+            self.toggleDisplay(visible=True)
             self.display.progressAnnotation.set_text('')
             self.updateFile()
             self.populateDisplayChannel()
             self.display.updateDepoTarget()  # flip axes if needed
             return True
-        else:
-            self.print('No initialized current output channel found.', PRINT.WARNING)
-            return False
+        self.print('No initialized current output channel found.', PRINT.WARNING)
+        return False
 
     def addOutputChannels(self) -> None:
         for name in self.settingsMgr.settings[self.DISPLAY].items:
@@ -248,7 +250,7 @@ class Depo(Scan):
                 self.addOutputChannel(name=f'{name}_{self.CHARGE}', unit='pAh', recordingData=DynamicNp())
         self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
-        self.toggleAdvanced(False)
+        self.toggleAdvanced(advanced=False)
 
     def populateDisplayChannel(self) -> None:
         # overwrite parent to hide charge channels
@@ -273,7 +275,7 @@ class Depo(Scan):
     MIN_FIT_DATA_POINTS = 10
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, C901, PLR0912
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
         if self.loading:
             return
@@ -295,8 +297,10 @@ class Depo(Scan):
             time_done_str = 'unknown'
             end_str = 'end'
             if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS or done:  # predict scan based on last 10 data points
-                if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS and update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]):  # only predict if below target and charge is increasing
-                    time_done = datetime.fromtimestamp(float(time_axis[-1] + (time_axis[-1] - time_axis[-10]) / (charge[-1] - charge[-10]) * (float(self.target) - charge[-1])))  # t_t=t_i + dt/dQ * Q_missing
+                if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS and update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]):
+                    # only predict if below target and charge is increasing
+                    # Pseudo code: t_t=t_i + dt/dQ * Q_remaining
+                    time_done = datetime.fromtimestamp(float(time_axis[-1] + (time_axis[-1] - time_axis[-10]) / (charge[-1] - charge[-10]) * (float(self.target) - charge[-1])))
                     self.display.chargePredictionLine.set_data([time_stamp_axis[-1], time_done], [charge[-1], self.target])
                     time_done_str = self.roundDateTime(time_done).strftime('%H:%M')
                     end_str = 'estimated end'
@@ -311,11 +315,11 @@ class Depo(Scan):
             self.removeAnnotations(self.display.axes[1])
             self.display.currentLine.set_data([], [])
             self.display.chargeLine .set_data([], [])
-        self.display.axes[0].autoscale(True, axis='x')
+        self.display.axes[0].autoscale(enable=True, axis='x')
         self.display.axes[0].relim()
         for i in range(len(self.display.axes)):
             if i > 0:
-                self.display.axes[i].autoscale(True)
+                self.display.axes[i].autoscale(enable=True)
                 self.display.axes[i].relim()
         if self.autoscale:
             self.setLabelMargin(self.display.axes[0], 0.3)
@@ -421,5 +425,5 @@ fig.show()
                               (np.sign(self.warnLevel) == -1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] > float(self.warnLevel))):
                     winsound.PlaySound(str(self.dependencyPath / 'alarm.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
             if recording():  # all but last step
-                self.signalComm.scanUpdateSignal.emit(False)  # update graph
-        self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # placed after while loop to ensure it will be executed
+                self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
+        self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # placed after while loop to ensure it will be executed  # noqa: FBT003

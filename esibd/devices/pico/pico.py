@@ -33,7 +33,7 @@ class PICO(Device):
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
+        self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
     def runTestParallel(self) -> None:
@@ -121,7 +121,7 @@ class TemperatureController(DeviceController):
                 self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],
                                                         self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False

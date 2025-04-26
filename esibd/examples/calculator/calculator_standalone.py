@@ -13,7 +13,7 @@ class Calculator(QWidget):
     def __init__(self) -> None:
         super().__init__()
 
-        self.setWindowTitle("PyQt6 Calculator")
+        self.setWindowTitle('PyQt6 Calculator')
         self.setGeometry(100, 100, 200, 100)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
@@ -23,7 +23,7 @@ class Calculator(QWidget):
         # Display for input/output
         self.display = QLineEdit()
         self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.display.setStyleSheet("font-size: 24px")
+        self.display.setStyleSheet('font-size: 24px')
         self.display.returnPressed.connect(self.evaluate)
         layout.addWidget(self.display)
 
@@ -41,7 +41,7 @@ class Calculator(QWidget):
                 button = QPushButton(label)
                 button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
                 button.setMinimumSize(20, 20)
-                button.setStyleSheet("font-size: 18px")
+                button.setStyleSheet('font-size: 18px')
                 button.clicked.connect(lambda checked, text=label: self.onButtonClick(text))  # noqa: ARG005
                 grid.addWidget(button, row_idx, col_idx)
 
@@ -54,9 +54,9 @@ class Calculator(QWidget):
         :param label: Label representing function of the button.
         :type label: str
         """
-        if label == "=":
+        if label == '=':
             self.evaluate()
-        elif label == "C":
+        elif label == 'C':
             self.display.clear()
         else:
             self.display.setText(self.display.text() + label)
@@ -66,11 +66,11 @@ class Calculator(QWidget):
         try:
             result = aeval(self.display.text())
             self.display.setText(str(result))
-        except Exception:
-            self.display.setText("Error")
+        except Exception:  # noqa: BLE001
+            self.display.setText('Error')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = Calculator()
     window.show()

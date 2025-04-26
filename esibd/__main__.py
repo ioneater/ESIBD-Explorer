@@ -13,27 +13,27 @@ from PyQt6.QtWidgets import QApplication
 from esibd.core import PROGRAM_NAME, EsibdExplorer, MouseInterceptor, colors
 
 mpl.use('Qt5Agg')
-mpl.rcParams['savefig.format']  = 'pdf'  # make pdf default export format
-mpl.rcParams['savefig.bbox']  = 'tight'  # trim white space by default (also when saving from toolBar)
-mpl.rcParams['savefig.facecolor']  = colors.fg_light
-mpl.rcParams['figure.max_open_warning']  = 50  # not uncommon to exceed the default of 20 when using multiple plugins
-warnings.filterwarnings("ignore", message='constrained_layout')  # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
+mpl.rcParams['savefig.format'] = 'pdf'  # make pdf default export format
+mpl.rcParams['savefig.bbox'] = 'tight'  # trim white space by default (also when saving from toolBar)
+mpl.rcParams['savefig.facecolor'] = colors.fg_light
+mpl.rcParams['figure.max_open_warning'] = 50  # not uncommon to exceed the default of 20 when using multiple plugins
+warnings.filterwarnings('ignore', message='constrained_layout')  # suppress UserWarning: constrained_layout not applied because axes sizes collapsed to zero.
 # open bug with clearing shared log axis https://github.com/matplotlib/matplotlib/issues/9970 requires to ignore log-scaled messages
-warnings.filterwarnings("ignore", message="Attempted to set non-positive left xlim on a log-scaled axis.\nInvalid limit will be ignored.")
-warnings.filterwarnings("ignore", message="Attempt to set non-positive ylim on a log-scaled axis will be ignored.")
-warnings.filterwarnings("ignore", message="Data has no positive values, and therefore cannot be log-scaled.")
-warnings.filterwarnings("ignore", message="loadtxt: input contained no data:")
-warnings.filterwarnings("ignore", message="Covariance of the parameters could not be estimated")
-warnings.filterwarnings("ignore", message="overflow encountered in scalar subtract")
-warnings.filterwarnings("ignore", message="overflow encountered in scalar add")
-warnings.filterwarnings("ignore", message="No artists with labels found to put in legend.")
+warnings.filterwarnings('ignore', message='Attempted to set non-positive left xlim on a log-scaled axis.\nInvalid limit will be ignored.')
+warnings.filterwarnings('ignore', message='Attempt to set non-positive ylim on a log-scaled axis will be ignored.')
+warnings.filterwarnings('ignore', message='Data has no positive values, and therefore cannot be log-scaled.')
+warnings.filterwarnings('ignore', message='loadtxt: input contained no data:')
+warnings.filterwarnings('ignore', message='Covariance of the parameters could not be estimated')
+warnings.filterwarnings('ignore', message='overflow encountered in scalar subtract')
+warnings.filterwarnings('ignore', message='overflow encountered in scalar add')
+warnings.filterwarnings('ignore', message='No artists with labels found to put in legend.')
 
 
 def main() -> None:
     """Show main window after configuration and checks."""
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--enable-logging --log-level=1"
+    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1'
     appStr = f'{PROGRAM_NAME}'  # same string across versions!
     if sys.platform == 'win32':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appStr)

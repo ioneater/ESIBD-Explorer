@@ -16,7 +16,7 @@ def providePlugins() -> list['Plugin']:
 
 
 class HOLO(Plugin):
-    r"""The Holo plugin was designed to display 3D NumPy arrays such as holograms from low energy electron holography (LEEH)\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`.
+    r"""Display 3D NumPy arrays such as holograms from low energy electron holography (LEEH)\ :cite:`longchamp_imaging_2017, ochner_low-energy_2021, ochner_electrospray_2023`.
 
     Interactive 3D surface plots with density thresholds allow for efficient visualization of very large files.
     """
@@ -78,8 +78,8 @@ class HOLO(Plugin):
         self.glAmplitudeView.setCameraPosition(distance=max(self.amplitude.shape) * 2)
         self.angleSlider.setValue(10)
         self.amplitudeSlider.setValue(10)
-        self.drawSurface(True)
-        self.drawSurface(False)
+        self.drawSurface(plotAngle=True)
+        self.drawSurface(plotAngle=False)
         self.raiseDock(showPlugin)
 
     def mapSliderToData(self, slider, data) -> np.ndarray:

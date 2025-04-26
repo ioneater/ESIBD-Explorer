@@ -51,9 +51,9 @@ class Energy(Scan):
             self.axes[1].set_ylim([0, 115])  # keep top 15 % for label
             self.axes[1].yaxis.label.set_color(self.scan.MYRED)
             self.axes[1].tick_params(axis='y', colors=self.scan.MYRED)
-            self.seRaw  = self.axes[0].plot([], [], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0]  # dummy plot
+            self.seRaw = self.axes[0].plot([], [], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0]  # dummy plot
             self.seGrad = self.axes[1].plot([], [], marker='.', linestyle='None', color=self.scan.MYRED)[0]  # dummy plot
-            self.seFit  = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
+            self.seFit = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
             self.axes[-1].cursor = None
 
     def __init__(self, **kwargs) -> None:
@@ -83,7 +83,8 @@ class Energy(Scan):
         elif self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'], recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'],
+                                                       recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
                                                unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
@@ -96,9 +97,9 @@ class Energy(Scan):
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
                                                                       parameterType=PARAMETERTYPE.COMBO, attr='channel')
-        defaultSettings[self.START]    = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STOP]     = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
+        defaultSettings[self.START] = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
+        defaultSettings[self.STOP] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
+        defaultSettings[self.STEP] = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
         return defaultSettings
 
     def initScan(self) -> None:
@@ -117,7 +118,7 @@ class Energy(Scan):
         return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else [0]
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, PLR0912
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
         if len(self.outputChannels) > 0:  # noqa: PLR1702
@@ -142,15 +143,18 @@ class Energy(Scan):
                             x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x))  # use center as starting guess
                             if self.inputChannels[0].getRecordingData()[0] <= expected_value <= self.inputChannels[0].getRecordingData()[-1]:
                                 self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
-                                self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data', xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
-                                    arrowprops={'arrowstyle': "<->", 'color': self.MYRED}, va='center')
-                                self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V', xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
+                                self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data',
+                                                               xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
+                                    arrowprops={'arrowstyle': '<->', 'color': self.MYRED}, va='center')
+                                self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V',
+                                                               xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
                             else:
                                 self.print('Fitted mean outside data range. Ignore fit.', PRINT.ERROR)
                         except (RuntimeError, ValueError) as e:
                             self.print(f'Fit failed with error: {e}')
-                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False)  # has to be initialized last, otherwise axis limits may be affected
+                    # ControlCursor has to be initialized last, otherwise axis limits may be affected.
+                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False)
                 else:  # no data
                     self.display.seRaw.set_data([], [])
                     self.display.seFit.set_data([], [])

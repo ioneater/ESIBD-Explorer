@@ -69,8 +69,8 @@ class PressureController(DeviceController):
             self.port = serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                                     parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
-            self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
-        except Exception as e:  # pylint: disable=[broad-except]
+            self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:
@@ -110,7 +110,7 @@ class PressureController(DeviceController):
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', PRINT.WARNING)
                             self.values[i] = np.nan
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan

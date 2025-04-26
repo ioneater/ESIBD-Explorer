@@ -15,19 +15,19 @@ class ESIBDSettings(Settings):
 
     documentation = Settings.__doc__ + __doc__
 
-    SUBSTRATE           = 'Substrate'
-    ION                 = 'Ion'
-    SESSIONTYPE         = 'Session type'
+    SUBSTRATE = 'Substrate'
+    ION = 'Ion'
+    SESSIONTYPE = 'Session type'
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}']      = parameterDict(value='None', toolTip='Choose substrate',
+        defaultSettings[f'{self.SESSION}/{self.SUBSTRATE}'] = parameterDict(value='None', toolTip='Choose substrate',
                                                                 items='None, HOPG, aCarbon, Graphene, Silicon, Gold, Copper', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='substrate')
-        defaultSettings[f'{self.SESSION}/{self.ION}']            = parameterDict(value='GroEL', toolTip='Choose ion',
+        defaultSettings[f'{self.SESSION}/{self.ION}'] = parameterDict(value='GroEL', toolTip='Choose ion',
                                                                 items='Betagal, Ferritin, GroEL, ADH, GDH, BSA, DNA, BK', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='molion')
-        defaultSettings[f'{self.SESSION}/{self.SESSIONTYPE}']   = parameterDict(value='MS', toolTip='Choose session type',
+        defaultSettings[f'{self.SESSION}/{self.SESSIONTYPE}'] = parameterDict(value='MS', toolTip='Choose session type',
                                                                 items='MS, depoHV, depoUHV, depoCryo, opt', parameterType=PARAMETERTYPE.COMBO,
                                                                 event=self.updateSessionPath, attr='sessionType')
         return defaultSettings

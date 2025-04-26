@@ -70,7 +70,7 @@ class PressureController(DeviceController):
             self.port = serial.Serial(self.device.com, timeout=1)
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False

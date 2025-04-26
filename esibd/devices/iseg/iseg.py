@@ -40,9 +40,9 @@ class ISEG(Device):
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
-        defaultSettings[f'{self.name}/IP']       = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
+        defaultSettings[f'{self.name}/IP'] = parameterDict(value='169.254.163.182', toolTip='IP address of ECH244',
                                                                 parameterType=PARAMETERTYPE.TEXT, attr='ip')
-        defaultSettings[f'{self.name}/Port']     = parameterDict(value=10001, toolTip='SCPI port of ECH244',
+        defaultSettings[f'{self.name}/Port'] = parameterDict(value=10001, toolTip='SCPI port of ECH244',
                                                                 parameterType=PARAMETERTYPE.INT, attr='port')
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 1000  # overwrite default value
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
@@ -60,8 +60,8 @@ class ISEG(Device):
 
 class VoltageChannel(Channel):
 
-    MODULE    = 'Module'
-    ID        = 'ID'
+    MODULE = 'Module'
+    ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
@@ -93,16 +93,16 @@ class VoltageController(DeviceController):
 
     def __init__(self, controllerParent, modules) -> None:
         super().__init__(controllerParent=controllerParent)
-        self.modules    = modules or [0]
-        self.socket     = None
-        self.maxID      = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
+        self.modules = modules or [0]
+        self.socket = None
+        self.maxID = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
 
     def runInitialization(self) -> None:
         try:
             self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
             self.print(self.ISEGWriteRead(message=b'*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
+        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
             self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
@@ -166,5 +166,5 @@ class VoltageController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', already_acquired=already_acquired) as lock_acquired:
                 if lock_acquired:
                     self.socket.sendall(message)  # get channel name
-                    response = self.socket.recv(4096).decode("utf-8")
+                    response = self.socket.recv(4096).decode('utf-8')
         return response

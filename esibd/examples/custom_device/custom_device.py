@@ -67,7 +67,8 @@ class CustomDevice(Device):
         if not self.testing or self.pluginManager.closing:
             self.messageBox.setWindowTitle('Custom Dialog')
             self.messageBox.setWindowIcon(self.getIcon())
-            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}.\nThe value of your custom setting is {"on" if self.isOn() else "off"}.')
+            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}.\n'
+                                    'The value of your custom setting is {"on" if self.isOn() else "off"}.')
             self.messageBox.open()  # show non blocking
             self.messageBox.raise_()
 
@@ -166,14 +167,15 @@ class CustomController(DeviceController):
         try:
             # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
 
     def initComplete(self) -> None:
         super().initComplete()
-        # TODO (optional) any custom code here. This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
+        # TODO (optional) any custom code here.
+        # TODO This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
 
     def startAcquisition(self) -> None:
         if True:  # TODO (optional) add custom condition for acquisition

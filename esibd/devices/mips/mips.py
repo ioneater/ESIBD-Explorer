@@ -50,8 +50,8 @@ class MIPS(Device):
 
 class VoltageChannel(Channel):
 
-    COM        = 'COM'
-    ID        = 'ID'
+    COM = 'COM'
+    ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
@@ -83,9 +83,9 @@ class VoltageController(DeviceController):
 
     def __init__(self, controllerParent, COMs) -> None:
         super().__init__(controllerParent=controllerParent)
-        self.COMs   = COMs or ['COM1']
-        self.ports  = [None] * len(self.COMs)
-        self.maxID  = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
+        self.COMs = COMs or ['COM1']
+        self.ports = [None] * len(self.COMs)
+        self.maxID = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
 
     def runInitialization(self) -> None:
         try:
@@ -139,7 +139,7 @@ class VoltageController(DeviceController):
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
                 else:
-                    channel.monitor = 0             + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
+                    channel.monitor = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
 
     def runAcquisition(self, acquiring: callable) -> None:
         while acquiring():  # noqa: PLR1702

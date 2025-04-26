@@ -36,7 +36,7 @@ class Temperature(Device):
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.unitAction = self.addStateAction(event=lambda: self.changeUnit(), toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
+        self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
     def runTestParallel(self) -> None:
@@ -114,7 +114,7 @@ class TemperatureController(DeviceController):
             # self.CryoTelWriteRead('SENSOR')  # test if configured for correct temperature sensor DT-670 # noqa: ERA001
             # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable # noqa: ERA001
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
@@ -145,13 +145,16 @@ class TemperatureController(DeviceController):
         # only test once a minute as cooler takes 30 s to turn on or off
         # in case of over current error the cooler won't turn on and there is no need for additional safety check
         self.toggleCounter += 1
-        if self.device.isOn() and np.mod(self.toggleCounter, int(60000 / self.device.interval)) == 0 and self.device.getChannels()[0].monitor != 0 and not np.isnan(self.device.getChannels()[0].monitor):
+        if (self.device.isOn() and np.mod(self.toggleCounter, int(60000 / self.device.interval)) == 0 and
+            self.device.getChannels()[0].monitor != 0 and not np.isnan(self.device.getChannels()[0].monitor)):
             if self.device.getChannels()[0].monitor < self.device.getChannels()[0].value - self.device.toggleThreshold:
-                self.print(f'Toggle cooler off. {self.device.getChannels()[0].monitor} K is under lower threshold of {self.device.getChannels()[0].value - self.device.toggleThreshold} K.')
+                self.print(f'Toggle cooler off. {self.device.getChannels()[0].monitor} K is under lower threshold '
+                           f'of {self.device.getChannels()[0].value - self.device.toggleThreshold} K.')
                 self.CryoTelWriteRead(message='COOLER=OFF')
             elif self.device.getChannels()[0].monitor > self.device.getChannels()[0].value + self.device.toggleThreshold:
                 if self.CryoTelWriteRead('COOLER') != 'POWER':  # avoid sending command repeatedly
-                    self.print(f'Toggle cooler on. {self.device.getChannels()[0].monitor} K is over upper threshold of {self.device.getChannels()[0].value + self.device.toggleThreshold} K.')
+                    self.print(f'Toggle cooler on. {self.device.getChannels()[0].monitor} K is over upper threshold '
+                               f'of {self.device.getChannels()[0].value + self.device.toggleThreshold} K.')
                     self.CryoTelWriteRead(message='COOLER=POWER')
 
     def fakeNumbers(self) -> None:

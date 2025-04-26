@@ -61,7 +61,7 @@ class PressureChannel(Channel):
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, parameterType=PARAMETERTYPE.COMBO, advanced=True,
-                                        items=f'{self.TIC},{self.TPG}', attr='_controller', toolTip='Controller used for communication.')
+                                        items=f'{self.TIC},{self.TPG}', attr='pressure_controller', toolTip='Controller used for communication.')
         channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id', toolTip='ID of channel on device.')
         return channel
@@ -103,8 +103,8 @@ class PressureController(DeviceController):
                 f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
-            self.print(f"TIC Status: {TICStatus}")  # query status
-        except Exception as e:  # pylint: disable=[broad-except]
+            self.print(f'TIC Status: {TICStatus}')  # query status
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TICStatus:
@@ -116,8 +116,8 @@ class PressureController(DeviceController):
                 f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
-            self.print(f"MaxiGauge Status: {TPGStatus}")  # gauge identification
-        except Exception as e:  # pylint: disable=[broad-except]
+            self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:
@@ -149,15 +149,15 @@ class PressureController(DeviceController):
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.device.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                if channel._controller == channel.TIC and self.ticInitialized:
+                if channel.pressure_controller == channel.TIC and self.ticInitialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
                     try:
                         self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan
-                elif channel._controller == channel.TPG and self.tpgInitialized:
+                elif channel.pressure_controller == channel.TPG and self.tpgInitialized:
                     msg = self.TPGWriteRead(message=f'PR{channel.id}', already_acquired=True)
                     try:
                         a, pressure = msg.split(',')
@@ -166,7 +166,7 @@ class PressureController(DeviceController):
                         else:
                             self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
                             self.values[i] = np.nan
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan

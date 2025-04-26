@@ -40,7 +40,7 @@ class MassSpec(Scan):
         def initFig(self) -> None:
             super().initFig()
             self.axes.append(self.fig.add_subplot(111))
-            self.ms  = self.axes[0].plot([], [])[0]  # dummy plot
+            self.ms = self.axes[0].plot([], [])[0]  # dummy plot
             self.mzCalc.setAxis(self.axes[0])
             self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
@@ -56,9 +56,9 @@ class MassSpec(Scan):
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
         defaultSettings[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
                                                                       parameterType=PARAMETERTYPE.COMBO, attr='channel')
-        defaultSettings[self.START]    = parameterDict(value=50, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STOP]      = parameterDict(value=200, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=lambda: self.estimateScanTime())
-        defaultSettings[self.STEP]    = parameterDict(value=1, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=lambda: self.estimateScanTime())
+        defaultSettings[self.START] = parameterDict(value=50, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
+        defaultSettings[self.STOP] = parameterDict(value=200, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
+        defaultSettings[self.STEP] = parameterDict(value=1, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
         return defaultSettings
 
     def initScan(self) -> None:

@@ -56,7 +56,7 @@ class GA(Scan):
             super().initFig()
             self.axes.append(self.fig.add_subplot(111))
             self.bestLine = self.axes[0].plot([[datetime.now()]], [0], label='best fitness')[0]  # need to be initialized with datetime on x axis
-            self.avgLine  = self.axes[0].plot([[datetime.now()]], [0], label='avg fitness')[0]
+            self.avgLine = self.axes[0].plot([[datetime.now()]], [0], label='avg fitness')[0]
             legend = self.axes[0].legend(loc='lower right', prop={'size': 10}, frameon=False)
             legend.set_in_layout(False)
             self.axes[0].set_xlabel(self.TIME)
@@ -74,8 +74,9 @@ class GA(Scan):
     def initGUI(self) -> None:
         super().initGUI()
         self.recordingAction.setToolTip('Toggle optimization.')
-        self.initialAction = self.addStateAction(event=lambda: self.toggleInitial(), toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
-                                                 toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'), attr='applyInitialParameters', restore=False)
+        self.initialAction = self.addStateAction(event=self.toggleInitial, toolTipFalse='Switch to initial settings.', iconFalse=self.makeIcon('switch-medium_on.png'),
+                                                 toolTipTrue='Switch to optimized settings.', iconTrue=self.makeIcon('switch-medium_off.png'),
+                                                   attr='applyInitialParameters', restore=False)
 
     def runTestParallel(self) -> None:
         self.testControl(self.initialAction, self.initialAction.state)
@@ -106,18 +107,17 @@ class GA(Scan):
         self.initializing = True
         self.gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
         self.ga.init()  # don't mix up with init method from Scan
-        self.ga.maximize(True)
+        self.ga.maximize(maximize=True)
         if self.gaChannel is None:
             self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
             return False
-        elif not self.gaChannel.acquiring:
+        if not self.gaChannel.acquiring:
             self.print(f'Channel {self.gaChannel.name} not acquiring. Cannot start optimization.', PRINT.WARNING)
             return False
-        else:
-            self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
-            self.addOutputChannels()
-            self.toggleDisplay(True)
-            self.display.axes[0].set_ylabel(self.gaChannel.name)
+        self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
+        self.addOutputChannels()
+        self.toggleDisplay(visible=True)
+        self.display.axes[0].set_ylabel(self.gaChannel.name)
         self.initializing = False
         for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
             if channel.optimize:
@@ -143,7 +143,7 @@ class GA(Scan):
             self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
         self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
-        self.toggleAdvanced()
+        self.toggleAdvanced(advanced=False)
 
     @plotting
     def plot(self, update=False, **kwargs) -> None:  # pylint:disable=unused-argument, missing-param-doc  # noqa: ARG002
@@ -162,9 +162,9 @@ class GA(Scan):
         else:  # no data
             self.display.bestLine.set_data([], [])
             self.display.avgLine.set_data([], [])
-        self.display.axes[0].autoscale(True, axis='x')
+        self.display.axes[0].autoscale(enable=True, axis='x')
         self.display.axes[0].relim()
-        self.display.axes[0].autoscale_view(True, True, False)
+        self.display.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
         if len(self.getData(0, INOUT.OUT)) > 1:
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
@@ -195,7 +195,7 @@ fig.show()
         self.outputChannels[0].recordingData.add(fitnessStart)
         self.outputChannels[1].recordingData.add(fitnessStart)
         while recording():
-            self.gaSignalComm.updateValuesSignal.emit(-1, False)
+            self.gaSignalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
             time.sleep((self.wait + self.average) / 1000)
             self.ga.fitness(np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
@@ -207,10 +207,10 @@ fig.show()
                 self.inputChannels[0].recordingData.add(time.time())
                 self.outputChannels[0].recordingData.add(self.ga.best_fitness())
                 self.outputChannels[1].recordingData.add(self.ga.average_fitness())
-                self.signalComm.scanUpdateSignal.emit(False)
-        self.ga.check_restart(True)  # sort population
-        self.gaSignalComm.updateValuesSignal.emit(0, False)
-        self.signalComm.scanUpdateSignal.emit(True)
+                self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
+        self.ga.check_restart(_terminate=True)  # sort population
+        self.gaSignalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003
+        self.signalComm.scanUpdateSignal.emit(True)  # noqa: FBT003
 
     def updateValues(self, index=None, initial=False) -> None:
         """Update all optimized values or restores initial values.

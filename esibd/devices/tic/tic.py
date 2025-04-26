@@ -43,8 +43,8 @@ class TICPressureController(PressureController):
                 f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
-            self.print(f"Status: {TICStatus}")  # query status
-        except Exception as e:  # pylint: disable=[broad-except]
+            self.print(f'Status: {TICStatus}')  # query status
+        except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TICStatus:
@@ -61,7 +61,7 @@ class TICPressureController(PressureController):
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
                     try:
                         self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan

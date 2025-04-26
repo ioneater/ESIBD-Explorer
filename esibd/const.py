@@ -1,7 +1,7 @@
 """Defines constants used throughout the package."""
 
 import importlib
-import subprocess
+import subprocess  # noqa: S404
 import sys
 import traceback
 from datetime import datetime
@@ -22,46 +22,46 @@ if TYPE_CHECKING:
 
 ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007
 
-PROGRAM         = 'Program'
-VERSION         = 'Version'
-NAME            = 'Name'
-PLUGIN          = 'Plugin'
-INFO            = 'Info'
-TIMESTAMP       = 'Time'
-GENERAL         = 'General'
-DATAPATH        = 'Data path'
-CONFIGPATH      = 'Config path'
-PLUGINPATH      = 'Plugin path'
-DEBUG           = 'Debug mode'
-LOGLEVEL        = 'Log level'
-DARKMODE        = 'Dark mode'
-CLIPBOARDTHEME  = 'Clipboard theme'
-DPI             = 'DPI'
-TESTMODE        = 'Test mode'
-ICONMODE        = 'Icon mode'
-GEOMETRY        = 'GEOMETRY'
-SETTINGSWIDTH   = 'SettingsWidth'
-SETTINGSHEIGHT  = 'SettingsHeight'
-CONSOLEHEIGHT   = 'ConsoleHeight'
-INPUTCHANNELS   = 'Input Channels'
-OUTPUTCHANNELS  = 'Output Channels'
-UNIT            = 'Unit'
-SELECTFILE      = 'Select File'
-SELECTPATH  = 'Select Path'
+PROGRAM = 'Program'
+VERSION = 'Version'
+NAME = 'Name'
+PLUGIN = 'Plugin'
+INFO = 'Info'
+TIMESTAMP = 'Time'
+GENERAL = 'General'
+DATAPATH = 'Data path'
+CONFIGPATH = 'Config path'
+PLUGINPATH = 'Plugin path'
+DEBUG = 'Debug mode'
+LOGLEVEL = 'Log level'
+DARKMODE = 'Dark mode'
+CLIPBOARDTHEME = 'Clipboard theme'
+DPI = 'DPI'
+TESTMODE = 'Test mode'
+ICONMODE = 'Icon mode'
+GEOMETRY = 'GEOMETRY'
+SETTINGSWIDTH = 'SettingsWidth'
+SETTINGSHEIGHT = 'SettingsHeight'
+CONSOLEHEIGHT = 'ConsoleHeight'
+INPUTCHANNELS = 'Input Channels'
+OUTPUTCHANNELS = 'Output Channels'
+UNIT = 'Unit'
+SELECTFILE = 'Select File'
+SELECTPATH = 'Select Path'
 
 # * default paths should not be in software folder as this might not have write access after installation
-defaultDataPath   = Path.home() / PROGRAM_NAME / 'data/'
+defaultDataPath = Path.home() / PROGRAM_NAME / 'data/'
 defaultConfigPath = Path.home() / PROGRAM_NAME / 'conf/'
 defaultPluginPath = Path.home() / PROGRAM_NAME / 'plugins/'
 
 # file types
 FILE_INI = '.ini'
-FILE_H5  = '.h5'
+FILE_H5 = '.h5'
 FILE_PDF = '.pdf'
-FILE_PY  = '.py'
+FILE_PY = '.py'
 
 # other
-UTF8    = 'utf-8'
+UTF8 = 'utf-8'
 
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
@@ -148,25 +148,25 @@ class PRINT(Enum):
 class PLUGINTYPE(Enum):
     """Each plugin must be of one of the following types to define its location and behavior."""
 
-    CONSOLE       = 'Console'
+    CONSOLE = 'Console'
     """The internal Console."""
-    CONTROL       = 'Generic Control'
+    CONTROL = 'Generic Control'
     """Any control plugin, will be placed next to Settings, Explorer, Devices, and Scans."""
-    INPUTDEVICE   = 'Input Device'
+    INPUTDEVICE = 'Input Device'
     """Device plugin sending user input to hardware."""
-    OUTPUTDEVICE  = 'Output Device'
+    OUTPUTDEVICE = 'Output Device'
     """Device plugin sending hardware output to user."""
-    CHANNELMANAGER  = 'Channel Manager'
+    CHANNELMANAGER = 'Channel Manager'
     """A plugin that manages channels which are neither inputs or outputs."""
-    DISPLAY       = 'Display'
+    DISPLAY = 'Display'
     """Any display plugin, will be places next to scan displays and static displays."""
-    LIVEDISPLAY   = 'LiveDisplay'
+    LIVEDISPLAY = 'LiveDisplay'
     """Live display associated with a device."""
-    SCAN          = 'Scan'
+    SCAN = 'Scan'
     """Scan plugin, will be placed with other controls."""
-    DEVICEMGR     = 'DeviceManager'
+    DEVICEMGR = 'DeviceManager'
     """Device manager, will be placed below live displays."""
-    INTERNAL      = 'Internal'
+    INTERNAL = 'Internal'
     """A plugin without user interface."""
 
 
@@ -175,7 +175,7 @@ class PARAMETERTYPE(Enum):
 
     LABEL = 'LABEL'
     """A label that displays information."""
-    PATH  = 'PATH'
+    PATH = 'PATH'
     """A path to a file or directory."""
     COMBO = 'COMBO'
     """A combobox providing text options."""
@@ -183,17 +183,17 @@ class PARAMETERTYPE(Enum):
     """A combobox providing integer options."""
     FLOATCOMBO = 'FLOATCOMBO'
     """A combobox providing floating point options."""
-    TEXT  = 'TEXT'
+    TEXT = 'TEXT'
     """An editable text field."""
     COLOR = 'COLOR'
     """A ColorButton that allows to select a color."""
-    BOOL  = 'BOOL'
+    BOOL = 'BOOL'
     """A boolean, represented by a checkbox."""
-    INT   = 'INT'
+    INT = 'INT'
     """An integer spinbox."""
     FLOAT = 'FLOAT'
     """A floating point spinbox."""
-    EXP   = 'EXP'
+    EXP = 'EXP'
     """A spinbox with scientific format."""
 
 
@@ -419,6 +419,8 @@ def shorten_text(text: str, max_length: int = 100) -> str:
 def synchronized(timeout: int = 5) -> callable:
     """Decorate to add thread-safety using a lock from the instance.
 
+    NOTE: Only works with keyword arguments. Positional arguments apart form self will not be passed on.
+
     Use with @synchronized() or @synchronized(timeout=5).
 
     :param timeout: Will wait this long for lock to become available. Defaults to 5
@@ -429,10 +431,11 @@ def synchronized(timeout: int = 5) -> callable:
     # avoid calling QApplication.processEvents() inside func as it may cause deadlocks
     def decorator(func: callable) -> callable:
         @wraps(func)
-        def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
-            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
+        def wrapper(self, **kwargs) -> callable:  # noqa: ANN001
+            with self.lock.acquire_timeout(timeout=timeout,
+                     timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
                 if lock_acquired:
-                    return func(self, *args, **kwargs)
+                    return func(self, **kwargs)
                 return None
         return wrapper
     return decorator
@@ -471,6 +474,6 @@ def openInDefaultApplication(file: str | Path) -> None:
     :type file: str / pathlib.Path
     """
     if sys.platform == 'win32':
-        subprocess.Popen(f'explorer {file}')
+        subprocess.Popen(f'explorer {file}')  # noqa: S603
     else:
-        subprocess.Popen(['xdg-open', file])
+        subprocess.Popen(['xdg-open', file])  # noqa: S603, S607

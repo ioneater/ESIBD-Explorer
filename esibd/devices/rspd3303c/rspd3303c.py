@@ -53,7 +53,7 @@ class RSPD3303C(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E5  # overwrite default value
         defaultSettings[f'{self.name}/{self.SHUTDOWNTIMER}'] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, attr='shutDownTime', instantUpdate=False,
                                                                      toolTip=f'Time in minutes. Starts a countdown which turns {self.name} off once expired.',
-                                                                     event=lambda: self.initTimer(), internal=True)
+                                                                     event=self.initTimer, internal=True)
         defaultSettings[f'{self.name}/{self.ADDRESS}'] = parameterDict(value='USB0::0xF4EC::0x1430::SPD3EGGD7R2257::INSTR', parameterType=PARAMETERTYPE.TEXT, attr='address')
         return defaultSettings
 
@@ -84,9 +84,9 @@ class RSPD3303C(Device):
 
 class VoltageChannel(Channel):
 
-    CURRENT   = 'Current'
-    POWER     = 'Power'
-    ID        = 'ID'
+    CURRENT = 'Current'
+    POWER = 'Power'
+    ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
@@ -134,13 +134,13 @@ class VoltageController(DeviceController):
             self.port = rm.open_resource(self.device.address, open_timeout=500)
             self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()
-        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
+        except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
             self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
     def initComplete(self) -> None:
-        self.currents   = [np.nan] * len(self.device.getChannels())
+        self.currents = [np.nan] * len(self.device.getChannels())
         self.values = [np.nan] * len(self.device.getChannels())
         super().initComplete()
 
@@ -169,7 +169,7 @@ class VoltageController(DeviceController):
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
                 else:
-                    channel.monitor = 0             + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
+                    channel.monitor = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
                 channel.current = 50 / channel.monitor if channel.monitor != 0 else 0  # simulate 50 W
                 channel.power = channel.monitor * channel.current
 

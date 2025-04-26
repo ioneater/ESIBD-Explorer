@@ -65,7 +65,7 @@ class Beam(Scan):
             self.canvas.mpl_connect('button_release_event', self.mouseEvent)
             self.cont = None
             divider = make_axes_locatable(self.axes[0])
-            self.cax = divider.append_axes("right", size="5%", pad=0.15)
+            self.cax = divider.append_axes('right', size='5%', pad=0.15)
             self.cbar = None
             self.axes[-1].cursor = None
 
@@ -92,13 +92,13 @@ class Beam(Scan):
         super().initGUI()
         self.coupleAction = self.addStateAction(toolTipFalse='Coupled step size.', iconFalse=self.makeIcon('lock-unlock.png'), toolTipTrue='Independent step size.',
                                                      iconTrue=self.makeIcon('lock.png'), before=self.copyAction, attr='coupleStepSize')
-        self.limitAction = self.addAction(event=lambda: self.useLimits(), toolTip='Adopts limits from display', icon='ruler.png')
-        self.centerAction = self.addAction(event=lambda: self.centerLimits(), toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
+        self.limitAction = self.addAction(event=self.useLimits, toolTip='Adopts limits from display', icon='ruler.png')
+        self.centerAction = self.addAction(event=self.centerLimits, toolTip='Center limits around current values.', icon=self.makeIcon('ruler-crop.png'), before=self.copyAction)
 
     def runTestParallel(self) -> None:
         self.testControl(self.coupleAction, self.coupleAction.state)
-        self.testControl(self.limitAction, True)
-        self.testControl(self.centerAction, True)
+        self.testControl(self.limitAction, value=True)
+        self.testControl(self.centerAction, value=True)
         super().runTestParallel()
 
     def loadDataInternal(self) -> None:
@@ -113,19 +113,23 @@ class Beam(Scan):
                 self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
                 return
             self.addOutputChannel(name='', unit='pA', recordingData=data)
-            self.inputChannels.append(MetaChannel(parentPlugin=self, name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[1]), unit='V'))
-            self.inputChannels.append(MetaChannel(parentPlugin=self, name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[0]), unit='V'))
+            self.inputChannels.append(MetaChannel(parentPlugin=self,
+                                                  name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[1]), unit='V'))
+            self.inputChannels.append(MetaChannel(parentPlugin=self,
+                                                  name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[0]), unit='V'))
         elif self.file.name.endswith('.s2d.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 lr = h5file['S2DSETTINGS']['Left-Right']
                 start, stop, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
-                                               unit='V', inout=INOUT.IN))
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'],
+                                                       recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
+                                                        unit='V', inout=INOUT.IN))
                 ud = h5file['S2DSETTINGS']['Up-Down']
                 start, stop, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'], recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
-                                               unit='V', inout=INOUT.IN))
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'],
+                                                       recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
+                                                        unit='V', inout=INOUT.IN))
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
                     self.addOutputChannel(name=name, unit='pA', recordingData=item[:].transpose())
@@ -194,14 +198,16 @@ class Beam(Scan):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
                                                                 parameterType=PARAMETERTYPE.COMBO, attr='LR_channel')
-        defaultSettings[f'{self.LEFTRIGHT}/{self.START}']    = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}']      = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_stop', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}']    = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.LR_step))
-        defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}']    = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
+        defaultSettings[f'{self.LEFTRIGHT}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_from', event=self.estimateScanTime)
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_stop', event=self.estimateScanTime)
+        defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10,
+                                                                          event=lambda: self.updateStep(self.LR_step))
+        defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}'] = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
                                                                 parameterType=PARAMETERTYPE.COMBO, attr='UD_channel')
-        defaultSettings[f'{self.UPDOWN}/{self.START}']       = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_from', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.STOP}']         = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_stop', event=lambda: self.estimateScanTime())
-        defaultSettings[f'{self.UPDOWN}/{self.STEP}']       = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10, event=lambda: self.updateStep(self.UD_step))
+        defaultSettings[f'{self.UPDOWN}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_from', event=self.estimateScanTime)
+        defaultSettings[f'{self.UPDOWN}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_stop', event=self.estimateScanTime)
+        defaultSettings[f'{self.UPDOWN}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10,
+                                                                       event=lambda: self.updateStep(self.UD_step))
         return defaultSettings
 
     def useLimits(self) -> None:
@@ -232,7 +238,8 @@ class Beam(Scan):
                     zi = rbf(xi, yi)
                     self.display.cont = self.display.axes[0].contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
                 else:
-                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputChannels[self.getOutputIndex()].getRecordingData(), cmap='afmhot')  # contour without interpolation
+                    # contour without interpolation
+                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputChannels[self.getOutputIndex()].getRecordingData(), cmap='afmhot')
                 # ax=self.display.axes[0] instead of cax -> colorbar using all available height and does not scale to plot
                 self.display.cbar = self.display.fig.colorbar(self.display.cont, cax=self.display.cax)  # match axis and color bar size  # , format='%d'
                 self.display.cbar.ax.set_title(self.outputChannels[0].unit)
@@ -271,7 +278,8 @@ def getMeshgrid(scaling=1):
     :return: The meshgrid.
     :rtype: np.meshgrid
     '''
-    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
+    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1],
+      len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
 
 x, y = getMeshgrid()
 z = outputChannels[output_index].recordingData.ravel()

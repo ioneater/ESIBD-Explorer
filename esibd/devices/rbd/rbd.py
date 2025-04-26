@@ -40,7 +40,7 @@ class RBD(Device):
             self.previewFileTypes.append('.cur.h5')
             self.previewFileTypes.append('OUT.h5')
 
-        def loadDataInternal(self, file: Path) -> None:
+        def loadDataInternal(self, file: Path) -> None:  # noqa: C901, PLR0912
             if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
                 with file.open('r', encoding=self.UTF8) as dataFile:
                     dataFile.readline()
@@ -54,10 +54,12 @@ class RBD(Device):
                     self.print(f'No data found in file {file.name}.', PRINT.ERROR)
                     return False
                 for dat, header in zip(data, headers, strict=True):
-                    self.outputChannels.append(MetaChannel(parentPlugin=self, name=header.strip(), recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
+                    self.outputChannels.append(MetaChannel(parentPlugin=self, name=header.strip(),
+                                                            recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
                 if len(self.outputChannels) > 0:  # might be empty
                     # need to fake time axis as it was not implemented
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=np.linspace(0, 120000, self.outputChannels[0].getRecordingData().shape[0])))
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME,
+                                                           recordingData=np.linspace(0, 120000, self.outputChannels[0].getRecordingData().shape[0])))
             elif file.name.endswith('.cur.h5'):
                 with h5py.File(file, 'r') as h5file:
                     self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[self.TIME][:]))
@@ -87,7 +89,7 @@ class RBD(Device):
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
+        self.addAction(event=self.resetCharge, toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -108,15 +110,15 @@ class CurrentChannel(Channel):
         self.controller = CurrentController(controllerParent=self)
         self.preciseCharge = 0  # store independent of spin box precision to avoid rounding errors
 
-    CHARGE     = 'Charge'
-    COM        = 'COM'
+    CHARGE = 'Charge'
+    COM = 'COM'
     DEVICENAME = 'Devicename'
-    RANGE      = 'Range'
-    AVERAGE    = 'Average'
-    BIAS       = 'Bias'
+    RANGE = 'Range'
+    AVERAGE = 'Average'
+    BIAS = 'Bias'
     OUTOFRANGE = 'OutOfRange'
-    UNSTABLE   = 'Unstable'
-    ERROR      = 'Error'
+    UNSTABLE = 'Unstable'
+    ERROR = 'Error'
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
@@ -127,12 +129,12 @@ class CurrentChannel(Channel):
         channel[self.DEVICENAME] = parameterDict(value='smurf', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='devicename')
         channel[self.RANGE] = parameterDict(value='auto', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',  # noqa: RUF001
-                                        event=lambda: self.updateRange(), toolTip='Sample range. Defines resolution.')
+                                        event=self.updateRange, toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE] = parameterDict(value='off', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
-                                        event=lambda: self.updateAverage(), toolTip='Running average on hardware side.')
+                                        event=self.updateAverage, toolTip='Running average on hardware side.')
         channel[self.BIAS] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
-                                        toolTip='Apply internal bias.', attr='bias', event=lambda: self.updateBias())
+                                        toolTip='Apply internal bias.', attr='bias', event=self.updateBias)
         channel[self.OUTOFRANGE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
         channel[self.UNSTABLE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
@@ -173,8 +175,8 @@ class CurrentChannel(Channel):
             self.preciseCharge += chargeIncrement  # display accumulated charge  # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
 
-    def clearHistory(self, max_size=None) -> None:
-        super().clearHistory(max_size)
+    def clearHistory(self) -> None:
+        super().clearHistory()
         self.resetCharge()
 
     def resetCharge(self) -> None:
@@ -215,7 +217,7 @@ class CurrentChannel(Channel):
             self.controller.updateBiasFlag = True
 
 
-class CurrentController(DeviceController):
+class CurrentController(DeviceController):  # noqa: PLR0904
 
     class SignalCommunicate(DeviceController.SignalCommunicate):
         """Bundle pyqtSignals."""
@@ -268,15 +270,15 @@ class CurrentController(DeviceController):
             self.setBias()
             name = self.getName()
             if not name:
-                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')
+                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')  # noqa: FBT003
                 return
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')  # noqa: FBT003
             self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')  # noqa: FBT003
         except serial.serialutil.SerialException as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')  # noqa: FBT003
         finally:
             self.initializing = False
 
@@ -341,8 +343,7 @@ class CurrentController(DeviceController):
         name = self.RBDWriteRead(message='P') if not getTestMode() else 'UNREALSMURF'  # get channel name
         if '=' in name:
             return name.split('=')[1]
-        else:
-            return ''
+        return ''
 
     def updateParameters(self) -> None:
         """Update Range, Average, and Bias."""
@@ -377,7 +378,7 @@ class CurrentController(DeviceController):
 
     def fakeNumbers(self) -> None:
         if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
-            self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')
+            self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
 
     def readNumbers(self) -> None:
         if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
@@ -387,13 +388,13 @@ class CurrentController(DeviceController):
                 return
             parsed = self.parse_message_for_sample(msg)
             if any(sym in parsed for sym in ['<', '>']):
-                self.signalComm.updateValuesSignal.emit(0, True, False, parsed)
+                self.signalComm.updateValuesSignal.emit(0, True, False, parsed)  # noqa: FBT003
             elif '*' in parsed:
-                self.signalComm.updateValuesSignal.emit(0, False, True, parsed)
+                self.signalComm.updateValuesSignal.emit(0, False, True, parsed)  # noqa: FBT003
             elif not parsed:
-                self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')
+                self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')  # noqa: FBT003
             else:
-                self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')
+                self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
 
     # Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg) -> str:
@@ -406,8 +407,7 @@ class CurrentController(DeviceController):
         """
         if '&S' in msg:
             return msg.strip('&')
-        else:
-            return ''
+        return ''
 
     def readingToNum(self, parsed) -> float:  # convert to pA
         """Convert string to float value of pA based on unit.

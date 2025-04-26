@@ -63,15 +63,17 @@ class MS(Plugin):
 
     def finalizeInit(self) -> None:
         super().finalizeInit()
-        self.copyAction = self.addAction(lambda: self.copyClipboard(), f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
-        self.paperAction = self.addStateAction(event=lambda: self.plot(), toolTipFalse='Plot in paper style.', iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
+        self.copyAction = self.addAction(self.copyClipboard, f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.',
+                                          icon=self.dataClipboardIcon, before=self.copyAction)
+        self.paperAction = self.addStateAction(event=self.plot, toolTipFalse='Plot in paper style.',
+                                                iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
                                                toolTipTrue='Plot in normal style.', iconTrue=self.getIcon(), before=self.dataAction, attr='usePaperStyle')
 
     def runTestParallel(self) -> None:
         if self.initializedDock:
-            self.testControl(self.copyAction, True)
-            self.testControl(self.dataAction, True)
+            self.testControl(self.copyAction, value=True)
+            self.testControl(self.dataAction, value=True)
             self.testControl(self.paperAction, not self.paperAction.state)
         super().runTestParallel()
 
@@ -115,7 +117,7 @@ class MS(Plugin):
 
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
-        self.axes[0].autoscale_view(True, True, False)
+        self.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
         self.setLabelMargin(self.axes[0], 0.15)
         self.navToolBar.update()  # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog

@@ -85,7 +85,7 @@ class Spectra(Beam):
         self.previewFileTypes.append('beam.h5')
 
     def initScan(self) -> None:
-        self.toggleDisplay(True)
+        self.toggleDisplay(visible=True)
         self.display.lines = None
         return super().initScan()
 
@@ -104,7 +104,7 @@ class Spectra(Beam):
             super(Beam, self).loadDataInternal()
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: C901, PLR0912
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
 
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
@@ -181,10 +181,10 @@ class Spectra(Beam):
                 for inputChannel in self.inputChannels:
                     inputChannel.updateValueSignal.emit(inputChannel.initialValue)
                 time.sleep(.5)  # allow time to reset to initial value before saving
-                self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data
-                self.signalComm.updateRecordingSignal.emit(False)
+                self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
+                self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
                 break  # in case this is last step
-            self.signalComm.scanUpdateSignal.emit(False)  # update graph
+            self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
@@ -203,7 +203,8 @@ if not varAxesAspect:
     ax.set_aspect('equal', adjustable='box')
 
 def getMeshgrid(scaling=1):
-    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
+    return np.meshgrid(*[np.linspace(i.recordingData[0], i.recordingData[-1], len(i.recordingData) if scaling == 1 else
+    min(len(i.recordingData)*scaling, 50)) for i in inputChannels])
 
 ax.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
 ax.set_ylabel(f'{{inputChannels[1].name}} ({{inputChannels[1].unit}})')
@@ -246,4 +247,4 @@ else:
         legend = ax.legend(loc='best', prop={{'size': 10}}, frameon=False)
         legend.set_in_layout(False)
 fig.show()
-        """
+        """  # noqa: S608

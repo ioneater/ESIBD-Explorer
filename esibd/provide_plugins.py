@@ -9,7 +9,9 @@ from esibd.plugins import PID, UCM, Browser, Console, DeviceManager, Explorer, N
 
 
 def providePlugins() -> list['Plugin']:
-    """Return list of :class:`plugins<esibd.plugins.Plugin>` that are available for activation in the :class:`~esibd.core.PluginManager` user interface accessible from :ref:`sec:settings`.
+    """Return list of :class:`plugins<esibd.plugins.Plugin>`.
+
+    Plugins are available for activation in the :class:`~esibd.core.PluginManager` user interface accessible from :ref:`sec:settings`.
 
     :return: Plugin list
     :rtype: [:class:`~esibd.plugins.Plugin`]

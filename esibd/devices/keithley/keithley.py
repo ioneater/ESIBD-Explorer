@@ -31,7 +31,7 @@ class KEITHLEY(Device):
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.addAction(event=lambda: self.resetCharge(), toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
+        self.addAction(event=self.resetCharge, toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -57,16 +57,17 @@ class CurrentChannel(Channel):
         self.controller = CurrentController(controllerParent=self)
         self.preciseCharge = 0  # store independent of spin box precision to avoid rounding errors
 
-    CHARGE     = 'Charge'
-    ADDRESS    = 'Address'
-    VOLTAGE    = 'Voltage'
+    CHARGE = 'Charge'
+    ADDRESS = 'Address'
+    VOLTAGE = 'Voltage'
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
         channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
         channel[self.ADDRESS] = parameterDict(value='GPIB0::22::INSTR', parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='address')
-        channel[self.VOLTAGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, attr='voltage', event=lambda: self.controller.applyVoltage())
+        channel[self.VOLTAGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, attr='voltage',
+                                               event=lambda: self.controller.applyVoltage())  # noqa: PLW0108 lambda is used to defer evaluation until defined
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -93,8 +94,8 @@ class CurrentChannel(Channel):
             self.preciseCharge += chargeIncrement  # display accumulated charge  # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
 
-    def clearHistory(self, max_size=None) -> None:
-        super().clearHistory(max_size)
+    def clearHistory(self) -> None:
+        super().clearHistory()
         self.resetCharge()
 
     def resetCharge(self) -> None:
@@ -137,13 +138,13 @@ class CurrentController(DeviceController):
             # use rm.list_resources() to check for available resources
             self.rm = pyvisa.ResourceManager()
             self.port = self.rm.open_resource(self.channel.address)
-            self.port.write("*RST")
+            self.port.write('*RST')
             self.device.print(self.port.query('*IDN?'))
-            self.port.write("SYST:ZCH OFF")
-            self.port.write("CURR:NPLC 6")
-            self.port.write("SOUR:VOLT:RANG 50")
+            self.port.write('SYST:ZCH OFF')
+            self.port.write('CURR:NPLC 6')
+            self.port.write('SOUR:VOLT:RANG 50')
             self.signalComm.initCompleteSignal.emit()
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.signalComm.updateValuesSignal.emit(np.nan)
         finally:
             self.initializing = False
@@ -169,7 +170,7 @@ class CurrentController(DeviceController):
         # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
         """Apply voltage value."""
         if self.port is not None:
-            self.port.write(f"SOUR:VOLT {self.channel.voltage}")
+            self.port.write(f'SOUR:VOLT {self.channel.voltage}')
 
     def toggleOn(self) -> None:
         self.applyVoltage()  # apply voltages before turning power supply on or off
@@ -182,8 +183,8 @@ class CurrentController(DeviceController):
     def readNumbers(self) -> None:
         if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             try:
-                self.port.write("INIT")
-                self.values = [float(self.port.query("FETCh?").split(',')[0][:-1]) * 1E12]
+                self.port.write('INIT')
+                self.values = [float(self.port.query('FETCh?').split(',')[0][:-1]) * 1E12]
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
                 self.errorCount += 1

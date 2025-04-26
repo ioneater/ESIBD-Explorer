@@ -35,7 +35,7 @@ exclude = [
 include = ["esibd/**/*.py", "../ESIBD_Explorer_user/plugins/**/*.py"]
 
 # Same as Black.
-line-length = 140  # increased
+line-length = 180  # increased
 indent-width = 4
 
 # Assume Python 3.12
@@ -46,19 +46,22 @@ preview = true
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-#"ANN001", "ANN201", "ANN202",, "DOC201", "D107" # gradually introduce
 # select = ["A001", "ANN204", "B905", "C403", "C408", "C419", "COM812", "COM819", "D102", "D204", "D205", "D208", "D209", "D210", "D301", "D400",
 # "D401", "D404", "D417", "E4", "E7", "E9", "E117", "E202", "E203", "E225", "E226", "E228", "E231", "E251", "E252", "E261", "E262", "E265",
 # "E275", "E301", "E302", "ERA001", "F", "I001", "ISC003", "PIE790", "PERF401", "PLC1901", "PLR0911", "PLR0917", "PLR2044", "PLR6104", "PLR6201", "PLW0177", "PTH201", "PTH123", "RET504",
 # "RUF005", "RUF013", "RUF052", "RUF100", "SIM018", "SIM212", "SIM401", "T201", "TRY300", "UP039", "UP012", "W605"]
 select = ["ALL"]  # temporary use this to explore more rules and pick which ones to keep above
-ignore = ["ANN002", "ANN003", "BLE001", "CPY001", "C901", "DOC201", "D100",
-"DTZ005", "DTZ006", # would need to shift time stamps back to local time for display in graph
-"DOC402",  # only considers google doc strings
-"E221", "E501", "F405", "FIX002", "FBT001",
-"FBT002", "FBT003", "N802", "N803", "N806", "N815", "N816", "PLW0108", "PLR0904", "PLR0912", "PLR0913", "PLR0915", "PLR6301", "Q000", "RET505",
-"S311", "S404", "S603", "S607", "S608", "SLF001", "TD002", "TD003", "TD004", "W293"]
-# Ignore `D` rules everywhere except for the `src/` directory.
+ignore = [
+"ANN002", "ANN003",  # args and kwargs are used just to pass anything on, no need to reproduce documentation of parent class as it should be inherited.
+"CPY001", # do not use copy right notice in all files
+"D100",  # usually modules will have a single class, making a module docstring redundant
+"DOC201", "DOC402",  # only considers google doc strings but I use sphinx
+"F405",  # ignoring star import warning
+"FBT001", "FBT002",  # in general, avoiding booleans as positional arguments is not possible. keeping "FBT003" to make sure they are called with keywords and not positional
+"N802", "N803", "N806", "N815", "N816",  # using camel case required due to PyQt
+"PLR6301",  # functions that do not use self may be used as it is intuitive to use them directly on an instance. also self may be used in inherited versions
+"S311",  # random numbers not used for cryptographic purposes
+]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -69,6 +72,11 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [lint.per-file-ignores]
 "!esibd/{config.py,const.py,core.py,plugins.py}" = ["ANN001", "D101" , "D102", "D103", "D106", "D107"]  # ignore everywhere but here -> avoids false positives if parent method has types annotated
+"esibd/examples/*.py" = ["FIX002", "TD002", "TD003", "TD004"]  # No authors or issue links for TODOs. TODOs here are instructions for plugin developers.
+"plugins_external/*.py" = ["FIX002", "TD002", "TD003", "TD004"]  # No authors or issue links for TODOs. TODOs here are instructions for plugin developers.
+
+[lint.flake8-quotes]
+inline-quotes = "single"
 
 [format]
 # Like Black, use double quotes for strings.
