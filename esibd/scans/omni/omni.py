@@ -158,7 +158,7 @@ class Omni(Scan):
             self.display.axes[0].relim()  # adjust to data
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

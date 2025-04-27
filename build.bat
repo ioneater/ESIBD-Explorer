@@ -37,6 +37,7 @@ REM Performance for speed improvements
 REM Testing
 :::::::::::
 make sure all test pass in development environment
+test with all/no plugins enabled
 
 :::::::::::::::::::::
 REM Environment setup

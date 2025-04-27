@@ -532,6 +532,7 @@ class PluginManager:  # noqa: PLR0904
         dlg.setWindowTitle('Select Plugins')
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
+        lay.setContentsMargins(0, 0, 0, 0)
         tree = TreeWidget()
         tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
         tree.setColumnCount(8)
@@ -549,6 +550,7 @@ class PluginManager:  # noqa: PLR0904
         buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText('Stop communication and reload plugins' if self.DeviceManager.initialized() else 'Reload plugins')
         buttonBox.accepted.connect(dlg.accept)
         buttonBox.rejected.connect(dlg.reject)
+        buttonBox.setContentsMargins(5, 5, 5, 5)
         lay.addWidget(buttonBox)
         confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
@@ -2078,8 +2080,12 @@ class MetaChannel(RelayChannel):
         self.updateValueSignal = None
         self.connectSource()
 
-    def connectSource(self) -> None:
-        """Connect the sourceChannel."""
+    def connectSource(self, giveFeedback: bool = False) -> None:
+        """Connect the sourceChannel.
+
+        :param giveFeedback: Report on success of connection, defaults to False
+        :type giveFeedback: bool, optional
+        """
         # Will only be called when using MetaChannel directly. ScanChannel will implements its own version.
         if self.name == 'Time':
             return
@@ -2093,6 +2099,11 @@ class MetaChannel(RelayChannel):
             self.initialValue = self.sourceChannel.value
             self.unit = self.sourceChannel.unit
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
+        if giveFeedback:
+            if self.sourceChannel is None:
+                self.sourceChannel.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
+            else:
+                self.sourceChannel.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
 
     def display(self) -> bool:
         """Indicate of the source channel should be displayed."""
@@ -2813,8 +2824,12 @@ class ScanChannel(RelayChannel, Channel):
         if self.scan.useDisplayParameter:
             self.display = True
 
-    def connectSource(self) -> None:
-        """Connect the sourceChannel."""
+    def connectSource(self, giveFeedback: bool = False) -> None:
+        """Connect the sourceChannel.
+
+        :param giveFeedback: Report on success of connection, defaults to False
+        :type giveFeedback: bool, optional
+        """
         self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
         if self.sourceChannel is None:
             self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
@@ -2846,6 +2861,11 @@ class ScanChannel(RelayChannel, Channel):
         self.getParameterByName(self.DEVICE).setHeight()
         self.updateColor()
         self.scalingChanged()
+        if giveFeedback:
+            if self.sourceChannel is None:
+                self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
+            else:
+                self.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
 
     def relayValueEvent(self) -> None:
         """Update value when sourceChannel.value changed."""

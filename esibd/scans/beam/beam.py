@@ -149,6 +149,7 @@ class Beam(Scan):
             steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_stop, self.LR_step), self.getSteps(self.UD_from, self.UD_stop, self.UD_step)))
         else:
             self.print('Limits are equal.', PRINT.WARNING)
+            self.scantime = 'n/a'
             return
         seconds = 0  # estimate scan time
         for i in range(len(steps)):
@@ -248,10 +249,7 @@ class Beam(Scan):
         if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and self.inputChannels[1].sourceChannel is not None:
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
         self.updateToolBar(update=update)
-        if len(self.outputChannels) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
-        else:
-            self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

@@ -76,14 +76,6 @@ Added
 - Added log level setting to determine level of information in logs.
 - Added some pauses during testing if GUI gets too busy.
 
-Fixed
-~~~~~
-
-- Fixed assignment of values to virtual channels in test mode for several internal plugins.
-- Improved colors of displays when copied to clipboard or saved as pdf.
-- Renaming of settings is handled like any other setting change.
-- Restoring backgrounds after moving channels.
-
 Changed
 ~~~~~~~
 
@@ -98,6 +90,14 @@ Changed
 - Scans will warn and not start if scan limits exceed limits of scan channels.
 - While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
 
+Fixed
+~~~~~
+
+- Fixed assignment of values to virtual channels in test mode for several internal plugins.
+- Improved colors of displays when copied to clipboard or saved as pdf.
+- Renaming of settings is handled like any other setting change.
+- Restoring backgrounds after moving channels.
+- Fixed an issue with uninitialized scan plots after changing scan channels.
 
 Version 0.7.2 2025-03-02
 ========================
@@ -116,18 +116,18 @@ Added
 - Added option to load all device channels and values from advanced device manager instead of one device at a time.
 - Added simple video example to the documentation.
 
+Changed
+~~~~~~~
+- Using plugin names more consistently in tooltips.
+- Using explicit tooltips for linked channels in UCM, PID, and scans.
+- Reintroduced start recording and subtractBackground actions for live displays (linked to corresponding action in parent Plugin).
+
 Fixed
 ~~~~~
 - Fixed scaling when copy image to clipboard in live displays.
 - Updating linked channels when renaming source channels.
 - Dialogs stay on top of all windows.
 - Fixed help dialog for displays.
-
-Changed
-~~~~~~~
-- Using plugin names more consistently in tooltips.
-- Using explicit tooltips for linked channels in UCM, PID, and scans.
-- Reintroduced start recording and subtractBackground actions for live displays (linked to corresponding action in parent Plugin).
 
 Removed
 ~~~~~~~

@@ -797,6 +797,20 @@ class Plugin(QWidget):  # noqa: PLR0904
             ax.cursor.updatePosition()
         ax.figure.canvas.draw_idle()
 
+    def defaultLabelPlot(self, ax: mpl.axes.Axes) -> None:
+        """Add file name labels to plot to trace back which file it is based on.
+
+        :param ax: A matplotlib axes.
+        :type ax: matplotlib.axes
+        """
+        if len(self.outputChannels) > 0 and isinstance(self, Scan):
+            if self.file.name:
+                self.labelPlot(ax, f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
+            else:
+                self.labelPlot(ax, self.outputChannels[self.getOutputIndex()].name)
+        else:
+            self.labelPlot(ax, self.file.name)
+
     def removeAnnotations(self, ax: mpl.axes.Axes) -> None:
         """Remove all annotations from an axes.
 
@@ -1274,8 +1288,8 @@ class StaticDisplay(Plugin):
         """
         for channel in self.outputChannels:
             if channel.name == name:
-                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
-                channel.connectSource()
+                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
+                channel.connectSource(giveFeedback=True)
 
     def generatePythonPlotCode(self) -> str:  # noqa: D102
         return f"""import h5py
@@ -1930,7 +1944,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
 
         def finalizeInit(self) -> None:  # noqa: D102
             super().finalizeInit()
-            self.copyAction = self.addAction(self.copyClipboard, f'{self.name} channel plot to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+            self.copyAction = self.addAction(self.copyClipboard, f'{self.name} to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
         def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: ARG002, D102
             return self.parentPlugin.getIcon()
@@ -2195,7 +2209,6 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     newChannel.backgrounds = oldBackgrounds
                     newChannel.background = oldBackground
             self.loading = False
-            self.pluginManager.reconnectSource(newChannel.name)
             self.tree.scheduleDelayedItemsLayout()
             return newChannel
         return None
@@ -2387,7 +2400,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                             items[i][name] = value
                     self.updateChannelConfig(items, file, append=append)
 
-            self.tree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
+            self.tree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
                                         for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
             self.tree.header().setStretchLastSection(False)
             self.tree.header().setMinimumSectionSize(0)
@@ -3289,7 +3302,9 @@ class Device(ChannelManager):  # noqa: PLR0904
         if self.initialized():
             self.print(f'Stop communication for {self.name} to move selected channel.', flag=PRINT.WARNING)
             return
-        super().moveChannel(up=up)
+        newChannel = super().moveChannel(up=up)
+        if newChannel is not None:
+            self.pluginManager.reconnectSource(newChannel.name)
 
     def getUnit(self) -> str:
         """Overwrite if you want to change units dynamically."""
@@ -3440,6 +3455,7 @@ class Scan(Plugin):  # noqa: PLR0904
                 self.displayComboBox.setMaximumWidth(100)
                 self.displayComboBox.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
                 self.displayComboBox.currentIndexChanged.connect(self.scan.updateDisplayChannel)
+                self.displayComboBox.setToolTip('Select displayed channel.')
                 self.titleBar.insertWidget(self.copyAction, self.displayComboBox)
                 self.updateTheme()
                 self.loading = False
@@ -3493,6 +3509,8 @@ class Scan(Plugin):  # noqa: PLR0904
         self.previewFileTypes = [self.configINI, f'{self.name.lower()}.h5']
         self.useDisplayChannel = False
         self.measurementsPerStep = 0
+        self.oldDisplayItems = ''
+        self._dummy_initialization = False
         self.display = None
         self.runThread = None
         self.saveThread = None
@@ -3578,8 +3596,8 @@ class Scan(Plugin):  # noqa: PLR0904
         """
         for channel in self.channels:
             if channel.name == name:
-                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
-                channel.connectSource()
+                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
+                channel.connectSource(giveFeedback=True)
 
     def initData(self) -> None:
         """Clear all channels before (re-)initialization."""
@@ -3626,19 +3644,32 @@ class Scan(Plugin):  # noqa: PLR0904
 
     def updateFile(self) -> None:
         """Update scan file."""
-        self.pluginManager.Settings.incrementMeasurementNumber()
-        self.file = self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.lower()}.h5')
+        if self._dummy_initialization:
+            self.file = Path()
+        else:
+            self.pluginManager.Settings.incrementMeasurementNumber()
+            self.file = self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.lower()}.h5')
         self.display.file = self.file  # for direct access of MZCalculator or similar addons that are not aware of the scan itself
 
     def updateDisplayChannel(self) -> None:
         """Update plot after changing display channel."""
         if (self.display is not None and self.useDisplayChannel and
-            not any([self.pluginManager.loading, self.loading, self.settingsMgr.loading, self.recording])):
+            not any([self.pluginManager.loading, self.loading, self.settingsMgr.loading, self.recording, self.initializing])):
             self.plot(update=False, done=True)
 
     def updateDisplayDefault(self) -> None:
         """Select displayed Channel based on default display setting."""
-        if self.display is not None and self.useDisplayChannel:
+        newDisplayItems = ', '.join(self.settingsMgr.settings[self.DISPLAY].items)
+
+        if self.oldDisplayItems != newDisplayItems:  # channels renamed, deleted or added: initialize everything
+            if self.finished and not self.recording and not self.loading:
+                self.initData()
+                self._dummy_initialization = True
+                self.initScan()  # runs addOutputChannels without trying to plot / also adds inputChannels
+                self._dummy_initialization = False
+                self.plot(update=False, done=False)  # init plot without data
+            self.oldDisplayItems = newDisplayItems
+        elif self.display is not None and self.useDisplayChannel:
             self.loading = True
             i = self.display.displayComboBox.findText(self.displayDefault)
             if i == -1:
@@ -3647,9 +3678,6 @@ class Scan(Plugin):  # noqa: PLR0904
                 self.display.displayComboBox.setCurrentIndex(i)
             self.loading = False
             self.updateDisplayChannel()
-        if self.finished and not self.recording and not self.loading:
-            self.initData()
-            self.addOutputChannels()
 
     def populateDisplayChannel(self) -> None:
         """Populate dropdown that allows to select displayed channel for scans that can only display one channel at a time."""
@@ -3659,7 +3687,8 @@ class Scan(Plugin):  # noqa: PLR0904
             for output in self.outputChannels:  # use channels form current acquisition or from file.
                 self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
             self.loading = False
-            self.updateDisplayDefault()
+            if not self._dummy_initialization:  # prevent recursion
+                self.updateDisplayDefault()
 
     def loadSettings(self, file: 'Path | None' = None, useDefaultFile: bool = False) -> None:
         """Load scan settings from file.
@@ -3761,7 +3790,7 @@ class Scan(Plugin):  # noqa: PLR0904
         if self.DISPLAY in self.getDefaultSettings():
             for name in self.settingsMgr.settings[self.DISPLAY].items:
                 self.addOutputChannel(name=name, recordingData=recordingData.copy() if recordingData is not None else None)
-            self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
+            self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
             self.toggleAdvanced(advanced=False)
         else:
@@ -3817,20 +3846,20 @@ class Scan(Plugin):  # noqa: PLR0904
         channel = self.getChannelByName(name, inout=INOUT.IN)
         if channel is None:
             self.print(f'No channel found with name {name}.', PRINT.WARNING)
-            return False
+            return False or self._dummy_initialization
         if start == stop:
             self.print('Limits are equal.', PRINT.WARNING)
-            return False
+            return False or self._dummy_initialization
         if channel.min > min(start, stop) or channel.max < max(start, stop):
             self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
-            return False
+            return False or self._dummy_initialization
         if not channel.getDevice().initialized():
             self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            return False
+            return False or self._dummy_initialization
         recordingData = self.getSteps(start, stop, step)
         if len(recordingData) < self.MIN_STEPS:
             self.print('Not enough steps.', PRINT.WARNING)
-            return False
+            return False or self._dummy_initialization
         self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=recordingData, inout=INOUT.IN))
         return True
 
@@ -3878,13 +3907,16 @@ class Scan(Plugin):  # noqa: PLR0904
             # Simple time estimate for scan with single input channel.
             steps = self.getSteps(self.start, self.stop, self.step)
             seconds = 0  # estimate scan time
-            for i in range(len(steps)):  # pylint: disable = consider-using-enumerate
-                waitLong = False
-                if not waitLong and abs(steps[i - 1] - steps[i]) > self.largestep:
-                    waitLong = True
-                seconds += (self.waitLong if waitLong else self.wait) + self.average
-            seconds = round((seconds) / 1000)
-            self.scantime = f'{seconds // 60:02d}:{seconds % 60:02d}'
+            if steps is not None and len(steps) > 0:
+                for i in range(len(steps)):  # pylint: disable = consider-using-enumerate
+                    waitLong = False
+                    if not waitLong and abs(steps[i - 1] - steps[i]) > self.largestep:
+                        waitLong = True
+                    seconds += (self.waitLong if waitLong else self.wait) + self.average
+                seconds = round((seconds) / 1000)
+                self.scantime = f'{seconds // 60:02d}:{seconds % 60:02d}'
+            else:
+                self.scantime = 'n/a'
         else:
             self.scantime = 'n/a'
 
@@ -3983,7 +4015,8 @@ with h5py.File('{self.file.as_posix()}','r') as h5file:
     for name, data in output_group.items():
         outputChannels.append(MetaChannel(name=name, recordingData=data[:], unit=data.attrs['Unit']))
 
-output_index = next((i for i, output in enumerate(outputChannels) if output.name == '{self.outputChannels[0].name}'), 0)  # select channel to plot
+# select channel to plot
+output_index = next((i for i, output in enumerate(outputChannels) if output.name == '{self.outputChannels[0].name if len(self.outputChannels) > 0 else "no output found"}'), 0)
 
 """
 
@@ -6003,10 +6036,12 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         for scan in self.pluginManager.getPluginsByType(PLUGINTYPE.SCAN):
             scan.recording = False  # stop all running scans
         if closing:
+            unfinishedScans = ''
             for scan in self.pluginManager.getPluginsByType(PLUGINTYPE.SCAN):
                 if not scan.finished:  # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
-                    self.print(f'Waiting for {scan.name} to finish.')
-                    self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'stopping scan {scan.name}.', timeout=30, interval=0.5)
+                    unfinishedScans.append(scan.name)
+            if unfinishedScans:
+                self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'{", ".join(unfinishedScans)} to complete.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file: 'str | Path | None' = None) -> None:
@@ -6776,8 +6811,12 @@ class UCM(ChannelManager):
         sourceChannel = None
         DEVICE = 'Device'
 
-        def connectSource(self) -> None:  # noqa: C901, PLR0912, PLR0915
-            """Connect the sourceChannel."""
+        def connectSource(self, giveFeedback: bool = False) -> None:  # noqa: C901, PLR0912, PLR0915
+            """Connect the sourceChannel.
+
+            :param giveFeedback: Report on success of connection, defaults to False
+            :type giveFeedback: bool, optional
+            """
             self.removeEvents()  # free up previously used channel if applicable
             sources = [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.ALL)
                        if channel not in self.device.getChannels()
@@ -6836,6 +6875,11 @@ class UCM(ChannelManager):
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
             self.updateColor()
             self.scalingChanged()
+            if giveFeedback:
+                if self.sourceChannel is None:
+                    self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
+                else:
+                    self.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
 
         def setSourceChannelValue(self) -> None:
             """Update sourceChannel.value."""
@@ -6958,11 +7002,6 @@ class UCM(ChannelManager):
     def getChannels(self) -> list[Channel]:  # noqa: D102
         return [channel for channel in self.channels if channel.sourceChannel is not None]
 
-    def moveChannel(self, up: bool) -> None:  # noqa: D102
-        newChannel = super().moveChannel(up=up)
-        if newChannel is not None:
-            newChannel.connectSource()
-
     def duplicateChannel(self) -> None:  # noqa: D102
         newChannel = super().duplicateChannel()
         if newChannel is not None:
@@ -6996,8 +7035,8 @@ class UCM(ChannelManager):
                 try:
                     channel.sourceChannel.value  # testing access to a parameter that depends on sourceChannel with no internal fallback  # noqa: B018
                 except RuntimeError as e:
-                    self.print(f'Source channel {channel.name} may have been lost: {e} Attempt reconnecting.', flag=PRINT.WARNING)
-                    channel.connectSource()
+                    self.print(f'Source channel {channel.name} may have been lost: {e} Attempt reconnecting.', flag=PRINT.DEBUG)
+                    channel.connectSource(giveFeedback=True)
         self.loading = False
 
     def reconnectSource(self, name: str) -> None:
@@ -7011,8 +7050,8 @@ class UCM(ChannelManager):
         """
         for channel in self.channels:
             if channel.name == name:
-                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
-                channel.connectSource()
+                self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
+                channel.connectSource(giveFeedback=True)
 
 
 class PID(ChannelManager):
@@ -7050,8 +7089,12 @@ class PID(ChannelManager):
         DERIVATIVE = 'Derivative'   # if you're getting close to where you want to be, slow down
         SAMPLETIME = 'Sampletime'
 
-        def connectSource(self) -> None:
-            """Connect the source and inputChannels."""
+        def connectSource(self, giveFeedback: bool = False) -> None:
+            """Connect the source and inputChannels.
+
+            :param giveFeedback: Report on success of connection, defaults to False
+            :type giveFeedback: bool, optional
+            """
             self.removeEvents()
             self.sourceChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
@@ -7061,6 +7104,15 @@ class PID(ChannelManager):
             else:
                 self.unit = self.sourceChannel.getDevice().unit
                 self.getValues = self.sourceChannel.getValues
+            if giveFeedback:
+                if self.sourceChannel is None:
+                    self.print(f'Source channel {self.output} could not be reconnected.', flag=PRINT.ERROR)
+                else:
+                    self.print(f'Source channel {self.output} successfully reconnected.', flag=PRINT.DEBUG)
+                if self.inputChannel is None:
+                    self.print(f'Source channel {self.input} could not be reconnected.', flag=PRINT.ERROR)
+                else:
+                    self.print(f'Source channel {self.input} successfully reconnected.', flag=PRINT.DEBUG)
             if self.sourceChannel is None or self.inputChannel is None:
                 return
             if self.sourceChannel.useMonitors:
@@ -7113,8 +7165,8 @@ class PID(ChannelManager):
                     #            f'{self.inputChannel.getDevice().isOn()} {self.sourceChannel.name} {self.sourceChannel.value} {self.pid.components}', flag=PRINT.DEBUG)
                     self.inputChannel.value = self.pid(self.sourceChannel.value)
             except RuntimeError as e:
-                self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}', flag=PRINT.ERROR)
-                self.connectSource()
+                self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}. Attempt reconnecting.', flag=PRINT.DEBUG)
+                self.connectSource(giveFeedback=True)
 
         def monitorChanged(self) -> None:
             """Disable internal monitor event."""
@@ -7240,6 +7292,7 @@ class PID(ChannelManager):
         newChannel = super().moveChannel(up=up)
         if newChannel is not None:
             newChannel.connectSource()
+            self.pluginManager.reconnectSource(newChannel.name)
 
     def duplicateChannel(self) -> None:  # noqa: D102
         newChannel = super().duplicateChannel()
@@ -7260,8 +7313,8 @@ class PID(ChannelManager):
                     channel.sourceChannel.value  # testing access to a Parameter that depends on sourceChannel with no internal fallback  # noqa: B018
                     channel.inputChannel.value  # testing access to a Parameter that depends on inputChannel with no internal fallback  # noqa: B018
                 except RuntimeError as e:
-                    self.print(f'Source channel {channel.output} or {channel.input} may have been lost: {e} Attempt reconnecting.', flag=PRINT.WARNING)
-                    channel.connectSource()
+                    self.print(f'Source channel {channel.output} or {channel.input} may have been lost: {e} Attempt reconnecting.', flag=PRINT.DEBUG)
+                    channel.connectSource(giveFeedback=True)
 
     def reconnectSource(self, name: str) -> None:
         """Try to reconnect linked channels if applicable.
@@ -7274,5 +7327,5 @@ class PID(ChannelManager):
         """
         for channel in self.channels:
             if name in {channel.input, channel.output}:
-                self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.WARNING)
-                channel.connectSource()
+                self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
+                channel.connectSource(giveFeedback=True)

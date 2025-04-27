@@ -141,7 +141,7 @@ class GA(Scan):
         self.addOutputChannel(name=f'{self.displayDefault}', recordingData=DynamicNp())
         if len(self.outputChannels) > 0:
             self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
-        self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
+        self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced(advanced=False)
 
@@ -168,7 +168,7 @@ class GA(Scan):
         if len(self.getData(0, INOUT.OUT)) > 1:
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

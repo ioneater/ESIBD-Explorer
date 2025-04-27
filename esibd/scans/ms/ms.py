@@ -77,10 +77,7 @@ class MassSpec(Scan):
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         self.display.mzCalc.update_mass_to_charge()
-        if len(self.outputChannels) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
-        else:
-            self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

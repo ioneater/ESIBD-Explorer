@@ -118,7 +118,7 @@ class Energy(Scan):
         return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else [0]
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, PLR0912
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
         if len(self.outputChannels) > 0:  # noqa: PLR1702
@@ -150,7 +150,7 @@ class Energy(Scan):
                                                                xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                     textcoords='data', ha='right', va='center', color=self.MYRED)
                             else:
-                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.ERROR)
+                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
                         except (RuntimeError, ValueError) as e:
                             self.print(f'Fit failed with error: {e}')
                     # ControlCursor has to be initialized last, otherwise axis limits may be affected.
@@ -159,15 +159,14 @@ class Energy(Scan):
                     self.display.seRaw.set_data([], [])
                     self.display.seFit.set_data([], [])
                     self.display.seGrad.set_data([], [])
-            self.display.axes[0].relim()  # adjust to data
+            self.display.axes[0].relim()  # only affects y axis
             self.setLabelMargin(self.display.axes[0], 0.15)
+            # workaround as .relim() is not working on x ais due to twinx bug
+            self.display.axes[0].set_xlim(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1])  # has to be called after setLabelMargin
         if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None:
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
-        if len(self.outputChannels) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
-        else:
-            self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

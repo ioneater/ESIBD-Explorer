@@ -71,8 +71,8 @@ class Depo(Scan):
                 self.isChargeChannel = True
                 self.name = self.name.removesuffix(f'_{Depo.CHARGE}')  # change name before connectSource()!
 
-        def connectSource(self) -> None:
-            super().connectSource()
+        def connectSource(self, giveFeedback: bool = False) -> None:
+            super().connectSource(giveFeedback=giveFeedback)
             if self.isChargeChannel:
                 self.unit = 'pAh'
                 self.name += f'_{Depo.CHARGE}'
@@ -248,7 +248,7 @@ class Depo(Scan):
             if hasattr(channel.sourceChannel, 'resetCharge'):
                 channel.sourceChannel.resetCharge()
                 self.addOutputChannel(name=f'{name}_{self.CHARGE}', unit='pAh', recordingData=DynamicNp())
-        self.channelTree.setHeaderLabels([(parameterDict.get(Parameter.HEADER, name.title()))
+        self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
                                             for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
         self.toggleAdvanced(advanced=False)
 
@@ -324,10 +324,7 @@ class Depo(Scan):
         if self.autoscale:
             self.setLabelMargin(self.display.axes[0], 0.3)
         self.updateToolBar(update=update)
-        if len(self.outputChannels) > 0:
-            self.labelPlot(self.display.axes[0], f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
-        else:
-            self.labelPlot(self.display.axes[0], self.file.name)
+        self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
