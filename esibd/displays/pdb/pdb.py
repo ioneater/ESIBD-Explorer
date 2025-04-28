@@ -30,7 +30,7 @@ class PDB(Plugin):
         self.previewFileTypes = ['.pdb', '.pdb1']
 
     def initGUI(self) -> None:
-        self.file = None
+        self.file = Path()
         self.x = self.y = self.z = None
         super().initGUI()
         self.initFig()
@@ -43,6 +43,16 @@ class PDB(Plugin):
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+
+    def finalizeInit(self) -> None:
+        super().finalizeInit()
+        self.copyAction = self.addAction(self.copyClipboard, f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+
+    def runTestParallel(self) -> None:
+        if self.initializedDock:
+            self.testControl(self.copyAction, value=True)
+            self.testPythonPlotCode(closePopup=True)
+        super().runTestParallel()
 
     def get_structure(self, pdb_file: Path) -> tuple[PDBParser, np.ndarray]:  # read PDB file
         """Get structure and XYZ coordinates from pdb file.
@@ -65,7 +75,8 @@ class PDB(Plugin):
 
     def plot(self) -> None:
         self.axes[0].clear()
-        self.axes[0].scatter(self.x, self.y, self.z, marker='.', s=2)
+        if self.x is not None:
+            self.axes[0].scatter(self.x, self.y, self.z, marker='.', s=2)
         self.set_axes_equal(self.axes[0])
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()

@@ -37,6 +37,7 @@ class HOLO(Plugin):
     def initGUI(self) -> None:
         """Initialize GUI to display Holograms."""
         super().initGUI()
+        self.file = Path()
         self.glAngleView = gl.GLViewWidget()
         self.glAmplitudeView = gl.GLViewWidget()
         hor = QHBoxLayout()
@@ -63,6 +64,11 @@ class HOLO(Plugin):
             self.finalizeInit()
             self.afterFinalizeInit()
 
+    def runTestParallel(self) -> None:
+        if self.initializedDock:
+            self.testPythonPlotCode(closePopup=True)
+        super().runTestParallel()
+
     def supportsFile(self, file: Path) -> None:
         if super().supportsFile(file):
             data = np.load(file, mmap_mode='r')  # only load header with shape and datatype
@@ -71,6 +77,7 @@ class HOLO(Plugin):
 
     def loadData(self, file, showPlugin=True) -> None:
         self.provideDock()
+        self.file = file
         data = np.load(file)
         self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
         self.amplitude = np.ascontiguousarray(np.abs(data))  # make c contiguous

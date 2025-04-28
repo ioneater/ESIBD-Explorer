@@ -13,6 +13,7 @@ Added
 - In debugMode, items from the tree can be added to the Console.
 - Added action to liveDisplays to toggle between automatically or manually scale the x axis.
 - Integrated generating and running python plot code for tests of devices, scans, and displays.
+- Introduced log level 'Trace' which shows detailed device communication info if implemented by device.
 
 Fixed
 ~~~~~

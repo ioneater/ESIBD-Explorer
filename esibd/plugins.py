@@ -199,7 +199,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.signalComm = self.SignalCommunicate()
         self.signalComm.testCompleteSignal.connect(self.testComplete)
 
-    def print(self, message: str, flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:
+    def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
         """Send a message to stdout, the statusbar, the Console, and to the logfile.
 
         It will automatically add a
@@ -209,10 +209,8 @@ class Plugin(QWidget):  # noqa: PLR0904
         :type message: str
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
-        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
-        :type logLevel: int, optional
         """
-        self.pluginManager.logger.print(message=message, sender=self.name, flag=flag, logLevel=logLevel)
+        self.pluginManager.logger.print(message=message, sender=self.name, flag=flag)
 
     @property
     def loading(self) -> None:
@@ -231,6 +229,7 @@ class Plugin(QWidget):  # noqa: PLR0904
 
     def test(self) -> None:
         """Runs :meth:`~esibd.plugins.Plugin.runTestParallel` in parallel thread."""
+        self.provideDock()
         self.raiseDock(showPlugin=True)
         self.testing = True
         self.pluginManager.Settings.updateSessionPath()  # avoid interference with undefined files from previous test run
@@ -251,13 +250,13 @@ class Plugin(QWidget):  # noqa: PLR0904
 
     LOG_LINE_LENGTH = 86
 
-    def testControl(self, control: QWidget, value: ParameterType, delay: int = 0, label: str = '') -> None:  # noqa: C901, PLR0912
+    def testControl(self, control: QWidget, value: Any, delay: int = 0, label: str = '') -> None:  # noqa: ANN401, C901, PLR0912
         """Changes control states and triggers corresponding events.
 
         :param control: The control to be tested.
         :type control: QWidget
         :param value: The value that should be simulated.
-        :type value: ParameterType
+        :type value: Any
         :param delay: Wait this long for event to be processed before proceeding to next test. Defaults to 0
         :type delay: int, optional
         :param label: Custom test message used for logging, defaults to ''
@@ -325,7 +324,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param closePopup: Determine if popup should be closed automatically, defaults to False
         :type closePopup: bool, optional
         """
-        if self.file is not None:
+        if self.file.name:
             with self.file.with_suffix('.py').open('w', encoding=UTF8) as plotFile:
                 plotFile.write(self.generatePythonPlotCode())
             if current_thread() is main_thread():
@@ -792,7 +791,8 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.processEvents()  # trigger paint to get width
         labelWidth = self.labelAnnotation.get_window_extent(renderer=ax.get_figure().canvas.get_renderer()).width
         axisWidth = ax.get_window_extent().transformed(ax.get_figure().dpi_scale_trans.inverted()).width * ax.get_figure().dpi * .9
-        self.labelAnnotation.set_size(min(max(fontsize / labelWidth * axisWidth, 1), 10))
+        if labelWidth > 0:
+            self.labelAnnotation.set_size(min(max(fontsize / labelWidth * axisWidth, 1), 10))
         if hasattr(ax, 'cursor'):  # cursor position changes after adding label... -> restore
             ax.cursor.updatePosition()
         ax.figure.canvas.draw_idle()
@@ -872,7 +872,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         Only update the remaining controls using style sheets.
         Extend to adjust colors to app theme.
         """
-        if self.fig is not None and not self.loading and (self.scan is None or self.scan.file is not None):
+        if self.fig is not None and not self.loading and (self.scan is None or self.scan.file.name):
             self.initFig()
             self.plot()
         if hasattr(self, 'navToolBar') and self.navToolBar is not None:
@@ -1079,7 +1079,7 @@ class StaticDisplay(Plugin):
         super().__init__(**kwargs)
         self.parentPlugin = parentPlugin  # another Plugin
         self.name = f'{parentPlugin.name} Static Display'
-        self.file = None
+        self.file = Path()
         self.previewFileTypes = []  # extend in derived classes, define here to avoid cross talk between instances
 
     def initGUI(self) -> None:  # noqa: D102
@@ -1194,7 +1194,7 @@ class StaticDisplay(Plugin):
         self.canvas.setHidden(not self.plotEfficientAction.state)
         for a in self.navToolBar.actions()[:-1]:  # last action is empty and undocumented
             a.setVisible(self.plotEfficientAction.state)
-        if self.file is not None and len(self.outputChannels) > 0:
+        if self.file.name and len(self.outputChannels) > 0:
             self.plot(update=True)
 
     def plot(self, update: bool = False) -> None:  # noqa: C901, PLR0912
@@ -1657,7 +1657,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             # self.testControl(self.clearHistoryAction, True)  # keep history, test manually if applicable  # noqa: ERA001
             if hasattr(self, 'exportAction'):
                 self.testControl(self.exportAction, value=True)
-                if self.waitForCondition(condition=lambda: self.parentPlugin.file is not None, timeoutMessage='saving data'):
+                if self.waitForCondition(condition=lambda: self.parentPlugin.file.name, timeoutMessage='saving data'):
                     self.pluginManager.Explorer.activeFileFullPath = self.parentPlugin.file
                     self.pluginManager.Explorer.displayContentSignal.emit()  # call displayContent in main thread
                     self.pluginManager.Explorer.loadingContent = True
@@ -1822,23 +1822,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         :param apply: Recreates all plots from scratch if True.
         :type apply: bool
         """
-        if (channel.enabled or not channel.real) and channel.display and channel.time.size != 0:
+        if (channel.enabled or not channel.real) and channel.display and channel.time.size != 0:  # noqa: PLR1702
             i_min, i_max, n, timeAxis = timeAxes[channel.getDevice().name]
             if apply or np.remainder(i_min, n) == 0:  # otherwise no update required
                 if timeAxis.shape[0] > 1:  # need at least 2 data points to plot connecting line segment
-                    if channel.plotCurve is None:
-                        if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)):
-                            channel.plotCurve = livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
-                                                    style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})')  # initialize empty plots
-                        else:  # pg.ViewBox
-                            channel.plotCurve = pg.PlotDataItem(pen=pg.mkPen((channel.color), width=channel.linewidth,
-                                                    style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})')  # initialize empty plots
-                            channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
-                            livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
-                            channel.plotCurve.curveLegend = self.livePlotWidgets[0].legend  # have to explicitly remove from legend before deleting!
-                        self.updateLegend = True  # curve added
-                        # saving curveParent allows to remove plotCurve from curveParent before deleting, preventing curveParent from trying to access deleted object.
-                        channel.plotCurve.curveParent = livePlotWidget
                     # plotting is very expensive, array manipulation is negligible even with 50000 data points per channel
                     # channel should at any point have as many data points as timeAxis (missing bits will be filled with nan as soon as new data comes in)
                     # however, cant exclude that one data point added between definition of timeAxis and y
@@ -1852,6 +1839,20 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                         if channel.smooth != 0:
                             # y = uniform_filter1d(y, channel.smooth)  # revert once nan_policy implemented  # noqa: ERA001
                             y = smooth(y, channel.smooth)
+                        if channel.plotCurve is None:
+                            # only create new plotCurve if it is actually going to be used
+                            if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)):
+                                channel.plotCurve = livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
+                                                        style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})')  # initialize empty plots
+                            else:  # pg.ViewBox
+                                channel.plotCurve = pg.PlotDataItem(pen=pg.mkPen((channel.color), width=channel.linewidth,
+                                                        style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})')  # initialize empty plots
+                                channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
+                                livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
+                                channel.plotCurve.curveLegend = self.livePlotWidgets[0].legend  # have to explicitly remove from legend before deleting!
+                            self.updateLegend = True  # curve added
+                            # saving curveParent allows to remove plotCurve from curveParent before deleting, preventing curveParent from trying to access deleted object.
+                            channel.plotCurve.curveParent = livePlotWidget
                         channel.plotCurve.setData(timeAxis[:length], y[:length])
                 else:
                     channel.clearPlotCurve()
@@ -2050,7 +2051,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.testControl(self.duplicateChannelAction, value=True, delay=1)
             self.testControl(self.deleteChannelAction, value=True, delay=1)
             self.testControl(self.advancedAction, value=False)
-            if self.useOnOffLogic:  # should be off for previous tests, as closing (for delete, duplicate, move) requires user input
+            if self.useOnOffLogic:
                 self.testControl(self.onAction, value=True)
             if self.useDisplays and self.initializedDock and self.staticDisplayActive():
                 self.staticDisplay.raiseDock(showPlugin=True)
@@ -2059,6 +2060,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 self.channelPlot.raiseDock(showPlugin=True)
                 self.channelPlot.runTestParallel()
                 # init, start, pause, stop acquisition will be tested by DeviceManager
+            if self.useOnOffLogic:
+                self.testControl(self.onAction, value=False)  # leave in save state after testing
         super().runTestParallel()
 
     def copyClipboard(self) -> None:  # noqa: D102
@@ -2797,7 +2800,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         else:
             self.inout = INOUT.OUT
         self.logY = False
-        self.file = None
+        self.file = Path()
         self.documentation = None  # use __doc__ defined in child classes, sphinx does not initialize and will use the value of documentation defined above
         self.updating = False  # Suppress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
@@ -2850,7 +2853,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           parameterType=PARAMETERTYPE.BOOL, attr='log')
         defaultSettings[f'{self.name}/Error count'] = parameterDict(value=0, toolTip='Communication errors within last 10 minutes.\n'
-                                                                   'Communication will be stopped if this reaches 10.\n'
+                                                                   'Communication will be stopped if this reaches 10 per device or 10 per channel.\n'
                                                                    'Will be reset after 10 minutes without errors or on initialization.',
                                           parameterType=PARAMETERTYPE.INT, attr='errorCount', internal=True, indicator=True, advanced=True, restore=False,
                                           event=self.errorCountChanged)
@@ -2870,6 +2873,9 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def runTestParallel(self) -> None:  # noqa: D102
         if self.useBackgrounds:
+            self.testControl(self.recordingAction, value=True, delay=5)
+            self.testControl(self.initAction, value=True, delay=5)
+            self.testControl(self.closeCommunicationAction, value=True, delay=2)
             self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
@@ -2947,7 +2953,7 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.startRecording()
 
     def closeCommunication(self) -> None:
-        """Stop all communication.
+        """Stop all communication of this Device.
 
         Make sure that final calls to device are send from main thread or use a delay
         so they are not send after connection has terminated.
@@ -2966,7 +2972,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                     channel.controller.closeCommunication()
         else:
             self.controller.closeCommunication()
-        super().closeCommunication()
+        super().closeCommunication()  # call after controller communication has been closed
 
     def getSupportedFiles(self) -> list[str]:  # noqa: D102
         if self.useDisplays:
@@ -3180,7 +3186,7 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.time.add(time.time())  # add time in seconds
             if self.liveDisplayActive():
                 if skipPlotting:
-                    self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.DEBUG, logLevel=2)
+                    self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.VERBOSE)
                     self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
                 else:
                     self.signalComm.plotSignal.emit()
@@ -3504,7 +3510,7 @@ class Scan(Plugin):  # noqa: PLR0904
         super().__init__(**kwargs)
         self.getChannelByName = self.pluginManager.DeviceManager.getChannelByName
         self._finished = True
-        self.file = None
+        self.file = Path()
         self.configINI = f'{self.name}.ini'
         self.previewFileTypes = [self.configINI, f'{self.name.lower()}.h5']
         self.useDisplayChannel = False
@@ -3761,7 +3767,8 @@ class Scan(Plugin):  # noqa: PLR0904
                 self.print(f'Could not find channel {name}.', PRINT.WARNING)
             elif not channel.getDevice().initialized():
                 self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif not channel.acquiring or not channel.getDevice().recording:
+            elif channel.real and (not channel.acquiring or not channel.getDevice().recording):
+                # do not check for virtual channels
                 self.print(f'{channel.name} is not acquiring.', PRINT.WARNING)
             else:
                 initializedOutputChannels += 1
@@ -3812,20 +3819,21 @@ class Scan(Plugin):  # noqa: PLR0904
         :return: Generic channel that is used to store and restore scan data.
         :rtype: esibd.core.ScanChannel
         """
-        channel = self.ScanChannel(scan=self, tree=self.channelTree)
+        outputChannel = self.ScanChannel(scan=self, tree=self.channelTree)
         if recordingData is not None:
-            channel.recordingData = recordingData
+            outputChannel.recordingData = recordingData
         if recordingBackground is not None:
-            channel.recordingBackground = recordingBackground
-        self.channelTree.addTopLevelItem(channel)  # has to be added before populating
-        channel.initGUI(item={Parameter.NAME: name, ScanChannel.UNIT: unit})
+            outputChannel.recordingBackground = recordingBackground
+        self.channelTree.addTopLevelItem(outputChannel)  # has to be added before populating
+        outputChannel.initGUI(item={Parameter.NAME: name, ScanChannel.UNIT: unit})
         if not self.loading:
-            channel.connectSource()
-        self.channels.append(channel)
-        if (self.loading and channel.recordingData is not None) or (channel.sourceChannel is not None and (channel.acquiring or channel.getDevice().recording)):
+            outputChannel.connectSource()
+        self.channels.append(outputChannel)
+        if ((self.loading and outputChannel.recordingData is not None) or
+                (outputChannel.sourceChannel is not None and (outputChannel.acquiring or outputChannel.getDevice().recording))):
             # virtual channels will not necessarily be acquiring but they will be populated if their device is recording
-            self.outputChannels.append(channel)
-        return channel
+            self.outputChannels.append(outputChannel)
+        return outputChannel
 
     MIN_STEPS = 3
 
@@ -3844,6 +3852,12 @@ class Scan(Plugin):  # noqa: PLR0904
         :rtype: bool
         """
         channel = self.getChannelByName(name, inout=INOUT.IN)
+        # inputChannel = self.ScanChannel(scan=self, tree=self.channelTree)
+        # self.channelTree.addTopLevelItem(inputChannel)  # has to be added before populating
+        # inputChannel.initGUI(item={Parameter.NAME: name})
+        # if not self.loading:
+        #     inputChannel.connectSource()
+        # self.channels.append(inputChannel)
         if channel is None:
             self.print(f'No channel found with name {name}.', PRINT.WARNING)
             return False or self._dummy_initialization
@@ -3857,10 +3871,13 @@ class Scan(Plugin):  # noqa: PLR0904
             self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
             return False or self._dummy_initialization
         recordingData = self.getSteps(start, stop, step)
+        # inputChannel.recordingData = recordingData
         if len(recordingData) < self.MIN_STEPS:
             self.print('Not enough steps.', PRINT.WARNING)
             return False or self._dummy_initialization
+
         self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=recordingData, inout=INOUT.IN))
+        # self.inputChannels.append(inputChannel)
         return True
 
     def getSteps(self, start: float, stop: float, step: float) -> np.array:
@@ -4216,7 +4233,7 @@ class Browser(Plugin):
         self.ICON_STOP = self.makeCoreIcon('cross.png')
         self.ICON_HOME = self.makeCoreIcon('home.png')
         self.ICON_MANUAL = self.makeCoreIcon('address-book-open.png')
-        self.file = None
+        self.file = Path()
         self.title = None
         self.html = None
         self.plugin = None
@@ -4595,14 +4612,19 @@ class Tree(Plugin):
         self.provideDock()
         self.tree.clear()
         self.tree.setHeaderHidden(True)
+        self.tree.setColumnWidth(0, max(self.tree.columnWidth(0), 200))
         self._inspect = False
         if any(file.name.endswith(fileType) for fileType in self.h5PreviewFileTypes):
             with h5py.File(file, 'r', track_order=True) as dataFile:
                 self.hdfShow(dataFile, self.tree.invisibleRootItem(), 0)
         else:  # self.pyPreviewFileTypes
             # """from https://stackoverflow.com/questions/44698193/how-to-get-a-list-of-classes-and-functions-from-a-python-file-without-importing/67840804#67840804"""
-            with file.open(encoding=self.UTF8) as file_obj:
-                node = ast.parse(file_obj.read())
+            try:
+                with file.open(encoding=self.UTF8) as file_obj:
+                    node = ast.parse(file_obj.read())
+            except SyntaxError as e:
+                self.print(f'Could not parse syntax of file {file.name}.', flag=PRINT.ERROR)
+                return
             functions = [node for node in node.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
             classes = [node for node in node.body if isinstance(node, ast.ClassDef)]
             for function in functions:
@@ -4842,6 +4864,7 @@ class Tree(Plugin):
         self.tree.setHeaderHidden(False)
         self.tree.setHeaderLabels(['Icon', 'Tooltip'])
         self.tree.setColumnCount(2)
+        self.tree.setColumnWidth(0, max(self.tree.columnWidth(0), 200))
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         for plugin in self.pluginManager.plugins:
             plugin_widget = QTreeWidgetItem(self.tree, [plugin.name])
@@ -5593,14 +5616,6 @@ class Settings(SettingsManager):  # noqa: PLR0904
         ds[f'{GENERAL}/{DPI}'] = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
                                                                 items='100, 150, 200, 300', parameterType=PARAMETERTYPE.INTCOMBO)
         # access using getTestMode()
-        ds[f'{GENERAL}/{TESTMODE}'] = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
-                                    event=lambda: self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized
-                                    , internal=True, advanced=True)
-        ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality like sending\nChannels, Parameters, and Settings to the Console.',
-                                                                   internal=True, parameterType=PARAMETERTYPE.BOOL, advanced=True)
-        ds[f'{GENERAL}/{LOGLEVEL}'] = parameterDict(value='Basic', toolTip='Determine which messages should be logged.',
-                                                                   internal=True, parameterType=PARAMETERTYPE.COMBO, advanced=True,
-                                                                   items='Basic, Debug, Verbose', fixedItems=True)
         ds[f'{GENERAL}/{DARKMODE}'] = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
                                                                 parameterType=PARAMETERTYPE.BOOL)
         ds[f'{GENERAL}/{CLIPBOARDTHEME}'] = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
@@ -5608,6 +5623,15 @@ class Settings(SettingsManager):  # noqa: PLR0904
         ds[f'{GENERAL}/{ICONMODE}'] = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.',
                                                                    event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
                                                                 internal=True, parameterType=PARAMETERTYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
+        # advanced general settings at bottom of list
+        ds[f'{GENERAL}/{TESTMODE}'] = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
+                                    event=lambda: self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized
+                                    , internal=True, advanced=True)
+        ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality like sending\nChannels, Parameters, and Settings to the Console.',
+                                                                   internal=True, parameterType=PARAMETERTYPE.BOOL, advanced=True)
+        ds[f'{GENERAL}/{LOGLEVEL}'] = parameterDict(value='Basic', toolTip='Determine level of detail in log.',
+                                                                   internal=True, parameterType=PARAMETERTYPE.COMBO, advanced=True,
+                                                                   items='Basic, Debug, Verbose, Trace', fixedItems=True)
         ds[f'{GENERAL}/Show video recorders'] = parameterDict(value=False, toolTip='Show icons to record videos of plugins.',
                                                               event=self.pluginManager.toggleVideoRecorder,
                                                                 internal=True, parameterType=PARAMETERTYPE.BOOL, attr='showVideoRecorders', advanced=True)
@@ -6039,9 +6063,9 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             unfinishedScans = ''
             for scan in self.pluginManager.getPluginsByType(PLUGINTYPE.SCAN):
                 if not scan.finished:  # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
-                    unfinishedScans.append(scan.name)
+                    unfinishedScans += f'{scan.name}, '
             if unfinishedScans:
-                self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'{", ".join(unfinishedScans)} to complete.', timeout=30, interval=0.5)
+                self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file: 'str | Path | None' = None) -> None:

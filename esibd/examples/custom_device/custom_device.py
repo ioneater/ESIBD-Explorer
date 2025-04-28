@@ -87,7 +87,7 @@ class CustomDevice(Device):
 
     def closeCommunication(self) -> None:
         # TODO (optional) add final communication to set device into save state
-        super().closeCommunication()
+        super().closeCommunication()  # call this at end
 
     def updateTheme(self) -> None:
         super().updateTheme()
@@ -151,13 +151,13 @@ class CustomController(DeviceController):
         # TODO (optional) initialize any custom variables
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()  # call this first
         if self.initialized and self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 # TODO replace with device and communication protocol specific code to close communication
                 # try to close port even if lock could not be acquired! resulting errors should be excepted
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def initializeCommunication(self) -> None:
         # TODO set any flags needed for initialization
@@ -168,6 +168,7 @@ class CustomController(DeviceController):
             # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False

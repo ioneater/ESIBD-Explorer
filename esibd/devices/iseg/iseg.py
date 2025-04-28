@@ -103,6 +103,7 @@ class VoltageController(DeviceController):
             self.print(self.ISEGWriteRead(message=b'*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
@@ -167,4 +168,6 @@ class VoltageController(DeviceController):
                 if lock_acquired:
                     self.socket.sendall(message)  # get channel name
                     response = self.socket.recv(4096).decode('utf-8')
+                    self.print('ISEGWriteRead message: ' + message.replace('\r', '').replace('\n', '') +
+                               ', response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
         return response

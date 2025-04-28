@@ -509,6 +509,7 @@ class PluginManager:  # noqa: PLR0904
         for plugin in self.plugins:
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
+            plugin.provideDock()  # most dock will already be open after loading test files, not all test files may be present outside of production environment
             plugin.raiseDock(showPlugin=True)
             plugin.waitForCondition(condition=lambda plugin=plugin: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'dock of {plugin.name}')
             plugin.runTestParallel()
@@ -854,7 +855,7 @@ class Logger(QObject):
     Use :meth:`~esibd.plugins.Plugin.print` to send messages to the logger.
     """
 
-    printFromThreadSignal = pyqtSignal(str, str, PRINT, int)
+    printFromThreadSignal = pyqtSignal(str, str, PRINT)
 
     def __init__(self, pluginManager: PluginManager) -> None:
         """Initialize a logger.
@@ -983,7 +984,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
                         for line in lines[-self.purgeTo:]:
                             purged.write(line)
 
-    def print(self, message: str, sender: str = f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:  # only used for program messages
+    def print(self, message: str, sender: str = f'{PROGRAM_NAME} {PROGRAM_VERSION}', flag: PRINT = PRINT.MESSAGE) -> None:  # only used for program messages  # noqa: C901, PLR0912
         """Augments messages and redirects to log file, statusbar, and console.
 
         :param message: A short and descriptive message.
@@ -992,27 +993,32 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         :type sender: str, optional
         :param flag: Signals the status of the message, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :class:`~esibd.const.PRINT`, optional
-        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
-        :type logLevel: int, optional
         """
         if current_thread() is not main_thread():
             # redirect to main thread if needed to avoid changing GUI from parallel thread.
-            self.printFromThreadSignal.emit(message, sender, flag, logLevel)
+            self.printFromThreadSignal.emit(message, sender, flag)
             return
         match flag:
-            case PRINT.DEBUG:
-                flagString = '🪲'
-                logLevel = max(logLevel, 1)
+            case PRINT.EXPLORER:
+                flagString = ' ❖'  # noqa: RUF001
             case PRINT.WARNING:
                 flagString = '⚠️'
             case PRINT.ERROR:
                 flagString = '❌'
-            case PRINT.EXPLORER:
-                flagString = ' ❖'  # noqa: RUF001
+            case PRINT.DEBUG:
+                flagString = '🪲'
+                if getLogLevel() < 1:
+                    return
+            case PRINT.VERBOSE:
+                flagString = '🪲'
+                if getLogLevel() < 2:  # noqa: PLR2004
+                    return
+            case PRINT.TRACE:
+                flagString = '🪲'
+                if getLogLevel() < 3:  # noqa: PLR2004
+                    return
             case _:  # PRINT.MESSAGE
                 flagString = 'ℹ️'  # noqa: RUF001
-        if logLevel > getLogLevel():
-            return
         timerString = ''
         if getLogLevel() > 0:
             ms = ((datetime.now() - self.lastCallTime).total_seconds() * 1000) if self.lastCallTime is not None else 0
@@ -2656,11 +2662,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """
         for parameter in self.parameters:
             parameter.applyWidget()
-        if self.EQUATION in self.displayedParameters:
-            equation = self.getParameterByName(self.EQUATION)
-            # need / in equations but it is invalid for line edits otherwise
-            # ! needs to be added before value is loaded from file!
-            equation.getWidget().valid_chars = equation.getWidget().valid_chars.replace(']*$', '/]*$')
+        name_parameter = self.getParameterByName(self.NAME)
+        # remove / in names. this is valid in all other fields unless explicitly removed
+        # ! needs to be removed before value is loaded from file!
+        if name_parameter.parameterType == PARAMETERTYPE.TEXT:
+            name_parameter.getWidget().valid_chars = name_parameter.getWidget().valid_chars.replace('/', '')
         for name, default in self.getSortedDefaultChannel().items():
             # add default value if not found in file. Will be saved to file later.
             if name in item and name not in self.tempParameters():
@@ -3861,7 +3867,8 @@ class LineEdit(QLineEdit):
         self._edited = False
         self.parentParameter = parentParameter
         # Regular expression to allow only letters (both upper and lower case), digits, and spaces + mathematical symbols and brackets for equations
-        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+,~!@#$%&]*$'
+        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+,~!@#$%&/]*$'
+        # ! remove the forward slash from all parameters like name that may affect data structure in hdf5 files
         # NOTE: \\/ slashes may cause names to be interpreted as paths but are needed in equations -> not allowed, add / to valid_chars only for equations
         self.tree = tree
         self.editingFinished.connect(self.onEditingFinished)
@@ -4712,7 +4719,7 @@ class DeviceController(QObject):  # noqa: PLR0904
     def errorCount(self, count: int) -> None:
         self.device.errorCount = count
 
-    def print(self, message: str, flag: PRINT = PRINT.MESSAGE, logLevel: int = 0) -> None:
+    def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
         """Send a message to stdout, the statusbar, the Console, and if enabled to the logfile.
 
         It will automatically add a timestamp and the name of the sending plugin.
@@ -4721,11 +4728,9 @@ class DeviceController(QObject):  # noqa: PLR0904
         :type message: str
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
-        :param logLevel: Indicates what messages should be logged, defaults to 0 (Basic). Other values are 1 (Debug) and 2 (Verbose).
-        :type logLevel: int, optional
         """
         controller_name = f'{self.channel.name[:15]:15s} controller' if self.channel is not None else 'Controller'
-        self.device.print(f'{controller_name}: {message}', flag=flag, logLevel=logLevel)
+        self.device.print(f'{controller_name}: {message}', flag=flag)
 
     def initializeCommunication(self) -> None:
         """Start the :meth:`~esibd.core.DeviceController.initThread`."""
@@ -4733,6 +4738,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         if self.initializing:
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
+            self.print('Closing communication for reinitialization.', flag=PRINT.DEBUG)
             self.closeCommunication()  # terminate old thread before starting new one
         self.initializing = True
         self.errorCount = 0
@@ -4864,8 +4870,8 @@ class DeviceController(QObject):  # noqa: PLR0904
         """Close all open ports.
 
         This should free up all resources and allow for clean reinitialization.
-        Extend to add hardware specific code
-        Make sure acquisition is stopped before communication is closed.
+        Extend to add hardware specific code.
+        Make sure acquisition is stopped before communication is closed!
         """
         self.print('closeCommunication', PRINT.DEBUG)
         if self.acquiring:
@@ -4897,18 +4903,23 @@ class DeviceController(QObject):  # noqa: PLR0904
         :param encoding: Encoding used for sending and receiving messages, defaults to 'utf-8'
         :type encoding: str, optional
         """
+        self.print('serialWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
         try:
             self.clearBuffer(port)  # make sure communication does not break if for any reason the port is not empty. E.g. old return value has not been read.
             port.write(bytes(message, encoding))
         except serial.SerialTimeoutException as e:
+            self.errorCount += 1
             self.print(f'Timeout while writing message, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
         except serial.PortNotOpenError as e:
+            self.errorCount += 1
             self.print(f'Port not open, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except serial.SerialException as e:
+            self.errorCount += 1
             self.print(f'Serial error, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except AttributeError as e:
+            self.errorCount += 1
             self.print(f'Attribute error, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
             if port is not None:
                 self.signalComm.closeCommunicationSignal.emit()
@@ -4929,27 +4940,33 @@ class DeviceController(QObject):  # noqa: PLR0904
         :return: message
         :rtype: str
         """
+        response = ''
         try:
             if EOL == '\n':
                 if strip:
-                    return port.readline().decode(encoding).strip(strip).rstrip()
-                return port.readline().decode(encoding).rstrip()
+                    response = port.readline().decode(encoding).strip(strip).rstrip()
+                response = port.readline().decode(encoding).rstrip()
             if strip:
-                return port.read_until(EOL.encode(encoding)).decode(encoding).strip(strip).rstrip()
-            return port.read_until(EOL.encode(encoding)).decode(encoding).rstrip()
+                response = port.read_until(EOL.encode(encoding)).decode(encoding).strip(strip).rstrip()
+            response = port.read_until(EOL.encode(encoding)).decode(encoding).rstrip()
         except UnicodeDecodeError as e:
+            self.errorCount += 1
             self.print(f'Error while decoding message: {e}', PRINT.ERROR)
         except serial.SerialTimeoutException as e:
+            self.errorCount += 1
             self.print(f'Timeout while reading message, try to reinitialize communication: {e}', PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except serial.SerialException as e:
+            self.errorCount += 1
             self.print(f'Serial error, try to reinitialize communication: {e}', PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except AttributeError as e:
+            self.errorCount += 1
             self.print(f'Attribute error, try to reinitialize communication: {e}', PRINT.ERROR)
             if port is not None:
                 self.signalComm.closeCommunicationSignal.emit()
-        return ''
+        self.print('serialRead response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
+        return response
 
     def clearBuffer(self, port: serial.Serial = None) -> None:
         """Clear the buffer at the serial port.

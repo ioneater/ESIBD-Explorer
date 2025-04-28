@@ -246,13 +246,13 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             self.stopAcquisition()  # as this is a channel controller it should only stop acquisition but not recording
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.channel.devicename}.') as lock_acquired:
                 if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
                     self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
@@ -276,8 +276,10 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
+            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')  # noqa: FBT003
         except serial.serialutil.SerialException as e:
+            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')  # noqa: FBT003
         finally:
             self.initializing = False

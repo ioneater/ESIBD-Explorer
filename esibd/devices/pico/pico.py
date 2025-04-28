@@ -109,19 +109,21 @@ class TemperatureController(DeviceController):
         self.assert_pico_ok = assert_pico_ok
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.initialized:
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
                 self.usbPt104.UsbPt104CloseUnit(self.chandle)
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
-            self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0)
+            self.assert_pico_ok(self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0))
             for channel in self.device.getChannels():
                 self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],
                                                         self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            # self.signalComm.initCompleteSignal.emit(False)
+            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
@@ -140,6 +142,7 @@ class TemperatureController(DeviceController):
                 try:
                     meas = ctypes.c_int32()
                     self.usbPt104.UsbPt104GetValue(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
+                    self.print(f'UsbPt104GetValue channel.channel: {channel.channel}, response {meas.value}', flag=PRINT.TRACE)
                     if meas.value != ctypes.c_long(0).value:  # 0 during initialization phase
                         self.values[i] = float(meas.value) / 1000 + 273.15  # always return Kelvin
                     else:

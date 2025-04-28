@@ -34,7 +34,7 @@ class LINE(Plugin):
 
     def initGUI(self) -> None:
         self.profile = None
-        self.file = None
+        self.file = Path()
         super().initGUI()
         self.initFig()
 
@@ -89,7 +89,8 @@ class LINE(Plugin):
 
     def plot(self) -> None:
         self.axes[0].clear()
-        self.line = self.axes[0].plot(self.profile[:, 0], self.profile[:, 1])[0]
+        if self.profile is not None:
+            self.line = self.axes[0].plot(self.profile[:, 0], self.profile[:, 1])[0]
         self.axes[0].set_xlabel('width (m)')
         self.axes[0].set_ylabel('height (m)')
         self.axes[0].autoscale(enable=True)

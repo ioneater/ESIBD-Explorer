@@ -45,6 +45,7 @@ class TICPressureController(PressureController):
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'Status: {TICStatus}')  # query status
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TICStatus:

@@ -135,6 +135,7 @@ class VoltageController(DeviceController):
             self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
@@ -192,20 +193,22 @@ class VoltageController(DeviceController):
         """
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
             if lock_acquired:
+                self.print('RSWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
                 self.port.write(message)
 
-    def RSQuery(self, message, already_acquired=False) -> str:
+    def RSQuery(self, query, already_acquired=False) -> str | float:
         """RS specific pyvisa query.
 
-        :param message: The message to be send.
-        :type message: str
+        :param query: The message to be send.
+        :type query: str | float
         :param already_acquired: Indicates if the lock has already been acquired, defaults to False
         :type already_acquired: bool, optional
         :return: The response received.
         :rtype: str
         """
         response = ''
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {message}.', already_acquired=already_acquired) as lock_acquired:
+        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {query}.', already_acquired=already_acquired) as lock_acquired:
             if lock_acquired:
-                response = self.port.query(message)
+                response = self.port.query(query)
+                self.print('RSQuery query: ' + {query.replace('\r', '').replace('\n', '')} + f', response: {response}', flag=PRINT.TRACE)
         return response

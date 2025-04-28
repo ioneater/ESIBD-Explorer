@@ -111,7 +111,7 @@ class GA(Scan):
         if self.gaChannel is None:
             self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
             return False
-        if not self.gaChannel.acquiring:
+        if self.gaChannel.real and not self.gaChannel.acquiring:
             self.print(f'Channel {self.gaChannel.name} not acquiring. Cannot start optimization.', PRINT.WARNING)
             return False
         self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))

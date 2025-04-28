@@ -60,6 +60,7 @@ class VoltageController(DeviceController):
                 task.ao_channels  # will raise exception if connection failed  # noqa: B018
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False

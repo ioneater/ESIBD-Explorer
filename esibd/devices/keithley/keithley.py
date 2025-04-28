@@ -127,24 +127,25 @@ class CurrentController(DeviceController):
             self.stopAcquisition()
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
             # use rm.list_resources() to check for available resources
             self.rm = pyvisa.ResourceManager()
             self.port = self.rm.open_resource(self.channel.address)
-            self.port.write('*RST')
-            self.device.print(self.port.query('*IDN?'))
-            self.port.write('SYST:ZCH OFF')
-            self.port.write('CURR:NPLC 6')
-            self.port.write('SOUR:VOLT:RANG 50')
+            self.KeithleyWrite('*RST')
+            self.device.print(self.KeithleyQuery('*IDN?'))
+            self.KeithleyWrite('SYST:ZCH OFF')
+            self.KeithleyWrite('CURR:NPLC 6')
+            self.KeithleyWrite('SOUR:VOLT:RANG 50')
             self.signalComm.initCompleteSignal.emit()
         except Exception:  # noqa: BLE001
+            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(np.nan)
         finally:
             self.initializing = False
@@ -170,11 +171,11 @@ class CurrentController(DeviceController):
         # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
         """Apply voltage value."""
         if self.port is not None:
-            self.port.write(f'SOUR:VOLT {self.channel.voltage}')
+            self.KeithleyWrite(f'SOUR:VOLT {self.channel.voltage}')
 
     def toggleOn(self) -> None:
         self.applyVoltage()  # apply voltages before turning power supply on or off
-        self.port.write(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
+        self.KeithleyWrite(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
 
     def fakeNumbers(self) -> None:
         if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
@@ -183,9 +184,29 @@ class CurrentController(DeviceController):
     def readNumbers(self) -> None:
         if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
             try:
-                self.port.write('INIT')
-                self.values = [float(self.port.query('FETCh?').split(',')[0][:-1]) * 1E12]
+                self.KeithleyWrite('INIT')
+                self.values = [float(self.KeithleyQuery('FETCh?').split(',')[0][:-1]) * 1E12]
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
                 self.errorCount += 1
                 self.values = [np.nan]
+
+    def KeithleyWrite(self, message: str) -> None:
+        """KEITHLEY specific pyvisa write.
+
+        :param message: The message to be send.
+        :type message: str
+        """
+        self.print('KeithleyWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
+        self.port.write(message)
+
+    def KeithleyQuery(self, query: str) -> str:
+        """KEITHLEY specific pyvisa query.
+
+        :param query: The query to be queried.
+        :type query: str
+        """
+        response = self.port.query(query)
+        self.print('KeithleyQuery query: ' + query.replace('\r', '').replace('\n', '') +
+                    ', response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
+        return response

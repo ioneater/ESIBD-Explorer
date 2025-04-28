@@ -92,11 +92,11 @@ class TemperatureController(DeviceController):
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
@@ -115,6 +115,7 @@ class TemperatureController(DeviceController):
             # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable # noqa: ERA001
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False

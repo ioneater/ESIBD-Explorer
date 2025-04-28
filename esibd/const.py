@@ -133,16 +133,20 @@ class INOUT(Enum):
 class PRINT(Enum):
     """Used to specify if a function affects only input, only output, or all Channels."""
 
-    MESSAGE = 0
-    """A standard message."""
-    WARNING = 1
-    """Tag message as warning and highlight using color."""
-    ERROR = 2
-    """Tag message as error and highlight using color."""
-    DEBUG = 3
-    """Only show if debug flag is enabled."""
-    EXPLORER = 4
+    EXPLORER = 0
     """Key messages by Explorer"""
+    MESSAGE = 1
+    """A standard message."""
+    WARNING = 2
+    """Tag message as warning and highlight using color."""
+    ERROR = 3
+    """Tag message as error and highlight using color."""
+    DEBUG = 4
+    """Only show if debug flag is enabled."""
+    VERBOSE = 5
+    """Additional details that would be distracting if not needed for specific test."""
+    TRACE = 6
+    """All messages, including detailed trace of instrument communication."""
 
 
 class PLUGINTYPE(Enum):
@@ -286,7 +290,9 @@ def getLogLevel(asString: bool = False) -> int | str:
             return 0
         case 'Debug':
             return 1
-    return 2  # Verbose
+        case 'Verbose':
+            return 2
+    return 3  # Trace
 
 
 def getDarkMode() -> bool:
@@ -455,7 +461,7 @@ def plotting(func: callable) -> callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
         if self.plotting:
-            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.DEBUG, logLevel=2)
+            self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.VERBOSE)
             if hasattr(self, 'measureInterval'):
                 self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
             return None

@@ -58,11 +58,11 @@ class PressureChannel(Channel):
 class PressureController(DeviceController):
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
@@ -71,6 +71,7 @@ class PressureController(DeviceController):
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:

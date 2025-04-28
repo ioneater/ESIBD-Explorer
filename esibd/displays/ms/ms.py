@@ -39,7 +39,7 @@ class MS(Plugin):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.previewFileTypes = ['.txt']
-        self.file = None
+        self.file = Path()
         self.x = self.y = None
         self.paperAction = None
         self.dataClipboardIcon = self.makeIcon('clipboard-paste-document-text.png')
@@ -75,6 +75,7 @@ class MS(Plugin):
             self.testControl(self.copyAction, value=True)
             self.testControl(self.dataAction, value=True)
             self.testControl(self.paperAction, not self.paperAction.state)
+            self.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
 
     def supportsFile(self, file: Path) -> None:
@@ -104,7 +105,8 @@ class MS(Plugin):
         if self.paperAction.state:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
-            self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, self.smooth(self.y, 10)),
+            if self.x is not None:
+                self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, self.smooth(self.y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100 + 2])
@@ -112,7 +114,8 @@ class MS(Plugin):
             self.axes[0].set_yticklabels(['0', '%', '100'])
         else:
             self.axes[0].set_ylabel('Intensity')
-            self.msLine = self.axes[0].plot(self.x, self.y)[0]
+            if self.x is not None:
+                self.msLine = self.axes[0].plot(self.x, self.y)[0]
             self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
 
         self.axes[0].set_autoscale_on(True)
@@ -122,7 +125,7 @@ class MS(Plugin):
         self.navToolBar.update()  # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0], ' ' if self.paperAction.state else self.file.name)
+        self.labelPlot(self.axes[0], '' if self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value) -> float:
         """Return the nearest value in the given array.

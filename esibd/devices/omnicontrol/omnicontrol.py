@@ -59,11 +59,11 @@ class PressureChannel(Channel):
 class PressureController(DeviceController):
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
@@ -71,6 +71,7 @@ class PressureController(DeviceController):
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
@@ -88,6 +89,7 @@ class PressureController(DeviceController):
             if channel.enabled and channel.active and channel.real:
                 try:
                     pressure = pvp.read_pressure(self.port, channel.id)
+                    self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
                     self.values[i] = np.nan if pressure == 0 else pressure * 1000
                 except ValueError as e:
                     self.print(f'Error while reading pressure {e}')

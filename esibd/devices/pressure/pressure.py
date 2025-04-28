@@ -85,6 +85,7 @@ class PressureController(DeviceController):
         self.tpgInitialized = False
 
     def closeCommunication(self) -> None:
+        super().closeCommunication()
         if self.ticPort is not None:
             with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.'):
                 self.ticPort.close()
@@ -95,7 +96,6 @@ class PressureController(DeviceController):
                 self.tpgPort = None
         self.ticInitialized = False
         self.tpgInitialized = False
-        super().closeCommunication()
 
     def runInitialization(self) -> None:
         try:
@@ -105,6 +105,7 @@ class PressureController(DeviceController):
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'TIC Status: {TICStatus}')  # query status
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            # self.closeCommunication()  # leave communication open for TPG
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TICStatus:
@@ -118,6 +119,7 @@ class PressureController(DeviceController):
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
+            # self.closeCommunication()  # leave communication open for TIC
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:
