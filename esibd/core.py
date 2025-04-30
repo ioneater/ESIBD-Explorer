@@ -4369,6 +4369,22 @@ class ViewBox(pg.ViewBox):
 
     userMouseEnabledChanged = pyqtSignal(bool, bool)
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.dragging = False
+        self.draggingTimer = QTimer()
+        self.draggingTimer.timeout.connect(self.resetDragging)
+        self.draggingTimer.setInterval(1000)  # 1 s
+
+    def mousePressEvent(self, ev) -> None:
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.draggingTimer.start()  # as mouseReleaseEvent is not called, this workaround makes sure the flag is reset
+        super().mousePressEvent(ev)
+
+    def resetDragging(self) -> None:
+        self.dragging = False
+
     def setMouseEnabled(self, x: 'bool | None' = None, y: 'bool | None' = None) -> None:
         """Call user event if values have changed.
 
@@ -4484,6 +4500,10 @@ class PlotItem(pg.PlotItem):
         if self.parentPlugin is not None and self.getViewBox().mouseEnabled()[0]:
             self.parentPlugin.parentPlugin.signalComm.plotSignal.emit()
 
+    @property
+    def dragging(self) -> None:
+        return self.getViewBox().dragging
+
 
 class PlotWidget(pg.PlotWidget):
     """PlotWidget providing xyLabel."""
@@ -4500,6 +4520,10 @@ class PlotWidget(pg.PlotWidget):
     def legend(self) -> pg.LegendItem:
         """The plot legend."""
         return self.plotItem.legend
+
+    @property
+    def dragging(self) -> None:
+        return self.getPlotItem().dragging
 
 
 class LabelItem(pg.LabelItem):
@@ -4704,6 +4728,10 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.signalComm.initCompleteSignal.connect(self.initComplete)
         self.signalComm.updateValuesSignal.connect(self.updateValues)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
+        self._errorCount = 0
+        self.errorCountTimer = QTimer()
+        self.errorCountTimer.timeout.connect(self.resetErrorCount)
+        self.errorCountTimer.setInterval(600000)  # 10 min i.e. 600000 msec
 
     @property
     def name(self) -> str:
@@ -4713,11 +4741,18 @@ class DeviceController(QObject):  # noqa: PLR0904
     @property
     def errorCount(self) -> int:
         """Convenience method to access the errorCount of the device."""
-        return self.device.errorCount
+        return self._errorCount
 
     @errorCount.setter
     def errorCount(self, count: int) -> None:
-        self.device.errorCount = count
+        self._errorCount = count
+        if self.errorCount != 0:
+            self.errorCountTimer.start()  # will reset after interval unless another error happens before and restarts the timer
+        QTimer.singleShot(0, self.device.errorCountChanged)
+
+    def resetErrorCount(self) -> None:
+        """Reset error count to 0."""
+        self.errorCount = 0
 
     def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
         """Send a message to stdout, the statusbar, the Console, and if enabled to the logfile.

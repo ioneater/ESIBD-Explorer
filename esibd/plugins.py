@@ -1766,6 +1766,9 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             return  # values not yet available
         if hasattr(self.parentPlugin, 'time') and self.parentPlugin.time.size < 1:  # no data
             return
+        if any(livePlotWidget.dragging for livePlotWidget in self.livePlotWidgets):
+            self.print('Suspend plotting while dragging', flag=PRINT.TRACE)
+            return
         self.parentPlugin.plotting = True  # protect from recursion
         # flip array to speed up search of most recent data points
         # may return None if no value is older than displaytime
@@ -2810,9 +2813,6 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.controller = None
         # implement a controller based on DeviceController. In some cases there is no controller for the device, but for every channel. Adjust
         self.subtractBackgroundAction = None
-        self.errorCountTimer = QTimer()
-        self.errorCountTimer.timeout.connect(self.resetErrorCount)
-        self.errorCountTimer.setInterval(600000)  # 10 min i.e. 600000 msec
 
     def initGUI(self) -> None:  # noqa: D102
         super().initGUI()
@@ -2830,6 +2830,10 @@ class Device(ChannelManager):  # noqa: PLR0904
         if self.inout == INOUT.IN:
             self.addAction(lambda: self.loadValues(None), f'Load {self.name} values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
         self.restoreOutputData()
+
+    def finalizeInit(self) -> None:  # noqa: D102
+        super().finalizeInit()
+        self.errorCountChanged()
 
     def getDefaultSettings(self) -> dict[str, dict]:  # noqa: D102
         defaultSettings = super().getDefaultSettings()
@@ -2852,10 +2856,10 @@ class Device(ChannelManager):  # noqa: PLR0904
         'If this is reached, older data will be thinned to allow to keep longer history.')
         defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           parameterType=PARAMETERTYPE.BOOL, attr='log')
-        defaultSettings[f'{self.name}/Error count'] = parameterDict(value=0, toolTip='Communication errors within last 10 minutes.\n'
+        defaultSettings[f'{self.name}/Error count'] = parameterDict(value='0', toolTip='Communication errors within last 10 minutes.\n'
                                                                    'Communication will be stopped if this reaches 10 per device or 10 per channel.\n'
                                                                    'Will be reset after 10 minutes without errors or on initialization.',
-                                          parameterType=PARAMETERTYPE.INT, attr='errorCount', internal=True, indicator=True, advanced=True, restore=False,
+                                          parameterType=PARAMETERTYPE.LABEL, attr='errorCountStr', internal=True, indicator=True, advanced=True, restore=False,
                                           event=self.errorCountChanged)
         return defaultSettings
 
@@ -2892,12 +2896,10 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def errorCountChanged(self) -> None:
         """Start a timer to reset error count if no further errors occur."""
-        if self.errorCount != 0:
-            self.errorCountTimer.start()  # will reset after interval unless another error happens before and restarts the timer
-
-    def resetErrorCount(self) -> None:
-        """Reset error count to 0."""
-        self.errorCount = 0
+        if self.controller is None:
+            self.errorCountStr = f'{self.errorCount}, channel controllers: ' + ', '.join([repr(channel.controller.errorCount) for channel in self.channels])
+        else:
+            self.errorCountStr = f'{self.errorCount}, controller: {self.controller.errorCount}'
 
     def startAcquisition(self) -> None:
         """Start device Acquisition.
@@ -4623,7 +4625,7 @@ class Tree(Plugin):
                 with file.open(encoding=self.UTF8) as file_obj:
                     node = ast.parse(file_obj.read())
             except SyntaxError as e:
-                self.print(f'Could not parse syntax of file {file.name}.', flag=PRINT.ERROR)
+                self.print(f'Could not parse syntax of file {file.name}: {e}', flag=PRINT.ERROR)
                 return
             functions = [node for node in node.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
             classes = [node for node in node.body if isinstance(node, ast.ClassDef)]

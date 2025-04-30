@@ -76,6 +76,7 @@ Added
 - Tests now write a log to a dedicated file in the current session path.
 - Added log level setting to determine level of information in logs.
 - Added some pauses during testing if GUI gets too busy.
+- In advanced mode of Settings, the error count for controllers of devices and channels is now shown.
 
 Changed
 ~~~~~~~
