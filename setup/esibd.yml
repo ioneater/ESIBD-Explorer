@@ -39,7 +39,9 @@ dependencies:
     - pyqtgraph==0.13.7
     - simple_pid
     # packages for deployment
+    - debugpy
     - pylint
+    - ruff
     - sphinx
     - sphinx_rtd_theme
     - sphinxcontrib-bibtex

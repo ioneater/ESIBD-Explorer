@@ -96,14 +96,15 @@ class Energy(Scan):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel', event=self.dummyInitialization)
         defaultSettings[self.START] = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
         defaultSettings[self.STOP] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
         defaultSettings[self.STEP] = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
         return defaultSettings
 
-    def initScan(self) -> None:
-        return (self.addInputChannel(self.channel, self.start, self.stop, self.step) and super().initScan())
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addInputChannel(self.channel, self.start, self.stop, self.step)
 
     def map_percent(self, x) -> np.array:
         """Map any range on range 0 to 100.

@@ -210,5 +210,5 @@ class VoltageController(DeviceController):
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {query}.', already_acquired=already_acquired) as lock_acquired:
             if lock_acquired:
                 response = self.port.query(query)
-                self.print('RSQuery query: ' + {query.replace('\r', '').replace('\n', '')} + f', response: {response}', flag=PRINT.TRACE)
+                self.print('RSQuery query: ' + query.replace('\r', '').replace('\n', '') + f', response: {response}', flag=PRINT.TRACE)
         return response

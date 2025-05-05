@@ -69,7 +69,6 @@ class GA(Scan):
         self.gaSignalComm = self.GASignalCommunicate()
         self.gaSignalComm.updateValuesSignal.connect(self.updateValues)
         self.changeLog = []
-        self.gaChannel = None
 
     def initGUI(self) -> None:
         super().initGUI()
@@ -82,14 +81,17 @@ class GA(Scan):
         self.testControl(self.initialAction, self.initialAction.state)
         super().runTestParallel()
 
+    GACHANNEL = 'GA Channel'
+
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings.pop(self.WAITLONG)
         defaultSettings.pop(self.LARGESTEP)
         defaultSettings.pop(self.SCANTIME)
-        defaultSettings['GA Channel'] = defaultSettings.pop(self.DISPLAY)  # keep display for using displayChannel functionality but modify properties as needed
-        defaultSettings['GA Channel'][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
-        defaultSettings['GA Channel'][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
+        defaultSettings[self.GACHANNEL] = defaultSettings.pop(self.DISPLAY)  # keep display for using displayChannel functionality but modify properties as needed
+        defaultSettings[self.GACHANNEL][Parameter.TOOLTIP] = 'Genetic algorithm optimizes on this channel'
+        defaultSettings[self.GACHANNEL][Parameter.ITEMS] = 'C_Shuttle, RT_Detector, RT_Sample-Center, RT_Sample-End, LALB-Aperture'
+        defaultSettings[self.GACHANNEL][Parameter.EVENT] = self.dummyInitialization
         defaultSettings['Logging'] = parameterDict(value=False, toolTip='Show detailed GA updates in console.', parameterType=PARAMETERTYPE.BOOL, attr='log')
         return defaultSettings
 
@@ -101,49 +103,41 @@ class GA(Scan):
             self.initialAction.state = False
             self.print('GA not initialized.')
 
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addTimeInputChannel()
+
     def initScan(self) -> None:
         """Start optimization."""
         # overwrite parent
-        self.initializing = True
-        self.gaChannel = self.getChannelByName(self.displayDefault, inout=INOUT.OUT)
-        self.ga.init()  # don't mix up with init method from Scan
-        self.ga.maximize(maximize=True)
-        if self.gaChannel is None:
-            self.print(f'Channel {self.displayDefault} not found. Cannot start optimization.', PRINT.WARNING)
+        if super().initScan():
+            if not self._dummy_initialization:
+                self.display.axes[0].set_ylabel(self.outputChannels[0].name)
+                self.ga.init()  # don't mix up with init method from Scan
+                self.ga.maximize(True)  # noqa: FBT003
+                for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
+                    if channel.optimize:
+                        self.ga.optimize(channel.value, channel.min, channel.max, .2, abs(channel.max - channel.min) / 10, channel.name)
+                    else:
+                        # add entry but set rate to 0 to prevent value change. Can be activated later.
+                        self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
+                self.ga.genesis()
+                self.ga.file_path(self.file.parent.as_posix())
+                self.ga.file_name(self.file.name)
+                self.initialAction.state = False
+                return True
             return False
-        if self.gaChannel.real and not self.gaChannel.acquiring:
-            self.print(f'Channel {self.gaChannel.name} not acquiring. Cannot start optimization.', PRINT.WARNING)
-            return False
-        self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
-        self.addOutputChannels()
-        self.toggleDisplay(visible=True)
-        self.display.axes[0].set_ylabel(self.gaChannel.name)
-        self.initializing = False
-        for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
-            if channel.optimize:
-                self.ga.optimize(channel.value, channel.min, channel.max, .2, abs(channel.max - channel.min) / 10, channel.name)
-            else:
-                # add entry but set rate to 0 to prevent value change. Can be activated later.
-                self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
-        self.ga.genesis()
-        self.measurementsPerStep = max(int(self.average / self.outputChannels[self.getOutputIndex()].getDevice().interval) - 1, 1)
-        self.updateFile()
-        self.ga.file_path(self.file.parent.as_posix())
-        self.ga.file_name(self.file.name)
-        self.initialAction.state = False
-        return True
+        return False
 
     def addOutputChannels(self) -> None:
-        for channel in self.outputChannels:
-            channel.onDelete()
-        if self.channelTree is not None:
-            self.channelTree.clear()
-        self.addOutputChannel(name=f'{self.displayDefault}', recordingData=DynamicNp())
-        if len(self.outputChannels) > 0:
-            self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
+        self.print('addOutputChannels', flag=PRINT.DEBUG)
+        self.addOutputChannel(name=f'{self.displayDefault}')  # only add ga channel
         self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
-                                            for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
-        self.toggleAdvanced(advanced=False)
+                                    for name, parameterDict in self.headerChannel.getSortedDefaultChannel().items()])
+        if len(self.outputChannels) > 0:
+            self.outputChannels[0].recordingData = DynamicNp()
+            self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
+            self.toggleAdvanced(advanced=False)
 
     @plotting
     def plot(self, update=False, **kwargs) -> None:  # pylint:disable=unused-argument, missing-param-doc  # noqa: ARG002
@@ -188,7 +182,7 @@ ax0.legend(loc='lower right', prop={{'size': 10}}, frameon=False)
 fig.show()
         """
 
-    def run(self, recording) -> None:
+    def runScan(self, recording) -> None:
         # first datapoint before optimization
         self.inputChannels[0].recordingData.add(time.time())
         fitnessStart = np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep))
@@ -197,6 +191,8 @@ fig.show()
         while recording():
             self.gaSignalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
             time.sleep((self.wait + self.average) / 1000)
+            self.bufferLagging()
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             self.ga.fitness(np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
             if self.log:
                 self.print(self.ga.step_string().replace('GA: ', ''))
@@ -207,6 +203,7 @@ fig.show()
                 self.inputChannels[0].recordingData.add(time.time())
                 self.outputChannels[0].recordingData.add(self.ga.best_fitness())
                 self.outputChannels[1].recordingData.add(self.ga.average_fitness())
+                self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
         self.ga.check_restart(_terminate=True)  # sort population
         self.gaSignalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003

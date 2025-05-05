@@ -361,6 +361,30 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.pluginManager.logger.closeTestLogFile()
         self.testing = False
 
+    MAX_LAG_TOLERANCE = 10
+
+    def bufferLagging(self, wait: int = 5) -> bool:
+        """Wait for excess events to be processed.
+
+        Only call from parallel thread, e.g. during testing or scanning!
+
+        :param wait: Indicates how long the thread should wait to allow lag to recover, defaults to 5
+        :type wait: int
+        """
+        if current_thread() is main_thread():
+            self.print('Never call bufferLagging from main thread!', flag=PRINT.ERROR)
+        max_lagging_seconds = 0
+        max_lagging_device = None
+        for device in self.pluginManager.DeviceManager.getDevices():
+            if device.lagging_seconds > max_lagging_seconds:
+                max_lagging_seconds = device.lagging_seconds
+                max_lagging_device = device
+        if max_lagging_seconds > self.MAX_LAG_TOLERANCE:
+            self.print(f'Maximum lag is {max_lagging_seconds} s ({max_lagging_device.name}). Pausing for {wait} s.', flag=PRINT.DEBUG)
+            time.sleep(wait)
+            return True
+        return False
+
     @property
     def testing(self) -> None:
         """Indicates if the plugin, or any other plugin, is currently testing."""
@@ -392,6 +416,10 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param timeoutMessage: message displayed if timeout is reached
         :type timeoutMessage: str
         """
+        if current_thread() is main_thread():
+            self.print(f'waitForCondition called from main thread! Timeout message: {timeoutMessage}', flag=PRINT.VERBOSE)
+        if condition():  # no need to message as we are not waiting
+            return True
         start = time.time()
         self.print(f'Waiting for {timeoutMessage}', flag=PRINT.DEBUG)
         while not condition():
@@ -400,6 +428,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                 if current_thread() is main_thread():  # do not block other events in main thread
                     self.processEvents()
             else:
+                self.print(f'Wait condition: {condition()}, elapsed time: {time.time() - start}', flag=PRINT.VERBOSE)
                 self.print(f'Timeout reached while waiting for {timeoutMessage}', flag=PRINT.ERROR)
                 return False
         return True
@@ -1982,6 +2011,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         self.previewFileTypes = [self.confINI, self.confh5]
         self.changeLog = []
         self.lagging = 0
+        self.interval_tolerance = 0  # how much the acquisition interval is allowed to deviate
         self._recording = False
         self.staticDisplay = self.StaticDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None  # need to initialize to access previewFileTypes
         self.liveDisplay = self.LiveDisplay(parentPlugin=self, **kwargs) if self.useDisplays else None
@@ -2020,6 +2050,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         super().finalizeInit()
         self.copyAction = self.addAction(self.copyClipboard, f'{self.name} channel image to clipboard.', self.imageClipboardIcon, before=self.aboutAction)
         self.toggleLiveDisplay()
+        self.intervalChanged()  # update tolerance
 
     def isOn(self) -> bool:
         """Overwrite to signal if device output (e.g. for voltage supplies) is on."""
@@ -2066,6 +2097,13 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             if self.useOnOffLogic:
                 self.testControl(self.onAction, value=False)  # leave in save state after testing
         super().runTestParallel()
+
+    def bufferLagging(self, wait: int = 5) -> bool:  # noqa: D102
+        # treat wait time as lag free time and subtract corresponding time from self.lagging
+        if super().bufferLagging(wait):
+            self.lagging = int(max(0, self.lagging - wait / self.interval * 1000))
+            return True
+        return False
 
     def copyClipboard(self) -> None:  # noqa: D102
         self.imageToClipboard(self.tree.grabItems())
@@ -2123,7 +2161,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :param item: Dictionary containing channel details.
         :type item: dict
         :param index: Index where channel should be inserted, defaults to None
-        :type index: _type_, optional
+        :type index: int, optional
         """
         channel = self.channelType(device=self, tree=self.tree)
         if index is None:
@@ -2341,6 +2379,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def intervalChanged(self) -> None:
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
         self.lagging = 0  # reset as lag time is calculated based on interval.
+        self.interval_tolerance = max(100, self.interval / 5)  # larger margin for error if interval is large.
 
     def loadConfiguration(self, file: 'Path | None' = None, useDefaultFile: bool = False, append: bool = False) -> None:  # noqa: C901, PLR0912, PLR0915
         """Load :class:`channel<esibd.core.Channel>` configuration from file.
@@ -2604,6 +2643,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 self.print('Data recording thread did not complete. Reset connection manually.', PRINT.ERROR)
                 return
         self.clearPlot()  # update legend in case channels have changed
+        self.intervalChanged()  # update tolerance
         self.recording = True
         self.lagging = 0
         self.dataThread = Thread(target=self.runDataThread, args=(lambda: self.recording,), name=f'{self.name} dataThread')
@@ -2644,6 +2684,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         while recording():
             self.signalComm.plotSignal.emit()
             time.sleep(self.interval / 1000)  # in seconds  # wait at end to avoid emitting signal after recording set to False
+            self.bufferLagging()
 
     @property
     def recording(self) -> bool:
@@ -2792,7 +2833,7 @@ class Device(ChannelManager):  # noqa: PLR0904
     class SignalCommunicate(ChannelManager.SignalCommunicate):
         """Bundle pyqtSignals."""
 
-        appendDataSignal = pyqtSignal(bool, bool)
+        appendDataSignal: pyqtSignal = pyqtSignal(bool, bool)
         """Signal that triggers appending of data from channels to history."""
 
     def __init__(self, **kwargs) -> None:  # Always use keyword arguments to allow forwarding to parent classes.
@@ -2808,7 +2849,6 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.updating = False  # Suppress events while channel equations are evaluated
         self.time = DynamicNp(dtype=np.float64)
         self.lastIntervalTime = time.time() * 1000
-        self.interval_tolerance = None  # how much the acquisition interval is allowed to deviate
         self.signalComm.appendDataSignal.connect(self.appendData)
         self.controller = None
         # implement a controller based on DeviceController. In some cases there is no controller for the device, but for every channel. Adjust
@@ -2883,6 +2923,17 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
+    def bufferLagging(self, wait: int = 5) -> bool:  # noqa: D102
+        # buffer lagging can be used as a temporary fix but if the underlying issue is not solved the errorcount will increase and communication will be stopped.
+        if super().bufferLagging(wait):
+            if self.controller is not None:
+                self.controller.errorCount += 1
+            elif self.channels[0].controller is not None:
+                for channel in self.channels:
+                    channel.controller.errorCount += 1
+            return True
+        return False
+
     def intervalChanged(self) -> None:
         """Extend to add code to be executed in case the :ref:`acquisition_interval` changes."""
         super().intervalChanged()
@@ -2896,10 +2947,12 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def errorCountChanged(self) -> None:
         """Start a timer to reset error count if no further errors occur."""
-        if self.controller is None:
+        if self.controller is not None:
+            self.errorCountStr = f'{self.errorCount}, controller: {self.controller.errorCount}'
+        elif self.channels[0].controller is not None:
             self.errorCountStr = f'{self.errorCount}, channel controllers: ' + ', '.join([repr(channel.controller.errorCount) for channel in self.channels])
         else:
-            self.errorCountStr = f'{self.errorCount}, controller: {self.controller.errorCount}'
+            self.errorCountStr = ''  # Device does not use device controllers. Not recommended!
 
     def startAcquisition(self) -> None:
         """Start device Acquisition.
@@ -3158,7 +3211,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                             self.print(f'Could not find channel {name} in equation of channel {channel.name}.', PRINT.WARNING)
                             error = True
                         else:
-                            equ = equ.replace(channel_equ.name, f'{channel_equ.value - channel_equ.background if channel.useBackgrounds else channel_equ.value}')
+                            equ = equ.replace(channel_equ.name, f'{channel_equ.value - channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}')
                 if error:
                     self.print(f'Could not resolve equation of channel {channel.name}: {channel.equation}', PRINT.WARNING)
                 else:
@@ -3171,77 +3224,6 @@ class Device(ChannelManager):  # noqa: PLR0904
         if self.inout == INOUT.IN:
             self.applyValues(apply)
         self.updating = False
-
-    def appendData(self, nan: bool = False, skipPlotting: bool = False) -> None:
-        """Append data from device acquisition to channels and updates plots.
-
-        :param nan: Indicates that a nan value should be appended to prevent interpolation through areas without data. Defaults to False
-        :type nan: bool, optional
-        :param skipPlotting: Skip plotting if previous plot was too recent, defaults to False
-        :type skipPlotting: bool, optional
-        """
-        if self.initialized() or nan:
-            self.updateValues()  # this makes equations work for output devices.
-            # Equations for output devices are evaluated only when plotting. Calling them for every value change event would cause a massive computational load.
-            for channel in self.getChannels():
-                channel.appendValue(lenT=self.time.size, nan=nan)  # add time after values to make sure value arrays stay aligned with time array
-            self.time.add(time.time())  # add time in seconds
-            if self.liveDisplayActive():
-                if skipPlotting:
-                    self.print('Skipping plotting in appendData as previous request is still being processed.', flag=PRINT.VERBOSE)
-                    self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
-                else:
-                    self.signalComm.plotSignal.emit()
-            else:
-                self.measureInterval()
-
-    lagLimitMultiplier = 6  # increase to delay automatic shutoff  #leave fixed if after auto shutoff works reliably
-    MAX_DISPLAY_SIZE_DEFAULT = 1000
-
-    def measureInterval(self, reset: bool = True) -> None:
-        """Measures interval since last successful plotting.
-
-        :param reset: Only reset if plotting was successful or not required, defaults to True
-        :type reset: bool, optional
-        """
-        # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
-        # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
-        self.interval_measured = int(time.time() * 1000 - self.lastIntervalTime) if self.lastIntervalTime is not None else self.interval
-        self.interval_tolerance = self.interval / 5  # larger margin for error if interval is large.
-        self.lag_limit = max(10, int(10000 / self.interval))  # 10 seconds, independent of interval (at least 10 steps)
-        if abs(self.interval_measured - self.interval) < self.interval_tolerance:
-            self.lagging = max(0, self.lagging - 1)  # decrease gradually, do not reset completely if a single iteration is on time
-        elif self.interval_measured > self.interval + self.interval_tolerance:  # increase self.lagging and react if interval is longer than expected
-            if self.lagging < self.lag_limit:
-                self.lagging += 1
-            elif self.lagging < self.lagLimitMultiplier * self.lag_limit:  # lagging 10 s in a row -> reduce data points
-                if self.lagging == self.lag_limit:
-                    self.pluginManager.DeviceManager.limit_display_size = True
-                    if self.pluginManager.DeviceManager.max_display_size > self.MAX_DISPLAY_SIZE_DEFAULT:
-                        self.pluginManager.DeviceManager.max_display_size = self.MAX_DISPLAY_SIZE_DEFAULT  # keep if already smaller
-                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.'
-                                   f' Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s unless GUI becomes responsive again.',
-                                     flag=PRINT.WARNING)
-                    else:
-                        self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
-                                   'unless GUI becomes responsive again.', flag=PRINT.WARNING)
-                elif self.lagging % self.lag_limit == 0:
-                    self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
-                               'unless GUI becomes responsive again.'
-                    ' Consider decreasing device interval, displayed channels, and other GUI intensive functions.', flag=PRINT.WARNING)
-                self.lagging += 1
-            elif self.lagging == self.lagLimitMultiplier * self.lag_limit:
-                # lagging 60 s in a row -> stop acquisition
-                self.print('Slow GUI detected. Stopped acquisition. Identify which plugins are most resource intensive and contact plugin author.', flag=PRINT.WARNING)
-                self.closeCommunication()
-        else:
-            # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
-            # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
-            # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
-            pass
-        self.lagging_seconds = int(self.lagging * self.interval / 1000)
-        if reset:
-            self.lastIntervalTime = time.time() * 1000
 
     def toggleRecording(self, on: 'bool | None' = None, manual: bool = False) -> None:  # noqa: ARG002, D102
         if (on is not None and not on) or (on is None and self.recording):
@@ -3267,6 +3249,79 @@ class Device(ChannelManager):  # noqa: PLR0904
                 channel.clearHistory()
             self.time = DynamicNp(max_size=self.maxDataPoints, dtype=np.float64)
 
+    def appendData(self, nan: bool = False, skipPlotting: bool = False) -> None:
+        """Append data from device acquisition to channels and updates plots.
+
+        :param nan: Indicates that a nan value should be appended to prevent interpolation through areas without data. Defaults to False
+        :type nan: bool, optional
+        :param skipPlotting: Skip plotting if previous plot was too recent, defaults to False
+        :type skipPlotting: bool, optional
+        """
+        if self.initialized() or nan:
+            self.updateValues()  # this makes equations work for output devices.
+            # Equations for output devices are evaluated only when plotting. Calling them for every value change event would cause a massive computational load.
+            for channel in self.getChannels():
+                channel.appendValue(lenT=self.time.size, nan=nan)  # add time after values to make sure value arrays stay aligned with time array
+            self.time.add(time.time())  # add time in seconds
+            if self.liveDisplayActive():
+                if skipPlotting:
+                    self.print('Skipping plotting in appendData.', flag=PRINT.VERBOSE)
+                    self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
+                else:
+                    self.signalComm.plotSignal.emit()
+            else:
+                self.measureInterval()
+
+    lagLimitMultiplier = 6  # increase to delay automatic shutoff  #leave fixed if after auto shutoff works reliably
+    MAX_DISPLAY_SIZE_DEFAULT = 1000
+
+    def measureInterval(self, reset: bool = True) -> None:
+        """Measures interval since last successful plotting.
+
+        :param reset: Only reset if plotting was successful or not required, defaults to True
+        :type reset: bool, optional
+        """
+        # free up resources by limiting data points or stopping acquisition if UI becomes unresponsive
+        # * when GUI thread becomes unresponsive, this function is sometimes delayed and sometimes too fast.
+        self.interval_measured = int(time.time() * 1000 - self.lastIntervalTime) if self.lastIntervalTime is not None else self.interval
+        self.lag_limit = max(10, int(10000 / self.interval))  # 10 seconds, independent of interval (at least 10 steps)
+        if abs(self.interval_measured - self.interval) < self.interval_tolerance:  # * deviation in either direction is within tolerated range
+            # self.print(f'decrease lagging: self.interval_measured {self.interval_measured} self.interval {self.interval} self.interval_tolerance {self.interval_tolerance}', flag=PRINT.DEBUG)
+            self.lagging = max(0, self.lagging - 1)  # decrease gradually, do not reset completely if a single iteration is on time
+        elif self.interval_measured > self.interval + self.interval_tolerance:  # * interval is longer than tolerated -> increase self.lagging and react
+            # self.print(f'increase lagging: self.interval_measured {self.interval_measured} self.interval {self.interval} self.interval_tolerance {self.interval_tolerance}', flag=PRINT.DEBUG)
+            if self.lagging < self.lag_limit:
+                self.lagging += 1
+            elif self.lagging < self.lagLimitMultiplier * self.lag_limit:  # lagging 10 s in a row -> reduce data points
+                if self.lagging == self.lag_limit:
+                    self.pluginManager.DeviceManager.limit_display_size = True
+                    if self.pluginManager.DeviceManager.max_display_size > self.MAX_DISPLAY_SIZE_DEFAULT:
+                        self.pluginManager.DeviceManager.max_display_size = self.MAX_DISPLAY_SIZE_DEFAULT  # keep if already smaller
+                        self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.'
+                                   f' Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s unless GUI becomes responsive again.',
+                                     flag=PRINT.WARNING)
+                    else:
+                        self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
+                                   'unless GUI becomes responsive again.', flag=PRINT.WARNING)
+                elif self.lagging % self.lag_limit == 0:
+                    self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
+                               'unless GUI becomes responsive again.'
+                    ' Consider decreasing device interval, displayed channels, and other GUI intensive functions.', flag=PRINT.WARNING)
+                self.lagging += 1
+            elif self.lagging == self.lagLimitMultiplier * self.lag_limit:
+                # lagging 60 s in a row -> stop acquisition
+                self.print('Slow GUI detected. Stopped acquisition. Identify which plugins are most resource intensive and contact plugin author.', flag=PRINT.WARNING)
+                self.closeCommunication()
+        else:  # * interval is smaller than tolerated
+            # self.print(f'unchanged lagging: self.interval_measured {self.interval_measured} self.interval {self.interval} self.interval_tolerance {self.interval_tolerance}', flag=PRINT.DEBUG)
+            # keep self.lagging unchanged. One long interval can be followed by many short intervals when GUI is catching up with events.
+            # This might happen due to another part of the program blocking the GUI temporarily or after decreasing max_display_size.
+            # This should not trigger a reaction but also should not reset self.lagging as plotting is not yet stable.
+            pass
+        self.lagging_seconds = int(self.lagging * self.interval / 1000)
+        if reset:
+            self.lastIntervalTime = time.time() * 1000
+
     def runDataThread(self, recording: callable) -> None:
         """Regularly triggers appending and plotting of data.
 
@@ -3281,12 +3336,12 @@ class Device(ChannelManager):  # noqa: PLR0904
             # e.g. 0.1 will not give a true 10 Hz repetition rate
             # if that becomes important and decreasing the interval to compensate for delay is not sufficient a better method is required
             interval_measured = int(time.time() * 1000 - self.lastIntervalTime) if self.lastIntervalTime is not None else self.interval
-            interval_tolerance = max(100, self.interval / 5)
             # do only plot when at least self.interval has expired to prevent unresponsive application due to queue of multiple parallel calls to plot
             # do not plot if other plotting has not yet completed.
-            skipPlotting = not (interval_measured >= self.interval - interval_tolerance) or self.plotting
+            skipPlotting = interval_measured < self.interval - self.interval_tolerance or self.plotting or self.bufferLagging()  # * interval is smaller than tolerated
             self.signalComm.appendDataSignal.emit(False, skipPlotting)  # arguments nan, skipPlotting cannot be added explicitly for pyqtBoundSignal  # noqa: FBT003
             time.sleep(self.interval / 1000)  # in seconds  # wait at end to avoid emitting signal after recording set to False
+            # NOTE self.bufferLagging() # does not allow to reduce lag
 
     def duplicateChannel(self) -> None:  # noqa: D102
         if self.modifyChannel() is None:
@@ -3496,7 +3551,7 @@ class Scan(Plugin):  # noqa: PLR0904
                     if inputChannel.sourceChannel is not None:
                         inputChannel.value = event.xdata if i == 0 else event.ydata  # 3D not supported
                     else:
-                        self.print(f'Could not find channel {self.scan.inputChannels[i].name}.')
+                        self.print(f'Could not find input channel {self.scan.inputChannels[i].name}.')
                 if self.axes[-1].cursor is not None:
                     self.axes[-1].cursor.ondrag(event)
             self.mouseMoving = False
@@ -3519,12 +3574,16 @@ class Scan(Plugin):  # noqa: PLR0904
         self.measurementsPerStep = 0
         self.oldDisplayItems = ''
         self._dummy_initialization = False
+        self.stepProcessed = True
+        self.inputChannelGroupItem = None
+        self.outputChannelGroupItem = None
         self.display = None
         self.runThread = None
         self.saveThread = None
         self.settingsTree = None
         self.channelTree = None
         self.initializing = False
+        self.headerChannel = ScanChannel(scan=self)  # dummy channel only used to get headers
         self.channels = []
         self.signalComm.scanUpdateSignal.connect(self.scanUpdate)
         self.signalComm.updateRecordingSignal.connect(self.updateRecording)
@@ -3571,8 +3630,8 @@ class Scan(Plugin):  # noqa: PLR0904
         self.recordingAction = self.addStateAction(self.toggleRecording, f'Start {self.name} scan.', self.makeCoreIcon('play.png'), 'Stop.',
                                                     self.makeCoreIcon('stop.png'))
         self.estimateScanTime()
-        self.addOutputChannels()
         self.loading = False
+        self.dummyInitialization()
 
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
@@ -3594,7 +3653,8 @@ class Scan(Plugin):  # noqa: PLR0904
         """Connect all available source channels."""
         # NOTE: inputChannels are already connected on creation
         for channel in self.channels:
-            channel.connectSource()
+            if channel.name != self.TIME:
+                channel.connectSource()
 
     def reconnectSource(self, name: str) -> None:
         """Reconnect a specific source channel.
@@ -3613,6 +3673,11 @@ class Scan(Plugin):  # noqa: PLR0904
             channel.onDelete()
         if self.channelTree is not None:
             self.channelTree.clear()
+            self.channelTree.setIndentation(0)  # indentation can push device icon out of visible part of first column
+            self.inputChannelGroupItem = QTreeWidgetItem(self.channelTree.invisibleRootItem(), ['Input Channels'])
+            self.channelTree.setFirstColumnSpanned(self.channelTree.indexOfTopLevelItem(self.inputChannelGroupItem), self.channelTree.rootIndex(), True)  # noqa: FBT003
+            self.outputChannelGroupItem = QTreeWidgetItem(self.channelTree.invisibleRootItem(), ['Output Channels'])
+            self.channelTree.setFirstColumnSpanned(self.channelTree.indexOfTopLevelItem(self.outputChannelGroupItem), self.channelTree.rootIndex(), True)  # noqa: FBT003
         self.inputChannels, self.outputChannels, self.channels = [], [], []
 
     def runTestParallel(self) -> None:  # noqa: D102
@@ -3657,7 +3722,8 @@ class Scan(Plugin):  # noqa: PLR0904
         else:
             self.pluginManager.Settings.incrementMeasurementNumber()
             self.file = self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.lower()}.h5')
-        self.display.file = self.file  # for direct access of MZCalculator or similar addons that are not aware of the scan itself
+        if self.displayActive():
+            self.display.file = self.file  # for direct access of MZCalculator or similar addons that are not aware of the scan itself
 
     def updateDisplayChannel(self) -> None:
         """Update plot after changing display channel."""
@@ -3669,15 +3735,13 @@ class Scan(Plugin):  # noqa: PLR0904
         """Select displayed Channel based on default display setting."""
         newDisplayItems = ', '.join(self.settingsMgr.settings[self.DISPLAY].items)
 
-        if self.oldDisplayItems != newDisplayItems:  # channels renamed, deleted or added: initialize everything
-            if self.finished and not self.recording and not self.loading:
-                self.initData()
-                self._dummy_initialization = True
-                self.initScan()  # runs addOutputChannels without trying to plot / also adds inputChannels
-                self._dummy_initialization = False
-                self.plot(update=False, done=False)  # init plot without data
+        if self.oldDisplayItems != newDisplayItems:
+            # channels renamed, deleted or added: initialize everything
+            if not self.loading:
+                self.dummyInitialization()
             self.oldDisplayItems = newDisplayItems
-        elif self.display is not None and self.useDisplayChannel:
+        elif self.displayActive() and self.useDisplayChannel:
+            # only selection changed
             self.loading = True
             i = self.display.displayComboBox.findText(self.displayDefault)
             if i == -1:
@@ -3687,9 +3751,22 @@ class Scan(Plugin):  # noqa: PLR0904
             self.loading = False
             self.updateDisplayChannel()
 
+    def dummyInitialization(self) -> None:
+        """Initialize scan without data.
+
+        Will populate scan channels and indicate that channels have become obsolete by plotting without data if applicable.
+        """
+        if self.finished and not self.recording and not self._dummy_initialization:
+            self.initData()
+            self._dummy_initialization = True
+            self.initScan()  # runs addOutputChannels without trying to plot / also adds inputChannels
+            self._dummy_initialization = False
+            if self.displayActive():
+                self.plot(update=False, done=False)  # init plot without data
+
     def populateDisplayChannel(self) -> None:
         """Populate dropdown that allows to select displayed channel for scans that can only display one channel at a time."""
-        if self.display is not None and self.useDisplayChannel:
+        if self.displayActive() and self.useDisplayChannel:
             self.loading = True
             self.display.displayComboBox.clear()
             for output in self.outputChannels:  # use channels form current acquisition or from file.
@@ -3760,39 +3837,39 @@ class Scan(Plugin):  # noqa: PLR0904
         Will likely need to be adapted for custom scans.
         """
         self.initializing = True
-        initializedOutputChannels = 0
-        for name in self.settingsMgr.settings[self.DISPLAY].items:
-            channel = self.getChannelByName(name, inout=INOUT.OUT)
-            if channel is None:
-                channel = self.getChannelByName(name, inout=INOUT.IN)
-            if channel is None:
-                self.print(f'Could not find channel {name}.', PRINT.WARNING)
-            elif not channel.getDevice().initialized():
-                self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif channel.real and (not channel.acquiring or not channel.getDevice().recording):
-                # do not check for virtual channels
-                self.print(f'{channel.name} is not acquiring.', PRINT.WARNING)
-            else:
-                initializedOutputChannels += 1
+        self.addInputChannels()
         self.addOutputChannels()
+        self.channelTree.expandAllItems()
+        if self.inputChannelGroupItem.childCount() == 0:
+            self.inputChannelGroupItem.setHidden(True)
         self.initializing = False
-        if initializedOutputChannels > 0:
-            self.measurementsPerStep = max(int(self.average / self.outputChannels[self.getOutputIndex()].getDevice().interval) - 1, 1)
-            self.toggleDisplay(visible=True)
+        initialized = True
+        if len(self.outputChannels) == 0:
+            if not self._dummy_initialization:
+                self.print('No initialized output channel found.', PRINT.WARNING)
+            initialized = False
+        if len(self.inputChannels) != len([channel for channel in self.channels if channel.inout == INOUT.IN]):
+            if not self._dummy_initialization:
+                self.print('Not all input channels initialized.', PRINT.WARNING)
+            initialized = False
+        if initialized:
+            if not self.loading and not self._dummy_initialization:
+                self.measurementsPerStep = max(int(self.average / self.outputChannels[self.getOutputIndex()].getDevice().interval) - 1, 1)
+            if not self._dummy_initialization:
+                self.toggleDisplay(visible=True)
             self.updateFile()
             self.populateDisplayChannel()
             return True
-        self.print('No initialized output channel found.', PRINT.WARNING)
         return False
 
     def addOutputChannels(self) -> None:
         """Add all output channels."""
         self.print('addOutputChannels', flag=PRINT.DEBUG)
-        if len(self.inputChannels) == 0:
-            recordingData = None
-        elif len(self.inputChannels) == 1:  # 1D scan
+        recordingData = None
+        if len(self.inputChannels) == 1 and self.inputChannels[0].getRecordingData() is not None:  # 1D scan
             recordingData = np.zeros(len(self.inputChannels[0].getRecordingData()))  # cant reuse same array for all outputChannels as they would refer to same instance.
-        else:  # 2D scan, higher dimensions not jet supported
+        elif len(self.inputChannels) == 2 and self.inputChannels[0].getRecordingData() is not None and self.inputChannels[1].getRecordingData() is not None:  # noqa: PLR2004
+            # 2D scan, higher dimensions not jet supported
             lengths = [len(inputChannel.getRecordingData()) for inputChannel in self.inputChannels]
             recordingData = np.zeros(np.prod(lengths)).reshape(*lengths).transpose()
             # note np.zeros works better than np.full(len, np.nan) as some plots give unexpected results when given np.nan
@@ -3800,12 +3877,12 @@ class Scan(Plugin):  # noqa: PLR0904
             for name in self.settingsMgr.settings[self.DISPLAY].items:
                 self.addOutputChannel(name=name, recordingData=recordingData.copy() if recordingData is not None else None)
             self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
-                                            for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
+                                            for name, parameterDict in self.headerChannel.getSortedDefaultChannel().items()])
             self.toggleAdvanced(advanced=False)
         else:
             self.channelTree.hide()
 
-    def addOutputChannel(self, name: str, unit: str = '', recordingData: np.array = None, recordingBackground: np.array = None) -> ScanChannel:
+    def addOutputChannel(self, name: str, unit: str = '', recordingData: np.array = None, recordingBackground: np.array = None) -> ScanChannel:  # noqa: C901, PLR0912
         """Convert channel to generic output data.
 
         Uses data from file if provided.
@@ -3821,25 +3898,62 @@ class Scan(Plugin):  # noqa: PLR0904
         :return: Generic channel that is used to store and restore scan data.
         :rtype: esibd.core.ScanChannel
         """
+        sourceInitialized = True
         outputChannel = self.ScanChannel(scan=self, tree=self.channelTree)
+        self.outputChannelGroupItem.addChild(outputChannel)
+        outputChannel.initGUI(item={Parameter.NAME: name, ScanChannel.UNIT: unit})
+        outputChannel.inout = INOUT.OUT
+        self.channels.append(outputChannel)
+        if not self.loading or recordingData is not None:
+            outputChannel.connectSource()
+            if outputChannel.sourceChannel is None:
+                if not self._dummy_initialization and not self.loading:
+                    self.print(f'Could not find output channel {name}.', PRINT.WARNING)
+                sourceInitialized = False
+            elif recordingData is None:
+                if not outputChannel.getDevice().initialized():
+                    if not self._dummy_initialization:
+                        self.print(f'{outputChannel.getDevice().name} is not initialized.', PRINT.WARNING)
+                    sourceInitialized = False
+                elif outputChannel.real and not outputChannel.acquiring:
+                    # do not check for virtual channels
+                    if not self._dummy_initialization:
+                        self.print(f'{outputChannel.name} is not acquiring.', PRINT.WARNING)
+                    sourceInitialized = False
+                elif outputChannel.real and not outputChannel.getDevice().recording:
+                    # do not check for virtual channels
+                    if not self._dummy_initialization:
+                        self.print(f'{outputChannel.name} is not recording.', PRINT.WARNING)
+                    sourceInitialized = False
         if recordingData is not None:
             outputChannel.recordingData = recordingData
         if recordingBackground is not None:
             outputChannel.recordingBackground = recordingBackground
-        self.channelTree.addTopLevelItem(outputChannel)  # has to be added before populating
-        outputChannel.initGUI(item={Parameter.NAME: name, ScanChannel.UNIT: unit})
-        if not self.loading:
-            outputChannel.connectSource()
-        self.channels.append(outputChannel)
-        if ((self.loading and outputChannel.recordingData is not None) or
-                (outputChannel.sourceChannel is not None and (outputChannel.acquiring or outputChannel.getDevice().recording))):
-            # virtual channels will not necessarily be acquiring but they will be populated if their device is recording
+        if ((self.loading and outputChannel.recordingData is not None) or sourceInitialized):
             self.outputChannels.append(outputChannel)
         return outputChannel
 
     MIN_STEPS = 3
 
-    def addInputChannel(self, name: str, start: float, stop: float, step: float) -> bool:
+    def addInputChannels(self) -> None:
+        """Add all input channels.
+
+        Extend to add scan specific input channels.
+        """
+        self.print('addInputChannels', flag=PRINT.DEBUG)
+
+    def addTimeInputChannel(self) -> ScanChannel:
+        """Add a time channel to save the time of each step in the scan.
+
+        :return: The time channel
+        :rtype: ScanChannel
+        """
+        timeChannel = MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64))
+        timeChannel.inout = INOUT.IN
+        self.channels.append(timeChannel)
+        self.inputChannels.append(timeChannel)
+
+    def addInputChannel(self, name: str, start: float, stop: float, step: float) -> ScanChannel:  # noqa: C901, PLR0912
         """Convert channel to generic input data.
 
         :param name: Channel name.
@@ -3850,37 +3964,42 @@ class Scan(Plugin):  # noqa: PLR0904
         :type stop: float
         :param step: Step size.
         :type step: float
-        :return: True if channel is ready to start scan.
-        :rtype: bool
+        :return: Generic channel that is used to store and restore scan data.
+        :rtype: esibd.core.ScanChannel
         """
-        channel = self.getChannelByName(name, inout=INOUT.IN)
-        # inputChannel = self.ScanChannel(scan=self, tree=self.channelTree)
-        # self.channelTree.addTopLevelItem(inputChannel)  # has to be added before populating
-        # inputChannel.initGUI(item={Parameter.NAME: name})
-        # if not self.loading:
-        #     inputChannel.connectSource()
-        # self.channels.append(inputChannel)
-        if channel is None:
-            self.print(f'No channel found with name {name}.', PRINT.WARNING)
-            return False or self._dummy_initialization
-        if start == stop:
-            self.print('Limits are equal.', PRINT.WARNING)
-            return False or self._dummy_initialization
-        if channel.min > min(start, stop) or channel.max < max(start, stop):
-            self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
-            return False or self._dummy_initialization
-        if not channel.getDevice().initialized():
-            self.print(f'{channel.getDevice().name} is not initialized.', PRINT.WARNING)
-            return False or self._dummy_initialization
-        recordingData = self.getSteps(start, stop, step)
-        # inputChannel.recordingData = recordingData
-        if len(recordingData) < self.MIN_STEPS:
-            self.print('Not enough steps.', PRINT.WARNING)
-            return False or self._dummy_initialization
-
-        self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=recordingData, inout=INOUT.IN))
-        # self.inputChannels.append(inputChannel)
-        return True
+        sourceInitialized = True
+        inputChannel = self.ScanChannel(scan=self, tree=self.channelTree)
+        self.inputChannelGroupItem.addChild(inputChannel)
+        inputChannel.initGUI(item={Parameter.NAME: name})
+        inputChannel.inout = INOUT.IN
+        self.channels.append(inputChannel)
+        if not self.loading:
+            inputChannel.connectSource()
+        if inputChannel.sourceChannel is None:
+            if not self._dummy_initialization and not self.loading:
+                self.print(f'No channel found with name {name}.', PRINT.WARNING)
+            sourceInitialized = False
+        elif start == stop:
+            if not self._dummy_initialization:
+                self.print('Limits are equal.', PRINT.WARNING)
+            sourceInitialized = False
+        elif inputChannel.min > min(start, stop) or inputChannel.max < max(start, stop):
+            if not self._dummy_initialization:
+                self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
+            sourceInitialized = False
+        elif not inputChannel.getDevice().initialized():
+            if not self._dummy_initialization:
+                self.print(f'{inputChannel.getDevice().name} is not initialized.', PRINT.WARNING)
+            sourceInitialized = False
+        else:
+            inputChannel.recordingData = self.getSteps(start, stop, step)
+            if len(inputChannel.recordingData) < self.MIN_STEPS:
+                if not self._dummy_initialization:
+                    self.print('Not enough steps.', PRINT.WARNING)
+                sourceInitialized = False
+        if ((self.loading and inputChannel.recordingData is not None) or sourceInitialized):
+            self.inputChannels.append(inputChannel)
+        return inputChannel
 
     def getSteps(self, start: float, stop: float, step: float) -> np.array:
         """Return steps based on start, stop, and step parameters.
@@ -3915,7 +4034,7 @@ class Scan(Plugin):  # noqa: PLR0904
         if advanced is not None:
             self.advancedAction.state = advanced
         if len(self.channels) > 0:
-            for i, item in enumerate(self.channels[0].getSortedDefaultChannel().values()):
+            for i, item in enumerate(self.headerChannel.getSortedDefaultChannel().values()):
                 if item[Parameter.ADVANCED]:
                     self.channelTree.setColumnHidden(i, not self.advancedAction.state)
 
@@ -4058,8 +4177,9 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                         self.runThread.join()
                         self.recordingAction.state = True
                     self.finished = False
+                    self.stepProcessed = True
                     self.plot(update=False, done=False)  # init plot without data, some widgets may be able to update data only without redrawing the rest
-                    self.runThread = Thread(target=self.run, args=(lambda: self.recording,), name=f'{self.name} runThread')
+                    self.runThread = Thread(target=self.runScan, args=(lambda: self.recording,), name=f'{self.name} runThread')
                     self.runThread.daemon = True
                     self.runThread.start()
                     self.display.raiseDock()
@@ -4078,7 +4198,9 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         :param done: Call with True in last step of scan to indicate that data should be saved to file. Defaults to False
         :type done: bool, optional
         """
+        self.print('scanUpdate', flag=PRINT.VERBOSE)
         self.plot(update=not done, done=done)
+        self.stepProcessed = True
         if done:  # save data
             if hasattr(self.pluginManager, 'Notes'):
                 self.pluginManager.Notes.saveData(file=self.pluginManager.Explorer.root, useDefaultFile=True)  # to current root ( == session if in session folder)
@@ -4143,7 +4265,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         """
         self.recording = recording
 
-    def run(self, recording: callable) -> None:
+    def runScan(self, recording: callable) -> None:
         """Step through input values, records output values, and triggers plot update.
 
         Executed in runThread. Will likely need to be adapted for custom scans.
@@ -4160,7 +4282,8 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                     waitLong = True
                 inputChannel.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
-
+            self.bufferLagging()
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             for outputChannel in self.outputChannels:
                 if len(self.inputChannels) == 1:  # 1D scan
                     outputChannel.recordingData[i] = np.mean(outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(),
@@ -4175,6 +4298,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                 self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                 self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
                 break  # in case this is last step
+            self.stepProcessed = False
             self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
 
     def close(self) -> None:  # noqa: D102
@@ -4871,7 +4995,7 @@ class Tree(Plugin):
         for plugin in self.pluginManager.plugins:
             plugin_widget = QTreeWidgetItem(self.tree, [plugin.name])
             plugin_widget.setIcon(0, plugin.getIcon())
-            self.tree.setFirstColumnSpanned(self.tree.indexOfTopLevelItem(plugin_widget), self.tree.rootIndex(), span=True)  # Spans all columns
+            self.tree.setFirstColumnSpanned(self.tree.indexOfTopLevelItem(plugin_widget), self.tree.rootIndex(), True)  # Spans all columns  # noqa: FBT003
             self.addActionWidgets(plugin_widget, plugin)
             if hasattr(plugin, 'liveDisplay') and plugin.liveDisplayActive():
                 widget = QTreeWidgetItem(plugin_widget, [plugin.liveDisplay.name])
@@ -5900,18 +6024,6 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.testControl(self.closeCommunicationAction, value=True)
         super().runTestParallel()
 
-    def bufferLagging(self) -> None:
-        """Wait for excess events to be processed during testing.
-
-        Only call from parallel thread via runTestParallel!
-        """
-        lag_tolerance = 60
-        test_pause = 5
-        lagging_seconds_accumulated = np.sum([device.lagging_seconds for device in self.getDevices()])
-        if lagging_seconds_accumulated > lag_tolerance:
-            self.print(f'Accumulated lag is {lagging_seconds_accumulated} s. Pausing test for {test_pause} s', flag=PRINT.DEBUG)
-            time.sleep(test_pause)
-
     @property
     def recording(self) -> bool:
         """Indicates if at least one device is recording."""
@@ -6340,7 +6452,7 @@ class Explorer(Plugin):  # noqa: PLR0904
         self.filterLineEdit.setMaximumWidth(100)
         self.filterLineEdit.setMinimumWidth(50)
         self.filterLineEdit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.filterLineEdit.textChanged.connect(lambda: self.populateTree(clear=False))
+        self.filterLineEdit.textChanged.connect(lambda: self.populateTree(clear=False) if not self.populating else self.print('Ignoring rapid search input.', flag=PRINT.WARNING))
         self.filterLineEdit.setPlaceholderText('Search')
         self.titleBar.addWidget(self.filterLineEdit)
 
@@ -6980,7 +7092,7 @@ class UCM(ChannelManager):
             channel[self.VALUE][Parameter.EVENT] = self.setSourceChannelValue
             channel[self.MONITOR][Parameter.HEADER] = 'Read value'  # channels can have different types of parameters and units
             channel[self.DEVICE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
-                                                 toolTip='Source device.', header='')
+                                                 toolTip='Source device.', header=' ')
             channel[self.UNIT] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=False, attr='unit', header='Unit   ', indicator=True)
             channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', indicator=True)
             channel[self.NAME][Parameter.EVENT] = self.connectSource
@@ -7236,11 +7348,11 @@ class PID(ChannelManager):
             channel[self.OUTPUT] = parameterDict(value='Output', parameterType=PARAMETERTYPE.TEXT, attr='output', event=self.connectSource,
                                                  toolTip='Output channel', header='Controlled')
             channel[self.OUTPUTDEVICE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
-                                                 toolTip='Output device.', header='')
+                                                 toolTip='Output device.', header=' ')
             channel[self.INPUT] = parameterDict(value='Input', parameterType=PARAMETERTYPE.TEXT, attr='input', event=self.connectSource,
                                                  toolTip='Input channel', header='Controlling')
             channel[self.INPUTDEVICE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
-                                                 toolTip='Input device.', header='')
+                                                 toolTip='Input device.', header=' ')
             channel[self.ACTIVE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, attr='active', toolTip='Activate PID control.')
             channel[self.PROPORTIONAL] = parameterDict(value=1, parameterType=PARAMETERTYPE.FLOAT, advanced=True, attr='p', header='P        ',
                                                        event=self.updatePID, toolTip='Proportional')

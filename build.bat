@@ -25,19 +25,21 @@ Often, writing the change log inspires some last minute changes!
 Content: start bullet points with capitals and dot at the end
 hyphens will be replaced by bullet points on github
 
-REM Added 		for new features.
-REM Changed 	for changes in existing functionality.
-REM Deprecated 	for soon-to-be removed features.
-REM Removed 	for now removed features.
-REM Fixed 		for any bug fixes.
-REM Security 	in case of vulnerabilities.
-REM Performance for speed improvements
+REM Added 			for new features.
+REM Changed 		for changes in existing functionality.
+REM Deprecated 		for soon-to-be removed features.
+REM Removed 		for now removed features.
+REM Fixed 			for any bug fixes.
+REM Security 		in case of vulnerabilities.
+REM Performance 	for speed improvements
+REM Developer Notes separate changed only relevant for developers from other sections
 
 :::::::::::
 REM Testing
 :::::::::::
 make sure all test pass in development environment
 test with all/no plugins enabled
+Ideally start from console after fresh PC reboor for maximal performance (vscode tends to get slower over time)
 
 :::::::::::::::::::::
 REM Environment setup
@@ -58,6 +60,7 @@ REM Bump version
 :::::::::::::::::::::::::::
 
 use find and replace to update all version references
+ATTENTION: do not find and replace all, as this will also overwrite the versions in the change log!
 REM update version in pyproject.toml
 REM update Product Version in EsibdExplorer.ifp in the General tab
 REM update PROGRAM_VERSION in config.py

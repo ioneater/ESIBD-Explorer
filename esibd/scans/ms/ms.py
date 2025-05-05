@@ -55,14 +55,15 @@ class MassSpec(Scan):
         defaultSettings[self.DISPLAY][Parameter.TOOLTIP] = 'Channel for transmitted signal.'
         defaultSettings[self.DISPLAY][Parameter.ITEMS] = 'Detector, Detector2'
         defaultSettings[self.CHANNEL] = parameterDict(value='AMP_Q1', toolTip='Amplitude that is swept through', items='AMP_Q1, AMP_Q2',
-                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel', event=self.dummyInitialization)
         defaultSettings[self.START] = parameterDict(value=50, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
         defaultSettings[self.STOP] = parameterDict(value=200, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
         defaultSettings[self.STEP] = parameterDict(value=1, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
         return defaultSettings
 
-    def initScan(self) -> None:
-        return (self.addInputChannel(self.channel, self.start, self.stop, self.step) and super().initScan())
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addInputChannel(self.channel, self.start, self.stop, self.step)
 
     @plotting
     def plot(self, update=False, done=False, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002

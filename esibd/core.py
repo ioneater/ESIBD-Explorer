@@ -1022,7 +1022,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         timerString = ''
         if getLogLevel() > 0:
             ms = ((datetime.now() - self.lastCallTime).total_seconds() * 1000) if self.lastCallTime is not None else 0
-            timerString = f'🕐 {ms:4.0f} ms '
+            timerString = f'🕐 {ms:5.0f} ms '
             self.lastCallTime = datetime.now()
         first_line = message.split('\n')[0]
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {first_line}"
@@ -2105,6 +2105,10 @@ class MetaChannel(RelayChannel):
             self.initialValue = self.sourceChannel.value
             self.unit = self.sourceChannel.unit
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
+        else:
+            self.initialValue = None
+            self.unit = ''
+            self.updateValueSignal = None
         if giveFeedback:
             if self.sourceChannel is None:
                 self.sourceChannel.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
@@ -2114,6 +2118,9 @@ class MetaChannel(RelayChannel):
     def display(self) -> bool:
         """Indicate of the source channel should be displayed."""
         return self.sourceChannel.display if self.sourceChannel is not None else True
+
+    def onDelete(self) -> None:
+        """Provide onDelete for channel API consistency."""
 
 
 class Channel(QTreeWidgetItem):  # noqa: PLR0904
@@ -2279,7 +2286,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """
         channel = {}
         channel[self.COLLAPSE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL,
-                                    toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header='')
+                                    toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header=' ')
         channel[self.SELECT] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                     toolTip='Select channel for deleting, moving, or duplicating.', event=lambda: self.device.channelSelection(selectedChannel=self), attr='select')
         channel[self.ENABLED] = parameterDict(value=True, parameterType=PARAMETERTYPE.BOOL, advanced=True,
@@ -2363,12 +2370,13 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                                     self.ACTIVE, self.REAL, self.SCALING, self.COLOR]
         if self.useMonitors:
             self.displayedParameters.insert(self.displayedParameters.index(self.VALUE) + 1, self.MONITOR)
-        if self.inout == INOUT.IN:
-            self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
-            self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
-            self.insertDisplayedParameter(self.OPTIMIZE, before=self.DISPLAY)
-        if self.inout != INOUT.NONE and self.useBackgrounds:
-            self.insertDisplayedParameter(self.BACKGROUND, before=self.DISPLAY)
+        if not isinstance(self, ScanChannel):
+            if self.inout == INOUT.IN:
+                self.insertDisplayedParameter(self.MIN, before=self.EQUATION)
+                self.insertDisplayedParameter(self.MAX, before=self.EQUATION)
+                self.insertDisplayedParameter(self.OPTIMIZE, before=self.DISPLAY)
+            if self.inout != INOUT.NONE and self.useBackgrounds:
+                self.insertDisplayedParameter(self.BACKGROUND, before=self.DISPLAY)
 
     def tempParameters(self) -> list[str]:
         """List of parameters, such as live signal or status, that will not be saved and restored."""
@@ -2768,6 +2776,8 @@ class ScanChannel(RelayChannel, Channel):
         Channel.__init__(self, device=scan, **kwargs)
         self.sourceChannel = None
         self.recordingData = None
+        self.initialValue = None
+        self.updateValueSignal = None
 
     def onDelete(self) -> None:  # noqa: D102
         super().onDelete()
@@ -2784,6 +2794,7 @@ class ScanChannel(RelayChannel, Channel):
         channel.pop(Channel.COLOR)
         channel.pop(Channel.COLLAPSE)
         channel[self.VALUE][Parameter.INDICATOR] = True
+        channel[self.VALUE][Parameter.HEADER] = 'Value'
         channel[self.NAME][Parameter.PARAMETER_TYPE] = PARAMETERTYPE.LABEL
         channel[self.NAME][Parameter.INDICATOR] = True
         if self.scan.useDisplayParameter:
@@ -2791,7 +2802,7 @@ class ScanChannel(RelayChannel, Channel):
                                         header='D', toolTip='Display channel history.',
                                         event=self.updateDisplay, attr='display')
         channel[self.DEVICE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False,
-                                                 toolTip='Source: Unknown.', header='')
+                                                 toolTip='Source: Unknown.', header=' ')
         channel[self.UNIT] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
         channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', indicator=True)
         return channel
@@ -2844,10 +2855,12 @@ class ScanChannel(RelayChannel, Channel):
         #     In most cases the only consequence is using the wrong color.
         #     Handle in specific scan if other channel specific properties are relevant
         if self.sourceChannel is not None:
+            self.initialValue = self.sourceChannel.value
+            self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
             self.getParameterByName(self.DEVICE).getWidget().setIcon(
                 self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
             self.getParameterByName(self.DEVICE).getWidget().setToolTip(f'Source: {self.sourceChannel.getDevice().name}')
-            if self.sourceChannel.useMonitors:
+            if self.sourceChannel.useMonitors and self.sourceChannel.real:
                 self.getParameterByName(self.VALUE).parameterType = self.sourceChannel.getParameterByName(self.MONITOR).parameterType
                 self.getParameterByName(self.VALUE).applyWidget()
                 self.value = self.sourceChannel.monitor
@@ -2861,6 +2874,8 @@ class ScanChannel(RelayChannel, Channel):
                 self.unit = self.sourceChannel.unit
             self.notes = f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}'
         else:
+            self.initialValue = None
+            self.updateValueSignal = None
             self.getParameterByName(self.DEVICE).getWidget().setIcon(self.scan.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
             self.getParameterByName(self.DEVICE).getWidget().setToolTip('Source: Unknown')
             self.notes = f'Could not find {self.name}'
@@ -2879,7 +2894,7 @@ class ScanChannel(RelayChannel, Channel):
             # Note self.value should only be used as a display. it should show the background corrected value if applicable
             # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
             try:
-                if self.sourceChannel.useMonitors:
+                if self.sourceChannel.useMonitors and self.sourceChannel.real:
                     self.value = self.sourceChannel.monitor
                 else:
                     self.value = self.sourceChannel.value - self.sourceChannel.background if self.sourceChannel.getDevice().subtractBackgroundActive() else self.sourceChannel.value
@@ -2889,7 +2904,7 @@ class ScanChannel(RelayChannel, Channel):
     def removeEvents(self) -> None:
         """Remove extra events from sourceChannel."""
         if self.sourceChannel is not None:
-            if self.sourceChannel.useMonitors:
+            if self.sourceChannel.useMonitors and self.sourceChannel.real:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayValueEvent)
             elif self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
@@ -3206,6 +3221,7 @@ class RestoreFloatComboBox(QComboBox):
         """
         super().__init__(parent=parentPlugin)
         self.parentPlugin = parentPlugin
+        self.print = self.parentPlugin.print
         self.attr = attr
         self.fullName = f'{self.parentPlugin.name}/{self.attr}'
         self.parentPlugin.pluginManager.Settings.loading = True
@@ -4369,20 +4385,20 @@ class ViewBox(pg.ViewBox):
 
     userMouseEnabledChanged = pyqtSignal(bool, bool)
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:  # noqa: D107
         super().__init__(*args, **kwargs)
         self.dragging = False
         self.draggingTimer = QTimer()
         self.draggingTimer.timeout.connect(self.resetDragging)
         self.draggingTimer.setInterval(1000)  # 1 s
 
-    def mousePressEvent(self, ev) -> None:
+    def mousePressEvent(self, ev) -> None:  # noqa: ANN001, D102  # pylint: disable = missing-function-docstring
         if ev.button() == Qt.MouseButton.LeftButton:
             self.dragging = True
             self.draggingTimer.start()  # as mouseReleaseEvent is not called, this workaround makes sure the flag is reset
         super().mousePressEvent(ev)
 
-    def resetDragging(self) -> None:
+    def resetDragging(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
         self.dragging = False
 
     def setMouseEnabled(self, x: 'bool | None' = None, y: 'bool | None' = None) -> None:
@@ -4501,7 +4517,8 @@ class PlotItem(pg.PlotItem):
             self.parentPlugin.parentPlugin.signalComm.plotSignal.emit()
 
     @property
-    def dragging(self) -> None:
+    def dragging(self) -> None:  # pylint: disable = missing-function-docstring
+        """Indicate if dragging event has been called recently."""
         return self.getViewBox().dragging
 
 
@@ -4522,7 +4539,7 @@ class PlotWidget(pg.PlotWidget):
         return self.plotItem.legend
 
     @property
-    def dragging(self) -> None:
+    def dragging(self) -> None:  # pylint: disable = missing-function-docstring  # noqa: D102
         return self.getPlotItem().dragging
 
 
@@ -4611,7 +4628,7 @@ class TimeoutLock:
         """
         return self._lock.acquire(blocking, timeout)
 
-    MAX_ERROR_COUNT = 10
+    MAX_ERROR_COUNT = 12
 
     @contextmanager
     def acquire_timeout(self, timeout: int, timeoutMessage: str = '', already_acquired: bool = False):  # noqa: ANN201
@@ -4747,7 +4764,7 @@ class DeviceController(QObject):  # noqa: PLR0904
     def errorCount(self, count: int) -> None:
         self._errorCount = count
         if self.errorCount != 0:
-            self.errorCountTimer.start()  # will reset after interval unless another error happens before and restarts the timer
+            QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
         QTimer.singleShot(0, self.device.errorCountChanged)
 
     def resetErrorCount(self) -> None:
@@ -4787,7 +4804,7 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     def fakeInitialization(self) -> None:
         """Faking successful initialization in test mode. Called instead of runInitialization."""
-        time.sleep(2)
+        # initialization time cannot be predicted, do not slow down tests time.sleep(2)
         self.signalComm.initCompleteSignal.emit()
         self.print('Faking values for testing!', PRINT.WARNING)
         self.initializing = False
@@ -4978,12 +4995,11 @@ class DeviceController(QObject):  # noqa: PLR0904
         response = ''
         try:
             if EOL == '\n':
-                if strip:
-                    response = port.readline().decode(encoding).strip(strip).rstrip()
-                response = port.readline().decode(encoding).rstrip()
-            if strip:
-                response = port.read_until(EOL.encode(encoding)).decode(encoding).strip(strip).rstrip()
-            response = port.read_until(EOL.encode(encoding)).decode(encoding).rstrip()
+                response = (port.readline().decode(encoding).strip(strip).rstrip() if strip
+                            else port.readline().decode(encoding).rstrip())
+            else:
+                response = (port.read_until(EOL.encode(encoding)).decode(encoding).strip(strip).rstrip() if strip
+                            else port.read_until(EOL.encode(encoding)).decode(encoding).rstrip())
         except UnicodeDecodeError as e:
             self.errorCount += 1
             self.print(f'Error while decoding message: {e}', PRINT.ERROR)

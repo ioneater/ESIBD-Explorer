@@ -14,6 +14,22 @@ Added
 - Added action to liveDisplays to toggle between automatically or manually scale the x axis.
 - Integrated generating and running python plot code for tests of devices, scans, and displays.
 - Introduced log level 'Trace' which shows detailed device communication info if implemented by device.
+- Tests now write a log to a dedicated file in the current session path.
+- Added log level setting to determine level of information in logs.
+- Added some pauses during testing if GUI gets too busy.
+- In advanced mode of Settings, the error count for controllers of devices and channels is now shown.
+- Input channels are now shown in the channel list of scans.
+
+Changed
+~~~~~~~
+- Added confirmation prompt before deleting all device history.
+- Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
+- Simplified instructions for offline installation. No conda or python installation needed on offline PC!
+- Disallowed use of / in channel names.
+- In liveDisplays, the mouse enabled mode of subplots is now linked.
+- Data files are now only saved while closing if new data has been recorded since starting the program.
+- While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
+- Scans and devices will pause if the GUI gets too busy. Scans will wait for previous scan step to be processed if necessary.
 
 Fixed
 ~~~~~
@@ -24,27 +40,29 @@ Fixed
 - Scans will now append session notes to scan notes. Used to be notes of current directory in explorer.
 - Fixed update of colors of in linked channels.
 - Fixed issue with scans starting even through output channels were not recording.
+- Fixed an issue with uninitialized scan plots after changing scan channels.
+- Fixed update of channel values in interactive mode of Omni scan.
+- Fixed issue where channel equations tried to access backgrounds for channels that do not use backgrounds.
 
-Changed
+Removed
 ~~~~~~~
+- Removed option to turn of logging.
 
+Developer Notes
+~~~~~~~~~~~~~~~
 - Simplified plugins by introducing default implementations of DeviceController.values, DeviceController.applyValue, DeviceController.updateValues,
   DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
   Custom plugins need to be adjusted by deleting or simplifying functions to use default implementation!
-- Added confirmation prompt before deleting all device history.
+- Changed implementation of initScan. Extend addInputChannels instead.
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 - Added documentation for many methods.
-- Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
 - generatePythonPlotCode method now only returns text. When running generated code from the context menu, other plots are no longer changed into popups.
 - Removed unused getInitializedChannels method.
-- Simplified instructions for offline installation. No conda or python installation needed on offline PC!
 - Restructured project structure to separate scans and displays. Using lower case convention for project folders and module files. Enabling simplified import statements,
   e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.scans import Beam, from esibd.displays import PDB.
 - Introduced restore option for parameters and settings and used it to not restore values for lagging, errorCount, and interval measured.
-- Disallowed use of / in channel names.
 - Removed option to edit indicators through the context menu.
 - Enabled context menu for LedIndicators.
-- In liveDisplays, the mouse enabled mode of subplots is now linked.
 - Added type hints and improved consistency of formatting.
 - Replaced EsibdConst and EsibdCore with esibd.const and esibd.core
 - Completed type hinting and implemented multiple improvements suggested by ruff.
@@ -55,14 +73,10 @@ Changed
 - Renamed PluginManager.TYPE to PLUGINTYPE.
 - Renamed Parameter.TYPE to PARAMETERTYPE and widgetType to parameterType.
 - Renamed outputs to outputChannels and inputs to inputChannels for scans and staticDisplays.
+- Renamed scan.run to scan.runScan
 
-- Data files are now only saved while closing if new data has been recorded since starting the program.
 
-Removed
-~~~~~~~
-- Removed option to turn of logging.
-
-Version 0.8.0 2025-03-24
+Version 0.7.3 2025-03-24
 ========================
 
 Added
@@ -73,10 +87,6 @@ Added
 - Running scans will be indicated by icons in the DeviceManager.
 - Added lagging indicator in advanced mode of device settings.
 - Added option to filter warning and error messages in the Console.
-- Tests now write a log to a dedicated file in the current session path.
-- Added log level setting to determine level of information in logs.
-- Added some pauses during testing if GUI gets too busy.
-- In advanced mode of Settings, the error count for controllers of devices and channels is now shown.
 
 Changed
 ~~~~~~~
@@ -90,7 +100,6 @@ Changed
 - Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.
 - Channel backgrounds are only displayed and used for channels that are enabled, active, and real.
 - Scans will warn and not start if scan limits exceed limits of scan channels.
-- While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
 
 Fixed
 ~~~~~
@@ -99,7 +108,6 @@ Fixed
 - Improved colors of displays when copied to clipboard or saved as pdf.
 - Renaming of settings is handled like any other setting change.
 - Restoring backgrounds after moving channels.
-- Fixed an issue with uninitialized scan plots after changing scan channels.
 
 Version 0.7.2 2025-03-02
 ========================

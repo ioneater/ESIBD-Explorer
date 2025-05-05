@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontMetrics
 from PyQt6.QtWidgets import QTextEdit  # , QSizePolicy  # QLabel, QMessageBox
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, Parameter, ScanChannel, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -211,35 +211,27 @@ class Depo(Scan):
         if self.display is not None and self.display.initializedDock:
             self.display.updateDepoTarget()
 
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addTimeInputChannel()
+
     def initScan(self) -> None:
         # overwrite parent
         """Initialize all data and metadata.
 
         Returns True if initialization successful and scan is ready to start.
         """
-        self.initializing = True
-        for name in self.settingsMgr.settings[self.DISPLAY].items:
-            sourceChannel = self.getChannelByName(name, inout=INOUT.OUT)
-            if sourceChannel is None:
-                sourceChannel = self.getChannelByName(name, inout=INOUT.IN)
-            if sourceChannel is None:
-                self.print(f'Could not find channel {name}.', PRINT.WARNING)
-            elif not sourceChannel.getDevice().initialized():
-                self.print(f'{sourceChannel.getDevice().name} is not initialized.', PRINT.WARNING)
-            elif sourceChannel.real and (not sourceChannel.acquiring or not sourceChannel.getDevice().recording):
-                self.print(f'{sourceChannel.name} is not acquiring.', PRINT.WARNING)
-        self.addOutputChannels()
-        self.initializing = False
-        if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
-            self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64)))
-            self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
-            self.toggleDisplay(visible=True)
-            self.display.progressAnnotation.set_text('')
-            self.updateFile()
-            self.populateDisplayChannel()
-            self.display.updateDepoTarget()  # flip axes if needed
-            return True
-        self.print('No initialized current output channel found.', PRINT.WARNING)
+        if super().initScan():
+            if self.displayActive() and not self._dummy_initialization:
+                if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
+                    self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
+                    self.display.progressAnnotation.set_text('')
+                    self.display.updateDepoTarget()  # flip axes if needed
+                    return True
+                if not self._dummy_initialization:
+                    self.print('No initialized current output channel found.', PRINT.WARNING)
+                return False
+            return False
         return False
 
     def addOutputChannels(self) -> None:
@@ -249,18 +241,20 @@ class Depo(Scan):
                 channel.sourceChannel.resetCharge()
                 self.addOutputChannel(name=f'{name}_{self.CHARGE}', unit='pAh', recordingData=DynamicNp())
         self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
-                                            for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
+                                            for name, parameterDict in self.headerChannel.getSortedDefaultChannel().items()])
         self.toggleAdvanced(advanced=False)
 
     def populateDisplayChannel(self) -> None:
         # overwrite parent to hide charge channels
-        self.loading = True
-        self.display.displayComboBox.clear()
-        for output in self.outputChannels:
-            if output.unit == 'pA':
-                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
-        self.loading = False
-        self.updateDisplayDefault()
+        if self.displayActive():
+            self.loading = True
+            self.display.displayComboBox.clear()
+            for output in self.outputChannels:
+                if output.unit == 'pA':
+                    self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
+            self.loading = False
+            if not self._dummy_initialization:
+                self.updateDisplayDefault()
 
     def updateDisplayChannel(self) -> None:
         self.display.initFig()  # need to reinitialize as displayed channels are changing
@@ -296,7 +290,7 @@ class Depo(Scan):
                         self.print(f'Line not initialized for channel {output.name}', flag=PRINT.WARNING)
             time_done_str = 'unknown'
             end_str = 'end'
-            if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS or done:  # predict scan based on last 10 data points
+            if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS or (len(time_stamp_axis) > 0 and done):  # predict scan based on last 10 data points
                 if len(time_stamp_axis) > self.MIN_FIT_DATA_POINTS and update and np.abs(charge[-1]) < np.abs(float(self.target)) and np.abs(charge[-1]) > np.abs(charge[-10]):
                     # only predict if below target and charge is increasing
                     # Pseudo code: t_t=t_i + dt/dQ * Q_remaining
@@ -405,9 +399,11 @@ fig.show()
             interval += timedelta(minutes=1)
         return interval
 
-    def run(self, recording) -> None:
+    def runScan(self, recording) -> None:
         while recording():
             time.sleep(self.interval / 1000)
+            self.bufferLagging()
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             self.inputChannels[0].recordingData.add(time.time())
             for output in self.outputChannels:
                 if output.isChargeChannel:
@@ -422,5 +418,6 @@ fig.show()
                               (np.sign(self.warnLevel) == -1 and self.getData(self.getOutputIndex(), INOUT.OUT)[-1] > float(self.warnLevel))):
                     winsound.PlaySound(str(self.dependencyPath / 'alarm.wav'), winsound.SND_ASYNC | winsound.SND_ALIAS)
             if recording():  # all but last step
+                self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
         self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # placed after while loop to ensure it will be executed  # noqa: FBT003

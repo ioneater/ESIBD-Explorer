@@ -190,21 +190,21 @@ class Beam(Scan):
             self.UD_step = step
         self.estimateScanTime()
 
-    def initScan(self) -> None:
-        return (self.addInputChannel(self.LR_channel, self.LR_from, self.LR_stop, self.LR_step) and
-        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_stop, self.UD_step) and
-         super().initScan())
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addInputChannel(self.LR_channel, self.LR_from, self.LR_stop, self.LR_step)
+        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_stop, self.UD_step)
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
-                                                                parameterType=PARAMETERTYPE.COMBO, attr='LR_channel')
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='LR_channel', event=self.dummyInitialization)
         defaultSettings[f'{self.LEFTRIGHT}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_from', event=self.estimateScanTime)
         defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_stop', event=self.estimateScanTime)
         defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10,
                                                                           event=lambda: self.updateStep(self.LR_step))
         defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}'] = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
-                                                                parameterType=PARAMETERTYPE.COMBO, attr='UD_channel')
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='UD_channel', event=self.dummyInitialization)
         defaultSettings[f'{self.UPDOWN}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_from', event=self.estimateScanTime)
         defaultSettings[f'{self.UPDOWN}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_stop', event=self.estimateScanTime)
         defaultSettings[f'{self.UPDOWN}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10,

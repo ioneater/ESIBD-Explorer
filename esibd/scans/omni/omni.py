@@ -59,7 +59,8 @@ class Omni(Scan):
             :type value: float
             """
             if self.scan.inputChannels[0].sourceChannel is not None:
-                self.scan.inputChannels[0].value = self.scan.start + value / self.xSlider.maximum() * (self.scan.stop - self.scan.start)  # map slider range onto range
+                # map slider range onto range
+                self.scan.inputChannels[0].sourceChannel.value = self.scan.start + value / self.xSlider.maximum() * (self.scan.stop - self.scan.start)
 
         def updateInteractive(self) -> None:
             """Adjust the scan based on the interactive Setting.
@@ -76,7 +77,7 @@ class Omni(Scan):
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel')
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel', event=self.dummyInitialization)
         defaultSettings[self.START] = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
         defaultSettings[self.STOP] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
         defaultSettings[self.STEP] = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
@@ -107,9 +108,13 @@ class Omni(Scan):
         else:
             super().estimateScanTime()
 
+    def addInputChannels(self) -> None:
+        super().addInputChannels()
+        self.addInputChannel(self.channel, self.start, self.stop, self.step)
+
     def initScan(self) -> None:
-        if (self.addInputChannel(self.channel, self.start, self.stop, self.step) and super().initScan()):
-            self.toggleDisplay(visible=True)
+        if super().initScan():
+            # self.toggleDisplay(visible=True) TODO test
             self.display.lines = None
             self.display.updateInteractive()
             if self.interactive:
@@ -182,11 +187,13 @@ ax0.legend(loc='best', prop={{'size': 7}}, frameon=False)
 fig.show()
         """  # similar to staticDisplay
 
-    def run(self, recording) -> None:
+    def runScan(self, recording) -> None:
         if self.interactive:
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
                 time.sleep((self.wait + self.average) / 1000)  # if step is larger than threshold use longer wait time
+                self.bufferLagging()
+                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
                 if self.inputChannels[0].recording:  # get average
                     self.inputChannels[0].recordingData.add(np.mean(self.inputChannels[0].getValues(subtractBackground=self.inputChannels[0].subtractBackgroundActive(),
                                                                                                      length=self.measurementsPerStep)))
@@ -199,6 +206,7 @@ fig.show()
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                     self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
                 else:
+                    self.stepProcessed = False
                     self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
         else:
             steps = self.inputChannels[0].getRecordingData()
@@ -209,6 +217,8 @@ fig.show()
                     waitLong = True
                 self.inputChannels[0].updateValueSignal.emit(step)
                 time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
+                self.bufferLagging()
+                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
                 for outputChannel in self.outputChannels:
                     outputChannel.recordingData[i] = np.mean(outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(),
                                                                                       length=self.measurementsPerStep))
@@ -218,4 +228,5 @@ fig.show()
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                     self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
                     break  # in case this is last step
+                self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003

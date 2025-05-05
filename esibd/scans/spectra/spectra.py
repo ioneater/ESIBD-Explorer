@@ -84,10 +84,11 @@ class Spectra(Beam):
         self.useDisplayChannel = True
         self.previewFileTypes.append('beam.h5')
 
-    def initScan(self) -> None:
-        self.toggleDisplay(visible=True)
-        self.display.lines = None
-        return super().initScan()
+    def initData(self) -> None:
+        # self.toggleDisplay(visible=True) todo delete?
+        super().initData()
+        if self.displayActive():
+            self.display.lines = None
 
     def loadDataInternal(self) -> None:
         self.display.lines = None
@@ -158,7 +159,7 @@ class Spectra(Beam):
         self.updateToolBar(update=update)
         self.defaultLabelPlot(self.display.axes[0])
 
-    def run(self, recording) -> None:
+    def runScan(self, recording) -> None:
         # definition of steps updated to scan along x instead of y axis.
         steps = [steps_1d[::-1] for steps_1d in list(itertools.product(*[i.getRecordingData() for i in [self.inputChannels[1], self.inputChannels[0]]]))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
@@ -169,6 +170,8 @@ class Spectra(Beam):
                     waitLong = True
                 inputChannel.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
+            self.bufferLagging()
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             for output in self.outputChannels:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
@@ -178,6 +181,7 @@ class Spectra(Beam):
                 for inputChannel in self.inputChannels:
                     inputChannel.updateValueSignal.emit(inputChannel.initialValue)
                 time.sleep(.5)  # allow time to reset to initial value before saving
+                self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                 self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
                 break  # in case this is last step

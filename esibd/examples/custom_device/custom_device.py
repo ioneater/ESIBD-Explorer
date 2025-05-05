@@ -72,15 +72,9 @@ class CustomDevice(Device):
             self.messageBox.open()  # show non blocking
             self.messageBox.raise_()
 
-    def intervalChanged(self) -> None:
-        # TODO (optional) add code to be executed in case the interval changes if needed
-        pass
-
-    customSetting = 'Custom/Setting'
-
     def getDefaultSettings(self) -> dict[str, dict]:
         settings = super().getDefaultSettings()
-        settings[self.customSetting] = parameterDict(value=100, minimum=100, maximum=10000, toolTip='Custom Tooltip',
+        settings[f'{self.name}/Custom Setting'] = parameterDict(value=100, minimum=100, maximum=10000, toolTip='Custom Tooltip',
                                                                                     parameterType=PARAMETERTYPE.INT, attr='custom')
         # TODO (optional) add additional custom settings as needed
         return settings
@@ -187,7 +181,7 @@ class CustomController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.values = [channel.value for channel in self.device.getChannels()]  # TODO implement fake feedback
+                        self.values = [channel.value + self.rng.random() for channel in self.device.getChannels()]  # TODO implement fake feedback
                     elif True:
                         # TODO implement real feedback
                         pass
@@ -204,4 +198,6 @@ class CustomController(DeviceController):
 
     def updateValues(self) -> None:
         # TODO (optional) adjust how you want to update values to the gui
-        pass
+        for i, channel in enumerate(self.device.getChannels()):
+            if channel.enabled and channel.real:
+                channel.monitor = self.values[i]
