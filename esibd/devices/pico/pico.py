@@ -113,6 +113,7 @@ class TemperatureController(DeviceController):
         if self.initialized:
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
                 self.usbPt104.UsbPt104CloseUnit(self.chandle)
+        self.initialized = False
 
     def runInitialization(self) -> None:
         try:

@@ -439,7 +439,7 @@ def synchronized(timeout: int = 5) -> callable:
         @wraps(func)
         def wrapper(self, **kwargs) -> callable:  # noqa: ANN001
             with self.lock.acquire_timeout(timeout=timeout,
-                     timeoutMessage=f'Cannot acquire lock for {func.__name__} Stack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
+                     timeoutMessage=f'Cannot acquire lock for {func.__name__}.\nStack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
                 if lock_acquired:
                     return func(self, **kwargs)
                 return None

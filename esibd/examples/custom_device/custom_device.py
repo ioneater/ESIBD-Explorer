@@ -152,6 +152,7 @@ class CustomController(DeviceController):
                 # try to close port even if lock could not be acquired! resulting errors should be excepted
                 self.port.close()
                 self.port = None
+        self.initialized = False  # call this last
 
     def initializeCommunication(self) -> None:
         # TODO set any flags needed for initialization

@@ -53,6 +53,7 @@ Developer Notes
 - Simplified plugins by introducing default implementations of DeviceController.values, DeviceController.applyValue, DeviceController.updateValues,
   DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
   Custom plugins need to be adjusted by deleting or simplifying functions to use default implementation!
+- Fixed sequence for extending DeviceController.closeCommunication. Adjust custom plugins based on documentation and examples!
 - Changed implementation of initScan. Extend addInputChannels instead.
 - Abandoned use of :meta private: where it was overwriting the docstring of a parent method.
 - Added documentation for many methods.

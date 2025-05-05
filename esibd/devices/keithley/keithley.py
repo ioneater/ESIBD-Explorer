@@ -132,6 +132,7 @@ class CurrentController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
+        self.initialized = False
 
     def runInitialization(self) -> None:
         try:

@@ -253,6 +253,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                     self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
                 self.port.close()
                 self.port = None
+        self.initialized = False
 
     def runInitialization(self) -> None:
         try:

@@ -115,6 +115,7 @@ class VoltageController(DeviceController):
                 with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {port.port}.'):
                     port.close()
                     self.ports[i] = None
+        self.initialized = False
 
     def applyValue(self, channel) -> None:
         self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')

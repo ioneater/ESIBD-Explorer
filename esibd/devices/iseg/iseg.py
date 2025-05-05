@@ -97,6 +97,10 @@ class VoltageController(DeviceController):
         self.socket = None
         self.maxID = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
 
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.initialized = False
+
     def runInitialization(self) -> None:
         try:
             self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)

@@ -4919,16 +4919,19 @@ class DeviceController(QObject):  # noqa: PLR0904
         # Implement device specific
 
     def closeCommunication(self) -> None:
-        """Close all open ports.
+        """Close all open ports. Ths method has to be extended as described below.
 
         This should free up all resources and allow for clean reinitialization.
         Extend to add hardware specific code.
-        Make sure acquisition is stopped before communication is closed!
+        Keep following order to make sure acquisition is stopped before communication is closed:
+        1. super().closeCommunication()
+        2. closing your custom hardware communication
+        3. self.initialized = False
         """
         self.print('closeCommunication', PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()  # only call if not already called by device
-        self.initialized = False
+        # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
 
     def stopAcquisition(self) -> bool:
         """Terminate acquisition but leaves communication initialized."""
