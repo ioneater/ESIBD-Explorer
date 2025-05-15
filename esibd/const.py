@@ -1,14 +1,15 @@
 """Defines constants used throughout the package."""
 
-import importlib
+import importlib.util
 import subprocess  # noqa: S404
 import sys
 import traceback
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from functools import wraps
 from types import ModuleType
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, TypeVar, Union, cast
 
 import numpy as np
 from PyQt6.QtCore import QSettings
@@ -18,9 +19,10 @@ from scipy import signal
 from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 if TYPE_CHECKING:
-    from esibd.plugins import SettingsManager
+    from esibd.plugins import Plugin, SettingsManager
 
 ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007
+T = TypeVar('T')
 
 PROGRAM = 'Program'
 VERSION = 'Version'
@@ -250,20 +252,22 @@ def makeWrapper(name: str, docstring: str = '') -> property:
     return property(getter, setter, doc=docstring)
 
 
-def dynamicImport(module: str, path: Path) -> ModuleType:
+def dynamicImport(module: str, path: Path | str) -> 'ModuleType | None':
     """Import a module from the given path at runtime.
 
     :param module: module name
     :type module: str
     :param path: module path
-    :type path: str
+    :type path: Path | str
     :return: Module
     :rtype: ModuleType
     """
     spec = importlib.util.spec_from_file_location(module, path)
-    Module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(Module)
-    return Module
+    if spec and spec.loader:
+        Module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(Module)
+        return Module
+    return None
 
 
 def getDebugMode() -> bool:
@@ -385,17 +389,17 @@ def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
     return path, False
 
 
-def smooth(array: np.array, smooth: int) -> np.array:
+def smooth(array: np.ndarray, smooth: int) -> np.ndarray:
     """Smooth a 1D array while keeping edges meaningful.
 
     This method is robust if array contains np.nan.
 
     :param array: Array to be smoothed.
-    :type array: np.array
+    :type array: np.ndarray
     :param smooth: With of box used for smoothing.
     :type smooth: int
     :return: convolvedArray
-    :rtype: np.array
+    :rtype: np.ndarray
     """
     if len(array) < smooth:
         return array
@@ -422,7 +426,7 @@ def shorten_text(text: str, max_length: int = 100) -> str:
     return text if len(text) < max_length else f'{text[:keep_chars]}…{text[-keep_chars:]}'
 
 
-def synchronized(timeout: int = 5) -> callable:
+def synchronized(timeout: int = 5) -> Callable:
     """Decorate to add thread-safety using a lock from the instance.
 
     NOTE: Only works with keyword arguments. Positional arguments apart form self will not be passed on.
@@ -435,31 +439,34 @@ def synchronized(timeout: int = 5) -> callable:
     :rtype: decorator
     """
     # avoid calling QApplication.processEvents() inside func as it may cause deadlocks
-    def decorator(func: callable) -> callable:
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(self, **kwargs) -> callable:  # noqa: ANN001
-            with self.lock.acquire_timeout(timeout=timeout,
-                     timeoutMessage=f'Cannot acquire lock for {func.__name__}.\nStack: {"".join(traceback.format_stack()[:-1])}') as lock_acquired:
+        def wrapper(self: 'Plugin', **kwargs) -> 'Callable | None':
+            timeoutMessage = f'Cannot acquire lock for {func.__name__}.'
+            if cast('int', getLogLevel()) > 0:  # DEBUG, VERBOSE, TRACE
+                timeoutMessage += f'\nStack: {"".join(traceback.format_stack()[:-1])}'
+            with self.lock.acquire_timeout(timeout=timeout, timeoutMessage=timeoutMessage) as lock_acquired:
                 if lock_acquired:
+                    self.print(f'Acquired lock for {func.__name__}.', flag=PRINT.VERBOSE)
                     return func(self, **kwargs)
                 return None
         return wrapper
     return decorator
 
 
-def plotting(func: callable) -> callable:
+def plotting(func: Callable) -> Callable:
     """Decorate to check for and sets the plotting flag to make sure func is not executed before previous call is processed.
 
     Only use within a class that contains the plotting flag.
     This is intended for Scans, but might be used elsewhere.
 
     :param func: function to add the decorator to
-    :type func: callable
+    :type func: Callable
     :return: decorated function
-    :rtype: callable
+    :rtype: Callable
     """
     @wraps(func)
-    def wrapper(self, *args, **kwargs) -> callable:  # noqa: ANN001
+    def wrapper(self, *args, **kwargs) -> 'Callable | None':  # noqa: ANN001
         if self.plotting:
             self.print('Skipping plotting as previous request is still being processed.', flag=PRINT.VERBOSE)
             if hasattr(self, 'measureInterval'):

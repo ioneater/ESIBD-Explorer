@@ -8,7 +8,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [ISEG]
 
@@ -64,6 +64,11 @@ class VoltageChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.module: int
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MODULE] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
@@ -107,7 +112,6 @@ class VoltageController(DeviceController):
             self.print(self.ISEGWriteRead(message=b'*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.closeCommunication()
             self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
@@ -138,8 +142,8 @@ class VoltageController(DeviceController):
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
                 channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():  # noqa: PLR1702
+    def runAcquisition(self) -> None:
+        while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():

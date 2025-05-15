@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Energy]
 
@@ -62,7 +62,7 @@ class Energy(Scan):
         self.previewFileTypes.append('.swp.dat')
         self.previewFileTypes.append('.swp.h5')
 
-    def loadDataInternal(self) -> None:
+    def loadDataInternal(self) -> bool:
         """Load data in internal standard format for plotting."""
         if self.file.name.endswith('.swp.dat'):  # legacy ESIBD Control file
             headers = []
@@ -73,14 +73,15 @@ class Energy(Scan):
                 data = np.loadtxt(self.file, skiprows=4, delimiter=',', unpack=True)
             except ValueError as e:
                 self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
-                return
+                return False
             if data.shape[0] == 0:
                 self.print(f'No data found in file {self.file.name}.', PRINT.ERROR)
-                return
+                return False
             self.inputChannels.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
             for name, dat in zip(headers, data[1:][::2], strict=True):
                 self.addOutputChannel(name=name.strip(), unit='pA', recordingData=dat)
-        elif self.file.name.endswith('.swp.h5'):
+            return True
+        if self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 self.inputChannels.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'],
@@ -89,8 +90,8 @@ class Energy(Scan):
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
                     self.addOutputChannel(name=name, unit='pA', recordingData=item[:])
-        else:
-            super().loadDataInternal()
+            return True
+        return super().loadDataInternal()
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -106,13 +107,13 @@ class Energy(Scan):
         super().addInputChannels()
         self.addInputChannel(self.channel, self.start, self.stop, self.step)
 
-    def map_percent(self, x) -> np.array:
+    def map_percent(self, x) -> np.ndarray:
         """Map any range on range 0 to 100.
 
         :param x: Input values.
-        :type x: np.array
+        :type x: np.ndarray
         :return: Mapped input values.
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         # can't map if largest deviation from minimum is 0, i.e. all zero
         # has to return a sequence as matplotlib now expects sequences for set_x(y)data
@@ -164,7 +165,7 @@ class Energy(Scan):
             self.setLabelMargin(self.display.axes[0], 0.15)
             # workaround as .relim() is not working on x ais due to twinx bug
             self.display.axes[0].set_xlim(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1])  # has to be called after setLabelMargin
-        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None:
+        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and not np.isnan(self.inputChannels[0].value):
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
         self.defaultLabelPlot(self.display.axes[0])
@@ -181,9 +182,9 @@ def map_percent(x):
     '''Maps any range on range 0 to 100.
 
     :param x: Input values.
-    :type x: np.array
+    :type x: np.ndarray
     :return: Mapped input values.
-    :rtype: np.array
+    :rtype: np.ndarray
     '''
     return (x-np.min(x))/np.max(x-np.min(x))*100 if np.max(x-np.min(x) > 0) else 0
 
@@ -191,7 +192,7 @@ def gaussian(x, amp1, cen1, sigma1):
     '''Simple gaussian function.
 
     :param x: X values.
-    :type x: np.array
+    :type x: np.ndarray
     :param amp1: amplitude
     :type amp1: float
     :param cen1: center
@@ -199,7 +200,7 @@ def gaussian(x, amp1, cen1, sigma1):
     :param sigma1: width
     :type sigma1: float
     :return: Calculated Y values.
-    :rtype: np.array
+    :rtype: np.ndarray
     '''
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cen1)**2)/(2*(sigma1)**2)))
 
@@ -207,13 +208,13 @@ def gauss_fit(x, y, c):
     '''Simple gaussian fit.
 
     :param x: X values.
-    :type x: np.array
+    :type x: np.ndarray
     :param y: Y values.
-    :type y: np.array
+    :type y: np.ndarray
     :param c: Guess of central value.
     :type c: float
     :return: X values with fine step size, corresponding fitted Y values, full with have maximum
-    :rtype: np.array, np.array, float
+    :rtype: np.ndarray, np.ndarray, float
     '''
     amp1 = 100
     sigma1 = 2
@@ -257,11 +258,11 @@ except RuntimeError as e:
 fig.show()
         """
 
-    def gaussian(self, x, amp1, cen1, sigma1) -> np.array:
+    def gaussian(self, x, amp1, cen1, sigma1) -> np.ndarray:
         """Return simple gaussian.
 
         :param x: X values.
-        :type x: np.array
+        :type x: np.ndarray
         :param amp1: amplitude
         :type amp1: float
         :param cen1: center
@@ -269,21 +270,21 @@ fig.show()
         :param sigma1: width
         :type sigma1: float
         :return: Calculated Y values.
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         return amp1 * (1 / (sigma1 * (np.sqrt(2 * np.pi)))) * (np.exp(-((x - cen1)**2) / (2 * (sigma1)**2)))
 
-    def gauss_fit(self, x, y, c) -> np.array:
+    def gauss_fit(self, x, y, c) -> np.ndarray:
         """Perform simple gaussian fit.
 
         :param x: X values.
-        :type x: np.array
+        :type x: np.ndarray
         :param y: Y values.
-        :type y: np.array
+        :type y: np.ndarray
         :param c: Guess of central value.
         :type c: float
         :return: X values with fine step size, corresponding fitted Y values, full with have maximum
-        :rtype: np.array, np.array, float
+        :rtype: np.ndarray, np.ndarray, float
         """
         # Define a gaussian to start with
         amp1 = 100

@@ -63,7 +63,9 @@ ignore = [
 "FBT001", "FBT002",  # in general, avoiding booleans as positional arguments is not possible. keeping "FBT003" to make sure they are called with keywords and not positional
 "N802", "N803", "N806", "N815", "N816",  # using camel case required due to PyQt
 "PLR6301",  # functions that do not use self may be used as it is intuitive to use them directly on an instance. also self may be used in inherited versions
+"S101",  # assertions are only used to help with static type checking
 "S311",  # random numbers not used for cryptographic purposes
+"UP037", # quotes needed for sphinx
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
@@ -80,6 +82,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [lint.flake8-quotes]
 inline-quotes = "single"
+
+# [pydocstyle]
+#     convention = "sphinx" TODO enable once available
 
 [format]
 # Like Black, use double quotes for strings.

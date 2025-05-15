@@ -1,3 +1,5 @@
+.. include:: icons.rst
+
 Welcome to ESIBD Explorer's documentation!
 ==========================================
 
@@ -37,7 +39,6 @@ loss due to malfunction of *ESIBD Explorer*. Users are responsible for
 backing up their own data and configuration files.
 
 .. toctree::
-   :numbered:
    :maxdepth: 2
    :caption: Contents:
 

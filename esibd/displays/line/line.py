@@ -6,7 +6,7 @@ from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [LINE]
 
@@ -50,8 +50,9 @@ class LINE(Plugin):
 
     def finalizeInit(self) -> None:
         super().finalizeInit()
-        self.copyAction = self.addAction(self.copyClipboard, f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.line), f'{self.name} data to clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+        self.copyAction = self.addAction(event=self.copyClipboard, toolTip=f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(event=lambda: self.copyLineDataClipboard(line=self.line), toolTip=f'{self.name} data to clipboard.',
+                                         icon=self.dataClipboardIcon, before=self.copyAction)
 
     def runTestParallel(self) -> None:
         if self.initializedDock:
@@ -60,7 +61,7 @@ class LINE(Plugin):
             self.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
 
-    def supportsFile(self, file: Path) -> None:
+    def supportsFile(self, file: Path) -> bool:
         if super().supportsFile(file):
             first_line = ''  # else text file
             try:
@@ -102,17 +103,16 @@ class LINE(Plugin):
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
         self.labelPlot(self.axes[0], self.file.name)
 
-    def generatePythonPlotCode(self) -> None:
+    def generatePythonPlotCode(self) -> str:
         return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 profile = np.loadtxt('{self.file.as_posix()}', skiprows=3)
 
-with mpl.style.context('default'):
-    fig = plt.figure(num='{self.name} plot', constrained_layout=True)
-    ax = fig.add_subplot(111)
-    ax.plot(profile[:, 0], profile[:, 1])[0]
-    ax.set_xlabel('width (m)')
-    ax.set_ylabel('height (m)')
-    fig.show()"""
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
+ax = fig.add_subplot(111)
+ax.plot(profile[:, 0], profile[:, 1])[0]
+ax.set_xlabel('width (m)')
+ax.set_ylabel('height (m)')
+fig.show()"""

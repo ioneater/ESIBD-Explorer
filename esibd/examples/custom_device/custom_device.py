@@ -9,7 +9,7 @@ from esibd.plugins import Device, Plugin
 # TODO It is recommended to edit a copy of this file using VS Code with the Better Comments extension installed to highlight the sections that need to be customized.
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [CustomDevice]
 
@@ -45,7 +45,7 @@ class CustomDevice(Device):
         """Initialize your custom user interface."""
         super().initGUI()
         # a base UI is provided by parent class, it can be extended like this if required
-        self.customAction = self.addAction(self.customActionEvent, 'Custom tooltip.', self.makeIcon('cookie.png'))
+        self.customAction = self.addAction(event=self.customActionEvent, toolTip='Custom tooltip.', icon=self.makeIcon('cookie.png'))
 
     def finalizeInit(self) -> None:
         # TODO (optional) add code that should be executed after all other Plugins are initialized.
@@ -104,6 +104,10 @@ class CustomChannel(Channel):
         self.print(repr(channelId.getWidget()), flag=PRINT.MESSAGE)
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Value (X)'  # overwrite to change header
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True, header='ID    ', attr='id')
@@ -115,7 +119,7 @@ class CustomChannel(Channel):
         self.displayedParameters.append(self.ID)
         # TODO (optional) add all custom parameters to determine if GUI elements are created and in what order
 
-    def tempParameters(self) -> None:
+    def tempParameters(self) -> list[str]:
         return super().tempParameters()  # + [self.ID]
         # TODO (optional) add parameters that should not be restored from file
 
@@ -163,7 +167,6 @@ class CustomController(DeviceController):
             # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
@@ -177,8 +180,8 @@ class CustomController(DeviceController):
         if True:  # TODO (optional) add custom condition for acquisition
             super().startAcquisition()
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():

@@ -1,3 +1,5 @@
+.. include:: icons.rst
+
 User's Guide
 ============
 
@@ -5,35 +7,34 @@ Getting started
 ---------------
 To get started, it is recommended to first configure a few essential :ref:`sec:settings`.
 Chose your :ref:`data path<data_path>`, :ref:`config path<config_path>` and if applicable :ref:`plugin path<plugin_path>`.
-Enable a few devices, scans, and other plugins in the plugin manager.
-Select which live displays should be visible.
-Activate the test mode to simulate device communication while you familiarize yourself with the user interface.
+Enable a few devices, scans, and other plugins in the plugin manager dialog |pluginDialog| found under :ref:`sec:settings` |settings|.
+Select which live displays should be visible |system-monitor|.
+Activate the test mode (active by default) to simulate device communication while you familiarize yourself with the user interface.
 Record a few scans and inspect the generated file structure and files.
-Make use of tool tips and integrated documentation (question mark icons) to learn about the plugins and settings.
+Make use of tooltips and integrated documentation (question mark icons |help|) to learn about the plugins and their settings.
 
 User interface overview
 -----------------------
 
 By default, the user interface, shown in :numref:`fig:overview`, is structured into five main sections.
 The tabs on the left contain all controls for configuration and management
-including :ref:`sec:settings`, :ref:`sec:explorer`, :ref:`sec:devices`, :ref:`sec:scans`, and other controls.
+including :ref:`sec:settings` |settings|, :ref:`sec:explorer` |explorer|, :ref:`sec:devices`, :ref:`sec:scans`, and other controls.
 During and after the measurement, results are displayed using various
 :ref:`sec:displays` on the right. The most important signals of
 any deposition experiment, including the real-time ion-currents, are always
 visible in a dedicated :ref:`sec:live_displays` on the top.
-The :ref:`sec:device_manager` is a central interface that allows to control all devices simultaneously.
-Finally, there is a hidden :ref:`sec:console` for status messages
-and advanced features that can be opened from :ref:`sec:settings`.
+The :ref:`sec:device_manager` |DeviceManager| is a central interface that allows to control all devices simultaneously.
+Finally, there is a :ref:`sec:console` |console| for status messages
+and advanced features that can be opened from :ref:`sec:settings` |settings|.
 Users are free to rearrange the user interface by dragging and tearing components.
 All devices will be disconnected and turned off to leave them in a save
 state when the software is closed. All numeric inputs can be
-conveniently adjusted using the arrow keys. All plugins can be detached
-and rearranged using the float icon or by dragging them inside or out of
-the main window. All plugins provide basic documentation via the
-question mark in their toolbar.
+conveniently adjusted using the arrow keys. All plugins provide basic documentation via the
+question mark |help| in their toolbar.
 
 .. _`fig:overview`:
 .. figure:: 2023-10_ESIBD_GUI.png
+   :width: 100%
 
    **ESIBD Explorer user interface.** Colored boxes highlight the five main sections. :blue:`Live displays` showing
    data from several devices. Central :darkorange:`device manager`.
@@ -41,6 +42,12 @@ question mark in their toolbar.
    controls. :orange:`Displays` of supported files
    including saved and running scans. :green:`Console` for
    debugging and plugin development.
+
+.. _`fig:overview_video`:
+.. video:: 2025-02_ESIBD_GUI.mp4
+   :width: 100%
+   :align: center
+   :caption: This video was created as part of automated testing and shows many plugins and their interactions. Simulated mouse clicks are indicated by blue circles. While this cannot replace a structured video tutorial, it gives a better idea about what to expect before installing ESIBD Explorer.
 
 .. _`sec:settings`:
 
@@ -161,64 +168,64 @@ Other
 
 Custom device
 ~~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.examples.CustomDevice.CustomDevice
+.. automodule:: esibd.examples.custom_device.custom_device.CustomDevice
    :noindex:
 
 .. _`sec:ISEG`:
 
 ISEG
 ~~~~
-.. automodule:: esibd.plugins_internal.ISEG.ISEG.Voltage
+.. automodule:: esibd.devices.iseg.iseg.ISEG
    :noindex:
 
 RBD
 ~~~
-.. automodule:: esibd.plugins_internal.RBD.RBD.RBD
+.. automodule:: esibd.devices.rbd.rbd.RBD
    :noindex:
 
 Pressure
 ~~~~~~~~
-.. automodule:: esibd.plugins_internal.Pressure.Pressure.Pressure
+.. automodule:: esibd.devices.pressure.pressure.Pressure
    :noindex:
 
 TIC
 ~~~
-.. automodule:: esibd.plugins_internal.TIC.TIC.TIC
+.. automodule:: esibd.devices.tic.tic.TIC
    :noindex:
 
 MAXIGAUGE
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.MAXIGAUGE.MAXIGAUGE.MAXIGAUGE
+.. automodule:: esibd.devices.maxigauge.maxigauge.MAXIGAUGE
    :noindex:
 
 Temperature
 ~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.Temperature.Temperature.Temperature
+.. automodule:: esibd.devices.temperature.temperature.Temperature
    :noindex:
 
 KEITHLEY
 ~~~~~~~~
-.. automodule:: esibd.plugins_internal.KEITHLEY.KEITHLEY.KEITHLEY
+.. automodule:: esibd.devices.keithley.keithley.KEITHLEY
    :noindex:
 
 MIPS
 ~~~~
-.. automodule:: esibd.plugins_internal.MIPS.MIPS.MIPS
+.. automodule:: esibd.devices.mips.mips.MIPS
    :noindex:
 
 NI9263
 ~~~~~~
-.. automodule:: esibd.plugins_internal.NI9263.NI9263.NI9263
+.. automodule:: esibd.devices.ni9263.ni9263.NI9263
    :noindex:
 
 PICO
 ~~~~
-.. automodule:: esibd.plugins_internal.PICO.PICO.PICO
+.. automodule:: esibd.devices.pico.pico.PICO
    :noindex:
 
 RSPD3303C
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.RSPD3303C.RSPD3303C.RSPD3303C
+.. automodule:: esibd.devices.rspd3303c.rspd3303c.RSPD3303C
    :noindex:
 
 .. _`sec:channels`:
@@ -235,7 +242,7 @@ Select
    duplicated, moved, or deleted.
 
 Enabled
-   If enabled, the channel will communicate with the device.
+   If enabled and :ref:`real`, the channel will communicate with the physical device.
 
 Name
    Each channel should have a unique name that will be used to link to
@@ -255,21 +262,18 @@ Min
 Max
    Maximal limit for value. Values will be coerced to limits.
 
-Optimize
-   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
-
 .. _`equation`:
 
 Equation
    The equation is used to determine the value if the channel is not active.
-   For input devices, this can be used simplify the setup by reducing
+   For input devices, this can be used to simplify the setup by reducing
    the number of independent parameters. Any input channel from any
-   device can be linked. For output devices this could be used, e.g., to
+   device can be referenced. For output devices this could be used, e.g., to
    record differences between two channels. There are no special requirements for
    the format of the equation as long as it evaluates to a valid python
    expression after replacing the names with the values from the
    corresponding channels. Take care to avoid circular definitions and
-   non unique names!
+   non unique names! If the equation is empty it will be ignored.
 
 Background
    For output channels, background signals can be defined manually or
@@ -278,24 +282,54 @@ Background
    corresponding background. Backgrounds can be optionally and temporarily subtracted
    without loosing the raw data.
 
+Optimize
+   If selected, the value will be included in optimization using the :ref:`genetic algorithm<sec:genetic_algorithm>`.
+
 Display
    If selected, channel will be shown in the corresponding :ref:`live display<sec:live_displays>`.
 
 Active
-   See :ref:`equation`. If channels are not active, they will only be visible
-   in the advanced mode.
+   See :ref:`equation` and :ref:`real`.
+
+.. _`real`:
 
 Real
    Real channels correspond to a real physical input or output. A
-   channel that is not real is a virtual channel. It can be used to in
+   channel that is not real is a virtual channel. It can be used in
    combination with equations to create a more intuitive set of
    parameters for the user. For example, a deflector lens with four
    elements can be controlled by virtual *offset, **up-down*, and *left-right*
    parameters.
 
-Linewidth
-   The linewidth is used to highlight the relative importance of channels in
+   If a channel is active and real, the value will be requested from or send to the physical device.
+   This is the default.
+
+   If a channel is active and not real, the value will not be updated.
+   Use this e.g. to define a fixed offset.
+
+   If a channel is not active and real, the value will be determined by the equation and send to the physical device (if it accepts inputs).
+   Use this e.g. to add a fixed offset before sending the value to a physical device.
+   Note that monitors (readbacks) will still be read, even if the channel is not active.
+
+   If a channel is not active and not real, the value will be determined by the equation.
+   Use this e.g. for calculations with intermediate steps or just to display the result of an equation.
+
+
+Line width
+   The line width is used to highlight the relative importance of channels in
    the :ref:`live display<sec:live_displays>`.
+
+Line style
+   The line style is used to further distinguish channels with similar color in
+   the :ref:`live display<sec:live_displays>`.
+
+Group
+   :ref:`Live displays<sec:live_displays>` allow channels to be grouped by this parameter.
+   This allows to group channels with different units and define the order in which they appear in
+   the :ref:`live display<sec:live_displays>`.
+
+Scaling
+   Scale channels to highlight importance and see them from the other side of the lab.
 
 Color
    The channel color can be used to visually group related channels
@@ -366,17 +400,17 @@ Other
 
 Genetic algorithm (GA)
 ~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.GA
+.. automodule:: esibd.scans.ga.ga.GA
    :noindex:
 
 Omni scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Omni
+.. automodule:: esibd.scans.omni.omni.Omni
    :noindex:
 
 Spectra scan
 ~~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Spectra
+.. automodule:: esibd.scans.spectra.spectra.Spectra
    :noindex:
 
 The following scans are used for ESIBD experiments but may be very
@@ -387,23 +421,23 @@ more information.
 
 Beam scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Beam
+.. automodule:: esibd.scans.beam.beam.Beam
    :noindex:
 
 Energy scan
 ~~~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Energy
+.. automodule:: esibd.scans.energy.energy.Energy
    :noindex:
 
 Depo scan
 ~~~~~~~~~
-.. automodule:: esibd.plugins_internal.scans.Scans.Depo
+.. automodule:: esibd.scans.depo.depo.Depo
    :noindex:
 
 Custom extensions
 -----------------
 
-.. automodule:: esibd.plugins_internal.examples.Custom.CustomControl
+.. automodule:: esibd.examples.custom_plugin.custom_plugin.CustomPlugin
    :noindex:
 
 .. _sec:displays:
@@ -460,25 +494,25 @@ Tree
 MS
 ~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.MS
+.. automodule:: esibd.displays.ms.ms.MS
    :noindex:
 
 Line
 ~~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.LINE
+.. automodule:: esibd.displays.line.line.LINE
    :noindex:
 
 PDB
 ~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.PDB
+.. automodule:: esibd.displays.pdb.pdb.PDB
    :noindex:
 
 Holo
 ~~~~
 
-.. automodule:: esibd.plugins_internal.displays.Displays.HOLO
+.. automodule:: esibd.displays.holo.holo.HOLO
    :noindex:
 
 .. _`sec:live_displays`:

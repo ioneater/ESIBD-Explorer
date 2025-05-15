@@ -8,7 +8,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [MAXIGAUGE]
 
@@ -44,6 +44,10 @@ class PressureChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
@@ -72,7 +76,6 @@ class PressureController(DeviceController):
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.closeCommunication()
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:
@@ -82,8 +85,8 @@ class PressureController(DeviceController):
         finally:
             self.initializing = False
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()

@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 import h5py
 import numpy as np
 
-from esibd.core import INOUT, MetaChannel, MultiState, getDarkMode, plotting
+from esibd.core import MultiState, getDarkMode, plotting
 from esibd.scans import Beam
 
 if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Spectra]
 
@@ -69,7 +69,7 @@ class Spectra(Beam):
                 return
             super(Beam.Display, self).initFig()
             self.axes.append(self.fig.add_subplot(111))
-            if not self.axesAspectAction.state:  # use qSet directly in case control is not yet initialized
+            if not self.axesAspectAction.state:
                 self.axes[0].set_aspect('equal', adjustable='box')
 
         def updateTheme(self) -> None:
@@ -90,25 +90,27 @@ class Spectra(Beam):
         if self.displayActive():
             self.display.lines = None
 
-    def loadDataInternal(self) -> None:
+    def loadDataInternal(self) -> bool:
         self.display.lines = None
         if self.file.name.endswith('beam.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 group = h5file[self.pluginManager.Beam.name]  # only modification needed to open beam files. data structure is identical
                 input_group = group[self.INPUTCHANNELS]
                 for name, data in input_group.items():
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
+                    self.addInputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
                 output_group = group[self.OUTPUTCHANNELS]
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
-        else:
-            super(Beam, self).loadDataInternal()
+                self.finalizeChannelTree()
+            return True
+        return super(Beam, self).loadDataInternal()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: C901, PLR0912
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
 
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
+            self.plotting = False  # decorator will be called again
             super().plot(update=update, done=done, **kwargs)
             return
         if self.loading or len(self.outputChannels) == 0:

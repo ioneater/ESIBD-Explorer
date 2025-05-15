@@ -1,13 +1,18 @@
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
-from Bio.PDB import PDBParser
+from Bio.PDB.PDBParser import PDBParser
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from esibd.core import PLUGINTYPE
+from esibd.core import PLUGINTYPE, PRINT
 from esibd.plugins import Plugin
 
+if TYPE_CHECKING:
+    from Bio.PDB.Structure import Structure
 
-def providePlugins() -> list['Plugin']:
+
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [PDB]
 
@@ -25,19 +30,21 @@ class PDB(Plugin):
     pluginType = PLUGINTYPE.DISPLAY
     iconFile = 'pdb.png'
 
+    axes: list[Axes3D]
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.previewFileTypes = ['.pdb', '.pdb1']
 
     def initGUI(self) -> None:
         self.file = Path()
-        self.x = self.y = self.z = None
+        self._x = self._y = self.z = None
         super().initGUI()
         self.initFig()
 
     def initFig(self) -> None:
         self.provideFig()
-        self.axes.append(self.fig.add_subplot(111, projection='3d'))
+        self.axes.append(cast('Axes3D', self.fig.add_subplot(111, projection='3d')))
 
     def provideDock(self) -> None:
         if super().provideDock():
@@ -46,7 +53,7 @@ class PDB(Plugin):
 
     def finalizeInit(self) -> None:
         super().finalizeInit()
-        self.copyAction = self.addAction(self.copyClipboard, f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.copyAction = self.addAction(event=self.copyClipboard, toolTip=f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
     def runTestParallel(self) -> None:
         if self.initializedDock:
@@ -54,7 +61,7 @@ class PDB(Plugin):
             self.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
 
-    def get_structure(self, pdb_file: Path) -> tuple[PDBParser, np.ndarray]:  # read PDB file
+    def get_structure(self, pdb_file: Path) -> 'tuple[Structure, np.ndarray] | tuple[None, None]':  # read PDB file
         """Get structure and XYZ coordinates from pdb file.
 
         :param pdb_file: PDB input file.
@@ -63,20 +70,25 @@ class PDB(Plugin):
         :rtype: PDBParser, np.ndarray
         """
         structure = PDBParser(QUIET=True).get_structure('', pdb_file)
-        return structure, np.array([atom.get_coord() for atom in structure.get_atoms()])
+        if structure:
+            return structure, np.array([atom.get_coord() for atom in structure.get_atoms()])
+        return None, None
 
     def loadData(self, file, showPlugin=True) -> None:
         self.provideDock()
         self.file = file
         _, XYZ = self.get_structure(file)
-        self.x, self.y, self.z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
-        self.plot()
-        self.raiseDock(showPlugin)
+        if XYZ is not None:
+            self._x, self._y, self.z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
+            self.plot()
+            self.raiseDock(showPlugin)
+        else:
+            self.print('XYZ is None', flag=PRINT.WARNING)
 
     def plot(self) -> None:
         self.axes[0].clear()
         if self.x is not None:
-            self.axes[0].scatter(self.x, self.y, self.z, marker='.', s=2)
+            self.axes[0].scatter(self._x, self._y, self.z, marker='.', s=2)  # type: ignore  # noqa: PGH003 # matplotlib type hinting incomplete
         self.set_axes_equal(self.axes[0])
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
@@ -152,9 +164,8 @@ def set_axes_equal(ax):
 _, XYZ = get_structure('{self.file.as_posix()}')
 x, y, z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
-with mpl.style.context('default'):
-    fig = num='{self.name} plot', constrained_layout=True)
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z, marker='.', s=2)
-    set_axes_equal(ax)
-    fig.show()"""
+fig = num='{self.name} plot', constrained_layout=True)
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x, y, z, marker='.', s=2)
+set_axes_equal(ax)
+fig.show()"""

@@ -9,7 +9,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Temperature]
 
@@ -116,13 +116,12 @@ class TemperatureController(DeviceController):
             # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable # noqa: ERA001
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.closeCommunication()
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()

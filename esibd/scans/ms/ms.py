@@ -2,14 +2,14 @@ from typing import TYPE_CHECKING
 
 import h5py
 
-from esibd.core import INOUT, PARAMETERTYPE, MetaChannel, MZCalculator, Parameter, parameterDict, plotting
+from esibd.core import PARAMETERTYPE, MZCalculator, Parameter, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [MassSpec]
 
@@ -35,7 +35,7 @@ class MassSpec(Scan):
         def initGUI(self) -> None:
             self.mzCalc = MZCalculator(parentPlugin=self)
             super().initGUI()
-            self.addAction(lambda: self.copyLineDataClipboard(line=self.ms), 'Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
+            self.addAction(event=lambda: self.copyLineDataClipboard(line=self.ms), toolTip='Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
         def initFig(self) -> None:
             super().initFig()
@@ -97,16 +97,17 @@ fig.show()
         super().loadData(file, showPlugin)
         self.display.mzCalc.clear()
 
-    def loadDataInternal(self) -> None:
+    def loadDataInternal(self) -> bool:
         """Load data in internal standard format for plotting."""
         if self.file.name.endswith('ms scan.h5'):  # legacy file before removing space in plugin name
             with h5py.File(self.file, 'r') as h5file:
                 group = h5file['MS Scan']
                 input_group = group[self.INPUTCHANNELS]
                 for name, data in input_group.items():
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT], inout=INOUT.IN))
+                    self.addInputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
                 output_group = group[self.OUTPUTCHANNELS]
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
-        else:
-            super().loadDataInternal()
+                self.finalizeChannelTree()
+            return True
+        return super().loadDataInternal()

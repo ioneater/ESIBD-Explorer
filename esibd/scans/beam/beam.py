@@ -9,7 +9,7 @@ from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, MetaChannel, 
 from esibd.plugins import Plugin, Scan
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Beam]
 
@@ -72,11 +72,12 @@ class Beam(Scan):
         def runTestParallel(self) -> None:
             if self.initializedDock:
                 self.testControl(self.interpolateAction, not self.interpolateAction.state, 1)
-                self.testControl(self.axesAspectAction, not self.axesAspectAction.state, 1)
+                if self.axesAspectAction:
+                    self.testControl(self.axesAspectAction, not self.axesAspectAction.state, 1)
             super().runTestParallel()
 
         def updateTheme(self) -> None:
-            if self.axesAspectAction is not None:
+            if self.axesAspectAction:
                 self.axesAspectAction.iconFalse = self.scan.makeIcon('aspect_variable_dark.png' if getDarkMode() else 'aspect_variable.png')
                 self.axesAspectAction.iconTrue = self.scan.makeIcon('aspect_fixed_dark.png' if getDarkMode() else 'aspect_fixed.png')
                 self.axesAspectAction.updateIcon(self.axesAspectAction.state)
@@ -101,23 +102,24 @@ class Beam(Scan):
         self.testControl(self.centerAction, value=True)
         super().runTestParallel()
 
-    def loadDataInternal(self) -> None:
+    def loadDataInternal(self) -> bool:
         """Load data in internal standard format for plotting."""
         if self.file.name.endswith('.S2D.dat'):  # legacy ESIBD Control file
             try:
                 data = np.flip(np.loadtxt(self.file).transpose())
             except ValueError as e:
                 self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
-                return
+                return False
             if data.shape[0] == 0:
                 self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
-                return
+                return False
             self.addOutputChannel(name='', unit='pA', recordingData=data)
             self.inputChannels.append(MetaChannel(parentPlugin=self,
                                                   name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[1]), unit='V'))
             self.inputChannels.append(MetaChannel(parentPlugin=self,
                                                   name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[0]), unit='V'))
-        elif self.file.name.endswith('.s2d.h5'):
+            return True
+        if self.file.name.endswith('.s2d.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
                 lr = h5file['S2DSETTINGS']['Left-Right']
@@ -133,8 +135,8 @@ class Beam(Scan):
                 output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
                 for name, item in output_group.items():
                     self.addOutputChannel(name=name, unit='pA', recordingData=item[:].transpose())
-        else:
-            super().loadDataInternal()
+            return True
+        return super().loadDataInternal()
 
     @Scan.finished.setter
     def finished(self, finished) -> None:
@@ -213,7 +215,7 @@ class Beam(Scan):
 
     def useLimits(self) -> None:
         """Use current display limits as scan limits."""
-        if self.display is not None and self.display.initializedDock:
+        if self.displayActive():
             self.LR_from, self.LR_stop = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_stop = self.display.axes[0].get_ylim()
 

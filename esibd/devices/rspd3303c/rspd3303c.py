@@ -10,7 +10,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [RSPD3303C]
 
@@ -89,6 +89,12 @@ class VoltageChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.power: float
+        self.current: float
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MIN][Parameter.VALUE] = 0
@@ -107,7 +113,7 @@ class VoltageChannel(Channel):
         self.insertDisplayedParameter(self.POWER, before=self.MIN)
         self.displayedParameters.append(self.ID)
 
-    def tempParameters(self) -> None:
+    def tempParameters(self) -> list[str]:
         return [*super().tempParameters(), self.POWER, self.CURRENT]
 
     def monitorChanged(self) -> None:
@@ -127,6 +133,10 @@ class VoltageController(DeviceController):
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
 
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.initialized = False
+
     def runInitialization(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
@@ -135,7 +145,6 @@ class VoltageController(DeviceController):
             self.device.print(self.port.query('*IDN?'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.closeCommunication()
             self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
@@ -174,8 +183,8 @@ class VoltageController(DeviceController):
                 channel.current = 50 / channel.monitor if channel.monitor != 0 else 0  # simulate 50 W
                 channel.power = channel.monitor * channel.current
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():

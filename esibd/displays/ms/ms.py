@@ -3,11 +3,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from esibd.core import PLUGINTYPE, MZCalculator, colors, getDarkMode
+from esibd.core import PLUGINTYPE, MZCalculator, StateAction, colors, getDarkMode
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [MS]
 
@@ -40,8 +40,8 @@ class MS(Plugin):
         super().__init__(**kwargs)
         self.previewFileTypes = ['.txt']
         self.file = Path()
-        self.x = self.y = None
-        self.paperAction = None
+        self._x = self._y = None
+        self.paperAction: 'StateAction | None' = None
         self.dataClipboardIcon = self.makeIcon('clipboard-paste-document-text.png')
 
     def initGUI(self) -> None:
@@ -63,8 +63,8 @@ class MS(Plugin):
 
     def finalizeInit(self) -> None:
         super().finalizeInit()
-        self.copyAction = self.addAction(self.copyClipboard, f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(lambda: self.copyLineDataClipboard(line=self.msLine), f'{self.name} data to clipboard.',
+        self.copyAction = self.addAction(event=self.copyClipboard, toolTip=f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
+        self.dataAction = self.addAction(event=lambda: self.copyLineDataClipboard(line=self.msLine), toolTip=f'{self.name} data to clipboard.',
                                           icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(event=self.plot, toolTipFalse='Plot in paper style.',
                                                 iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
@@ -74,11 +74,12 @@ class MS(Plugin):
         if self.initializedDock:
             self.testControl(self.copyAction, value=True)
             self.testControl(self.dataAction, value=True)
-            self.testControl(self.paperAction, not self.paperAction.state)
+            if self.paperAction:
+                self.testControl(self.paperAction, not self.paperAction.state)
             self.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
 
-    def supportsFile(self, file: Path) -> None:
+    def supportsFile(self, file: Path) -> bool:
         if super().supportsFile(file):
             first_line = ''
             try:
@@ -94,7 +95,7 @@ class MS(Plugin):
         self.provideDock()
         self.file = file
         self.mzCalc.clear()
-        self.x, self.y = np.loadtxt(self.file, skiprows=10, usecols=[0, 1], unpack=True)
+        self._x, self._y = np.loadtxt(self.file, skiprows=10, usecols=[0, 1], unpack=True)
         self.plot()
         self.raiseDock(showPlugin)
 
@@ -102,11 +103,11 @@ class MS(Plugin):
         """Plot MS data."""
         self.axes[0].clear()
         self.axes[0].set_xlabel('m/z (Th)')
-        if self.paperAction.state:
+        if self.paperAction and self.paperAction.state:
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
-            if self.x is not None:
-                self.msLine = self.axes[0].plot(self.x, self.map_percent(self.x, self.smooth(self.y, 10)),
+            if self._x is not None and self._y is not None:
+                self.msLine = self.axes[0].plot(self._x, self.map_percent(self.x, self.smooth(self._y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100 + 2])
@@ -114,8 +115,8 @@ class MS(Plugin):
             self.axes[0].set_yticklabels(['0', '%', '100'])
         else:
             self.axes[0].set_ylabel('Intensity')
-            if self.x is not None:
-                self.msLine = self.axes[0].plot(self.x, self.y)[0]
+            if self._x is not None and self._y is not None:
+                self.msLine = self.axes[0].plot(self._x, self._y)[0]
             self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
 
         self.axes[0].set_autoscale_on(True)
@@ -125,13 +126,13 @@ class MS(Plugin):
         self.navToolBar.update()  # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0], '' if self.paperAction.state else self.file.name)
+        self.labelPlot(self.axes[0], '' if self.paperAction and self.paperAction.state else self.file.name)
 
     def find_nearest(self, array, value) -> float:
         """Return the nearest value in the given array.
 
         :param array: Array to search in.
-        :type array: np.array
+        :type array: np.ndarray
         :param value: Search value.
         :type value: float
         :return: Value nearest to search value.
@@ -139,17 +140,17 @@ class MS(Plugin):
         """
         array = np.asarray(array)
         idx = (np.abs(array - value)).argmin()
-        return array[idx]
+        return float(array[idx])
 
-    def map_percent(self, x, y) -> np.array:
+    def map_percent(self, x, y) -> np.ndarray:
         """Map the range between y(x_min) and y(x_max) to 0 to 100 %.
 
         :param x: X values.
-        :type x: np.array
+        :type x: np.ndarray
         :param y: Original Y values.
-        :type y: np.array
+        :type y: np.ndarray
         :return: Mapped input values.
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         x_min_i = np.where(x == self.find_nearest(x, min(x)))[0]
         x_min_i = np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
@@ -158,15 +159,15 @@ class MS(Plugin):
         y_sub = y[x_min_i:x_max_i]
         return (y - np.min(y)) / np.max(y_sub - np.min(y_sub)) * 100
 
-    def smooth(self, y, box_pts) -> np.array:
+    def smooth(self, y, box_pts) -> np.ndarray:
         """Smooths a 1D array.
 
         :param y: Array to be smoothed.
-        :type y: np.array
+        :type y: np.ndarray
         :param box_pts: With of box used for smoothing.
         :type box_pts: int
         :return: convolvedArray
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         box = np.ones(box_pts) / box_pts
         return np.convolve(y, box, mode='same')
@@ -178,7 +179,7 @@ class MS(Plugin):
             self.paperAction.iconTrue = self.getIcon()
             self.paperAction.updateIcon(self.paperAction.state)
 
-    def generatePythonPlotCode(self) -> None:
+    def generatePythonPlotCode(self) -> str:
         return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,11 +188,11 @@ def map_percent(x, y):
     '''Map the range between y(x_min) and y(x_max) to 0 to 100 %.
 
     :param x: X values.
-    :type x: np.array
+    :type x: np.ndarray
     :param y: Original Y values.
-    :type y: np.array
+    :type y: np.ndarray
     :return: Mapped input values.
-    :rtype: np.array
+    :rtype: np.ndarray
     '''
     x_min_i=np.where(x == find_nearest(x, min(x)))[0]
     x_min_i=np.min(x_min_i) if x_min_i.shape[0] > 0 else 0
@@ -204,11 +205,11 @@ def smooth(y, box_pts):
     '''Smooth a 1D array.
 
     :param y: Array to be smoothed.
-    :type y: np.array
+    :type y: np.ndarray
     :param box_pts: With of box used for smoothing.
     :type box_pts: int
     :return: convolvedArray
-    :rtype: np.array
+    :rtype: np.ndarray
     '''
     box = np.ones(box_pts)/box_pts
     y_smooth = np.convolve(y, box, mode='same')
@@ -218,7 +219,7 @@ def find_nearest(array, value):
     '''Return the nearest value in the given array.
 
     :param array: Array to search in.
-    :type array: np.array
+    :type array: np.ndarray
     :param value: Search value.
     :type value: float
     :return: Value nearest to search value.
@@ -232,20 +233,19 @@ paperStyle = False
 
 x, y = np.loadtxt('{self.file.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
 
-with mpl.style.context('default'):
-    fig = plt.figure(num='{self.name} plot', constrained_layout=True)
-    ax = fig.add_subplot(111)
-    ax.set_xlabel('m/z (Th)')
-    if paperStyle:
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.plot(x, map_percent(x, min(x), max(x), smooth(y, 10)), color='k')[0]
-        ax.set_ylabel('')
-        ax.set_ylim([1, 100+2])
-        ax.set_yticks([1, 50, 100])
-        ax.set_yticklabels(['0', '%', '100'])
-    else:
-        ax.set_ylabel('Intensity')
-        ax.plot(x, y)[0]
-        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
-    fig.show()"""
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
+ax = fig.add_subplot(111)
+ax.set_xlabel('m/z (Th)')
+if paperStyle:
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.plot(x, map_percent(x, min(x), max(x), smooth(y, 10)), color='k')[0]
+    ax.set_ylabel('')
+    ax.set_ylim([1, 100+2])
+    ax.set_yticks([1, 50, 100])
+    ax.set_yticklabels(['0', '%', '100'])
+else:
+    ax.set_ylabel('Intensity')
+    ax.plot(x, y)[0]
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
+fig.show()"""

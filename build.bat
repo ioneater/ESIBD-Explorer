@@ -194,7 +194,7 @@ git push origin main --tags REM to include tags (otherwise tags are ignored)
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
 REM Title: Version v0.8.0
-REM Copy change log from changelog.rst
+REM Copy change log from changelog.rst (remove inline icons if applicable)
 REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
 REM attach esibd.tar.gz to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

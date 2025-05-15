@@ -10,7 +10,7 @@ from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [HOLO]
 
@@ -69,7 +69,7 @@ class HOLO(Plugin):
             self.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
 
-    def supportsFile(self, file: Path) -> None:
+    def supportsFile(self, file: Path) -> bool:
         if super().supportsFile(file):
             data = np.load(file, mmap_mode='r')  # only load header with shape and datatype
             return len(data.shape) == 3 and data.dtype == np.complex128  # only support complex 3D arrays  # noqa: PLR2004
@@ -141,7 +141,7 @@ class HOLO(Plugin):
             else:
                 self.glAmplitudeView.addItem(m1)
 
-    def generatePythonPlotCode(self) -> None:
+    def generatePythonPlotCode(self) -> str:
         return f"""import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np

@@ -5,7 +5,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [NI9263]
 
@@ -35,6 +35,10 @@ class VoltageChannel(Channel):
     ADDRESS = 'Address'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.address: str
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MIN][Parameter.VALUE] = 0
@@ -53,6 +57,10 @@ class VoltageChannel(Channel):
 
 
 class VoltageController(DeviceController):
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.initialized = False
 
     def runInitialization(self) -> None:
         try:
@@ -77,5 +85,5 @@ class VoltageController(DeviceController):
             if channel.real:
                 self.applyValueFromThread(channel)
 
-    def runAcquisition(self, acquiring: callable) -> None:
+    def runAcquisition(self) -> None:
         pass  # nothing to acquire, no readbacks

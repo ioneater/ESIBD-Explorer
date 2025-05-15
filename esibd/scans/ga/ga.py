@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
-from PyQt6.QtCore import QObject
 
 from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, dynamicImport, parameterDict, plotting, pyqtSignal
 from esibd.plugins import Scan
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [GA]
 
@@ -46,7 +45,9 @@ class GA(Scan):
     iconFile = 'GA_light.png'
     iconFileDark = 'GA_dark.png'
 
-    class GASignalCommunicate(QObject):
+    class SignalCommunicate(Scan.SignalCommunicate):
+        """Bundle pyqtSignals."""
+
         updateValuesSignal = pyqtSignal(int, bool)
 
     class Display(Scan.Display):
@@ -66,8 +67,7 @@ class GA(Scan):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.ga = dynamicImport('ga_standalone', self.dependencyPath / 'ga_standalone.py').GA()
-        self.gaSignalComm = self.GASignalCommunicate()
-        self.gaSignalComm.updateValuesSignal.connect(self.updateValues)
+        self.signalComm.updateValuesSignal.connect(self.updateValues)
         self.changeLog = []
 
     def initGUI(self) -> None:
@@ -98,7 +98,7 @@ class GA(Scan):
     def toggleInitial(self) -> None:
         """Toggles between initial and optimized values."""
         if len(self.outputChannels) > 0:
-            self.gaSignalComm.updateValuesSignal.emit(0, self.initialAction.state)
+            self.signalComm.updateValuesSignal.emit(0, self.initialAction.state)
         else:
             self.initialAction.state = False
             self.print('GA not initialized.')
@@ -110,23 +110,21 @@ class GA(Scan):
     def initScan(self) -> None:
         """Start optimization."""
         # overwrite parent
-        if super().initScan():
-            if not self._dummy_initialization:
-                self.display.axes[0].set_ylabel(self.outputChannels[0].name)
-                self.ga.init()  # don't mix up with init method from Scan
-                self.ga.maximize(True)  # noqa: FBT003
-                for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
-                    if channel.optimize:
-                        self.ga.optimize(channel.value, channel.min, channel.max, .2, abs(channel.max - channel.min) / 10, channel.name)
-                    else:
-                        # add entry but set rate to 0 to prevent value change. Can be activated later.
-                        self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
-                self.ga.genesis()
-                self.ga.file_path(self.file.parent.as_posix())
-                self.ga.file_name(self.file.name)
-                self.initialAction.state = False
-                return True
-            return False
+        if super().initScan() and self.displayActive() and not self._dummy_initialization:
+            self.display.axes[0].set_ylabel(self.outputChannels[0].name)
+            self.ga.init()  # don't mix up with init method from Scan
+            self.ga.maximize(True)  # noqa: FBT003
+            for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN):
+                if channel.optimize:
+                    self.ga.optimize(channel.value, channel.min, channel.max, .2, abs(channel.max - channel.min) / 10, channel.name)
+                else:
+                    # add entry but set rate to 0 to prevent value change. Can be activated later.
+                    self.ga.optimize(channel.value, channel.min, channel.max, 0, abs(channel.max - channel.min) / 10, channel.name)
+            self.ga.genesis()
+            self.ga.file_path(self.file.parent.as_posix())
+            self.ga.file_name(self.file.name)
+            self.initialAction.state = False
+            return True
         return False
 
     def addOutputChannels(self) -> None:
@@ -189,7 +187,7 @@ fig.show()
         self.outputChannels[0].recordingData.add(fitnessStart)
         self.outputChannels[1].recordingData.add(fitnessStart)
         while recording():
-            self.gaSignalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
+            self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
             time.sleep((self.wait + self.average) / 1000)
             self.bufferLagging()
             self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
@@ -206,7 +204,7 @@ fig.show()
                 self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
         self.ga.check_restart(_terminate=True)  # sort population
-        self.gaSignalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003
+        self.signalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003
         self.signalComm.scanUpdateSignal.emit(True)  # noqa: FBT003
 
     def updateValues(self, index=None, initial=False) -> None:

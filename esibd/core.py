@@ -16,22 +16,24 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO, TypeVar, cast
 
 import cv2
 import keyboard as kb
 import matplotlib as mpl
 import matplotlib.pyplot as plt  # pylint: disable = unused-import  # need to import to access mpl.axes.Axes
+import matplotlib.style
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.console
 import serial
+from matplotlib.axes import Axes
 from matplotlib.backend_bases import MouseButton, MouseEvent
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
+from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.widgets import Cursor
 from PIL import Image
 from PIL.ImageQt import ImageQt
-from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, pyqtProperty, pyqtSignal  # , QEvent
+from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QBrush,
@@ -42,6 +44,7 @@ from PyQt6.QtGui import (
     QGuiApplication,
     QIcon,
     QImage,
+    QKeyEvent,
     QMouseEvent,
     QPainter,
     QPalette,
@@ -69,7 +72,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMainWindow,  # QStyle, QLayout, QInputDialog,
+    QMainWindow,
     QMenu,
     QMessageBox,
     QPlainTextEdit,
@@ -92,14 +95,17 @@ from PyQt6.QtWidgets import (
 
 from esibd.const import *  # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
+ParameterWidgetType = Union['PushButton', 'ToolButton', 'PushButton', 'ColorButton', 'CheckBox', QLabel,
+                             'CompactComboBox', 'LineEdit', 'LedIndicator', 'LabviewSpinBox', 'LabviewDoubleSpinBox', 'LabviewSciSpinBox']
+
 if TYPE_CHECKING:
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.typing import ColorType
     from PyQt6.QtCore import QEvent
     from PyQt6.QtGui import QCloseEvent, QContextMenuEvent, QPaintEvent, QResizeEvent, QWheelEvent
     from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
 
-    from esibd.plugins import ChannelManager, Device, LiveDisplay, Plugin, Scan, StaticDisplay
+    from esibd.plugins import PID, UCM, Browser, ChannelManager, Console, Device, DeviceManager, Explorer, LiveDisplay, Notes, Plugin, Scan, Settings, StaticDisplay, Text, Tree
 
 
 class EsibdExplorer(QMainWindow):
@@ -180,7 +186,9 @@ class EsibdExplorer(QMainWindow):
                     event.ignore()  # keep running
                     return
             self.pluginManager.closePlugins()
-            QApplication.instance().quit()
+            app = QApplication.instance()
+            if app:
+                app.quit()
             event.accept()  # let the window close
         else:
             event.ignore()  # keep running
@@ -215,12 +223,12 @@ class PluginManager:  # noqa: PLR0904
 
     def __init__(self) -> None:
         """Initialize PluginManager."""
-        self.mainWindow = QApplication.instance().mainWindow
+        self.mainWindow: EsibdExplorer = QApplication.instance().mainWindow  # type: ignore  # noqa: PGH003
         self.testing_state = False  # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.userPluginPath = None
-        self.pluginFile = None
+        self.pluginFile: 'Path | None' = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -232,13 +240,25 @@ class PluginManager:  # noqa: PLR0904
         self.plugins = []  # A central plugin list that allows plugins to interact with each other.
 
         self.pluginNames = []
-        self.firstControl = None
-        self.firstDisplay = None
+        self.firstControl: 'Plugin | None' = None
+        self.firstDisplay: 'Plugin | None' = None
         self.tabBars = None
         self._loading = 0
         self.finalizing = False
         self.closing = False
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
+
+        # definitions for type hinting
+        self.PID: PID
+        self.UCM: UCM
+        self.Explorer: Explorer
+        self.Settings: Settings
+        self.Console: Console
+        self.Browser: Browser
+        self.Tree: Tree
+        self.Text: Text
+        self.Notes: Notes
+        self.DeviceManager: DeviceManager
 
     @property
     def loading(self) -> bool:
@@ -252,7 +272,7 @@ class PluginManager:  # noqa: PLR0904
         else:
             self._loading -= 1
 
-    def loadPlugins(self, reload: bool = False) -> None:  # noqa: PLR0915
+    def loadPlugins(self, reload: bool = False) -> None:  # noqa: C901, PLR0915
         """Load all enabled plugins.
 
         :param reload: Indicates if plugins are reloading, defaults to False
@@ -320,6 +340,8 @@ class PluginManager:  # noqa: PLR0904
         self.toggleTitleBarDelayed(update=True, delay=1000)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit)  # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.splash.close()  # close as soon as mainWindow is ready
+        if getTestMode():
+            self.logger.print('Test mode is active!', flag=PRINT.WARNING)
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path: Path) -> None:
@@ -342,7 +364,7 @@ class PluginManager:  # noqa: PLR0904
                     self.qm.raise_()
                 else:
                     if hasattr(Module, 'providePlugins'):
-                        if type(Module.providePlugins()) is list:
+                        if Module and type(Module.providePlugins()) is list:
                             self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
                         else:
                             self.logger.print(f'Could not load module {file.stem}. Make sure providePlugins returns list of valid plugins.', flag=PRINT.ERROR)
@@ -365,7 +387,7 @@ class PluginManager:  # noqa: PLR0904
                 self.confParser[Plugin.name] = {self.ENABLED: not Plugin.optional, self.VERSION: Plugin.version, self.SUPPORTEDVERSION: Plugin.supportedVersion,
                                                 self.DEPENDENCYPATH: dependencyPath, self.ICONFILE: Plugin.iconFile, self.ICONFILEDARK: Plugin.iconFileDark,
                                                 self.PLUGIN_TYPE: str(Plugin.pluginType.value), self.PREVIEWFILETYPES: '',
-                                                self.DESCRIPTION: Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__, self.OPTIONAL: str(Plugin.optional)}
+                                                self.DESCRIPTION: Plugin.documentation or Plugin.__doc__, self.OPTIONAL: str(Plugin.optional)}
             else:  # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
                 self.confParser[Plugin.name][self.SUPPORTEDVERSION] = Plugin.supportedVersion
@@ -373,14 +395,14 @@ class PluginManager:  # noqa: PLR0904
                 self.confParser[Plugin.name][self.ICONFILE] = Plugin.iconFile
                 self.confParser[Plugin.name][self.ICONFILEDARK] = Plugin.iconFileDark
                 self.confParser[Plugin.name][self.PLUGIN_TYPE] = str(Plugin.pluginType.value)
-                self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation if Plugin.documentation is not None else Plugin.__doc__
+                self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation or Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
                 plugin = self.loadPlugin(Plugin, dependencyPath=dependencyPath)
                 if plugin is not None:
                     self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(plugin.getSupportedFiles())  # requires instance
 
-    def loadPlugin(self, Plugin: 'Plugin', dependencyPath: Path = internalMediaPath) -> 'Plugin':
+    def loadPlugin(self, Plugin: 'type[Plugin]', dependencyPath: Path = internalMediaPath) -> 'Plugin | None':
         """Load a single plugin.
 
         Plugins must have a static name and pluginType.
@@ -474,7 +496,7 @@ class PluginManager:  # noqa: PLR0904
             self.plugins.pop(self.plugins.index(plugin))  # avoid any further undefined interaction
 
     @property
-    def testing(self) -> None:
+    def testing(self) -> bool:
         """Indicates if the PluginManager or any individual plugin is currently testing."""
         return self.testing_state or any(plugin.testing_state for plugin in self.plugins)
 
@@ -526,8 +548,9 @@ class PluginManager:  # noqa: PLR0904
         """Show all currently running threads in the Text plugin."""
         self.Text.setText('\n'.join([thread.name for thread in threading.enumerate()]), showPlugin=True)
 
-    def managePlugins(self) -> None:
+    def managePlugins(self) -> None:  # noqa: C901, PLR0915
         """Select which plugins should be enabled."""
+        assert self.pluginFile, 'pluginFile is None'
         dlg = QDialog(self.mainWindow, Qt.WindowType.WindowStaysOnTopHint)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
@@ -538,17 +561,22 @@ class PluginManager:  # noqa: PLR0904
         tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
         tree.setColumnCount(8)
         tree.setRootIsDecorated(False)
-        tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         tree.setColumnWidth(2, 50)
         tree.setColumnWidth(3, 50)
         tree.setColumnWidth(4, 50)
-        tree.header().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        header = tree.header()
+        if header:
+            header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
         tree.setColumnWidth(6, 150)
         root = tree.invisibleRootItem()
+        assert root, 'tree.invisibleRootItem is None.'
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText('Stop communication and reload plugins' if self.DeviceManager.initialized() else 'Reload plugins')
+        okButton = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        if okButton:
+            okButton.setText('Stop communication and reload plugins' if self.DeviceManager.initialized() else 'Reload plugins')
         buttonBox.accepted.connect(dlg.accept)
         buttonBox.rejected.connect(dlg.reject)
         buttonBox.setContentsMargins(5, 5, 5, 5)
@@ -566,14 +594,15 @@ class PluginManager:  # noqa: PLR0904
             self.DeviceManager.closeCommunication(closing=True, message='Stopping communication before reloading plugins.')
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             for child in [root.child(i) for i in range(root.childCount())]:
-                name = child.text(1)
-                enabled = True
-                internal = True
-                if tree.itemWidget(child, 2) is not None:
-                    enabled = (tree.itemWidget(child, 2)).isChecked()
-                    internal = False
-                if not internal:
-                    confParser[name][self.ENABLED] = str(enabled)
+                if child:
+                    name = child.text(1)
+                    enabled = True
+                    internal = True
+                    if tree.itemWidget(child, 2) is not None:
+                        enabled = cast('CheckBox', (tree.itemWidget(child, 2))).isChecked()
+                        internal = False
+                    if not internal:
+                        confParser[name][self.ENABLED] = str(enabled)
             with self.pluginFile.open('w', encoding=UTF8) as configFile:
                 confParser.write(configFile)
             self.closePlugins(reload=True)
@@ -641,7 +670,7 @@ class PluginManager:  # noqa: PLR0904
                 plugin.closeGUI()
             except Exception:  # pylint: disable = broad-except  # we have no control about the exception a plugin can possibly throw  # noqa: BLE001
                 # No unpredictable exception in a single plugin should break the whole application
-                self.logger.print(f'Could not close plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', PRINT.ERROR)
+                self.logger.print(f'Could not close plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
         if reload:
             self.loadPlugins(reload=True)  # restore fails if plugins have been added or removed
             self.loading = False
@@ -663,7 +692,7 @@ class PluginManager:  # noqa: PLR0904
             self.Settings.mainDisplayWidget.setMinimumHeight(height)
             self.Settings.mainDisplayWidget.setMaximumHeight(height)
         height = qSet.value(CONSOLEHEIGHT, self.Console.mainDisplayWidget.height())
-        if height is not None and self.Settings.showConsoleAction.state:
+        if height is not None and self.Settings.showConsoleAction and self.Settings.showConsoleAction.state:
             self.Console.mainDisplayWidget.setMinimumHeight(height)
             self.Console.mainDisplayWidget.setMaximumHeight(height)
         QTimer.singleShot(1000, self.resetMainDisplayWidgetLimits)
@@ -696,7 +725,9 @@ class PluginManager:  # noqa: PLR0904
             return [plugin for plugin in self.plugins if plugin.pluginType in pluginTypes]
         return [plugin for plugin in self.plugins if plugin.pluginType == pluginTypes]
 
-    def getPluginsByClass(self, parentClasses: 'Plugin | list[Plugin]') -> list['Plugin']:
+    A = TypeVar('A', 'Scan', 'Device', 'ChannelManager')
+
+    def getPluginsByClass(self, parentClasses: 'type[A] | tuple[type[A]]') -> list[A]:
         """Return all plugins of the specified type.
 
         :param parentClasses: A single class or list of classes.
@@ -743,59 +774,61 @@ class PluginManager:  # noqa: PLR0904
             splash = SplashScreen()
             splash.show()
             self.mainWindow.setUpdatesEnabled(False)
-        pal = QApplication.style().standardPalette()
-        pal.setColor(QPalette.ColorRole.Base, QColor(colors.bg))
-        pal.setColor(QPalette.ColorRole.AlternateBase, QColor(colors.bg))
-        pal.setColor(QPalette.ColorRole.ToolTipBase, QColor(colors.bg))
-        pal.setColor(QPalette.ColorRole.Window, QColor(colors.bg))
-        pal.setColor(QPalette.ColorRole.Button, QColor(colors.bgAlt2))  # also comboboxes
-        pal.setColor(QPalette.ColorRole.Text, QColor(colors.fg))
-        pal.setColor(QPalette.ColorRole.ToolTipText, QColor(colors.fg))
-        pal.setColor(QPalette.ColorRole.WindowText, QColor(colors.fg))
-        pal.setColor(QPalette.ColorRole.PlaceholderText, QColor(colors.fg))
-        pal.setColor(QPalette.ColorRole.ButtonText, QColor(colors.fg))
-        pal.setColor(QPalette.ColorRole.BrightText, QColor(colors.highlight))
-        pal.setColor(QPalette.ColorRole.HighlightedText, QColor(colors.highlight))
-        self.styleSheet = f"""
-        QTreeView::item {{border: none; outline: 0;}}
-        QLineEdit     {{background-color:{colors.bgAlt2};}}
-        QPlainTextEdit{{background-color:{colors.bgAlt2};}}
-        QSpinBox      {{background-color:{colors.bgAlt2}; color:{colors.fg}; border-style:none;}}
-        QDoubleSpinBox{{background-color:{colors.bgAlt2}; color:{colors.fg}; border-style:none;}}
-        QMainWindow::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
-        QMainWindow::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
-        QWidget::separator          {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
-        QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
-        QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix()
-                                                 if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
-        QToolTip{{background-color: {colors.bg}; color: {colors.fg}; border: black solid 1px}}
-        QCheckBox::indicator         {{border:1px solid {colors.fg}; width: 12px;height: 12px;}}
-        QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({(internalMediaPath / 'check_dark.png').as_posix()
-                                                                                                           if getDarkMode() else (internalMediaPath / 'check.png').as_posix()})}}
-        QTabBar::tab         {{margin:0px 0px 2px 0px; padding:4px; border-width:0px; }}
-        QTabBar::tab:selected{{margin:0px 0px 0px 0px; padding:4px; border-bottom-width:2px; color:{colors.highlight};
-          border-bottom-color:{colors.highlight}; border-style:solid;}}"""
-        # QMainWindow::separator Warning: The style sheet has no effect when the QDockWidget is undocked as Qt uses native top level windows when undocked.
-        # QLineEdit     {{border-color:{fg}; border-width:1px; border-style:solid;}}
-        # QPlainTextEdit{{border-color:{fg}; border-width:1px; border-style:solid;}}
-        # QStatusBar::item {{border: 1px solid red;}}
-        # QCheckBox::indicator{{border:1px solid {fg};}}
-        # QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}  # causes focus on hover -> other widgets loose focus
-        QApplication.setPalette(pal)
-        self.mainWindow.setStyleSheet(self.styleSheet)
-        plt.style.use('dark_background' if getDarkMode() else 'default')
-        plt.rcParams['figure.facecolor'] = colors.bg
-        plt.rcParams['axes.facecolor'] = colors.bg
-        for plugin in self.plugins:
-            if plugin.initializedDock:
-                try:
-                    plugin.updateTheme()
-                except Exception:  # noqa: BLE001
-                    self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
-        if not (self.loading or self.finalizing):
-            self.mainWindow.setUpdatesEnabled(True)
-            splash.close()
-        self.toggleTitleBarDelayed(update=True)
+        style = QApplication.style()
+        if style:
+            pal = style.standardPalette()
+            pal.setColor(QPalette.ColorRole.Base, QColor(colors.bg))
+            pal.setColor(QPalette.ColorRole.AlternateBase, QColor(colors.bg))
+            pal.setColor(QPalette.ColorRole.ToolTipBase, QColor(colors.bg))
+            pal.setColor(QPalette.ColorRole.Window, QColor(colors.bg))
+            pal.setColor(QPalette.ColorRole.Button, QColor(colors.bgAlt2))  # also comboboxes
+            pal.setColor(QPalette.ColorRole.Text, QColor(colors.fg))
+            pal.setColor(QPalette.ColorRole.ToolTipText, QColor(colors.fg))
+            pal.setColor(QPalette.ColorRole.WindowText, QColor(colors.fg))
+            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor(colors.fg))
+            pal.setColor(QPalette.ColorRole.ButtonText, QColor(colors.fg))
+            pal.setColor(QPalette.ColorRole.BrightText, QColor(colors.highlight))
+            pal.setColor(QPalette.ColorRole.HighlightedText, QColor(colors.highlight))
+            self.styleSheet = f"""
+            QTreeView::item {{border: none; outline: 0;}}
+            QLineEdit     {{background-color:{colors.bgAlt2};}}
+            QPlainTextEdit{{background-color:{colors.bgAlt2};}}
+            QSpinBox      {{background-color:{colors.bgAlt2}; color:{colors.fg}; border-style:none;}}
+            QDoubleSpinBox{{background-color:{colors.bgAlt2}; color:{colors.fg}; border-style:none;}}
+            QMainWindow::separator      {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
+            QMainWindow::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}
+            QWidget::separator          {{background-color:{colors.bgAlt2};    width:4px; height:4px;}}
+            QToolBar{{background-color:{colors.bgAlt1}; margin:0px 0px 0px 0px;}}
+            QToolBarExtension {{qproperty-icon: url({(internalMediaPath / 'chevron_double_dark.png').as_posix()
+                                                     if getDarkMode() else (internalMediaPath / 'chevron_double_light.png').as_posix()});}}
+            QToolTip{{background-color: {colors.bg}; color: {colors.fg}; border: black solid 1px}}
+            QCheckBox::indicator         {{border:1px solid {colors.fg}; width: 12px;height: 12px;}}
+            QCheckBox::indicator:checked {{border:1px solid {colors.fg}; width: 12px;height: 12px; image: url({(internalMediaPath / 'check_dark.png').as_posix()
+                                                                                                    if getDarkMode() else (internalMediaPath / 'check.png').as_posix()})}}
+            QTabBar::tab         {{margin:0px 0px 2px 0px; padding:4px; border-width:0px; }}
+            QTabBar::tab:selected{{margin:0px 0px 0px 0px; padding:4px; border-bottom-width:2px; color:{colors.highlight};
+              border-bottom-color:{colors.highlight}; border-style:solid;}}"""
+            # QMainWindow::separator Warning: The style sheet has no effect when the QDockWidget is undocked as Qt uses native top level windows when undocked.
+            # QLineEdit     {{border-color:{fg}; border-width:1px; border-style:solid;}}
+            # QPlainTextEdit{{border-color:{fg}; border-width:1px; border-style:solid;}}
+            # QStatusBar::item {{border: 1px solid red;}}
+            # QCheckBox::indicator{{border:1px solid {fg};}}
+            # QWidget::separator:hover{{background-color:{colors.highlight}; width:4px; height:4px;}}  # causes focus on hover -> other widgets loose focus
+            QApplication.setPalette(pal)
+            self.mainWindow.setStyleSheet(self.styleSheet)
+            plt.style.use('dark_background' if getDarkMode() else 'default')
+            plt.rcParams['figure.facecolor'] = colors.bg
+            plt.rcParams['axes.facecolor'] = colors.bg
+            for plugin in self.plugins:
+                if plugin.initializedDock:
+                    try:
+                        plugin.updateTheme()
+                    except Exception:  # noqa: BLE001
+                        self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
+            if not (self.loading or self.finalizing):
+                self.mainWindow.setUpdatesEnabled(True)
+                splash.close()
+            self.toggleTitleBarDelayed(update=True)
 
     def reconnectSource(self, name: str) -> None:
         """Try to reconnect linked channels if applicable.
@@ -809,7 +842,7 @@ class PluginManager:  # noqa: PLR0904
         # keep docstring synchronized with PID.reconnectSource and UCM.reconnectSource
         for staticDisplay in self.DeviceManager.getActiveStaticDisplays():
             staticDisplay.reconnectSource(name)
-        for scan in self.getPluginsByType(PLUGINTYPE.SCAN):
+        for scan in cast('list[Scan]', self.getPluginsByType(PLUGINTYPE.SCAN)):
             scan.reconnectSource(name)
         if hasattr(self, 'PID'):
             self.PID.reconnectSource(name)
@@ -825,7 +858,7 @@ class PluginManager:  # noqa: PLR0904
         # keep docstring synchronized with PID.connectAllSources and UCM.connectAllSources
         for staticDisplay in self.DeviceManager.getActiveStaticDisplays():
             staticDisplay.connectAllSources()
-        for scan in self.getPluginsByType(PLUGINTYPE.SCAN):
+        for scan in cast('list[Scan]', self.getPluginsByType(PLUGINTYPE.SCAN)):
             scan.connectAllSources()
         if hasattr(self, 'PID'):
             self.PID.connectAllSources(update=update)
@@ -856,6 +889,7 @@ class Logger(QObject):
     """
 
     printFromThreadSignal = pyqtSignal(str, str, PRINT)
+    MAX_ERROR_COUNT = 10
 
     def __init__(self, pluginManager: PluginManager) -> None:
         """Initialize a logger.
@@ -871,7 +905,10 @@ class Logger(QObject):
         self.purgeTo = 10000
         self.purgeLimit = 30000
         self.lastCallTime = None
-        self.testLogFile = None
+        self.logFile: 'TextIO | None' = None
+        self.testLogFile: 'TextIO | None' = None
+        self.logFilePath: 'Path | None' = None
+        self.testLogFilePath: 'Path | None' = None
         self.errorCount = 0
         self.timer = QTimer()
         self.timer.timeout.connect(self.purge)
@@ -883,18 +920,18 @@ class Logger(QObject):
     def open(self) -> None:
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
         if not self.active:
-            self.logFile = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / f'{PROGRAM_NAME.lower()}.log'
+            self.logFilePath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0] / f'{PROGRAM_NAME.lower()}.log'
             self.terminalOut = sys.stdout
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self  # redirect all calls to stdout and stderr to the write function of our logger
-            self.log = self.logFile.open('a', encoding='utf-8-sig')  # pylint: disable=consider-using-with  # keep file open instead of reopening for every new line
+            self.log = self.logFilePath.open('a', encoding='utf-8-sig')  # pylint: disable=consider-using-with  # keep file open instead of reopening for every new line
             self.active = True
             self.timer.start()
 
     def openLog(self) -> None:
         """Open the log file in an external program."""
-        if self.logFile.exists():
-            openInDefaultApplication(self.logFile)
+        if self.logFilePath and self.logFilePath.exists():
+            openInDefaultApplication(self.logFilePath)
         else:
             self.print('Start logging to create log file.')
 
@@ -915,6 +952,8 @@ class Logger(QObject):
 
         This runs in the main thread!
         """
+        assert self.testLogFilePath
+        assert self.testLogFile
         self.print(f'Finalizing and opening test log: {self.testLogFilePath.name}')
         self.pluginManager.Explorer.goToCurrentSession()
         self.pluginManager.Explorer.raiseDock(showPlugin=True)
@@ -940,6 +979,8 @@ Messages: {content.count('ℹ️')} ℹ️
 Warnings: {content.count('⚠️')} ⚠️
 Errors: {content.count('❌')} ❌
 Debug Messages: {content.count('🪲')} 🪲
+Verbose Messages: {content.count('🆅')} 🆅
+Trace Messages: {content.count('🆃')} 🆃
 Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
 \n\n""")  # noqa: RUF001
                 header.write(content)
@@ -961,7 +1002,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
                 if lock_acquired:
                     self.log.write(message)  # write to log file
                     self.log.flush()
-                if self.testLogFileActive:
+                if self.testLogFile and self.testLogFileActive:
                     self.testLogFile.write(message)  # write to test log file
                     self.testLogFile.flush()
 
@@ -975,12 +1016,13 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
     def purge(self) -> None:
         """Purges the log file to keep it below purgeLimit."""
         # ca. 12 ms, only call once per hour. lock makes sure there is not race conditions with open reference
+        assert self.logFilePath
         with self.lock.acquire_timeout(1) as lock_acquired:
             if lock_acquired:
-                with self.logFile.open('r', encoding=UTF8) as original:
+                with self.logFilePath.open('r', encoding=UTF8) as original:
                     lines = original.readlines()
                 if len(lines) > self.purgeLimit:
-                    with self.logFile.open('w', encoding='utf-8-sig') as purged:
+                    with self.logFilePath.open('w', encoding='utf-8-sig') as purged:
                         for line in lines[-self.purgeTo:]:
                             purged.write(line)
 
@@ -998,6 +1040,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
             # redirect to main thread if needed to avoid changing GUI from parallel thread.
             self.printFromThreadSignal.emit(message, sender, flag)
             return
+        logLevel = cast('int', getLogLevel())
         match flag:
             case PRINT.EXPLORER:
                 flagString = ' ❖'  # noqa: RUF001
@@ -1007,20 +1050,20 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
                 flagString = '❌'
             case PRINT.DEBUG:
                 flagString = '🪲'
-                if getLogLevel() < 1:
+                if logLevel < 1:
                     return
             case PRINT.VERBOSE:
-                flagString = '🪲'
-                if getLogLevel() < 2:  # noqa: PLR2004
+                flagString = '🆅'
+                if logLevel < 2:  # noqa: PLR2004
                     return
             case PRINT.TRACE:
-                flagString = '🪲'
-                if getLogLevel() < 3:  # noqa: PLR2004
+                flagString = '🆃'
+                if logLevel < 3:  # noqa: PLR2004
                     return
             case _:  # PRINT.MESSAGE
                 flagString = 'ℹ️'  # noqa: RUF001
         timerString = ''
-        if getLogLevel() > 0:
+        if logLevel > 0:
             ms = ((datetime.now() - self.lastCallTime).total_seconds() * 1000) if self.lastCallTime is not None else 0
             timerString = f'🕐 {ms:5.0f} ms '
             self.lastCallTime = datetime.now()
@@ -1032,8 +1075,10 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         else:
             print(message)  # only to stdout if not active  # noqa: T201
             self.write(f'\n{message}')  # call explicitly
-        self.pluginManager.mainWindow.statusBar().showMessage(message_status)
-        self.pluginManager.mainWindow.statusBar().setFlag(flag)
+        statusBar = cast('IconStatusBar', self.pluginManager.mainWindow.statusBar())
+        if statusBar:
+            statusBar.showMessage(message_status)
+            statusBar.setFlag(flag)
 
     def flush(self) -> None:
         """Flushes content to log file."""
@@ -1069,25 +1114,29 @@ class CloseDialog(QDialog):
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         self.setModal(True)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(ok)
+        okButton = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        if okButton:
+            okButton.setText(ok)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(QLabel(prompt))
-        self.layout.addWidget(buttonBox)
-        self.setLayout(self.layout)
-        buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setFocus()
+        self.dialogLayout = QVBoxLayout()
+        self.dialogLayout.addWidget(QLabel(prompt))
+        self.dialogLayout.addWidget(buttonBox)
+        self.setLayout(self.dialogLayout)
+        cancelButton = buttonBox.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancelButton:
+            cancelButton.setFocus()
 
 
 class DynamicNp:
     """A numpy.array that dynamically increases its size in increments to prevent frequent memory allocation while growing."""
 
     # based on https://stackoverflow.com/questions/7133885/fastest-way-to-grow-a-numpy-numeric-array
-    def __init__(self, initialData: np.array = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
+    def __init__(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
         """Initialize DynamicNp.
 
         :param initialData: Initial data, defaults to None
-        :type initialData: np.array, optional
+        :type initialData: np.ndarray, optional
         :param max_size: Array will be thinned out if max_size is reached, defaults to None
         :type max_size: int | None, optional
         :param dtype: Use float64 for time data, defaults to np.float32
@@ -1095,11 +1144,11 @@ class DynamicNp:
         """
         self.init(initialData, max_size, dtype)
 
-    def init(self, initialData: np.array = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
+    def init(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
         """Initialize DynamicNp. This is also used if data is cropped or padded.
 
         :param initialData: Initial data, defaults to None
-        :type initialData: np.array, optional
+        :type initialData: np.ndarray, optional
         :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
         :type max_size: int, optional
         :param dtype: Datatype to be used, defaults to np.float32
@@ -1141,7 +1190,7 @@ class DynamicNp:
         self.data[self.size] = x
         self.size += 1
 
-    def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1) -> np.array:
+    def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1) -> np.ndarray:
         """Return actual values.
 
         :param length: will return last 'length' values.
@@ -1203,16 +1252,12 @@ class Parameter:  # noqa: PLR0904
 
     name: str
     """The parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path."""
-    value: ParameterType
-    """The value of the parameter in any supported type."""
-    min: float
+    min: 'float | None'
     """Minimum limit for numerical properties."""
-    max: float
+    max: 'float | None'
     """Maximum limit for numerical properties."""
     toolTip: str
     """Tooltip used to describe the parameter."""
-    items: list[str]
-    """List of options for parameters with a combobox."""
     fixedItems: bool
     """Indicates if list of items can be edited by the user or should remain fixed."""
     parameterType: PARAMETERTYPE
@@ -1223,9 +1268,9 @@ class Parameter:  # noqa: PLR0904
     """Header used for the corresponding column in list of Channels.
     The parameter name is used if not specified.
     Only applies to channel parameters."""
-    widget: QWidget
+    widget: 'QWidget | None'
     """A custom widget that will be used instead of the automatically provided one."""
-    event: callable
+    event: 'Callable | None'
     """A function that will be triggered when the parameter value changes."""
     internal: bool
     """Set to True to save parameter value in the registry (using QSetting)
@@ -1255,21 +1300,21 @@ class Parameter:  # noqa: PLR0904
     finished by the *enter* key or if the widget loses focus."""
     displayDecimals: int
     """Number of decimal places to display if applicable."""
-    print: callable
+    print: Callable
     """Reference to :meth:`~esibd.plugins.Plugin.print`."""
     fullName: str
     """Will contain path of Setting in HDF5 file if applicable."""
-    tree: QTreeWidget
+    tree: 'QTreeWidget | None'
     """None, unless the parameter is used for settings."""
-    itemWidget: QTreeWidgetItem
+    itemWidget: 'QTreeWidgetItem | None'
     """Widget used to display the value of the parameter. None if parameter is part of a channel. Defined if it is part of a Setting."""
-    extraEvents: list[callable]
+    extraEvents: list[Callable]
     """Used to add internal events on top of the user assigned ones."""
 
-    def __init__(self, name: str, parameterParent: 'SettingsManager | RestoreFloatComboBox | Channel' = None, default: 'ParameterType | None' = None,  # noqa: PLR0913, PLR0917
-                  parameterType: PARAMETERTYPE = None,
-                 column: int = 1, items: str = '', fixedItems: bool = False, widget: QWidget = None, internal: bool = False,
-                    tree: QTreeWidget = None, itemWidget: QTreeWidgetItem = None, toolTip: str = '', event: 'callable | None' = None,
+    def __init__(self, name: str, parameterParent: 'SettingsManager | RestoreFloatComboBox | Channel', default: 'ParameterType | None' = None,  # noqa: PLR0913, PLR0917
+                  parameterType: 'PARAMETERTYPE | None' = None,
+                 column: int = 1, items: str = '', fixedItems: bool = False, widget: 'QWidget | None' = None, internal: bool = False,
+                    tree: 'QTreeWidget | None' = None, itemWidget: 'QTreeWidgetItem | None' = None, toolTip: str = '', event: 'Callable | None' = None,
                       minimum: 'float | None' = None, maximum: 'float | None' = None, indicator: bool = False, restore: bool = True,
                         instantUpdate: bool = True, displayDecimals: int = 2) -> None:
         """Initialize a Parameter.
@@ -1299,7 +1344,7 @@ class Parameter:  # noqa: PLR0904
         :param toolTip: Parameter to, defaults to ''
         :type toolTip: str | None, optional
         :param event: Event called when parameter value changes, defaults to None
-        :type event: callable | None, optional
+        :type event: Callable | None, optional
         :param minimum: Minimal allowed value, defaults to None
         :type minimum: float | None, optional
         :param maximum: Maximal allowed value, defaults to None
@@ -1314,13 +1359,14 @@ class Parameter:  # noqa: PLR0904
         :type displayDecimals: int, optional
         """
         self.parameterParent = parameterParent
-        self.parameterType = parameterType if parameterType is not None else PARAMETERTYPE.LABEL
+        self.parameterType = parameterType or PARAMETERTYPE.LABEL
         self.column = column
         self.print = parameterParent.print
         self.fullName = name
         self.name = Path(name).name
         self.toolTip = toolTip
-        self._items = items.split(',') if items else None
+        self._items: list[str]
+        self._items = items.split(',') if items else []
         self.fixedItems = fixedItems
         self.tree = tree
         self.itemWidget = itemWidget
@@ -1333,12 +1379,13 @@ class Parameter:  # noqa: PLR0904
         self.restore = restore
         self.instantUpdate = instantUpdate
         self.displayDecimals = displayDecimals
-        self.rowHeight = self.parameterParent.rowHeight if hasattr(self.parameterParent, 'rowHeight') else QLineEdit().sizeHint().height() - 4
-        self.check = None
+        self.rowHeight: int = int(self.parameterParent.rowHeight if isinstance(self.parameterParent, Channel) and hasattr(self.parameterParent, 'rowHeight')
+                          else QLineEdit().sizeHint().height() - 4)
+        self.check: 'CheckBox | LedIndicator | None' = None
         self.min = minimum
         self.max = maximum
-        self.button = None
-        self.spin = None
+        self.button: 'QPushButton | None' = None
+        self.spin: 'LabviewSpinBox | LabviewDoubleSpinBox | LabviewSciSpinBox | None' = None
         self.loading = False
         self._default = None
         if default is not None:
@@ -1347,7 +1394,7 @@ class Parameter:  # noqa: PLR0904
             self.applyWidget()  # call after everything else is initialized but before setting value
 
     @property
-    def value(self) -> ParameterType:
+    def value(self) -> 'ParameterType | None':  # noqa: C901
         """Return value in correct format, based on parameterType."""
         # use widget even for internal settings, should always be synchronized to allow access via both attribute and qSet
         value = None
@@ -1360,11 +1407,15 @@ class Parameter:  # noqa: PLR0904
         elif self.parameterType == PARAMETERTYPE.TEXT:
             value = self.line.text()
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            value = self.spin.value()
+            if self.spin:
+                value = self.spin.value()
         elif self.parameterType == PARAMETERTYPE.BOOL:
-            value = self.check.isChecked() if self.check is not None else self.button.isChecked()
+            if self.check:
+                value = self.check.isChecked()
+            elif self.button:
+                self.button.isChecked()
         elif self.parameterType == PARAMETERTYPE.COLOR:
-            value = self.colorButton.color().name()
+            value = cast('QColor', self.colorButton.color(mode='qcolor')).name()
         elif self.parameterType == PARAMETERTYPE.LABEL:
             value = self.label.text()
         elif self.parameterType == PARAMETERTYPE.PATH:
@@ -1379,14 +1430,15 @@ class Parameter:  # noqa: PLR0904
                 qSet.setValue(self.fullName + self.ITEMS, ','.join(self.items))
         if self.parameterType == PARAMETERTYPE.BOOL:
             value = value if isinstance(value, (bool, np.bool_)) else value in {'True', 'true'}  # accepts strings (from ini file or qSet) and bools
-            if self.check is not None:
+            if self.check:
                 self.check.setChecked(value)
-            else:
+            elif self.button:
                 self.button.setChecked(value)
-        elif self.parameterType == PARAMETERTYPE.INT:
-            self.spin.setValue(int(float(value)))
-        elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            self.spin.setValue(float(value))
+        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
+            if isinstance(self.spin, LabviewSpinBox):
+                self.spin.setValue(int(float(cast('float | int | str', value))))
+            elif isinstance(self.spin, (LabviewDoubleSpinBox, LabviewSciSpinBox)):
+                self.spin.setValue(float(cast('float | int | str', value)))
         elif self.parameterType == PARAMETERTYPE.COLOR:
             self.colorButton.setColor(value, finished=True)
         elif self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
@@ -1395,7 +1447,7 @@ class Parameter:  # noqa: PLR0904
             else:
                 i = self.combo.findText(str(value))
                 if i == -1 and self.parameterType is PARAMETERTYPE.FLOATCOMBO:
-                    i = self.combo.findText(str(int(float(value))))  # try to find int version if float version not found. e.g. 1 instead of 1.0
+                    i = self.combo.findText(str(int(float(cast('str | float', value)))))  # try to find int version if float version not found. e.g. 1 instead of 1.0
             if i == -1:
                 self.print(f'Value {value} not found for {self.fullName}. Defaulting to {self.combo.itemText(0)}.', PRINT.WARNING)
                 self.combo.setCurrentIndex(0)
@@ -1410,7 +1462,7 @@ class Parameter:  # noqa: PLR0904
                 self.changedEvent()  # emit here as it is not emitted by the label
 
     @property
-    def default(self) -> ParameterType:
+    def default(self) -> 'ParameterType | None':
         """The default value."""
         return self._default
 
@@ -1420,9 +1472,9 @@ class Parameter:  # noqa: PLR0904
         if self.parameterType == PARAMETERTYPE.BOOL:
             self._default = default
         elif self.parameterType == PARAMETERTYPE.INT:
-            self._default = int(default)
+            self._default = int(cast('float | str', default))
         elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            self._default = float(default)
+            self._default = float(cast('float | str', default))
         else:
             self._default = str(default)
 
@@ -1431,7 +1483,7 @@ class Parameter:  # noqa: PLR0904
         """List of items for parameters with a combobox."""
         if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             return [self.combo.itemText(i) for i in range(self.combo.count())]
-        return ''
+        return []
 
     def settingEvent(self) -> None:
         """Extend to manage changes to settings."""
@@ -1441,7 +1493,7 @@ class Parameter:  # noqa: PLR0904
 
         Depending on the type and configuration of Parameter specific additional events will be triggered.
         """
-        if not (self.loading or self.parameterParent.loading):
+        if not (self.loading or (self.parameterParent.loading)):
             self.settingEvent()  # always save changes even when event is not triggered
             if not self.instantUpdate and self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
                 if self._valueChanged:
@@ -1458,7 +1510,7 @@ class Parameter:  # noqa: PLR0904
             if self.event is not None:
                 self.event()
 
-    def applyChangedEvent(self) -> None:
+    def applyChangedEvent(self) -> None:  # noqa: C901
         """Assign events to the corresponding controls.
 
         Even indicators should be able to trigger events, e.g. to update dependent channels.
@@ -1468,25 +1520,26 @@ class Parameter:  # noqa: PLR0904
         elif self.parameterType == PARAMETERTYPE.TEXT:
             self.safeConnect(self.line, self.line.userEditingFinished, self.changedEvent)
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            if self.instantUpdate:
-                # by default trigger events on every change, not matter if through user interface or software
-                self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent)
-            else:
-                self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
-                self.safeConnect(self.spin, self.spin.editingFinished, self.changedEvent)
+            if self.spin:
+                if self.instantUpdate:
+                    # by default trigger events on every change, not matter if through user interface or software
+                    self.safeConnect(self.spin, self.spin.valueChanged, self.changedEvent)
+                else:
+                    self.safeConnect(self.spin, self.spin.valueChanged, self.setValueChanged)
+                    self.safeConnect(self.spin, self.spin.editingFinished, self.changedEvent)
         elif self.parameterType == PARAMETERTYPE.BOOL:
             if isinstance(self.check, QCheckBox):
                 self.safeConnect(self.check, self.check.stateChanged, self.changedEvent)
             elif isinstance(self.check, QAction):
                 self.safeConnect(self.check, self.check.toggled, self.changedEvent)
-            else:  # isinstance(self.check, QToolButton, QPushButton)
+            elif isinstance(self.check, (QToolButton, QPushButton)):
                 self.safeConnect(self.check, self.check.clicked, self.changedEvent)
         elif self.parameterType == PARAMETERTYPE.COLOR:
             self.safeConnect(self.colorButton, self.colorButton.sigColorChanged, self.changedEvent)
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             pass  # self.label.changeEvent.connect(self.changedEvent)  # no change events for labels
 
-    def safeConnect(self, control: QWidget, signal: pyqtSignal, event: callable) -> None:
+    def safeConnect(self, control: QWidget, signal: pyqtBoundSignal, event: Callable) -> None:
         """Make sure there is never more than one event assigned to the signal.
 
         :param control: The control emitting the signal.
@@ -1494,7 +1547,7 @@ class Parameter:  # noqa: PLR0904
         :param signal: The signal.
         :type signal: pyqtSignal
         :param event: The event to be connected to the signal.
-        :type event: callable
+        :type event: Callable
         """
         if control.receivers(signal) > 0:
             signal.disconnect()
@@ -1510,16 +1563,18 @@ class Parameter:  # noqa: PLR0904
 
     def setToDefault(self) -> None:
         """Set Parameter value to its default."""
-        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
-            i = self.combo.findText(str(self.default))
-            if i == -1:  # add default entry in case it has been deleted
-                self.print(f'Adding Default value {self.default} for {self.fullName}.', PRINT.WARNING)
-                self.addItem(self.default)
-        self.value = self.default
+        if self.default:
+            if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
+                i = self.combo.findText(str(self.default))
+                if i == -1:  # add default entry in case it has been deleted
+                    self.print(f'Adding Default value {self.default} for {self.fullName}.', PRINT.WARNING)
+                    self.addItem(str(cast('str | float', self.default)))
+            self.value = self.default
 
     def makeDefault(self) -> None:
         """Make current value the default value."""
-        self.default = self.value
+        if self.value:
+            self.default = self.value
 
     def applyWidget(self) -> None:  # noqa: C901, PLR0912, PLR0915
         """Create UI widget depending on :attr:`~esibd.core.Parameter.parameterType`.
@@ -1527,29 +1582,30 @@ class Parameter:  # noqa: PLR0904
         Links dedicated :attr:`~esibd.core.Parameter.widget` if provided.
         """
         if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
-            self.combo = CompactComboBox() if self.widget is None else self.widget
+            self.combo = CompactComboBox() if self.widget is None else cast('CompactComboBox', self.widget)
             self.combo.setMaximumWidth(100)
             if self.widget is not None:  # potentially reuse widget with old data!
                 self.combo.clear()
-            self.combo.wheelEvent = lambda event: None  # disable wheel event to avoid accidental change of setting  # noqa: ARG005
             for item in [item.strip(' ') for item in self._items]:
                 self.combo.insertItem(self.combo.count(), item)
         elif self.parameterType == PARAMETERTYPE.TEXT:
-            self.line = self.widget if self.widget is not None else LineEdit(parentParameter=self, tree=self.tree)
+            self.line = LineEdit(parentParameter=self, tree=self.tree) if self.widget is None else cast('LineEdit', self.widget)
             self.line.setFrame(False)
             if self.indicator:
                 self.line.setEnabled(False)
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if self.widget is None:
                 if self.parameterType == PARAMETERTYPE.INT:
-                    self.spin = QLabviewSpinBox(indicator=self.indicator)
+                    self.spin = LabviewSpinBox(indicator=self.indicator)
                 elif self.parameterType == PARAMETERTYPE.FLOAT:
-                    self.spin = QLabviewDoubleSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
+                    self.spin = LabviewDoubleSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
                 else:  # PARAMETERTYPE.EXP
-                    self.spin = QLabviewSciSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
-                self.spin.lineEdit().setObjectName(self.fullName)
+                    self.spin = LabviewSciSpinBox(indicator=self.indicator, displayDecimals=self.displayDecimals)
+                lineEdit = self.spin.lineEdit()
+                if lineEdit:
+                    lineEdit.setObjectName(self.fullName)
             else:
-                self.spin = self.widget
+                self.spin = cast('LabviewSpinBox', self.widget)
         elif self.parameterType == PARAMETERTYPE.BOOL:
             if self.widget is None:
                 if self.indicator:
@@ -1561,24 +1617,21 @@ class Parameter:  # noqa: PLR0904
                     self.check = CheckBox()
                     self.setEnabled(not self.indicator)
             else:
-                self.check = self.widget
+                self.check = cast('CheckBox', self.widget)
                 self.setEnabled(not self.indicator)
         elif self.parameterType == PARAMETERTYPE.COLOR:
             if self.widget is None:
-                self.colorButton = pg.ColorButton()
+                self.colorButton = ColorButton()
                 self.colorButton.padding = (2, 2, -3, -3)
             else:
-                self.colorButton = self.widget
-
+                self.colorButton = cast('ColorButton', self.widget)
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
-            self.label = QLabel() if self.widget is None else self.widget
-
+            self.label = Label() if self.widget is None else cast('Label', self.widget)
         if self.spin is not None:  # apply limits  # no limits by default to avoid unpredictable behavior.
             if self.min is not None:
-                self.spin.setMinimum(self.min)
+                self.spin.setMinimum(int(self.min)) if isinstance(self.spin, LabviewSpinBox) else self.spin.setMinimum(self.min)
             if self.max is not None:
-                self.spin.setMaximum(self.max)
-
+                self.spin.setMaximum(int(self.max)) if isinstance(self.spin, LabviewSpinBox) else self.spin.setMaximum(self.max)
         if self.tree is not None:
             if self.itemWidget is None:
                 if self.widget is None:  # widget has already been provided and added to the GUI independently
@@ -1587,12 +1640,14 @@ class Parameter:  # noqa: PLR0904
                 self.tree.setItemWidget(self.itemWidget, self.column, self.containerize(self.getWidget()))  # container required to hide widgets reliable
         self.applyChangedEvent()
 
-        self.getWidget().setToolTip(self.toolTip)
-        self.getWidget().setMinimumHeight(self.rowHeight)  # always keep entire row at consistent height
-        self.getWidget().setMaximumHeight(self.rowHeight)
-        self.getWidget().setObjectName(self.fullName)
-        self.getWidget().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.getWidget().customContextMenuRequested.connect(self.initContextMenu)
+        widget = self.getWidget()
+        if widget:
+            widget.setToolTip(self.toolTip)
+            widget.setMinimumHeight(self.rowHeight)  # always keep entire row at consistent height
+            widget.setMaximumHeight(self.rowHeight)
+            widget.setObjectName(self.fullName)
+            widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            widget.customContextMenuRequested.connect(self.initContextMenu)
 
     def containerize(self, widget: QWidget) -> QWidget:
         """Add a container around the widget that ensures correct handling of visibility and color changes.
@@ -1612,7 +1667,7 @@ class Parameter:  # noqa: PLR0904
         containerLayout.addWidget(widget)
         return container
 
-    def setHeight(self, height: 'float | None' = None) -> None:
+    def setHeight(self, height: 'float | None' = None) -> None:  # noqa: C901
         """Set the height of the Parameter while accounting for different types of Parameter widgets.
 
         :param height: Target height, defaults to None
@@ -1624,31 +1679,36 @@ class Parameter:  # noqa: PLR0904
         if height is None:
             height = self.rowHeight
         scaling = height / (QLineEdit().sizeHint().height() - 4)
-        self.rowHeight = height
-        self.getWidget().setMinimumHeight(self.rowHeight)
-        self.getWidget().setMaximumHeight(self.rowHeight)
-        font = self.getWidget().font()
+        self.rowHeight = int(height)
+        widget = self.getWidget()
+        if widget:
+            widget.setMinimumHeight(self.rowHeight)
+            widget.setMaximumHeight(self.rowHeight)
+            font = widget.font()
         font.setPointSize(int(height / 2))
         if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
             self.combo.setFont(font)
         elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line.setFont(font)
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            self.spin.setMinimumWidth(int(scaling * 50) + 10)  # empirical fixed width
-            self.spin.lineEdit().setFont(font)
+            if self.spin:
+                self.spin.setMinimumWidth(int(scaling * 50) + 10)  # empirical fixed width
+                lineEdit = self.spin.lineEdit()
+                if lineEdit:
+                    lineEdit.setFont(font)
         elif self.parameterType == PARAMETERTYPE.BOOL:
             if isinstance(self.check, QCheckBox):
                 checkBoxHeight = min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
                 self.check.checkBoxHeight = checkBoxHeight  # remember for updateColor
                 self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
-            else:  # isinstance(self.check, QToolButton, QPushButton)
+            elif isinstance(self.check, (QToolButton, QPushButton)):
                 iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
                 self.check.setFont(font)
                 self.check.setIconSize(QSize(iconHeight, iconHeight))
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label.setFont(font)
 
-    def getWidget(self) -> QWidget:
+    def getWidget(self) -> ParameterWidgetType | None:
         """Return the widget used to display the Parameter value in the user interface."""
         widget = None
         if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
@@ -1671,10 +1731,12 @@ class Parameter:  # noqa: PLR0904
         :param enabled: The requested enabled state.
         :type enabled: bool
         """
-        if hasattr(self.getWidget(), 'setReadOnly'):
-            self.getWidget().setReadOnly(not enabled)
-        else:
-            self.getWidget().setEnabled(enabled)
+        widget = self.getWidget()
+        if widget:
+            if isinstance(widget, (QPushButton | QToolButton | CheckBox | QLabel | CompactComboBox | LedIndicator)):
+                widget.setEnabled(enabled)
+            else:
+                widget.setReadOnly(not enabled)
 
     def addItem(self, value: str) -> None:
         """Add an item to a combobox and selects it.
@@ -1744,11 +1806,11 @@ class Parameter:  # noqa: PLR0904
         if self.parameterType == PARAMETERTYPE.BOOL:
             equals = self.value == value if isinstance(value, (bool, np.bool_)) else self.value == (value in {'True', 'true'})  # accepts strings (from ini file or qSet) and bools
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.INTCOMBO}:
-            equals = self.value == int(value)
+            equals = self.value == int(cast('float', value))
         elif self.parameterType in {PARAMETERTYPE.FLOAT, PARAMETERTYPE.FLOATCOMBO}:
-            equals = f'{self.value:.{self.displayDecimals}f}' == f'{float(value):.{self.displayDecimals}f}'
+            equals = f'{self.value:.{self.displayDecimals}f}' == f"{float(cast('float', value)):.{self.displayDecimals}f}"
         elif self.parameterType == PARAMETERTYPE.EXP:
-            equals = f'{self.value:.{self.displayDecimals}e}' == f'{float(value):.{self.displayDecimals}e}'
+            equals = f'{self.value:.{self.displayDecimals}e}' == f"{float(cast('float', value)):.{self.displayDecimals}e}"
         elif self.parameterType == PARAMETERTYPE.COLOR:
             equals = self.value == value.name() if isinstance(value, QColor) else self.value == value
         elif self.parameterType in {PARAMETERTYPE.TEXT, PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
@@ -1782,14 +1844,16 @@ class Parameter:  # noqa: PLR0904
         :param pos: The position of the context menu.
         :type pos: QPoint
         """
-        self.parameterParent.initSettingsContextMenuBase(self, self.getWidget().mapToGlobal(pos))
+        widget = self.getWidget()
+        if widget:
+            self.parameterParent.initSettingsContextMenuBase(self, widget.mapToGlobal(pos))
 
 
 def parameterDict(name: str = '', value: 'ParameterType | None' = None, default: 'ParameterType | None' = None, minimum: 'float | None' = None, maximum: 'float | None' = None,  # noqa: PLR0913, PLR0917
-                   toolTip: str = '', items: 'list[str] | None' = None,
-                  fixedItems: bool = False, tree: QTreeWidget = None, parameterType: PARAMETERTYPE = None, advanced: bool = False, header: str = '',
-                    widget: QWidget = None, event: 'callable | None' = None, internal: bool = False, attr: str = '', indicator: bool = False, restore: bool = True,
-                    instantUpdate: bool = True, displayDecimals: int = 2) -> dict[str, ParameterType]:
+                   toolTip: str = '', items: 'str | None' = None,
+                  fixedItems: bool = False, tree: 'QTreeWidget | None' = None, parameterType: 'PARAMETERTYPE | None' = None, advanced: bool = False, header: str = '',
+                    widget: 'QWidget | None' = None, event: 'Callable | None' = None, internal: bool = False, attr: str = '', indicator: bool = False, restore: bool = True,
+                    instantUpdate: bool = True, displayDecimals: int = 2) -> dict[str, ParameterType | QTreeWidget | PARAMETERTYPE | QWidget | Callable | None]:
     """Provide default values for all properties of a Parameter.
 
     :param name: The Parameter name. Only use last element of :attr:`~esibd.core.Parameter.fullName` in case its a path, defaults to ''
@@ -1804,8 +1868,8 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :type maximum: float, optional
     :param toolTip: ToolTip used to describe the Parameter, defaults to ''
     :type toolTip: str, optional
-    :param items: List of options for parameters with a comboBox, defaults to None
-    :type items: list[str], optional
+    :param items: Coma separated list of options for parameters with a comboBox, defaults to None
+    :type items: str, optional
     :param fixedItems: Indicates if list of items can be edited by the user or should remain fixed., defaults to False
     :type fixedItems: bool, optional
     :param tree: None, unless the Parameter is used for settings., defaults to None
@@ -1819,9 +1883,9 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :param widget: A custom widget that will be used instead of the automatically provided one., defaults to None
     :type widget: QWidget, optional
     :param event: A function that will be triggered when the Parameter value changes, defaults to None
-    :type event: callable, optional
+    :type event: Callable, optional
     :param internal: Set to True to save Parameter value in the registry (using QSetting) instead of configuration files.
-    This can help to reduce clutter in configuration files and restore essential Parameters even if configuration files get moved or lost. Defaults to False
+        This can help to reduce clutter in configuration files and restore essential Parameters even if configuration files get moved or lost. Defaults to False
     :type internal: bool, optional
     :param attr: Allows direct access to the Parameter. Only applies to Channel and Settings Parameters. Defaults to ''
     :type attr: str, optional
@@ -1830,7 +1894,7 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :param restore: Indicates if the parameter will be restored, defaults to True. Not that temp parameters of channels will never be restored.
     :type restore: bool, optional
     :param instantUpdate: By default, events are triggered as soon as the value changes.
-    If set to False, certain events will only be triggered if editing is finished by the *enter* key or if the widget loses focus. Defaults to True
+        If set to False, certain events will only be triggered if editing is finished by the *enter* key or if the widget loses focus. Defaults to True
     :type instantUpdate: bool, optional
     :param displayDecimals: Number of decimal places to display if applicable, defaults to 2
     :type displayDecimals: int, optional
@@ -1847,7 +1911,7 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
 class Setting(QTreeWidgetItem, Parameter):
     """Parameter to be used as general settings with dedicated UI controls instead of being embedded in a channel."""
 
-    def __init__(self, value: 'ParameterType | None' = None, parentItem: QTreeWidgetItem = None, advanced: bool = False, **kwargs) -> None:
+    def __init__(self, value: 'ParameterType | None' = None, parentItem: 'QTreeWidgetItem | None' = None, advanced: bool = False, **kwargs) -> None:
         """Initialize Setting.
 
         :param value: Setting value, defaults to None
@@ -1924,7 +1988,10 @@ class Setting(QTreeWidgetItem, Parameter):
 class RelayChannel:
     """Channel that wraps another sourceChannel. Used to display and access some elements of sourceChannel in other parts of the program."""
 
-    def getRecordingData(self) -> np.array:
+    sourceChannel: 'Channel | None'
+    recordingData: 'np.ndarray | DynamicNp | None'
+
+    def getRecordingData(self) -> np.ndarray:
         """SourceChannel.getRecordingData() if available. Default provided."""
         return self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
 
@@ -1941,7 +2008,7 @@ class RelayChannel:
         """SourceChannel.recording if available. Default provided."""
         return self.sourceChannel.getDevice().recording if self.sourceChannel is not None else False
 
-    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> np.array:
+    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> np.ndarray:
         """SourceChannel.getValues() if available. Default provided.
 
         :param length: will return last 'length' values.
@@ -1955,7 +2022,7 @@ class RelayChannel:
         :param subtractBackground: Indicates if the background should be subtracted, defaults to False
         :type subtractBackground: bool, optional
         :return: The array of values.
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         return self.sourceChannel.getValues(length, index_min, index_max, n, subtractBackground) if self.sourceChannel is not None else None
 
@@ -2058,12 +2125,13 @@ class MetaChannel(RelayChannel):
         The actual channel, if it exists.
     """
 
-    def __init__(self, parentPlugin: 'ChannelManager' = None, name: str = '', unit: str = '', recordingData: np.ndarray = None, initialValue: 'float | None' = None,  # noqa: PLR0913, PLR0917
-                 recordingBackground: np.ndarray = None, inout: INOUT = None) -> None:
+    def __init__(self, parentPlugin: 'ChannelManager | Scan | StaticDisplay', name: str = '', unit: str = '',  # noqa: PLR0913, PLR0917
+                 recordingData: 'np.ndarray | None' = None, initialValue: 'float | None' = None,
+                 recordingBackground: 'np.ndarray | None' = None, inout: 'INOUT | None' = None) -> None:
         """Initialize MetaChannel.
 
         :param parentPlugin: Channel Parent, defaults to None
-        :type parentPlugin: ChannelManager, optional
+        :type parentPlugin: ChannelManager | Scan, optional
         :param name: Channel name, defaults to ''
         :type name: str | None, optional
         :param unit: Channel unit, defaults to ''
@@ -2142,19 +2210,19 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
 
         updateValueSignal = pyqtSignal(float)
 
-    device: 'ChannelManager'
+    device: 'ChannelManager | Device | Scan'
     """The :class:`~esibd.plugins.Device` containing this channel."""
-    print: callable
+    print: Callable
     """Reference to :meth:`~esibd.plugins.Plugin.print`."""
-    tree: QTreeWidget
+    tree: 'QTreeWidget | None'
     """TreeWidget containing the channel widgets."""
     inout: INOUT
     """Reference to :class:`~esibd.plugins.Device.inout`."""
-    plotCurve: pyqtgraph.PlotCurveItem
+    plotCurve: 'pyqtgraph.PlotCurveItem | None'
     """The plotCurve in the corresponding :class:`~esibd.plugins.LiveDisplay`."""
-    lastAppliedValue: ParameterType
+    lastAppliedValue: 'ParameterType | None'
     """Reference to last value. Allows to decide if hardware update is required."""
-    parameters: Parameter
+    parameters: list[Parameter]
     """List of channel parameters."""
     displayedParameters: list[str]
     """List of Parameters that determines which Parameters are shown in the
@@ -2166,7 +2234,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     backgrounds: DynamicNp
     """List of backgrounds. Only defined if corresponding device uses backgrounds."""
 
-    def __init__(self, device: 'ChannelManager', tree: QTreeWidget = None) -> None:
+    def __init__(self, device: 'ChannelManager | Scan', tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a Channel.
 
         :param device: Channel Parent
@@ -2179,8 +2247,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.pluginManager = self.device.pluginManager
         self.parentPlugin = device  # name may be more appropriate for some use cases
         self.print = self.device.print
-        self.convertDataDisplay = self.device.convertDataDisplay if hasattr(self.device, 'convertDataDisplay') else None
         self.useDisplays = self.device.useDisplays if hasattr(self.device, 'useDisplays') else False
+        self.convertDataDisplay = self.device.convertDataDisplay if hasattr(self.device, 'convertDataDisplay') else None
         self.useBackgrounds = self.device.useBackgrounds if hasattr(self.device, 'useBackgrounds') else False
         self.useMonitors = self.device.useMonitors if hasattr(self.device, 'useMonitors') else False
         if hasattr(self.device, 'logY'):
@@ -2193,13 +2261,13 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.lastAppliedValue = None  # keep track of last value to identify what has changed
         self.parameters = []
         self.displayedParameters = []
-        self.values = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
-        self.inout = self.device.inout if hasattr(self.device, 'inout') else INOUT.NONE
         self.controller = None
         self.defaultStyleSheet = None  # will be initialized when color is set
         self.warningStyleSheet = 'background: rgb(255,0,0)'
         self.warningState = False
 
+        self.values = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
+        self.inout = self.device.inout if hasattr(self.device, 'inout') else INOUT.NONE
         if self.inout != INOUT.NONE and self.useBackgrounds:
             # array of background history. managed by instrument manager to keep timing synchronous
             self.backgrounds = DynamicNp(max_size=self.device.maxDataPoints if hasattr(self.device, 'maxDataPoints') else None)
@@ -2212,10 +2280,10 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
 
         for column, (name, default) in enumerate(self.getSortedDefaultChannel().items()):
             self.parameters.append(Parameter(parameterParent=self, name=name, parameterType=default[Parameter.PARAMETER_TYPE],
-                                                    items=default.get(Parameter.ITEMS, None),
+                                                    items=default.get(Parameter.ITEMS, ''),
                                                     fixedItems=default.get(Parameter.FIXEDITEMS, False),
                                                     minimum=default.get(Parameter.MIN, None), maximum=default.get(Parameter.MAX, None),
-                                                    toolTip=default.get(Parameter.TOOLTIP, None),
+                                                    toolTip=default.get(Parameter.TOOLTIP, ''),
                                                     internal=default.get(Parameter.INTERNAL, False),
                                                     indicator=default.get(Parameter.INDICATOR, False),
                                                     restore=default.get(Parameter.RESTORE, True),
@@ -2263,7 +2331,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         return self.getDevice().unit
 
     @property
-    def time(self) -> np.array:
+    def time(self) -> DynamicNp:
         """The time axis of the corresponding device."""
         return self.getDevice().time
 
@@ -2283,7 +2351,31 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         and many other parameter properties. See :meth:`~esibd.core.parameterDict`.
         If parameters do not exist in the settings file, the default Parameter will be added.
         Overwrite in dependent classes as needed.
+
+        NOTE: While parameters with attributes will be automatically accessible, it is good practice to define the type of the attribute for type checking.
         """
+        # definitions for type hinting
+        self.collapse: bool
+        self.select: bool
+        self.enabled: bool
+        self.name: str
+        self.value: float
+        self.equation: str
+        self.active: bool
+        self.real: bool
+        self.scaling: str
+        self.color: str
+        self.monitor: float
+        self.display: bool
+        self.smooth: int
+        self.linewidth: int
+        self.linestyle: str
+        self.displayGroup: str
+        self.min: float
+        self.max: float
+        self.optimize: bool
+        self.background: float
+
         channel = {}
         channel[self.COLLAPSE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL,
                                     toolTip='Collapses all channels of same color below.', event=lambda: self.collapseChanged(toggle=True), attr='collapse', header=' ')
@@ -2295,7 +2387,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         channel[self.NAME] = parameterDict(value=f'{self.device.name}_parameter', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='name',
                                                event=self.nameChanged)
         channel[self.VALUE] = parameterDict(value=np.nan if self.inout == INOUT.OUT else 0,
-                                               parameterType=PARAMETERTYPE.EXP if hasattr(self.device, 'logY') and self.device.logY else PARAMETERTYPE.FLOAT,
+                                               parameterType=(PARAMETERTYPE.EXP if hasattr(self.device, 'logY')
+                                                              and self.device.logY else PARAMETERTYPE.FLOAT),
                                                advanced=False, header='Unit', attr='value',
                                                event=lambda: self.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
                                                indicator=self.inout == INOUT.OUT)
@@ -2342,12 +2435,12 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                                 header='BG      ', attr='background')
         return channel
 
-    def getSortedDefaultChannel(self) -> dict[str, 'Channel']:
+    def getSortedDefaultChannel(self) -> dict[str, dict]:
         """Return default Channel parameters sorted in the order defined by :attr:`~esibd.core.Channel.displayedParameters`."""
         self.setDisplayedParameters()
         return {k: self.getDefaultChannel()[k] for k in self.displayedParameters}
 
-    def insertDisplayedParameter(self, parameter: Parameter, before: Parameter) -> None:
+    def insertDisplayedParameter(self, parameter: str, before: str) -> None:
         """Insert your custom Parameter before an existing Parameter in :attr:`~esibd.core.Channel.displayedParameters`.
 
         :param parameter: The new Parameter to insert.
@@ -2418,11 +2511,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 channel_dict[parameter.name] = parameter.formatValue() if formatValue else parameter.value
         return channel_dict
 
-    def updateValueParallel(self, value: ParameterType) -> None:  # used to update from external threads
+    def updateValueParallel(self, value: float) -> None:  # used to update from external threads
         """Update the value (thread safe).
 
         :param value: new value
-        :type value: ParameterType
+        :type value: float
         """
         self.value = value  # pylint: disable=[attribute-defined-outside-init]  # attribute defined by makeWrapper
 
@@ -2436,7 +2529,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.lastAppliedValue = self.value
             if self.controller:
                 self.controller.applyValueFromThread(self)
-            else:
+            elif self.device.controller:
                 self.device.controller.applyValueFromThread(self)
 
     def activeChanged(self) -> None:
@@ -2457,7 +2550,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :param toggle: Toggles display of visible channels, defaults to True
         :type toggle: bool, optional
         """
-        self.getParameterByName(self.COLLAPSE).getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
+        cast('QPushButton', self.getParameterByName(self.COLLAPSE).getWidget()).setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if toggle and not self.device.loading:  # otherwise only update icon
             self.device.toggleAdvanced()
 
@@ -2480,7 +2573,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         if self.useBackgrounds:
             self.backgrounds.add(x=self.background, lenT=lenT)
 
-    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> np.array:  # pylint: disable = unused-argument  # use consistent arguments for all versions of getValues
+    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> np.ndarray:  # pylint: disable = unused-argument  # use consistent arguments for all versions of getValues
         """Return plain Numpy array of values.
 
         Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained.
@@ -2496,7 +2589,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :param subtractBackground: Indicates if the background should be subtracted, defaults to False
         :type subtractBackground: bool, optional
         :return: The array of values.
-        :rtype: np.array
+        :rtype: np.ndarray
         """
         if self.useBackgrounds and subtractBackground:
             return (self.values.get(length=length, index_min=index_min, index_max=index_max, n=n) -
@@ -2550,21 +2643,22 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.setBackground(i, qb)  # use correct color even when widgets are hidden
         for parameter in self.parameters:
             widget = parameter.getWidget()
-            widget.container.setStyleSheet(f'background-color: {color.name()};')
-            if isinstance(widget, QToolButton):
-                widget.setStyleSheet(f"""QToolButton {{background-color: {color.name()}}}
-                                QToolButton:checked {{background-color: {color.darker(150 if getDarkMode() else 120).name()};
-                                border-style: inset; border-width: 2px; border-color: 'gray';}}""")
-            elif isinstance(widget, QComboBox):
-                pass
-            elif isinstance(widget, QCheckBox):
-                checkBoxHeight = widget.checkBoxHeight if hasattr(widget, 'checkBoxHeight') else min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
-                widget.setStyleSheet(f'QCheckBox{{background-color: {color.name()}; color:{colors.fg}}} '
-                                     f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
-            elif isinstance(widget, QPushButton):
-                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
-            else:
-                widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
+            if widget:
+                widget.container.setStyleSheet(f'background-color: {color.name()};')
+                if isinstance(widget, QToolButton):
+                    widget.setStyleSheet(f"""QToolButton {{background-color: {color.name()}}}
+                                    QToolButton:checked {{background-color: {color.darker(150 if getDarkMode() else 120).name()};
+                                    border-style: inset; border-width: 2px; border-color: 'gray';}}""")
+                elif isinstance(widget, QComboBox):
+                    pass
+                elif isinstance(widget, QCheckBox):
+                    checkBoxHeight = widget.checkBoxHeight if hasattr(widget, 'checkBoxHeight') else min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
+                    widget.setStyleSheet(f'QCheckBox{{background-color: {color.name()}; color:{colors.fg}}} '
+                                         f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
+                elif isinstance(widget, QPushButton):
+                    widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px; border:none;')
+                else:
+                    widget.setStyleSheet(f'background-color: {color.name()}; color:{colors.fg}; margin:0px;')
         self.updateDisplay()
         self.defaultStyleSheet = f'background-color: {color.name()}'
         if not self.device.loading and self.parentPlugin.pluginType in {PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE}:
@@ -2674,7 +2768,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         # remove / in names. this is valid in all other fields unless explicitly removed
         # ! needs to be removed before value is loaded from file!
         if name_parameter.parameterType == PARAMETERTYPE.TEXT:
-            name_parameter.getWidget().valid_chars = name_parameter.getWidget().valid_chars.replace('/', '')
+            cast('LineEdit', name_parameter.getWidget()).valid_chars = cast('LineEdit', name_parameter.getWidget()).valid_chars.replace('/', '')
         for name, default in self.getSortedDefaultChannel().items():
             # add default value if not found in file. Will be saved to file later.
             if name in item and name not in self.tempParameters():
@@ -2692,23 +2786,23 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             line.setFont(font)
         if self.SELECT in self.displayedParameters:
             select = self.getParameterByName(self.SELECT)
-            initialValue = select.value
+            initialValue = select.value or False
             select.widget = ToolButton()  # hard to spot checked QCheckBox. QPushButton is too wide -> overwrite internal widget to QToolButton
             select.applyWidget()
-            select.check.setMaximumHeight(select.rowHeight)  # default too high
-            select.check.setText(self.SELECT.title())
-            select.check.setMinimumWidth(5)
-            select.check.setCheckable(True)
+            select.widget.setMaximumHeight(select.rowHeight)  # default too high
+            select.widget.setText(self.SELECT.title())
+            select.widget.setMinimumWidth(5)
+            select.widget.setCheckable(True)
             select.value = initialValue
         if self.COLLAPSE in self.displayedParameters:
             collapse = self.getParameterByName(self.COLLAPSE)
-            initialValue = collapse.value
+            initialValue = collapse.value or False
             collapse.widget = QPushButton()
             collapse.widget.setCheckable(True)
             collapse.widget.setStyleSheet('QPushButton{border:none;}')
             collapse.applyWidget()
             collapse.value = initialValue
-            collapse.getWidget().setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
+            collapse.widget.setIcon(self.device.makeCoreIcon('toggle-expand.png' if self.collapse else 'toggle.png'))
         if self.inout != INOUT.NONE:
             self.updateColor()
             self.realChanged()
@@ -2719,13 +2813,23 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
 
     def updateMin(self) -> None:
         """Apply new minimum to value widget."""
-        self.getParameterByName(self.VALUE).spin.setMinimum(self.min)
-        if not self.device.loading:
-            self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
+        spin = self.getParameterByName(self.VALUE).spin
+        if spin:
+            if isinstance(spin, LabviewSpinBox):
+                spin.setMinimum(int(self.min))
+            else:
+                spin.setMinimum(self.min)
+            if not self.device.loading:
+                self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
 
     def updateMax(self) -> None:
         """Apply new maximum to value widget."""
-        self.getParameterByName(self.VALUE).spin.setMaximum(self.max)
+        spin = self.getParameterByName(self.VALUE).spin
+        if spin:
+            if isinstance(spin, LabviewSpinBox):
+                spin.setMaximum(int(self.max))
+            else:
+                spin.setMaximum(self.max)
         if not self.device.loading:
             self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
 
@@ -2733,7 +2837,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Extend to handle events on deleting. E.g. handle references that should remain available."""
         self.clearPlotCurve()
 
-    def initSettingsContextMenuBase(self, parameter: Parameter, pos: QPoint) -> None:
+    def initSettingsContextMenuBase(self, parameter: Parameter | Setting, pos: QPoint) -> None:
         """General implementation of a context menu.
 
         The relevant actions will be chosen based on the type and properties of the :class:`~esibd.core.Parameter`.
@@ -2786,6 +2890,12 @@ class ScanChannel(RelayChannel, Channel):
     DEVICE = 'Device'
 
     def getDefaultChannel(self) -> dict[str, dict]:  # noqa: D102
+
+        # definitions for type hinting
+        self.display: bool
+        self.unit: str
+        self.notes: str
+
         channel = super().getDefaultChannel()
         channel.pop(Channel.SELECT)
         channel.pop(Channel.ACTIVE)
@@ -2857,7 +2967,7 @@ class ScanChannel(RelayChannel, Channel):
         if self.sourceChannel is not None:
             self.initialValue = self.sourceChannel.value
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
-            self.getParameterByName(self.DEVICE).getWidget().setIcon(
+            cast('QPushButton', self.getParameterByName(self.DEVICE).getWidget()).setIcon(
                 self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
             self.getParameterByName(self.DEVICE).getWidget().setToolTip(f'Source: {self.sourceChannel.getDevice().name}')
             if self.sourceChannel.useMonitors and self.sourceChannel.real:
@@ -2876,7 +2986,7 @@ class ScanChannel(RelayChannel, Channel):
         else:
             self.initialValue = None
             self.updateValueSignal = None
-            self.getParameterByName(self.DEVICE).getWidget().setIcon(self.scan.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
+            cast('QPushButton', self.getParameterByName(self.DEVICE).getWidget()).setIcon(self.scan.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
             self.getParameterByName(self.DEVICE).getWidget().setToolTip('Source: Unknown')
             self.notes = f'Could not find {self.name}'
         self.getParameterByName(self.DEVICE).setHeight()
@@ -2912,7 +3022,7 @@ class ScanChannel(RelayChannel, Channel):
 
     def updateDisplay(self) -> None:  # noqa: D102
         # in general scan channels should be passive, but we need to react to changes in which Channels should be displayed
-        if self.scan.display is not None and not self.loading and not self.scan.initializing:
+        if self.scan.display and self.scan.displayActive() and not self.loading and not self.scan.initializing:
             self.scan.display.initFig()
             self.scan.plot(update=self.scan.recording, done=not self.scan.recording)
 
@@ -2921,11 +3031,17 @@ class ScanChannel(RelayChannel, Channel):
         return self.scan.loading
 
 
-class QLabviewSpinBox(QSpinBox):
+class ParameterWidget:
+    """Implement functionality shared by all parameter widgets."""
+
+    container: QWidget
+
+
+class LabviewSpinBox(QSpinBox, ParameterWidget):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
 
     def __init__(self, indicator: bool = False) -> None:
-        """Initialize QLabviewSpinBox.
+        """Initialize LabviewSpinBox.
 
         :param indicator: Indicators will be read only, defaults to False
         :type indicator: bool, optional
@@ -2952,33 +3068,35 @@ class QLabviewSpinBox(QSpinBox):
 
     def stepBy(self, step: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Handle stepping value depending con caret position."""
-        text = self.lineEdit().text()
-        cur = self.lineEdit().cursorPosition()
-        pos = len(text) - cur
-        if cur == 0 and '-' not in text:  # left of number
-            pos = len(text) - 1
-        if cur <= 1 and '-' in text:  # left of number
-            pos = len(text) - 2
-        val = self.value() + 10**pos * step  # use step for sign
-        self.setValue(val)
-        # keep cursor position fixed relative to .
-        newText = self.lineEdit().text()
-        if len(newText) > len(text):
-            if cur == 0 and '-' not in text:
-                self.lineEdit().setCursorPosition(2)
-            elif cur <= 1 and '-' in text:
-                self.lineEdit().setCursorPosition(3)
-            else:
-                self.lineEdit().setCursorPosition(cur + 1)
-        elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1, 0))
+        lineEdit = self.lineEdit()
+        if lineEdit:
+            text = lineEdit.text()
+            cur = lineEdit.cursorPosition()
+            pos = len(text) - cur
+            if cur == 0 and '-' not in text:  # left of number
+                pos = len(text) - 1
+            if cur <= 1 and '-' in text:  # left of number
+                pos = len(text) - 2
+            val = self.value() + 10**pos * step  # use step for sign
+            self.setValue(val)
+            # keep cursor position fixed relative to .
+            newText = lineEdit.text()
+            if len(newText) > len(text):
+                if cur == 0 and '-' not in text:
+                    lineEdit.setCursorPosition(2)
+                elif cur <= 1 and '-' in text:
+                    lineEdit.setCursorPosition(3)
+                else:
+                    lineEdit.setCursorPosition(cur + 1)
+            elif len(newText) < len(text):
+                lineEdit.setCursorPosition(max(cur - 1, 0))
 
 
-class QLabviewDoubleSpinBox(QDoubleSpinBox):
+class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
     """Implements handling of arrow key events based on curser position similar as in LabView."""
 
     def __init__(self, indicator: bool = False, displayDecimals: int = 2) -> None:
-        """Initialize a QLabviewDoubleSpinBox.
+        """Initialize a LabviewDoubleSpinBox.
 
         :param indicator: Indicators will be read only, defaults to False
         :type indicator: bool, optional
@@ -3046,46 +3164,48 @@ class QLabviewDoubleSpinBox(QDoubleSpinBox):
         """Overwrite to disable accidental change of values via the mouse wheel."""
         event.ignore()
 
-    def stepBy(self, step: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: C901
+    def stepBy(self, step: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: C901, PLR0912
         """Handle stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
         if self.text() == self.NAN:
             return
-        text = self.lineEdit().text()
-        cur = self.lineEdit().cursorPosition()
-        dig = len(text.strip('-').split('.')[0])
-        # first digit
-        if cur <= 1 or (cur <= 2 and '-' in text):  # noqa: PLR2004
-            pos = dig - 1
-        # digits before decimal
-        elif cur < dig and '-' not in text:
-            pos = dig - cur
-        elif cur < dig + 1 and '-' in text:
-            pos = dig - cur + 1
-        # last digit before decimal
-        elif (cur == dig and '-' not in text) or (cur == dig + 1 and '-' in text):
-            pos = 0
-        # first digit after decimal
-        elif (cur == dig + 1 and '-' not in text) or (cur == dig + 2 and '-' in text):
-            pos = -1
-        # remaining digits after decimal
-        else:
-            pos = dig - cur + 2 if '-' in text else dig - cur + 1
-        val = self.value() + 10**pos * step  # use step for sign
-        self.setValue(val)
-        # keep cursor position fixed relative to .
-        newText = self.lineEdit().text()
-        if len(newText) > len(text):
-            if cur == 0 and '-' not in text:
-                self.lineEdit().setCursorPosition(2)
-            elif cur <= 1 and '-' in text:
-                self.lineEdit().setCursorPosition(3)
+        lineEdit = self.lineEdit()
+        if lineEdit:
+            text = lineEdit.text()
+            cur = lineEdit.cursorPosition()
+            dig = len(text.strip('-').split('.')[0])
+            # first digit
+            if cur <= 1 or (cur <= 2 and '-' in text):  # noqa: PLR2004
+                pos = dig - 1
+            # digits before decimal
+            elif cur < dig and '-' not in text:
+                pos = dig - cur
+            elif cur < dig + 1 and '-' in text:
+                pos = dig - cur + 1
+            # last digit before decimal
+            elif (cur == dig and '-' not in text) or (cur == dig + 1 and '-' in text):
+                pos = 0
+            # first digit after decimal
+            elif (cur == dig + 1 and '-' not in text) or (cur == dig + 2 and '-' in text):
+                pos = -1
+            # remaining digits after decimal
             else:
-                self.lineEdit().setCursorPosition(cur + 1)
-        elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1, 0))
+                pos = dig - cur + 2 if '-' in text else dig - cur + 1
+            val = self.value() + 10**pos * step  # use step for sign
+            self.setValue(val)
+            # keep cursor position fixed relative to .
+            newText = lineEdit.text()
+            if len(newText) > len(text):
+                if cur == 0 and '-' not in text:
+                    lineEdit.setCursorPosition(2)
+                elif cur <= 1 and '-' in text:
+                    lineEdit.setCursorPosition(3)
+                else:
+                    lineEdit.setCursorPosition(cur + 1)
+            elif len(newText) < len(text):
+                lineEdit.setCursorPosition(max(cur - 1, 0))
 
 
-class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
+class LabviewSciSpinBox(LabviewDoubleSpinBox):
     """Spinbox for scientific notation."""
 
     # inspired by https://gist.github.com/jdreaver/0be2e44981159d0854f5
@@ -3113,7 +3233,7 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
             return match.groups()[0] if match else ''
 
     def __init__(self, indicator: bool = False, displayDecimals: int = 2) -> None:
-        """Initialize a QLabviewSciSpinBox.
+        """Initialize a LabviewSciSpinBox.
 
         :param indicator: Indicators will be read only, defaults to False
         :type indicator: bool, optional
@@ -3140,28 +3260,30 @@ class QLabviewSciSpinBox(QLabviewDoubleSpinBox):
     def stepBy(self, step: int) -> None:  # noqa: D102
         if self.text() == self.NAN:
             return
-        text = self.lineEdit().text()
-        cur = self.lineEdit().cursorPosition()
-        v, p = text.split('E')
-        sign = '-' if p[0] == '-' else ''
-        pot = ''.join(list(p[1:].lstrip('0')))
-        pot = pot or '0'
-        if (cur <= self.DIGITS_BEFORE_DOT + 1 and '-' not in v) or (cur <= self.DIGITS_BEFORE_DOT + 2 and '-' in v):
-            pos = 0  # step by 1
-        else:  # right of dot
-            pos = self.DIGITS_BEFORE_DOT + 2 - cur if '-' in v else self.DIGITS_BEFORE_DOT + 1 - cur  # step by 0.1, 0.01, ...
-        self.setValue(float(str(float(v) + 10**pos * step) + 'E' + sign + pot))
-        # keep cursor position fixed relative to .
-        newText = self.lineEdit().text()
-        if len(newText) > len(text):
-            if cur == 0 and '-' not in v:
-                self.lineEdit().setCursorPosition(2)
-            elif cur <= 1 and '-' in v:
-                self.lineEdit().setCursorPosition(3)
-            else:
-                self.lineEdit().setCursorPosition(cur + 1)
-        elif len(newText) < len(text):
-            self.lineEdit().setCursorPosition(max(cur - 1, 0))
+        lineEdit = self.lineEdit()
+        if lineEdit:
+            text = lineEdit.text()
+            cur = lineEdit.cursorPosition()
+            v, p = text.split('E')
+            sign = '-' if p[0] == '-' else ''
+            pot = ''.join(list(p[1:].lstrip('0')))
+            pot = pot or '0'
+            if (cur <= self.DIGITS_BEFORE_DOT + 1 and '-' not in v) or (cur <= self.DIGITS_BEFORE_DOT + 2 and '-' in v):
+                pos = 0  # step by 1
+            else:  # right of dot
+                pos = self.DIGITS_BEFORE_DOT + 2 - cur if '-' in v else self.DIGITS_BEFORE_DOT + 1 - cur  # step by 0.1, 0.01, ...
+            self.setValue(float(str(float(v) + 10**pos * step) + 'E' + sign + pot))
+            # keep cursor position fixed relative to .
+            newText = lineEdit.text()
+            if len(newText) > len(text):
+                if cur == 0 and '-' not in v:
+                    lineEdit.setCursorPosition(2)
+                elif cur <= 1 and '-' in v:
+                    lineEdit.setCursorPosition(3)
+                else:
+                    lineEdit.setCursorPosition(cur + 1)
+            elif len(newText) < len(text):
+                lineEdit.setCursorPosition(max(cur - 1, 0))
 
 
 class ControlCursor(Cursor):
@@ -3197,7 +3319,7 @@ class ControlCursor(Cursor):
 
     def getPosition(self):  # noqa: ANN201
         """Get current position."""
-        return self.linev.get_data()[0][0], self.lineh.get_data()[1][1]
+        return self.linev.get_data()[0][0], self.lineh.get_data()[1][1]  # type: ignore  # noqa: PGH003
 
     def updatePosition(self) -> None:
         """Update position. Usually required to reset position after cursors have been lost by drawing other elements."""
@@ -3231,8 +3353,22 @@ class RestoreFloatComboBox(QComboBox):
         self.parentPlugin.pluginManager.Settings.loading = False
 
 
-class CheckBox(QCheckBox):
+class Label(QLabel, ParameterWidget):
+    """QLabel as ParameterWidget."""
+
+
+class PushButton(QPushButton, ParameterWidget):
+    """PushButton as ParameterWidget."""
+
+
+class ColorButton(pg.ColorButton, ParameterWidget):
+    """ColorButton as ParameterWidget."""
+
+
+class CheckBox(QCheckBox, ParameterWidget):
     """Allows to set values in a widget in a consistent way."""
+
+    checkBoxHeight: int
 
     class SignalCommunicate(QObject):
         """Bundle pyqtSignals."""
@@ -3254,7 +3390,7 @@ class CheckBox(QCheckBox):
         self.setChecked(value)
 
 
-class ToolButton(QToolButton):
+class ToolButton(QToolButton, ParameterWidget):
     """Allows to set values in a widget in a consistent way."""
 
     class SignalCommunicate(QObject):
@@ -3323,8 +3459,8 @@ class Action(QAction):
         :type parentPlugin: esibd.plugins.Plugin
         """
         super().__init__(icon, toolTip, parentPlugin)
-        self.icon = icon
-        self.toolTip = toolTip
+        self._icon = icon
+        self._toolTip = toolTip
         self.signalComm = self.SignalCommunicate()
         self.signalComm.setValueFromThreadSignal.connect(self.setValue)
 
@@ -3339,11 +3475,11 @@ class Action(QAction):
 
     def getIcon(self) -> Icon:
         """Get the icon. API consistent with other Action classes."""
-        return self.icon
+        return self._icon
 
     def getToolTip(self) -> str:
         """Get the tooltip. API consistent with other Action classes."""
-        return self.toolTip
+        return self._toolTip
 
     def setValue(self, value: bool) -> None:
         """Set action state. API consistent with other Action classes.
@@ -3360,8 +3496,8 @@ class StateAction(Action):
     Values are restored using QSettings if name is provided.
     """
 
-    def __init__(self, parentPlugin: 'Plugin', toolTipFalse: str = '', iconFalse: QIcon = None, toolTipTrue: str = '', iconTrue: QIcon = None, event: 'callable | None' = None,  # noqa: PLR0913, PLR0917
-                 before: QAction = None, attr: str = '', restore: bool = True, defaultState: bool = False) -> None:
+    def __init__(self, parentPlugin: 'Plugin', toolTipFalse: str = '', *, iconFalse: Icon, toolTipTrue: str = '', iconTrue: 'Icon | None' = None, event: 'Callable | None' = None,  # noqa: PLR0913
+                 before: 'QAction | None' = None, attr: str = '', restore: bool = True, defaultState: bool = False) -> None:
         """Initialize a StateAction.
 
         :param parentPlugin: Action parent.
@@ -3375,7 +3511,7 @@ class StateAction(Action):
         :param iconTrue: Icon for True state, defaults to None
         :type iconTrue: QIcon, optional
         :param event: Action event, defaults to None
-        :type event: callable | None, optional
+        :type event: Callable | None, optional
         :param attr: Attribute used to save and restore state, defaults to ''
         :type attr: str | None, optional
         :param restore: Restore value if True, defaults to True
@@ -3399,7 +3535,6 @@ class StateAction(Action):
             self.setObjectName(self.fullName)
         else:
             self.setObjectName(f'{self.parentPlugin.name}/{self.toolTipFalse}')
-        self.event = event
         if event is not None:
             self.triggered.connect(event)
         if restore and self.fullName:
@@ -3476,7 +3611,7 @@ class MultiStateAction(Action):
     class Labels:
         """Dummy class used to store labels."""
 
-    def __init__(self, parentPlugin: 'Plugin', states: 'list[MultiState] | None' = None, event: 'callable | None' = None, before: QAction = None,  # noqa: PLR0913, PLR0917
+    def __init__(self, parentPlugin: 'Plugin', states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913, PLR0917
                  attr: str = '', restore: bool = True, defaultState: int = 0) -> None:
         """Initialize a MultiStateAction.
 
@@ -3485,7 +3620,7 @@ class MultiStateAction(Action):
         :param states: Action states, defaults to None
         :type states: list[MultiState] | None, optional
         :param event: Action event, defaults to None
-        :type event: callable | None, optional
+        :type event: Callable | None, optional
         :param before: Place left of existing action if provided, defaults to None
         :type before: QAction, optional
         :param attr: Used to save and restore state, defaults to ''
@@ -3509,7 +3644,6 @@ class MultiStateAction(Action):
             self.setObjectName(self.fullName)
         else:
             self.setObjectName(f'{self.parentPlugin.name}/{states[0].toolTip}')
-        self.event = event
         if event is not None:
             self.triggered.connect(lambda: (self.rollState(), event()))
         if restore and self.fullName:
@@ -3517,10 +3651,11 @@ class MultiStateAction(Action):
         else:
             self._state = 0  # init
         self.updateIcon()
-        if before is None:
-            self.parentPlugin.titleBar.addAction(self)
-        else:
-            self.parentPlugin.titleBar.insertAction(before, self)
+        if self.parentPlugin.titleBar:
+            if before is None:
+                self.parentPlugin.titleBar.addAction(self)
+            else:
+                self.parentPlugin.titleBar.insertAction(before, self)
 
     def stateFromLabel(self, label: str) -> int:
         """Return state corresponding to provided label.
@@ -3548,7 +3683,7 @@ class MultiStateAction(Action):
         self.updateIcon()
 
     @property
-    def state(self) -> int:  # use labels for api
+    def state(self) -> str:  # use labels for api
         """Label representation of current state."""
         return self.labelFromState(self._state)
 
@@ -3580,7 +3715,7 @@ class MultiStateAction(Action):
         self._state = self.stateFromLabel(value)
 
 
-class CompactComboBox(QComboBox):
+class CompactComboBox(QComboBox, ParameterWidget):
     """Combobox that stays small while showing full content in dropdown menus."""
 
     MAX_WIDTH_LIMIT = 5000
@@ -3607,10 +3742,15 @@ class CompactComboBox(QComboBox):
         # and set QComboBox.view() to accommodate this
         # which makes items show full width under Windows
         view = self.view()
-        fm = self.fontMetrics()
-        maxWidth = max(fm.size(Qt.TextFlag.TextSingleLine, self.itemText(i)).width() for i in range(self.count())) + 50  # account for scrollbar and margins
-        if maxWidth:
-            view.setMinimumWidth(maxWidth)
+        if view:
+            fm = self.fontMetrics()
+            maxWidth = max(fm.size(Qt.TextFlag.TextSingleLine, self.itemText(i)).width() for i in range(self.count())) + 50  # account for scrollbar and margins
+            if maxWidth:
+                view.setMinimumWidth(maxWidth)
+
+    def wheelEvent(self, _: 'QWheelEvent') -> None:
+        """Ignore wheel event."""
+        return
 
 
 class DockWidget(QDockWidget):
@@ -3639,7 +3779,9 @@ class DockWidget(QDockWidget):
             self.title = self.parentPlugin.parentPlugin.name
         if hasattr(self.parentPlugin, 'scan') and self.parentPlugin.scan is not None:
             self.title = self.parentPlugin.scan.name
-        super().__init__(self.title, QApplication.instance().mainWindow)
+        instance = QApplication.instance()
+        assert instance
+        super().__init__(self.title, instance.mainWindow)
         self.signalComm = self.SignalCommunicate()
         self.signalComm.dockClosingSignal.connect(self.parentPlugin.closeGUI)
         self.setObjectName(f'{self.parentPlugin.pluginType}_{self.parentPlugin.name}')  # essential to make restoreState work!
@@ -3790,7 +3932,7 @@ class TreeWidget(QTreeWidget):
         return QSize(self.width(), self.tree_height_hint_minimal() if self.minimizeHeight else self.tree_height_hint_complete())
 
 
-class LedIndicator(QAbstractButton):
+class LedIndicator(QAbstractButton, ParameterWidget):
     """Simple custom LED indicator."""
 
     # inspired by https://github.com/nlamprian/pyqt5-led-indicator-widget/blob/master/LedIndicatorWidget.py
@@ -3852,7 +3994,7 @@ class LedIndicator(QAbstractButton):
             painter.setBrush(self.off_color)
         painter.drawEllipse(QPointF(0, 0), 400, 400)
 
-    @pyqtProperty(QColor)
+    @property
     def onColor(self) -> QColor:
         """On color."""
         return self.on_color
@@ -3861,7 +4003,7 @@ class LedIndicator(QAbstractButton):
     def onColor(self, color: QColor) -> None:
         self.on_color = color
 
-    @pyqtProperty(QColor)
+    @property
     def offColor(self) -> QColor:
         """Off color."""
         return self.off_color
@@ -3871,13 +4013,13 @@ class LedIndicator(QAbstractButton):
         self.off_color = color
 
 
-class LineEdit(QLineEdit):
+class LineEdit(QLineEdit, ParameterWidget):
     """LineEdit with input validation and custom signal onEditingFinished."""
 
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
     userEditingFinished = pyqtSignal(str)
 
-    def __init__(self, parentParameter: Parameter, tree: QTreeWidget = None) -> None:
+    def __init__(self, parentParameter: Parameter, tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a LineEdit."""
         super().__init__()
         self._edited = False
@@ -3930,7 +4072,7 @@ class LineEdit(QLineEdit):
         return QSize(min(max(self.minimumWidth(), QFontMetrics(self.font()).horizontalAdvance(self.text() or ' ') + 10), self.max_width), self.height())
 
 
-class TextEdit(QPlainTextEdit):
+class TextEdit(QPlainTextEdit, ParameterWidget):
     """Editor that is compatible with :class:`~esibd.core.NumberBar`."""
 
     # based on https://gist.github.com/Axel-Erfurt/8c84b5e70a1faf894879cd2ab99118c2
@@ -3949,26 +4091,26 @@ class TextEdit(QPlainTextEdit):
         c.popup().setStyleSheet('background-color:  #555753; color:  #eeeeec; font-size: 8pt; selection-background-color:  #4e9a06;')
 
         c.setWidget(self)
-        c.setCompletionMode(QCompleter.PopupCompletion)
+        c.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         c.activated.connect(self.insertCompletion)
 
     def completer(self):  # pylint: disable=missing-function-docstring  # noqa: ANN201, D102
         return self._completer
 
     def insertCompletion(self, completion):  # pylint: disable=missing-function-docstring  # noqa: ANN001, ANN201, D102
-        if self._completer.widget() is not self:
+        if not self._completer or self._completer.widget() is not self:
             return
 
         tc = self.textCursor()
         extra = len(completion) - len(self._completer.completionPrefix())
-        tc.movePosition(QTextCursor.Left)
-        tc.movePosition(QTextCursor.EndOfWord)
+        tc.movePosition(QTextCursor.MoveOperation.Left)
+        tc.movePosition(QTextCursor.MoveOperation.EndOfWord)
         tc.insertText(completion[-extra:])
         self.setTextCursor(tc)
 
     def textUnderCursor(self):  # pylint: disable=missing-function-docstring  # noqa: ANN201, D102
         tc = self.textCursor()
-        tc.select(QTextCursor.WordUnderCursor)
+        tc.select(QTextCursor.SelectionType.WordUnderCursor)
         return tc.selectedText()
 
     def focusInEvent(self, e):  # pylint: disable=missing-function-docstring  # noqa: ANN001, ANN201, D102
@@ -3976,7 +4118,7 @@ class TextEdit(QPlainTextEdit):
             self._completer.setWidget(self)
         super().focusInEvent(e)
 
-    def keyPressEvent(self, e):  # pylint: disable = missing-function-docstring  # noqa: ANN001, ANN201, D102
+    def keyPressEvent(self, e: QKeyEvent):  # pylint: disable = missing-function-docstring  # noqa: ANN201, D102
         if e.key() == Qt.Key.Key_Tab:
             self.textCursor().insertText('    ')
             return
@@ -4148,7 +4290,7 @@ class NumberBar(QWidget):
 class ThemedConsole(pyqtgraph.console.ConsoleWidget):
     """pyqtgraph.console.ConsoleWidget with colors adjusting to theme."""
 
-    def __init__(self, parentPlugin: 'Plugin', **kwargs) -> None:
+    def __init__(self, parentPlugin: 'Console', **kwargs) -> None:
         """Initialize a ThemedConsole.
 
         :param parentPlugin: Console parent plugin.
@@ -4183,7 +4325,8 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
     def scrollToBottom(self) -> None:
         """Scrolls to bottom to show recently added messages."""
         sb = self.output.verticalScrollBar()
-        sb.setValue(sb.maximum())
+        if sb:
+            sb.setValue(sb.maximum())
 
     def loadHistory(self):  # extend to catch error if file does not exist  # noqa: ANN201, D102
         h = None
@@ -4242,7 +4385,7 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
         limits = []
         if getDarkMode() and not getClipboardTheme():
             # use default light theme for clipboard
-            with mpl.style.context('default'):
+            with matplotlib.style.context('default'):
                 limits.extend((ax.get_xlim(), ax.get_ylim()) for ax in self.parentPlugin.axes)
                 self.parentPlugin.initFig()  # canvas, figure, and, ThemedNavigationToolbar will be replaced after this
                 # reconnect new canvas to old instance of ThemedNavigationToolbar to complete saving
@@ -4275,7 +4418,7 @@ class MZCalculator:
     Use Ctrl + left mouse click to mark and Ctrl + right mouse click to reset.
     """
 
-    def __init__(self, parentPlugin: 'Plugin', ax: mpl.axes.Axes = None) -> None:
+    def __init__(self, parentPlugin: 'Plugin', ax: 'Axes | None' = None) -> None:
         """Initialize a MZCalculator.
 
         :param parentPlugin: Parent plugin.
@@ -4284,7 +4427,7 @@ class MZCalculator:
         :type ax: mpl.axes.Axes, optional
         """
         self.parentPlugin = parentPlugin
-        if ax:
+        if ax:  # maybe set later, e.g. after initFig created a new axis.
             self.ax = ax
             self.canvas = ax.figure.canvas
         self.mz = np.array([])  # array with selected m/z values
@@ -4297,7 +4440,7 @@ class MZCalculator:
         # Note: Events should be implemented outside of this class to allow Scan to trigger multiple functions based on the event
         # self.canvas.mpl_connect('button_press_event', self.msOnClick) -> self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
-    def setAxis(self, ax: mpl.axes.Axes) -> None:
+    def setAxis(self, ax: Axes) -> None:
         """Set the axes and canvas to be used.
 
         :param ax: A matplotlib axes.
@@ -4316,7 +4459,7 @@ class MZCalculator:
         """
         if event.button == MouseButton.RIGHT:
             self.clear()
-        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl'):
+        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata and event.ydata:
             self.addMZ(event.xdata, event.ydata)
 
     def addMZ(self, x: float, y: float) -> None:
@@ -4371,19 +4514,22 @@ class MZCalculator:
         """Update labels indicating mass and mass-to-charge values."""
         for ann in [child for child in self.ax.get_children() if isinstance(child, mpl.text.Annotation)]:  # [self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
-        if len(self.mz) > 1:
+        if len(self.mz) > 1 and self.cs:
             for x, y, charge in zip(self.mz, self.intensity, self.cs, strict=True):
                 self.ax.annotate(text=f'{charge}', xy=(x, y), xycoords='data', ha='center')
             self.ax.annotate(text=f"{self.mass_string(-1, 'lower  ')}\n{self.mass_string(0, 'likely  ')}\n{self.mass_string(+1, 'higher')}\n"
                                     + '\n'.join([f'mz:{mass:10.2f} z:{charge:4}' for mass, charge in zip(self.mz, self.cs, strict=True)]),
                                 xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top')
-        self.parentPlugin.labelPlot(self.ax, self.parentPlugin.file.name)
+        if self.parentPlugin.file:
+            self.parentPlugin.labelPlot(self.ax, self.parentPlugin.file.name)
 
 
 class ViewBox(pg.ViewBox):
     """ViewBox providing mouseEnabledChangedUser event."""
 
     userMouseEnabledChanged = pyqtSignal(bool, bool)
+    axis_leftright: pg.AxisItem
+    dummyAx: pg.AxisItem
 
     def __init__(self, *args, **kwargs) -> None:  # noqa: D107
         super().__init__(*args, **kwargs)
@@ -4418,8 +4564,11 @@ class ViewBox(pg.ViewBox):
 class PlotItem(pg.PlotItem):
     """PlotItem providing xyLabel."""
 
-    def __init__(self, parentPlugin: 'StaticDisplay | LiveDisplay' = None, groupLabel: str = '', tickWidth: int = 50, showXY: bool = True,
-                  viewBox: ViewBox = None, **kwargs) -> None:
+    axis_leftright: pg.AxisItem
+    dummyAx: pg.AxisItem
+
+    def __init__(self, parentPlugin: 'StaticDisplay | LiveDisplay | None' = None, groupLabel: str = '', tickWidth: int = 50, showXY: bool = True,
+                  viewBox: 'ViewBox | None' = None, **kwargs) -> None:
         """Initialize a PlotItem.
 
         :param parentPlugin: Parent plugin, defaults to None
@@ -4481,7 +4630,9 @@ class PlotItem(pg.PlotItem):
     def connectMouse(self) -> None:
         """Connect the mouse to the scene to update xyLabel. Plot when user moves or rescales x range."""
         # call after adding to GraphicsLayout as scene is not available before
-        self.scene().sigMouseMoved.connect(self.mouseMoveEvent)
+        scene = self.scene()
+        if scene:
+            scene.sigMouseMoved.connect(self.mouseMoveEvent)
         self.sigXRangeChanged.connect(self.parentPlot)
 
     def mouseMoveEvent(self, ev: 'QGraphicsSceneMouseEvent') -> None:
@@ -4491,15 +4642,16 @@ class PlotItem(pg.PlotItem):
         :type ev: QEvent
         """
         if self.showXY:
-            pos = ev  # called with QPointF instead of event?
-            if self.getViewBox().geometry().contains(pos):  # add offset
-                pos = self.getViewBox().mapSceneToView(pos)
+            pos = cast('QPointF', ev)  # called with QPointF instead of event?
+            viewBox = self.getViewBox()
+            if viewBox and viewBox.geometry().contains(pos):  # add offset
+                pos = viewBox.mapSceneToView(pos)
                 try:
                     if self.ctrl.logYCheck.isChecked():
                         self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {10**pos.y():.2e}")
                     else:
                         self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {pos.y():.2f}")
-                    self.xyLabel.setPos(self.getViewBox().geometry().width() - self.xyLabel.boundingRect().width() - 4, 2)
+                    self.xyLabel.setPos(viewBox.geometry().width() - self.xyLabel.boundingRect().width() - 4, 2)
                 except (OSError, ValueError, OverflowError):
                     pass  # ignore errors that occur before time axis is initialized
             else:
@@ -4513,13 +4665,14 @@ class PlotItem(pg.PlotItem):
         When looking at larger x ranges sections might not be shown due to data thinning.
         Make sure the number of displayed data points is appropriate for your data.
         """
-        if self.parentPlugin is not None and self.getViewBox().mouseEnabled()[0]:
+        viewBox = self.getViewBox()
+        if self.parentPlugin is not None and viewBox and viewBox.mouseEnabled()[0]:
             self.parentPlugin.parentPlugin.signalComm.plotSignal.emit()
 
     @property
-    def dragging(self) -> None:  # pylint: disable = missing-function-docstring
+    def dragging(self) -> bool:  # pylint: disable = missing-function-docstring
         """Indicate if dragging event has been called recently."""
-        return self.getViewBox().dragging
+        return cast('ViewBox', self.getViewBox()).dragging
 
 
 class PlotWidget(pg.PlotWidget):
@@ -4528,19 +4681,23 @@ class PlotWidget(pg.PlotWidget):
     def __init__(self, parentPlugin: 'StaticDisplay | LiveDisplay', **kwargs) -> None:
         """Initialize a PlotWidget."""
         super().__init__(**kwargs, plotItem=PlotItem(parentPlugin=parentPlugin, **kwargs), viewBox=ViewBox())
-        self.init = self.getPlotItem().init
-        self.finalizeInit = self.getPlotItem().finalizeInit
+        plotItem = cast('PlotItem', self.getPlotItem())
+        if plotItem:
+            self.init = plotItem.init
+            self.finalizeInit = plotItem.finalizeInit
         self.setMinimumHeight(15)  # can fit more plots on top of each other
         self.setBackground(colors.bg)
 
     @property
-    def legend(self) -> pg.LegendItem:
+    def legend(self) -> 'pg.LegendItem | None':
         """The plot legend."""
-        return self.plotItem.legend
+        if self.plotItem:
+            return self.plotItem.legend
+        return None
 
     @property
-    def dragging(self) -> None:  # pylint: disable = missing-function-docstring  # noqa: D102
-        return self.getPlotItem().dragging
+    def dragging(self) -> bool:  # pylint: disable = missing-function-docstring  # noqa: D102
+        return cast('PlotItem', self.getPlotItem()).dragging
 
 
 class LabelItem(pg.LabelItem):
@@ -4618,8 +4775,8 @@ class TimeoutLock:
         """Acquires the lock.
 
         :param blocking: If it is set to True, the calling thread will be blocked if some other thread is holding the flag and once that lock is released,
-        then the calling thread will acquire the lock and return True.
-        If it is set to False, it will not block the thread if the lock is already acquired by some other thread, and will return False. Defaults to True
+            then the calling thread will acquire the lock and return True.
+            If it is set to False, it will not block the thread if the lock is already acquired by some other thread, and will return False. Defaults to True
         :type blocking: bool, optional
         :param timeout: Timeout for lock acquisition, defaults to -1
         :type timeout: int, optional
@@ -4627,8 +4784,6 @@ class TimeoutLock:
         :rtype: bool
         """
         return self._lock.acquire(blocking, timeout)
-
-    MAX_ERROR_COUNT = 12
 
     @contextmanager
     def acquire_timeout(self, timeout: int, timeoutMessage: str = '', already_acquired: bool = False):  # noqa: ANN201
@@ -4647,7 +4802,7 @@ class TimeoutLock:
         """
         result = already_acquired or self._lock.acquire(timeout=timeout)
 
-        if getLogLevel() > 0:
+        if getLogLevel() > 1:  # VERBOSE/TRACE
             # get more information on errors (file and line number not available when using except)
             yield result
             if result and not already_acquired:
@@ -4656,13 +4811,16 @@ class TimeoutLock:
             try:
                 yield result
             except Exception as e:  # noqa: BLE001
-                self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR)
+                if getLogLevel() == 0:  # BASIC
+                    self.print(f'Error while using lock: {e}', flag=PRINT.ERROR)
+                else:  # DEBUG
+                    self.print(f'Error while using lock: {e}\nStack:{"".join(traceback.format_stack()[:-1])}', flag=PRINT.ERROR)
                 self.lockParent.errorCount += 1
             finally:
                 if result and not already_acquired:
                     self._lock.release()
-                if self.lockParent.errorCount > self.MAX_ERROR_COUNT and hasattr(self.lockParent, 'closeCommunication'):
-                    self.print(f'Closing communication of {self.lockParent.name} after more than 10 consecutive errors.', flag=PRINT.ERROR)  # {e}
+                if self.lockParent.errorCount > self.lockParent.MAX_ERROR_COUNT and hasattr(self.lockParent, 'closeCommunication'):
+                    self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
                     self.lockParent.closeCommunication()
         if not result and timeoutMessage:
             self.print(timeoutMessage, flag=PRINT.ERROR)
@@ -4708,13 +4866,11 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     parent: 'Device | Channel'
     """Reference to the associated class."""
-    print: callable
-    """Reference to :meth:`~esibd.plugins.Plugin.print`."""
-    port: serial.Serial = None
+    port: 'serial.Serial | None' = None
     """Port for serial communication."""
-    initThread: Thread = None
+    initThread: 'Thread | None' = None
     """A parallel thread used to initialize communication."""
-    acquisitionThread: Thread = None
+    acquisitionThread: 'Thread | None' = None
     """A parallel thread that regularly reads values from the device."""
     lock: TimeoutLock  # Lock
     """Lock used to avoid race conditions when communicating with the hardware."""
@@ -4726,6 +4882,8 @@ class DeviceController(QObject):  # noqa: PLR0904
     """Indicates if communications is being initialized."""
     rng = np.random.default_rng()
     """Random number generator."""
+    MAX_ERROR_COUNT = 25
+    """Close communication if exceeded."""
 
     def __init__(self, controllerParent: 'Device | Channel') -> None:
         """Initialize a DeviceController.
@@ -4748,6 +4906,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         self._errorCount = 0
         self.errorCountTimer = QTimer()
         self.errorCountTimer.timeout.connect(self.resetErrorCount)
+        self.errorCountTimer.setSingleShot(True)
         self.errorCountTimer.setInterval(600000)  # 10 min i.e. 600000 msec
 
     @property
@@ -4762,9 +4921,14 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     @errorCount.setter
     def errorCount(self, count: int) -> None:
+        if count > self._errorCount and count % 5 == 0:
+            self.print(f'Error count is {count}. Communication will be closed after {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.WARNING)
         self._errorCount = count
         if self.errorCount != 0:
             QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
+        if self.errorCount > self.MAX_ERROR_COUNT and self.initialized:
+            self.print(f'Closing communication after more than {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
+            self.closeCommunication()
         QTimer.singleShot(0, self.device.errorCountChanged)
 
     def resetErrorCount(self) -> None:
@@ -4786,7 +4950,7 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     def initializeCommunication(self) -> None:
         """Start the :meth:`~esibd.core.DeviceController.initThread`."""
-        self.print('initializeCommunication', PRINT.DEBUG)
+        self.print('initializeCommunication', flag=PRINT.DEBUG)
         if self.initializing:
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
@@ -4806,7 +4970,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         """Faking successful initialization in test mode. Called instead of runInitialization."""
         # initialization time cannot be predicted, do not slow down tests time.sleep(2)
         self.signalComm.initCompleteSignal.emit()
-        self.print('Faking values for testing!', PRINT.WARNING)
+        self.print('Faking values for testing!', PRINT.DEBUG)
         self.initializing = False
 
     def readNumbers(self) -> None:
@@ -4827,7 +4991,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.initialized = True
         self.startAcquisition()
         if self.device.isOn():
-            self.device.updateValues(apply=True)  # apply voltages before turning on or off
+            self.device.updateValues(apply=True)  # apply values before turning on or off
             self.toggleOnFromThread()
 
     def startAcquisition(self) -> None:
@@ -4837,27 +5001,24 @@ class DeviceController(QObject):  # noqa: PLR0904
             self.print('Cannot start acquisition. Not initialized', PRINT.DEBUG)
             return
         if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
-            if self.device.log:
-                self.device.print('Wait for data reading thread to complete before restarting acquisition.', PRINT.WARNING)
+            self.device.print('Wait for data reading thread to complete before restarting acquisition.', PRINT.DEBUG)
             self.acquiring = False
             self.acquisitionThread.join(timeout=5)
             if self.acquisitionThread.is_alive():
                 self.print('Data reading thread did not complete. Reset connection manually.', PRINT.ERROR)
                 return
-        self.acquisitionThread = Thread(target=self.runAcquisition, args=(lambda: self.acquiring,), name=f'{self.device.name} acquisitionThread')
+            self.device.print('Data reading thread did complete.', PRINT.DEBUG)
+        self.acquisitionThread = Thread(target=self.runAcquisition, name=f'{self.device.name} acquisitionThread')
         self.acquisitionThread.daemon = True
         self.acquiring = True  # terminate old thread before starting new one
         self.acquisitionThread.start()
 
-    def runAcquisition(self, acquiring: callable) -> None:
+    def runAcquisition(self) -> None:
         """Run acquisition loop. Executed in acquisitionThread.
 
         Overwrite with hardware specific acquisition code.
-
-        :param acquiring: Queries acquiring state.
-        :type acquiring: callable
         """
-        while acquiring():
+        while self.acquiring:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
@@ -4964,18 +5125,18 @@ class DeviceController(QObject):  # noqa: PLR0904
             port.write(bytes(message, encoding))
         except serial.SerialTimeoutException as e:
             self.errorCount += 1
-            self.print(f'Timeout while writing message, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
+            self.print(f'Timeout while writing message, try to reinitialize communication: {e}. Message: {message}.', flag=PRINT.ERROR)
         except serial.PortNotOpenError as e:
             self.errorCount += 1
-            self.print(f'Port not open, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
+            self.print(f'Port not open, try to reinitialize communication: {e}. Message: {message}.', flag=PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except serial.SerialException as e:
             self.errorCount += 1
-            self.print(f'Serial error, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
+            self.print(f'Serial error, try to reinitialize communication: {e}. Message: {message}.', flag=PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except AttributeError as e:
             self.errorCount += 1
-            self.print(f'Attribute error, try to reinitialize communication: {e}. Message: {message}.', PRINT.ERROR)
+            self.print(f'Attribute error, try to reinitialize communication: {e}. Message: {message}.', flag=PRINT.ERROR)
             if port is not None:
                 self.signalComm.closeCommunicationSignal.emit()
 
@@ -5005,24 +5166,24 @@ class DeviceController(QObject):  # noqa: PLR0904
                             else port.read_until(EOL.encode(encoding)).decode(encoding).rstrip())
         except UnicodeDecodeError as e:
             self.errorCount += 1
-            self.print(f'Error while decoding message: {e}', PRINT.ERROR)
+            self.print(f'Error while decoding message: {e}', flag=PRINT.ERROR)
         except serial.SerialTimeoutException as e:
             self.errorCount += 1
-            self.print(f'Timeout while reading message, try to reinitialize communication: {e}', PRINT.ERROR)
+            self.print(f'Timeout while reading message, try to reinitialize communication: {e}', flag=PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except serial.SerialException as e:
             self.errorCount += 1
-            self.print(f'Serial error, try to reinitialize communication: {e}', PRINT.ERROR)
+            self.print(f'Serial error, try to reinitialize communication: {e}', flag=PRINT.ERROR)
             self.signalComm.closeCommunicationSignal.emit()
         except AttributeError as e:
             self.errorCount += 1
-            self.print(f'Attribute error, try to reinitialize communication: {e}', PRINT.ERROR)
+            self.print(f'Attribute error, try to reinitialize communication: {e}', flag=PRINT.ERROR)
             if port is not None:
                 self.signalComm.closeCommunicationSignal.emit()
         self.print('serialRead response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
         return response
 
-    def clearBuffer(self, port: serial.Serial = None) -> None:
+    def clearBuffer(self, port: serial.Serial) -> None:
         """Clear the buffer at the serial port.
 
         :param port: The port at which to clear the buffer, defaults to None
@@ -5098,10 +5259,10 @@ class VideoRecorder:
 
     def startRecording(self) -> None:
         """Initialize video recorder and starts recording."""
-        if self.parentPlugin.pluginManager.testing and not self.parentPlugin.pluginManager.Settings.showVideoRecorders:
+        if not self.recordWidget or (self.parentPlugin.pluginManager.testing and not self.parentPlugin.pluginManager.Settings.showVideoRecorders):
             return
         self.frameCount = 0
-        self.video_writer = None
+        self.video_writer: cv2.VideoWriter
         self.screen = QGuiApplication.screenAt(self.recordWidget.mapToGlobal(QPoint(0, 0)))
         if self.screen is not None:
             self.is_recording = True
@@ -5118,7 +5279,7 @@ class VideoRecorder:
 
     def capture_frame(self) -> None:
         """Capture a single video frame."""
-        if not self.is_recording:
+        if not self.is_recording or not self.screen or not self.recordWidget:
             return
         full_screenshot = self.screen.grabWindow(0)  # should be called from main thread
 
@@ -5139,7 +5300,7 @@ class VideoRecorder:
             self.width, self.height = image.width(), image.height()
             # Note cv2.VideoWriter_fourcc(*'H264') H.264 codec (MPEG-4 AVC) would achieve smaller file sizes,
             # but requires independent codec installation and would not work out of the box
-            self.video_writer = cv2.VideoWriter(self.file, cv2.VideoWriter_fourcc(*'mp4v'), self.fps, (self.width, self.height))
+            self.video_writer = cv2.VideoWriter(self.file.as_posix(), cv2.VideoWriter.fourcc(*'mp4v'), self.fps, (self.width, self.height))
         elif (image.width(), image.height()) != (self.width, self.height):
             self.parentPlugin.print('Resizing during video recording not supported. Stopping recording.', flag=PRINT.WARNING)
             self.stopRecording()
@@ -5149,11 +5310,12 @@ class VideoRecorder:
             self.stopRecording()
             return
         buffer = image.bits()  # Get image data as a bytes object
-        buffer.setsize(image.sizeInBytes())
-        frame = np.frombuffer(buffer, dtype=np.uint8).reshape((self.height, self.width, 4))  # Convert to NumPy array
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)  # Convert RGBA to BGR for OpenCV
-        self.video_writer.write(frame_bgr)
-        self.frameCount += 1
+        if buffer:
+            buffer.setsize(image.sizeInBytes())
+            frame = np.asarray(buffer, dtype=np.uint8).reshape((self.height, self.width, 4))  # Convert to NumPy array
+            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)  # Convert RGBA to BGR for OpenCV
+            self.video_writer.write(frame_bgr)
+            self.frameCount += 1
 
     def stopRecording(self) -> None:
         """Stop recording and finalizes the video file."""
@@ -5172,7 +5334,7 @@ class VideoRecorder:
 class RippleEffect(QWidget):
     """Creates a fading ripple effect at the clicked QAction."""
 
-    def __init__(self, parentWindow: QMainWindow, x: int, y: int, color: QColor = None) -> None:
+    def __init__(self, parentWindow: QMainWindow, x: int, y: int, color: 'QColor | None' = None) -> None:
         """Initialize a RippleEffect.
 
         :param parentWindow: Main application window.
@@ -5185,7 +5347,7 @@ class RippleEffect(QWidget):
         :type color: QColor, optional
         """
         super().__init__(parentWindow)
-        self.x, self.y = x, y
+        self._x, self._y = x, y
         self.color = color or QColor(138, 180, 247)
         self.radius = 20  # Initial ripple size
         self.opacity = 1.0  # Full opacity
@@ -5215,7 +5377,7 @@ class RippleEffect(QWidget):
         color = QColor(self.color.red(), self.color.green(), self.color.blue(), int(255 * self.opacity))
         pen = QPen(color, 6)
         painter.setPen(pen)
-        painter.drawEllipse(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+        painter.drawEllipse(self._x - self.radius, self._y - self.radius, self.radius * 2, self.radius * 2)
 
 
 class MouseInterceptor(QObject):
@@ -5223,7 +5385,7 @@ class MouseInterceptor(QObject):
 
     rippleEffectSignal = pyqtSignal(int, int, QColor)
 
-    def __init__(self, window: QMainWindow) -> None:
+    def __init__(self, window: EsibdExplorer) -> None:
         """Initialize a MouseInterceptor.
 
         :param window: The application window.

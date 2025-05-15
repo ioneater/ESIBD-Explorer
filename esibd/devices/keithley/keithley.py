@@ -8,7 +8,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [KEITHLEY]
 
@@ -62,6 +62,12 @@ class CurrentChannel(Channel):
     VOLTAGE = 'Voltage'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.charge: float
+        self.address: str
+        self.voltage: float
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
         channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
@@ -76,7 +82,7 @@ class CurrentChannel(Channel):
         self.insertDisplayedParameter(self.VOLTAGE, before=self.DISPLAY)
         self.displayedParameters.append(self.ADDRESS)
 
-    def tempParameters(self) -> None:
+    def tempParameters(self) -> list[str]:
         return [*super().tempParameters(), self.CHARGE]
 
     def enabledChanged(self) -> None:
@@ -146,7 +152,6 @@ class CurrentController(DeviceController):
             self.KeithleyWrite('SOUR:VOLT:RANG 50')
             self.signalComm.initCompleteSignal.emit()
         except Exception:  # noqa: BLE001
-            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(np.nan)
         finally:
             self.initializing = False
@@ -155,8 +160,8 @@ class CurrentController(DeviceController):
         if self.channel.active:
             super().startAcquisition()
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if getTestMode():

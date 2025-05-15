@@ -9,7 +9,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Pressure]
 
@@ -58,6 +58,11 @@ class PressureChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.pressure_controller: str
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
         channel[self.CONTROLLER] = parameterDict(value=self.TIC, parameterType=PARAMETERTYPE.COMBO, advanced=True,
@@ -96,6 +101,7 @@ class PressureController(DeviceController):
                 self.tpgPort = None
         self.ticInitialized = False
         self.tpgInitialized = False
+        self.initialized = False
 
     def runInitialization(self) -> None:
         try:
@@ -105,7 +111,6 @@ class PressureController(DeviceController):
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'TIC Status: {TICStatus}')  # query status
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            # self.closeCommunication()  # leave communication open for TPG
             self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TICStatus:
@@ -119,7 +124,6 @@ class PressureController(DeviceController):
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            # self.closeCommunication()  # leave communication open for TIC
             self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
         else:
             if not TPGStatus:
@@ -130,8 +134,8 @@ class PressureController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         self.initializing = False
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()

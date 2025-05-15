@@ -1,3 +1,5 @@
+.. include:: icons.rst
+
 User's Guide
 ============
 
@@ -5,32 +7,30 @@ Getting started
 ---------------
 To get started, it is recommended to first configure a few essential :ref:`sec:settings`.
 Chose your :ref:`data path<data_path>`, :ref:`config path<config_path>` and if applicable :ref:`plugin path<plugin_path>`.
-Enable a few devices, scans, and other plugins in the plugin manager.
-Select which live displays should be visible.
-Activate the test mode to simulate device communication while you familiarize yourself with the user interface.
+Enable a few devices, scans, and other plugins in the plugin manager dialog |pluginDialog| found under :ref:`sec:settings` |settings|.
+Select which live displays should be visible |system-monitor|.
+Activate the test mode (active by default) to simulate device communication while you familiarize yourself with the user interface.
 Record a few scans and inspect the generated file structure and files.
-Make use of tooltips and integrated documentation (question mark icons) to learn about the plugins and settings.
+Make use of tooltips and integrated documentation (question mark icons |help|) to learn about the plugins and their settings.
 
 User interface overview
 -----------------------
 
 By default, the user interface, shown in :numref:`fig:overview`, is structured into five main sections.
 The tabs on the left contain all controls for configuration and management
-including :ref:`sec:settings`, :ref:`sec:explorer`, :ref:`sec:devices`, :ref:`sec:scans`, and other controls.
+including :ref:`sec:settings` |settings|, :ref:`sec:explorer` |explorer|, :ref:`sec:devices`, :ref:`sec:scans`, and other controls.
 During and after the measurement, results are displayed using various
 :ref:`sec:displays` on the right. The most important signals of
 any deposition experiment, including the real-time ion-currents, are always
 visible in a dedicated :ref:`sec:live_displays` on the top.
-The :ref:`sec:device_manager` is a central interface that allows to control all devices simultaneously.
-Finally, there is a hidden :ref:`sec:console` for status messages
-and advanced features that can be opened from :ref:`sec:settings`.
+The :ref:`sec:device_manager` |DeviceManager| is a central interface that allows to control all devices simultaneously.
+Finally, there is a :ref:`sec:console` |console| for status messages
+and advanced features that can be opened from :ref:`sec:settings` |settings|.
 Users are free to rearrange the user interface by dragging and tearing components.
 All devices will be disconnected and turned off to leave them in a save
 state when the software is closed. All numeric inputs can be
-conveniently adjusted using the arrow keys. All plugins can be detached
-and rearranged using the float icon or by dragging them inside or out of
-the main window. All plugins provide basic documentation via the
-question mark in their toolbar.
+conveniently adjusted using the arrow keys. All plugins provide basic documentation via the
+question mark |help| in their toolbar.
 
 .. _`fig:overview`:
 .. figure:: 2023-10_ESIBD_GUI.png

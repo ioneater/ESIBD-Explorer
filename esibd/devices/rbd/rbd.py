@@ -5,13 +5,14 @@ from pathlib import Path
 import h5py
 import numpy as np
 import serial
+import serial.serialutil
 from PyQt6.QtCore import pyqtSignal
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, MetaChannel, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin, Scan, StaticDisplay
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [RBD]
 
@@ -40,7 +41,7 @@ class RBD(Device):
             self.previewFileTypes.append('.cur.h5')
             self.previewFileTypes.append('OUT.h5')
 
-        def loadDataInternal(self, file: Path) -> None:  # noqa: C901, PLR0912
+        def loadDataInternal(self, file: Path) -> bool:  # noqa: C901, PLR0912
             if file.name.endswith('.cur.rec'):  # legacy ESIBD Control file
                 with file.open('r', encoding=self.UTF8) as dataFile:
                     dataFile.readline()
@@ -121,6 +122,18 @@ class CurrentChannel(Channel):
     ERROR = 'Error'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.charge: float
+        self.com: str
+        self.devicename: str
+        self.range: str
+        self.average: str
+        self.bias: bool
+        self.outOfRange: bool
+        self.unstable: bool
+        self.error: str
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
         channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
@@ -154,7 +167,7 @@ class CurrentChannel(Channel):
         self.displayedParameters.append(self.UNSTABLE)
         self.displayedParameters.append(self.ERROR)
 
-    def tempParameters(self) -> None:
+    def tempParameters(self) -> list[str]:
         return [*super().tempParameters(), self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
 
     def enabledChanged(self) -> None:
@@ -225,7 +238,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         updateValuesSignal = pyqtSignal(float, bool, bool, str)
         updateDeviceNameSignal = pyqtSignal(str)
 
-    def __init__(self, controllerParent) -> None:
+    def __init__(self, controllerParent: CurrentChannel) -> None:
         super().__init__(controllerParent=controllerParent)
         # setup port
         self.channel = controllerParent
@@ -277,10 +290,8 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
-            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')  # noqa: FBT003
         except serial.serialutil.SerialException as e:
-            self.closeCommunication()
             self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')  # noqa: FBT003
         finally:
             self.initializing = False
@@ -289,10 +300,10 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         if self.channel.active and self.channel.real:
             super().startAcquisition()
 
-    def runAcquisition(self, acquiring: callable) -> None:
+    def runAcquisition(self) -> None:
         if not getTestMode():
             self.RBDWriteRead(message=f'I{self.channel.getDevice().interval:04d}')  # start sampling with given interval (implement high speed communication if available)
-        while acquiring():
+        while self.acquiring:
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.channel.devicename}.') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():

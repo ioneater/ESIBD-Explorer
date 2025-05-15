@@ -1,3 +1,5 @@
+.. include:: icons.rst
+
 .. _`sec:plugin_system`:
 
 Plugin development
@@ -18,8 +20,8 @@ To add plugins, all you need to do is prepare a plugin file inside a
 sub folder of the user defined :ref:`plugin path<plugin_path>`. A plugin file is a python
 script that defines a :meth:`~esibd.provide_plugins.providePlugins` function, which returns one or
 multiple :class:`plugins<esibd.plugins.Plugin>`.
-:class:`Plugins<esibd.plugins.Plugin>` can be enabled in the plugin dialog
-found in :ref:`sec:Settings` after restarting the software. It is
+:class:`Plugins<esibd.plugins.Plugin>` can be enabled in the plugin dialog |pluginDialog|
+found in :ref:`sec:Settings` |Settings| after restarting the software. It is
 recommended that your custom plugin classes inherit directly from
 :class:`~esibd.plugins.Plugin`, :class:`~esibd.plugins.Device`, :class:`~esibd.plugins.Scan`, or from one of the other built-in plugins.
 All built-in :class:`plugins<esibd.plugins.Plugin>` can be imported from :mod:`esibd.plugins` and the corresponding modules in the devices, displays, scans, and examples folders.

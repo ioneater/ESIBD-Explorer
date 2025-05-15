@@ -9,7 +9,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [MIPS]
 
@@ -54,6 +54,11 @@ class VoltageChannel(Channel):
     ID = 'ID'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.com: str
+        self.id: int
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
@@ -98,7 +103,6 @@ class VoltageController(DeviceController):
             if result:
                 self.signalComm.initCompleteSignal.emit()
             else:
-                self.closeCommunication()
                 msg = 'Could not read values. Make sure MIPS is turned on.'
                 raise ValueError(msg)
         finally:
@@ -142,8 +146,8 @@ class VoltageController(DeviceController):
                 else:
                     channel.monitor = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():  # noqa: PLR1702
+    def runAcquisition(self) -> None:
+        while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():

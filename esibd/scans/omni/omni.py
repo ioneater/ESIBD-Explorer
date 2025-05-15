@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Omni]
 
@@ -92,7 +92,7 @@ class Omni(Scan):
 
     def updateInteractive(self) -> None:
         """Adjust the scan based on the interactive Setting."""
-        if self.display is not None and self.display.initializedDock:
+        if self.displayActive():
             self.display.updateInteractive()
         self.estimateScanTime()
 
@@ -113,8 +113,7 @@ class Omni(Scan):
         self.addInputChannel(self.channel, self.start, self.stop, self.step)
 
     def initScan(self) -> None:
-        if super().initScan():
-            # self.toggleDisplay(visible=True) TODO test
+        if super().initScan() and self.displayActive() and not self._dummy_initialization:
             self.display.lines = None
             self.display.updateInteractive()
             if self.interactive:
@@ -124,9 +123,9 @@ class Omni(Scan):
             return True
         return False
 
-    def loadDataInternal(self) -> None:
-        super().loadDataInternal()
+    def loadDataInternal(self) -> bool:
         self.display.lines = None
+        return super().loadDataInternal()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, C901, PLR0912

@@ -24,7 +24,7 @@ else:
     print('Module winsound only available on Windows.')  # noqa: T201
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Depo]
 
@@ -208,7 +208,7 @@ class Depo(Scan):
 
     def updateDepoTarget(self) -> None:
         """Update the deposition target line in the plot."""
-        if self.display is not None and self.display.initializedDock:
+        if self.displayActive():
             self.display.updateDepoTarget()
 
     def addInputChannels(self) -> None:
@@ -221,16 +221,14 @@ class Depo(Scan):
 
         Returns True if initialization successful and scan is ready to start.
         """
-        if super().initScan():
-            if self.displayActive() and not self._dummy_initialization:
-                if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
-                    self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
-                    self.display.progressAnnotation.set_text('')
-                    self.display.updateDepoTarget()  # flip axes if needed
-                    return True
-                if not self._dummy_initialization:
-                    self.print('No initialized current output channel found.', PRINT.WARNING)
-                return False
+        if super().initScan() and self.displayActive() and not self._dummy_initialization:
+            if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
+                self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
+                self.display.progressAnnotation.set_text('')
+                self.display.updateDepoTarget()  # flip axes if needed
+                return True
+            if not self._dummy_initialization:
+                self.print('No initialized current output channel found.', PRINT.WARNING)
             return False
         return False
 
@@ -262,7 +260,7 @@ class Depo(Scan):
 
     def updateWarnLevel(self) -> None:
         """Update the warning level line in the plot."""
-        if self.display is not None and self.display.currentWarnLine is not None:
+        if self.displayActive() and self.display.currentWarnLine is not None:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 

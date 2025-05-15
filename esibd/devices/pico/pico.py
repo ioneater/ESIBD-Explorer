@@ -8,7 +8,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [PICO]
 
@@ -75,6 +75,12 @@ class TemperatureChannel(Channel):
     NOOFWIRES = 'noOfWires'
 
     def getDefaultChannel(self) -> dict[str, dict]:
+
+        # definitions for type hinting
+        self.channel: str
+        self.datatype: str
+        self.noOfWires: str
+
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
         channel[self.VALUE][Parameter.VALUE] = np.nan  # undefined until communication established
@@ -123,14 +129,12 @@ class TemperatureController(DeviceController):
                                                         self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            # self.signalComm.initCompleteSignal.emit(False)
-            self.closeCommunication()
-            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
         finally:
             self.initializing = False
 
-    def runAcquisition(self, acquiring: callable) -> None:
-        while acquiring():
+    def runAcquisition(self) -> None:
+        while self.acquiring:
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
