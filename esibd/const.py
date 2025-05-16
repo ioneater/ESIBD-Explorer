@@ -8,7 +8,6 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from types import ModuleType
 from typing import TYPE_CHECKING, TypeVar, Union, cast
 
 import numpy as np
@@ -19,6 +18,8 @@ from scipy import signal
 from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from esibd.plugins import Plugin, SettingsManager
 
 ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007

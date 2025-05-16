@@ -42,6 +42,7 @@ Fixed
 - Fixed update of channel values in interactive mode of Omni scan.
 - Fixed issue where channel equations tried to access backgrounds for channels that do not use backgrounds.
 - Preventing error when changing directories to fast by ignoring double click while loading.
+- Fixed an issue where the data type of channel values would be changed to float64 when extending the dynamic numpy array.
 
 Removed
 ~~~~~~~

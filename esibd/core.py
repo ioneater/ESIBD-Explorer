@@ -6,6 +6,7 @@ For now, English is the only supported language and use of hard coded error mess
 """
 
 import configparser
+import gc
 import re
 import sys
 import threading
@@ -370,7 +371,7 @@ class PluginManager:  # noqa: PLR0904
                             self.logger.print(f'Could not load module {file.stem}. Make sure providePlugins returns list of valid plugins.', flag=PRINT.ERROR)
                     # silently ignore dependencies which do not define providePlugins
 
-    def loadPluginsFromModule(self, Module: ModuleType, dependencyPath: Path) -> None:
+    def loadPluginsFromModule(self, Module: 'ModuleType', dependencyPath: Path) -> None:
         """Load plugins from a module.
 
         :param Module: A module providing one or multiple plugins.
@@ -665,12 +666,18 @@ class PluginManager:  # noqa: PLR0904
         self.loading = True  # skip UI updates
         self.mainWindow.saveUiState()
         self.closing = not reload
+
         for plugin in self.plugins:
+            name = plugin.name  # may not be accessible after del
+            version = plugin.version
             try:
                 plugin.closeGUI()
+                del plugin
             except Exception:  # pylint: disable = broad-except  # we have no control about the exception a plugin can possibly throw  # noqa: BLE001
                 # No unpredictable exception in a single plugin should break the whole application
-                self.logger.print(f'Could not close plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+                self.logger.print(f'Could not close plugin {name} {version}: {traceback.format_exc()}', flag=PRINT.ERROR)
+        gc.collect()# TODO needed?
+
         if reload:
             self.loadPlugins(reload=True)  # restore fails if plugins have been added or removed
             self.loading = False
@@ -1142,19 +1149,18 @@ class DynamicNp:
         :param dtype: Use float64 for time data, defaults to np.float32
         :type dtype: type, optional
         """
-        self.init(initialData, max_size, dtype)
+        self.dtype = dtype
+        self.init(initialData, max_size)
 
-    def init(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
+    def init(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None) -> None:
         """Initialize DynamicNp. This is also used if data is cropped or padded.
 
         :param initialData: Initial data, defaults to None
         :type initialData: np.ndarray, optional
         :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
         :type max_size: int, optional
-        :param dtype: Datatype to be used, defaults to np.float32
-        :type dtype: np.float32 or np.float64, optional
         """
-        self.data = np.zeros((2000,), dtype=dtype) if initialData is None or initialData.shape[0] == 0 else initialData
+        self.data = np.zeros((2000,), dtype=self.dtype) if initialData is None or initialData.shape[0] == 0 else initialData
         self.capacity = self.data.shape[0]
         self.size = 0 if initialData is None else initialData.shape[0]
         self.max_size = max_size
@@ -1178,14 +1184,14 @@ class DynamicNp:
                 self.init(self.get()[-lenT:], max_size=self.max_size)  # remove data older than time axis
         if self.size == self.capacity:
             self.capacity *= 4
-            newData = np.zeros((self.capacity,))
+            newData = np.zeros((self.capacity,), dtype=self.dtype)
             newData[:self.size] = self.data
             self.data = newData
         if self.max_size is not None and self.size >= self.max_size:
             # thin out old data. use only every second value for first half of array to limit RAM use
             a, b = np.array_split(self.get(), 2)  # split array in two halves  # pylint: disable=[unbalanced-tuple-unpacking]  # balance not relevant, as long as it is consistent
             self.size = a[1::2].shape[0] + b.shape[0]  # only thin out older half, take every second item (starting with the second one to avoid keeping the first for every!)
-            self.data[:self.size] = np.hstack([a[1::2], b])  # recombine
+            self.data[:self.size] = np.hstack([a[1::2], b], dtype=self.dtype)  # recombine
             # remove old data as new data is coming in. while this implementation is simpler it limits the length of stored history
         self.data[self.size] = x
         self.size += 1

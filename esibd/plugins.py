@@ -1098,8 +1098,7 @@ class Plugin(QWidget):  # noqa: PLR0904
     def close(self) -> None:
         """Close plugin cleanly without leaving any data or communication running.
 
-        Extend to make sure your custom data and custom
-        communication is closed as well.
+        Extend to make sure your custom data and custom communication is closed.
         """
 
     def closeUserGUI(self) -> None:
@@ -1112,8 +1111,14 @@ class Plugin(QWidget):  # noqa: PLR0904
         Closes all open references. Extend to save data and make hardware save if needed.
         """
         self.close()
+        self.disconnect_all_signals()
         if self.dock is not None and self.initializedDock:
+            self.pluginManager.mainWindow.removeDockWidget(self.dock)
+            self.dock.setParent(None)
             self.dock.deleteLater()
+            self.dock = None
+        # for signal in self.signalComm
+
         if hasattr(self, 'fig'):
             plt.close(self.fig)
         self.fig = None
@@ -1121,6 +1126,16 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.titleBar = None
         self.initializedGUI = False
         self.initializedDock = False
+
+    def disconnect_all_signals(self) -> None:
+        """Disconnect all signals."""
+        for attr_name in dir(self.signalComm):
+            attr = getattr(self.signalComm, attr_name)
+            # Check if the attribute is a pyqtBoundSignal (instance of a pyqtSignal bound to this object)
+            if hasattr(attr, 'disconnect'):
+                with contextlib.suppress(Exception):
+                    attr.disconnect()
+                    # Some signals might already be disconnected or have no slots connected
 
 
 class StaticDisplay(Plugin):
@@ -2665,7 +2680,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def startRecording(self) -> None:
         """Start the data recording thread."""
         if self.dataThread is not None and self.dataThread.is_alive():
-            self.print('Wait for data recording thread to complete before restarting acquisition.', PRINT.WARNING)
+            self.print('Wait for data recording thread to complete before restarting acquisition.', PRINT.DEBUG)
             self.recording = False
             self.dataThread.join(timeout=5)  # may freeze GUI temporarily but need to be sure old thread is stopped before starting new one
             if self.dataThread.is_alive():
@@ -3333,18 +3348,8 @@ class Device(ChannelManager):  # noqa: PLR0904
             elif self.lagging < self.lagLimitMultiplier * self.lag_limit:  # lagging 10 s in a row -> reduce data points
                 if self.lagging == self.lag_limit:
                     self.pluginManager.DeviceManager.limit_display_size = True
-                    if self.pluginManager.DeviceManager.max_display_size > self.MAX_DISPLAY_SIZE_DEFAULT:
-                        self.pluginManager.DeviceManager.max_display_size = self.MAX_DISPLAY_SIZE_DEFAULT  # keep if already smaller
-                        # self.print(f'Slow GUI detected, limiting number of displayed data points to {self.pluginManager.DeviceManager.max_display_size} per channel.'
-                        #            f' Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s unless GUI becomes responsive again.',
-                        #              flag=PRINT.WARNING)
-                    # else:
-                    #     self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
-                    #                'unless GUI becomes responsive again.', flag=PRINT.WARNING)
-                # elif self.lagging % self.lag_limit == 0:
-                    # self.print(f'Slow GUI detected. Communication will be stopped in {10 * (self.lagLimitMultiplier - self.lagging / self.lag_limit)} s '
-                    #            'unless GUI becomes responsive again.'
-                    # ' Consider decreasing device interval, displayed channels, and other GUI intensive functions.', flag=PRINT.WARNING)
+                    # keep if already smaller
+                    self.pluginManager.DeviceManager.max_display_size = min(self.pluginManager.DeviceManager.max_display_size, self.MAX_DISPLAY_SIZE_DEFAULT)
                 self.lagging += 1
             elif self.lagging == self.lagLimitMultiplier * self.lag_limit:
                 # lagging 60 s in a row -> stop acquisition
@@ -3409,6 +3414,16 @@ class Device(ChannelManager):  # noqa: PLR0904
     def getUnit(self) -> str:
         """Overwrite if you want to change units dynamically."""
         return self.unit
+
+    def closeGUI(self) -> None:
+        """Clean up references to large data."""
+        super().closeGUI()
+        # necessary TODO?
+        self.time = None
+        for channel in self.channels:
+            channel.values = None
+            if self.useBackgrounds:
+                channel.backgrounds = None
 
 
 class Scan(Plugin):  # noqa: PLR0904
@@ -4185,7 +4200,6 @@ class Scan(Plugin):  # noqa: PLR0904
                     timeChannel.recordingData = data[:]
                 else:
                     self.addInputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
-                    # self.inputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=data[:], unit=data.attrs[self.UNIT]))
             output_group = group[self.OUTPUTCHANNELS]
             for name, data in output_group.items():
                 self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
