@@ -10,6 +10,7 @@ Every Parameter should only exist in one unique location at run time.
 import ast
 import configparser
 import contextlib
+import gc
 import inspect
 import io
 import itertools
@@ -3415,16 +3416,6 @@ class Device(ChannelManager):  # noqa: PLR0904
         """Overwrite if you want to change units dynamically."""
         return self.unit
 
-    def closeGUI(self) -> None:
-        """Clean up references to large data."""
-        super().closeGUI()
-        # necessary TODO?
-        self.time = None
-        for channel in self.channels:
-            channel.values = None
-            if self.useBackgrounds:
-                channel.backgrounds = None
-
 
 class Scan(Plugin):  # noqa: PLR0904
     """Record any number of outputChannels as a function of any number of inputs.
@@ -5225,7 +5216,7 @@ class Console(Plugin):
         super().finalizeInit()
         self.floatAction.deleteLater()
         delattr(self, 'floatAction')
-        namespace = {'timeit': timeit, 'esibd': esibd, 'sys': sys, 'np': np, 'itertools': itertools, 'plt': plt, 'inspect': inspect, 'INOUT': INOUT, 'qSet': qSet,
+        namespace = {'timeit': timeit, 'esibd': esibd, 'sys': sys, 'gc': gc, 'np': np, 'itertools': itertools, 'plt': plt, 'inspect': inspect, 'INOUT': INOUT, 'qSet': qSet,
                     'Parameter': Parameter, 'QtCore': QtCore, 'Path': Path, 'Qt': Qt, 'PluginManager': self.pluginManager, 'importlib': importlib, 'version': version,
                       'datetime': datetime, 'QApplication': QApplication, 'self': QApplication.instance().mainWindow, 'help': self.help, 'dynamicImport': dynamicImport}
         for plugin in self.pluginManager.plugins:  # direct access to plugins
@@ -5916,9 +5907,9 @@ class Settings(SettingsManager):  # noqa: PLR0904
             splash.close()
 
     def updatePluginPath(self) -> None:
-        """Reload plugins after changing user plugin path."""
+        """Restart after changing user plugin path."""
         if CloseDialog(title='Restart now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
-            self.pluginManager.closePlugins(reload=True)
+            self.pluginManager.mainWindow.closeApplication(restart=True)
 
     def incrementMeasurementNumber(self) -> None:
         """Increment without triggering event."""
@@ -6421,16 +6412,17 @@ class Notes(Plugin):
         :param useDefaultFile: Saves notes in text file in current folder or in scan file, defaults to False
         :type useDefaultFile: bool, optional
         """
-        if useDefaultFile:
-            self.file = file / 'notes.txt'
-            if self.editor.toPlainText():
-                with self.file.open('w', encoding=self.UTF8) as textFile:
-                    textFile.write(self.editor.toPlainText())
-        elif file.name.endswith(FILE_H5):
-            with h5py.File(file, 'a', track_order=True) as h5file:
-                h5py.get_config().track_order = True
-                group = self.requireGroup(h5file, self.name)
-                group.attrs[Parameter.VALUE] = self.editor.toPlainText()
+        if self.initializedDock:
+            if useDefaultFile:
+                self.file = file / 'notes.txt'
+                if self.editor.toPlainText():
+                    with self.file.open('w', encoding=self.UTF8) as textFile:
+                        textFile.write(self.editor.toPlainText())
+            elif file.name.endswith(FILE_H5):
+                with h5py.File(file, 'a', track_order=True) as h5file:
+                    h5py.get_config().track_order = True
+                    group = self.requireGroup(h5file, self.name)
+                    group.attrs[Parameter.VALUE] = self.editor.toPlainText()
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
         self.provideDock()

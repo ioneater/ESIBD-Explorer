@@ -180,6 +180,8 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
+REM rename ESIBD_Explorer-setup.exe to ESIBD_Explorer-setup_v0.8.0.exein pyinstaller_build
+
 REM Test installation from exe before continuing
 
 ::::::::::::::::
@@ -195,6 +197,6 @@ REM create release on github with changelog based on commits and following secti
 REM select tag
 REM Title: Version v0.8.0
 REM Copy change log from changelog.rst (remove inline icons if applicable)
-REM attach ESIBD_Explorer-setup.exe from pyinstaller_build to release
+REM attach ESIBD_Explorer-setup_v0.8.0.exe from pyinstaller_build to release
 REM attach esibd.tar.gz to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release

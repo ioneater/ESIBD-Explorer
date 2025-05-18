@@ -29,8 +29,8 @@ warnings.filterwarnings('ignore', message='overflow encountered in scalar add')
 warnings.filterwarnings('ignore', message='No artists with labels found to put in legend.')
 
 
-def main() -> None:
-    """Show main window after configuration and checks."""
+def main() -> bool:
+    """Configure graphics, check for other running instances, and execute the app."""
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1'

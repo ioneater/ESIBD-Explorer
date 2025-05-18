@@ -6,7 +6,7 @@ For now, English is the only supported language and use of hard coded error mess
 """
 
 import configparser
-import gc
+import os
 import re
 import sys
 import threading
@@ -177,22 +177,35 @@ class EsibdExplorer(QMainWindow):
         """Triggers PluginManager to close all plugins and all related communication.
 
         :param event: The close event.
-        :type event: QEvent
+        :type event: QCloseEvent
         """
         if not self.pluginManager.loading:
-            if self.pluginManager.DeviceManager.initialized():
-                if CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
-                    self.pluginManager.DeviceManager.closeCommunication(closing=True)
-                else:
-                    event.ignore()  # keep running
-                    return
-            self.pluginManager.closePlugins()
-            app = QApplication.instance()
-            if app:
-                app.quit()
-            event.accept()  # let the window close
+            if self.closeApplication():
+                event.accept()
+            else:
+                event.ignore()
         else:
-            event.ignore()  # keep running
+            event.ignore()
+
+    def closeApplication(self, restart: bool = False) -> bool:
+        """Close communication and plugins, restart if applicable.
+
+        :param restart: If True, application will restart in a clean new process, defaults to False
+        :type restart: bool, optional
+        :return: Returns True if the application is closing.
+        :rtype: bool
+        """
+        if self.pluginManager.DeviceManager.initialized():
+            if not CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
+                return False
+            self.pluginManager.DeviceManager.closeCommunication(closing=True)
+        if restart:
+            self.pluginManager.logger.print('Restarting.', flag=PRINT.EXPLORER)
+        self.pluginManager.closePlugins()
+        if restart:
+            python = sys.executable
+            os.execl(python, python, *sys.argv)  # noqa: S606
+        return True
 
 
 class PluginManager:  # noqa: PLR0904
@@ -273,16 +286,11 @@ class PluginManager:  # noqa: PLR0904
         else:
             self._loading -= 1
 
-    def loadPlugins(self, reload: bool = False) -> None:  # noqa: C901, PLR0915
-        """Load all enabled plugins.
-
-        :param reload: Indicates if plugins are reloading, defaults to False
-        :type reload: bool, optional
-        """
+    def loadPlugins(self) -> None:  # noqa: PLR0915
+        """Load all enabled plugins."""
         self.updateTheme()
-        if not reload:
-            self.splash = SplashScreen()
-            self.splash.show()
+        self.splash = SplashScreen()
+        self.splash.show()
 
         self.mainWindow.setUpdatesEnabled(False)
         self.loading = True  # some events should not be triggered until after the UI is completely initialized
@@ -577,7 +585,7 @@ class PluginManager:  # noqa: PLR0904
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         okButton = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
         if okButton:
-            okButton.setText('Stop communication and reload plugins' if self.DeviceManager.initialized() else 'Reload plugins')
+            okButton.setText('Stop communication and restart' if self.DeviceManager.initialized() else 'Restart')
         buttonBox.accepted.connect(dlg.accept)
         buttonBox.rejected.connect(dlg.reject)
         buttonBox.setContentsMargins(5, 5, 5, 5)
@@ -592,7 +600,7 @@ class PluginManager:  # noqa: PLR0904
 
         dlg.setLayout(lay)
         if dlg.exec():
-            self.DeviceManager.closeCommunication(closing=True, message='Stopping communication before reloading plugins.')
+            self.DeviceManager.closeCommunication(closing=True, message='Stopping communication before restarting.')
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             for child in [root.child(i) for i in range(root.childCount())]:
                 if child:
@@ -606,7 +614,7 @@ class PluginManager:  # noqa: PLR0904
                         confParser[name][self.ENABLED] = str(enabled)
             with self.pluginFile.open('w', encoding=UTF8) as configFile:
                 confParser.write(configFile)
-            self.closePlugins(reload=True)
+            self.mainWindow.closeApplication(restart=True)
             QApplication.restoreOverrideCursor()
 
     def addPluginTreeWidgetItem(self, tree: QTreeWidget, item: dict, name: str) -> None:
@@ -650,22 +658,14 @@ class PluginManager:  # noqa: PLR0904
             descriptionLabel.setToolTip(description)
         tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
 
-    def closePlugins(self, reload: bool = False) -> None:
-        """Close all open connections and leave hardware in save state (e.g. voltage off).
-
-        :param reload: Indicates if plugins will be reloaded, defaults to False
-        :type reload: bool, optional
-        """
-        if reload:
-            self.logger.print('Reloading Plugins.', flag=PRINT.EXPLORER)
-            self.splash = SplashScreen()
-            self.splash.show()
-        else:
-            self.logger.print('Closing Plugins.', flag=PRINT.EXPLORER)
+    def closePlugins(self) -> None:
+        """Close all open connections and leave hardware in save state (e.g. voltage off)."""
+        self.logger.print('Closing Plugins.', flag=PRINT.EXPLORER)
         qSet.sync()
         self.loading = True  # skip UI updates
         self.mainWindow.saveUiState()
-        self.closing = not reload
+        self.closing = True
+        self.mainWindow.setUpdatesEnabled(False)  # do not update window but also do not become unresponsive
 
         for plugin in self.plugins:
             name = plugin.name  # may not be accessible after del
@@ -673,16 +673,11 @@ class PluginManager:  # noqa: PLR0904
             try:
                 plugin.closeGUI()
                 del plugin
+                QApplication.processEvents()
             except Exception:  # pylint: disable = broad-except  # we have no control about the exception a plugin can possibly throw  # noqa: BLE001
                 # No unpredictable exception in a single plugin should break the whole application
                 self.logger.print(f'Could not close plugin {name} {version}: {traceback.format_exc()}', flag=PRINT.ERROR)
-        gc.collect()# TODO needed?
-
-        if reload:
-            self.loadPlugins(reload=True)  # restore fails if plugins have been added or removed
-            self.loading = False
-        else:
-            self.logger.close()
+        self.logger.close()
 
     def finalizeUiState(self) -> None:
         """Restores dimensions of core plugins."""
@@ -1050,7 +1045,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         logLevel = cast('int', getLogLevel())
         match flag:
             case PRINT.EXPLORER:
-                flagString = ' ❖'  # noqa: RUF001
+                flagString = '❖ '  # noqa: RUF001
             case PRINT.WARNING:
                 flagString = '⚠️'
             case PRINT.ERROR:
@@ -4461,7 +4456,7 @@ class MZCalculator:
         Clears all data and labels for Ctrl+right mouse click.
 
         :param event: The click event.
-        :type event: QEvent
+        :type event: MouseEvent
         """
         if event.button == MouseButton.RIGHT:
             self.clear()
@@ -4645,7 +4640,7 @@ class PlotItem(pg.PlotItem):
         """Update the xyLabel with the current position.
 
         :param ev: The mouseMoveEvent
-        :type ev: QEvent
+        :type ev: QGraphicsSceneMouseEvent
         """
         if self.showXY:
             pos = cast('QPointF', ev)  # called with QPointF instead of event?
@@ -5376,7 +5371,7 @@ class RippleEffect(QWidget):
         """Draws the ripple effect.
 
         :param event: The paint event.
-        :type event: QEvent
+        :type event: QPaintEvent
         """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

@@ -19,6 +19,7 @@ Added
 - Added some pauses during testing if GUI gets too busy.
 - In advanced |advanced| mode of Settings |settings|, the error count for controllers of devices and channels is now shown.
 - Input channels are now shown in the channel list of scans.
+- Added icons to change log and documentation.
 
 Changed
 ~~~~~~~
@@ -43,6 +44,7 @@ Fixed
 - Fixed issue where channel equations tried to access backgrounds for channels that do not use backgrounds.
 - Preventing error when changing directories to fast by ignoring double click while loading.
 - Fixed an issue where the data type of channel values would be changed to float64 when extending the dynamic numpy array.
+- Instead of reloading plugins, the application performs a clean restart. This is to avoid memory leaks from incompletely closed plugins.
 
 Removed
 ~~~~~~~
