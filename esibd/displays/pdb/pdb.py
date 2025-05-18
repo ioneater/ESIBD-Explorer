@@ -164,7 +164,7 @@ def set_axes_equal(ax):
 _, XYZ = get_structure('{self.file.as_posix()}')
 x, y, z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
-fig = num='{self.name} plot', constrained_layout=True)
+fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x, y, z, marker='.', s=2)
 set_axes_equal(ax)

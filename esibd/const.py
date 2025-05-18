@@ -141,14 +141,16 @@ class PRINT(Enum):
     MESSAGE = 1
     """A standard message."""
     WARNING = 2
-    """Tag message as warning and highlight using color."""
+    """Tag message as warning."""
     ERROR = 3
-    """Tag message as error and highlight using color."""
-    DEBUG = 4
+    """Tag message as error."""
+    CONSOLE = 4
+    """Tag message as Console input or output."""
+    DEBUG = 5
     """Only show if debug flag is enabled."""
-    VERBOSE = 5
+    VERBOSE = 6
     """Additional details that would be distracting if not needed for specific test."""
-    TRACE = 6
+    TRACE = 7
     """All messages, including detailed trace of instrument communication."""
 
 

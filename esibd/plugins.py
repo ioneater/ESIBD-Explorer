@@ -5122,7 +5122,7 @@ class Tree(Plugin):
             for action in plugin.titleBar.actions():
                 if action.iconText() and action.isVisible():
                     action_widget = QTreeWidgetItem(tree)
-                    action_widget.setIcon(0, action.icon if isinstance(action, (Action, StateAction, MultiStateAction)) else action.icon())
+                    action_widget.setIcon(0, action.getIcon() if isinstance(action, (Action, StateAction, MultiStateAction)) else action.icon())
                     action_widget.setText(1, action.iconText())
 
 
@@ -5194,6 +5194,7 @@ class Console(Plugin):
             "_=[parameter.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for parameter in channel.parameters]",
             'PluginManager.showThreads()  # show all active threads',
             '[plt.figure(num).get_label() for num in plt.get_fignums()]  # show all active matplotlib figures',
+            '# self.closeApplication(restart=True) # restart the application cleanly (uses new code if changed)',
             "# Module=dynamicImport('ModuleName', 'C:/path/to/module.py')  # import a python module, e.g. to run generated plot files.",
             '# PluginManager.test()  # Automated testing of all active plugins. Can take a few minutes.',
         ])
@@ -6122,8 +6123,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.print(f'Starting scan {scan.name}.')
             scan.raiseDock(showPlugin=True)
             self.testControl(scan.recordingAction, value=True)
-            if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction'),
-                                     timeoutMessage=f'display of {scan.name} scan.', timeout=10):
+            if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction') and scan.recording,
+                                     timeoutMessage=f'display of {scan.name} scan.'):
                 time.sleep(5)  # scan for 5 seconds
                 self.print(f'Stopping scan {scan.name}.')
                 self.testControl(scan.recordingAction, value=False)

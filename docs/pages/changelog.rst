@@ -10,7 +10,7 @@ Added
 ~~~~~
 
 - The tree plugin can now filter content based on a search field.
-- In Debug mode, items from the Tree |tree| can be added to the Console.
+- In Debug mode, items from the Tree |tree| can be added to the Console |console|.
 - Added option to liveDisplays to toggle between automatically |scaleX_auto| or manually |scaleX_manual| scaling the x axis.
 - Integrated generating and running python plot code for tests of devices, scans, and displays.
 - Introduced log level 'Trace' which shows detailed device communication info if implemented by device.
@@ -20,6 +20,7 @@ Added
 - In advanced |advanced| mode of Settings |settings|, the error count for controllers of devices and channels is now shown.
 - Input channels are now shown in the channel list of scans.
 - Added icons to change log and documentation.
+- Input and output messages from console |console| will now appear in terminal and log file.
 
 Changed
 ~~~~~~~
@@ -96,7 +97,7 @@ Added
 - Added Calculator |calculator| plugin as an example of embedding external GUI applications as plugins.
 - Running scans will be indicated by icons in the DeviceManager.
 - Added lagging indicator in advanced mode of device settings.
-- Added option to filter warning and error messages in the Console.
+- Added option to filter warning and error messages in the Console |console|.
 
 Changed
 ~~~~~~~

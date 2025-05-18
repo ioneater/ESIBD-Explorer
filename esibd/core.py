@@ -27,6 +27,8 @@ import matplotlib.style
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.console
+import pyqtgraph.console.exception_widget
+import pyqtgraph.console.repl_widget
 import serial
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import MouseButton, MouseEvent
@@ -34,6 +36,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.widgets import Cursor
 from PIL import Image
 from PIL.ImageQt import ImageQt
+from PyQt6 import QtWidgets
 from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
@@ -998,22 +1001,29 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         :type message: str
         """
         if self.active:
-            if self.terminalOut is not None:  # after packaging with pyinstaller the program will not be connected to a terminal
-                self.terminalOut.write(message)  # write to original stdout
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.log.write(message)  # write to log file
-                    self.log.flush()
-                if self.testLogFile and self.testLogFileActive:
-                    self.testLogFile.write(message)  # write to test log file
-                    self.testLogFile.flush()
-
+            self.writeToLogAndTerminal(message=message)
         if hasattr(self.pluginManager, 'Console') and self.pluginManager.Console.initializedGUI:
             # handles new lines in system error messages better than Console.repl.write()
             # needs to run in main_thread
             self.pluginManager.Console.write(message)
         else:
             self.backLog.append(message)
+
+    def writeToLogAndTerminal(self, message: str) -> None:
+        """Write to log files only. Save to use without creating stdout recursion.
+
+        :param message: The message.
+        :type message: str
+        """
+        with self.lock.acquire_timeout(1) as lock_acquired:
+            if self.terminalOut is not None:  # after packaging with pyinstaller the program will not be connected to a terminal
+                self.terminalOut.write(message)  # write to original stdout
+            if lock_acquired:
+                self.log.write(message)  # write to log file
+                self.log.flush()
+            if self.testLogFile and self.testLogFileActive:
+                self.testLogFile.write(message)  # write to test log file
+                self.testLogFile.flush()
 
     def purge(self) -> None:
         """Purges the log file to keep it below purgeLimit."""
@@ -1050,6 +1060,8 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
                 flagString = '⚠️'
             case PRINT.ERROR:
                 flagString = '❌'
+            case PRINT.CONSOLE:
+                flagString = '🖳'
             case PRINT.DEBUG:
                 flagString = '🪲'
                 if logLevel < 1:
@@ -1072,7 +1084,9 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         first_line = message.split('\n')[0]
         message_status = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {sender}: {first_line}"
         message = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {timerString}{flagString} {sender}: {message}"
-        if self.active:
+        if flag == PRINT.CONSOLE:
+            self.writeToLogAndTerminal(f'{message}\n')
+        elif self.active:
             print(message)  # redirects to write if active  # noqa: T201
         else:
             print(message)  # only to stdout if not active  # noqa: T201
@@ -4288,6 +4302,68 @@ class NumberBar(QWidget):
             painter.end()
 
 
+class ReplWidget(pyqtgraph.console.repl_widget.ReplWidget):
+    """Add logging to terminal and log files. See original class for Documentation."""
+
+    def __init__(self, logger: 'Logger', globals, locals, parent=None) -> None:  # noqa: A002, ANN001
+        """Add logger.
+
+        :param logger: A Logger
+        :type logger: Logger
+        """
+        self.logger = logger
+        super().__init__(globals, locals, parent)
+        self.stdoutInterceptor = StdoutInterceptor(self.logger, self.write)
+
+    def runCmd(self, cmd: str) -> None:
+        """Print command to terminal and log files.
+
+        :param cmd: console command
+        :type cmd: str
+        """
+        self.logger.print(cmd, flag=PRINT.CONSOLE)
+        super().runCmd(cmd)
+
+    def displayException(self) -> None:
+        """Display the current exception and stack.
+
+        Also print to terminal and log files.
+        """
+        tb = traceback.format_exc()
+        lines = []
+        indent = 4
+        prefix = ''
+        for l in tb.split('\n'):  # noqa: E741
+            lines.append(' ' * indent + prefix + l)  # noqa: PERF401
+        self.write('\n'.join(lines))
+        self.logger.print('\n'.join(lines), flag=PRINT.CONSOLE)
+
+
+class StdoutInterceptor(pyqtgraph.console.repl_widget.StdoutInterceptor):
+    """Add logging to terminal and log files. See original class for Documentation."""
+
+    def __init__(self, logger: 'Logger', writeFn: Callable) -> None:
+        """Add logger.
+
+        :param logger: A Logger
+        :type logger: Logger
+        :param writeFn: A write function
+        :type writeFn: Callable
+        """
+        self.logger = logger
+        super().__init__(writeFn)
+
+    def write(self, strn: str) -> None:
+        """Print response to terminal and log files.
+
+        :param strn: response to input command
+        :type strn: str
+        """
+        if strn != '\n':
+            self.logger.print(strn, flag=PRINT.CONSOLE)
+        super().write(strn)
+
+
 class ThemedConsole(pyqtgraph.console.ConsoleWidget):
     """pyqtgraph.console.ConsoleWidget with colors adjusting to theme."""
 
@@ -4297,8 +4373,8 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         :param parentPlugin: Console parent plugin.
         :type parentPlugin: Plugin
         """
-        super().__init__(**kwargs)
         self.parentPlugin = parentPlugin
+        super().__init__(**kwargs)
         font = QFont()
         font.setFamily('Courier New')
         font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
@@ -4318,6 +4394,43 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         self.splitter.setStyleSheet('QSplitter::handle{width:0px; height:0px;}')
 
         self.updateTheme()
+
+    def _setupUi(self) -> None:
+        self.layout = QtWidgets.QGridLayout(self)
+        self.setLayout(self.layout)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
+
+        self.splitter = QtWidgets.QSplitter(Qt.Orientation.Vertical, self)
+        self.layout.addWidget(self.splitter, 0, 0)
+
+        self.repl = ReplWidget(self.parentPlugin.pluginManager.logger, self.globals, self.locals, self)
+        self.splitter.addWidget(self.repl)
+
+        self.historyList = QtWidgets.QListWidget(self)
+        self.historyList.hide()
+        self.splitter.addWidget(self.historyList)
+
+        self.historyBtn = QtWidgets.QPushButton('History', self)
+        self.historyBtn.setCheckable(True)
+        self.repl.inputLayout.addWidget(self.historyBtn)
+
+        self.repl.sigCommandEntered.connect(self._commandEntered)
+        self.repl.sigCommandRaisedException.connect(self._commandRaisedException)
+
+        self.excHandler = pyqtgraph.console.exception_widget.ExceptionHandlerWidget(self)
+        self.excHandler.hide()
+        self.splitter.addWidget(self.excHandler)
+
+        self.exceptionBtn = QtWidgets.QPushButton('Exceptions..', self)
+        self.exceptionBtn.setCheckable(True)
+        self.repl.inputLayout.addWidget(self.exceptionBtn)
+
+        self.excHandler.sigStackItemDblClicked.connect(self._stackItemDblClicked)
+        self.exceptionBtn.toggled.connect(self.excHandler.setVisible)
+        self.historyBtn.toggled.connect(self.historyList.setVisible)
+        self.historyList.itemClicked.connect(self.cmdSelected)
+        self.historyList.itemDoubleClicked.connect(self.cmdDblClicked)
 
     def updateTheme(self) -> None:
         """Change between dark and light themes."""

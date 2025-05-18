@@ -64,11 +64,6 @@ class HOLO(Plugin):
             self.finalizeInit()
             self.afterFinalizeInit()
 
-    def runTestParallel(self) -> None:
-        if self.initializedDock:
-            self.testPythonPlotCode(closePopup=True)
-        super().runTestParallel()
-
     def supportsFile(self, file: Path) -> bool:
         if super().supportsFile(file):
             data = np.load(file, mmap_mode='r')  # only load header with shape and datatype

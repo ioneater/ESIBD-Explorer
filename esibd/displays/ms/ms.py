@@ -107,7 +107,7 @@ class MS(Plugin):
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
             if self._x is not None and self._y is not None:
-                self.msLine = self.axes[0].plot(self._x, self.map_percent(self.x, self.smooth(self._y, 10)),
+                self.msLine = self.axes[0].plot(self._x, self.map_percent(self._x, self.smooth(self._y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
             self.axes[0].set_ylim([1, 100 + 2])
