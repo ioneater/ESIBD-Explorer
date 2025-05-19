@@ -1516,8 +1516,8 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         self.displayTimeComboBox = RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=self.displayTimeChanged, minimum=.2, maximum=3600,
                                                         toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
-        self.autoScaleAction = self.addStateAction(event=lambda: self.updateMouseEnabled(x=self.autoScaleAction.state, y=None), toolTipFalse='Scale x manually.',
-                                                    iconFalse=self.makeCoreIcon('scaleX_manual.png'),
+        self.autoScaleAction = self.addStateAction(event=lambda: (self.updateMouseEnabled(x=self.autoScaleAction.state, y=None), self.autoRangeY(not self.autoScaleAction.state)),
+                                                    toolTipFalse='Scale x manually.', iconFalse=self.makeCoreIcon('scaleX_manual.png'),
                                                    toolTipTrue='Scale x automatically.', iconTrue=self.makeCoreIcon('scaleX_auto.png'), restore=False, defaultState=False)
 
     def finalizeInit(self) -> None:  # noqa: D102
@@ -1535,6 +1535,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         """Adjust displayed section to display time and activates autorange."""
         self.autoScaleAction.state = False
         self.updateMouseEnabled(x=False, y=True)
+        self.autoRangeY()
         self.plot(apply=True)
 
     def subtractBackgroundChanged(self) -> None:
@@ -1710,12 +1711,19 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             self.autoScaleAction.state = x
         if len(self.livePlotWidgets) > 0:
             for livePlotWidget in self.livePlotWidgets:
-                if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and livePlotWidget.getViewBox().mouseEnabled()[0] is not x:
-                    if y:
-                        livePlotWidget.enableAutoRange(x=False, y=True)
-                    elif y is None:
-                        y = livePlotWidget.getViewBox().mouseEnabled()[1]
-                    livePlotWidget.setMouseEnabled(x=x, y=y)
+                if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)) and (livePlotWidget.getViewBox().mouseEnabled()[0] is not x):
+                    livePlotWidget.setMouseEnabled(x=x, y=y if y is not None else livePlotWidget.getViewBox().mouseEnabled()[1])
+
+    def autoRangeY(self, autorange: bool = True) -> None:
+        """Auto range y axis of all livePlotWidgets.
+
+        :param autorange: Indicates if autorange should be applied, defaults to True
+        :type autorange: bool, optional
+        """
+        if autorange:
+            for livePlotWidget in self.livePlotWidgets:
+                if isinstance(livePlotWidget, (pg.PlotItem, pg.PlotWidget)):
+                    livePlotWidget.enableAutoRange(x=False, y=True)
 
     def getIcon(self, **kwargs) -> Icon:  # noqa: D102
         return self.parentPlugin.getIcon(**kwargs)
@@ -3593,7 +3601,7 @@ class Scan(Plugin):  # noqa: PLR0904
             if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
                 for i, inputChannel in enumerate(self.scan.inputChannels):
                     if inputChannel.sourceChannel is not None:
-                        inputChannel.value = event.xdata if i == 0 else event.ydata  # 3D not supported
+                        inputChannel.sourceChannel.value = event.xdata if i == 0 else event.ydata  # 3D not supported
                     else:
                         self.print(f'Could not find input channel {self.scan.inputChannels[i].name}.')
                 if self.axes[-1].cursor is not None:
