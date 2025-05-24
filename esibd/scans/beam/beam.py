@@ -1,12 +1,18 @@
 import itertools
+from typing import TYPE_CHECKING, cast
 
 import h5py
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, MetaChannel, colors, getDarkMode, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, CursorAxes, MetaChannel, colors, getDarkMode, parameterDict, plotting
 from esibd.plugins import Plugin, Scan
+
+if TYPE_CHECKING:
+    from matplotlib.collections import QuadMesh
+    from matplotlib.colorbar import Colorbar
+    from matplotlib.contour import QuadContourSet
 
 
 def providePlugins() -> list['type[Plugin]']:
@@ -34,10 +40,15 @@ class Beam(Scan):
     version = '1.0'
     iconFile = 'beam.png'
 
+    display: 'Beam.Display'
+
     class Display(Scan.Display):
         """Display for Beam Scan."""
 
         axesAspectAction = None
+        axes: list[CursorAxes]
+        scan: 'Beam'
+        cont: 'QuadContourSet | QuadMesh'
 
         def finalizeInit(self) -> None:
             self.mouseActive = True
@@ -52,22 +63,24 @@ class Beam(Scan):
             self.initFig()  # axis aspect may have changed
 
         def initFig(self) -> None:
-            if self.axesAspectAction is None:
+            if not self.axesAspectAction:
                 return
             super().initFig()
-            engine = self.fig.get_layout_engine()
-            engine.set(rect=(0.05, 0.0, 0.8, 0.9))  # constrained_layout ignores labels on colorbar
-            self.axes.append(self.fig.add_subplot(111))
+            if self.fig:
+                engine = self.fig.get_layout_engine()
+                if engine:
+                    engine.set(rect=(0.05, 0.0, 0.8, 0.9))  # type: ignore # constrained_layout ignores labels on colorbar  # noqa: PGH003
+                self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
             if not self.axesAspectAction.state:  # use qSet directly in case control is not yet initialized
                 self.axes[0].set_aspect('equal', adjustable='box')
             self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
             self.canvas.mpl_connect('button_press_event', self.mouseEvent)
             self.canvas.mpl_connect('button_release_event', self.mouseEvent)
-            self.cont = None
+            self.cont = None  # type: ignore # noqa: PGH003
             divider = make_axes_locatable(self.axes[0])
             self.cax = divider.append_axes('right', size='5%', pad=0.15)
-            self.cbar = None
-            self.axes[-1].cursor = None
+            self.cbar: Colorbar = None  # type: ignore # noqa: PGH003
+            self.axes[-1].cursor = None  # type: ignore # noqa: PGH003
 
         def runTestParallel(self) -> None:
             if self.initializedDock:
@@ -114,25 +127,27 @@ class Beam(Scan):
                 self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
                 return False
             self.addOutputChannel(name='', unit='pA', recordingData=data)
-            self.inputChannels.append(MetaChannel(parentPlugin=self,
-                                                  name='LR Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[1]), unit='V'))
-            self.inputChannels.append(MetaChannel(parentPlugin=self,
-                                                  name='UD Voltage', recordingData=np.arange(0, 1, 1 / self.outputChannels[0].getRecordingData().shape[0]), unit='V'))
+            outputRecordingData0 = self.outputChannels[0].getRecordingData()
+            if outputRecordingData0 is not None:
+                self.inputChannels.append(MetaChannel(parentPlugin=self,
+                                                  name='LR Voltage', recordingData=np.arange(0, 1, 1 / outputRecordingData0.shape[1]), unit='V'))
+                self.inputChannels.append(MetaChannel(parentPlugin=self,
+                                                  name='UD Voltage', recordingData=np.arange(0, 1, 1 / outputRecordingData0.shape[0]), unit='V'))
             return True
         if self.file.name.endswith('.s2d.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
-                lr = h5file['S2DSETTINGS']['Left-Right']
-                start, stop, step = lr['From'].attrs['VALUE'], lr['To'].attrs['VALUE'], lr['Step'].attrs['VALUE']
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=lr['Channel'].attrs['VALUE'],
+                lr = cast('h5py.Group', cast('h5py.Group', h5file['S2DSETTINGS'])['Left-Right'])
+                start, stop, step = cast('float', lr['From'].attrs['VALUE']), cast('float', lr['To'].attrs['VALUE']), cast('float', lr['Step'].attrs['VALUE'])
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=cast('str', lr['Channel'].attrs['VALUE']),
                                                        recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                         unit='V', inout=INOUT.IN))
-                ud = h5file['S2DSETTINGS']['Up-Down']
-                start, stop, step = ud['From'].attrs['VALUE'], ud['To'].attrs['VALUE'], ud['Step'].attrs['VALUE']
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=ud['Channel'].attrs['VALUE'],
+                ud = cast('h5py.Group', cast('h5py.Group', h5file['S2DSETTINGS'])['Up-Down'])
+                start, stop, step = cast('float', ud['From'].attrs['VALUE']), cast('float', ud['To'].attrs['VALUE']), cast('float', ud['Step'].attrs['VALUE'])
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=cast('str', ud['Channel'].attrs['VALUE']),
                                                        recordingData=np.linspace(start, stop, int(abs(start - stop) / abs(step)) + 1),
                                                         unit='V', inout=INOUT.IN))
-                output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
+                output_group = cast('h5py.Group', h5file['Current'] if is03 else h5file['OUTPUTS'])
                 for name, item in output_group.items():
                     self.addOutputChannel(name=name, unit='pA', recordingData=item[:].transpose())
             return True
@@ -140,7 +155,7 @@ class Beam(Scan):
 
     @Scan.finished.setter
     def finished(self, finished) -> None:
-        Scan.finished.fset(self, finished)
+        Scan.finished.fset(self, finished)  # type: ignore  # noqa: PGH003
         # disable inputs while scanning
         for direction in [self.LEFTRIGHT, self.UPDOWN]:
             for setting in [self.START, self.STOP, self.STEP, self.CHANNEL]:
@@ -148,11 +163,15 @@ class Beam(Scan):
 
     def estimateScanTime(self) -> None:
         if self.LR_from != self.LR_stop and self.UD_from != self.UD_stop:
-            steps = list(itertools.product(self.getSteps(self.LR_from, self.LR_stop, self.LR_step), self.getSteps(self.UD_from, self.UD_stop, self.UD_step)))
+            steps_LR = self.getSteps(self.LR_from, self.LR_stop, self.LR_step)
+            steps_UD = self.getSteps(self.UD_from, self.UD_stop, self.UD_step)
+            if steps_LR is not None and steps_UD is not None:
+                steps = list(itertools.product(steps_LR, steps_UD))
+            else:
+                self.scantime = 'n/a'
+                return
         else:
             self.print('Limits are equal.', PRINT.WARNING)
-            self.scantime = 'n/a'
-            return
         seconds = 0  # estimate scan time
         for i in range(len(steps)):
             waitLong = False
@@ -166,20 +185,20 @@ class Beam(Scan):
 
     def centerLimits(self) -> None:
         """Centers scan range around current channel values."""
-        channel = self.getChannelByName(self.LR_channel)
+        channel = self.getChannelByName(self.LR_channelName)
         if channel is not None:
             delta = abs(self.LR_stop - self.LR_from) / 2
             self.LR_from = channel.value - delta
             self.LR_stop = channel.value + delta
         else:
-            self.print(f'Could not find channel {self.LR_channel}')
-        channel = self.getChannelByName(self.UD_channel)
+            self.print(f'Could not find channel {self.LR_channelName}')
+        channel = self.getChannelByName(self.UD_channelName)
         if channel is not None:
             delta = abs(self.UD_stop - self.UD_from) / 2
             self.UD_from = channel.value - delta
             self.UD_stop = channel.value + delta
         else:
-            self.print(f'Could not find channel {self.UD_channel}')
+            self.print(f'Could not find channel {self.UD_channelName}')
 
     def updateStep(self, step) -> None:
         """Couples step size if applicable.
@@ -194,19 +213,22 @@ class Beam(Scan):
 
     def addInputChannels(self) -> None:
         super().addInputChannels()
-        self.addInputChannel(self.LR_channel, self.LR_from, self.LR_stop, self.LR_step)
-        self.addInputChannel(self.UD_channel, self.UD_from, self.UD_stop, self.UD_step)
+        self.addInputChannel(self.LR_channelName, self.LR_from, self.LR_stop, self.LR_step)
+        self.addInputChannel(self.UD_channelName, self.UD_from, self.UD_stop, self.UD_step)
+
+    LR_channelName: str
+    UD_channelName: str
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.LEFTRIGHT}/{self.CHANNEL}'] = parameterDict(value='LA-S-LR', items='LA-S-LR, LC-in-LR, LD-in-LR, LE-in-LR',
-                                                                parameterType=PARAMETERTYPE.COMBO, attr='LR_channel', event=self.dummyInitialization)
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='LR_channelName', event=self.dummyInitialization)
         defaultSettings[f'{self.LEFTRIGHT}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_from', event=self.estimateScanTime)
         defaultSettings[f'{self.LEFTRIGHT}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='LR_stop', event=self.estimateScanTime)
         defaultSettings[f'{self.LEFTRIGHT}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='LR_step', minimum=.1, maximum=10,
                                                                           event=lambda: self.updateStep(self.LR_step))
         defaultSettings[f'{self.UPDOWN}/{self.CHANNEL}'] = parameterDict(value='LA-S-UD', items='LA-S-UD, LC-in-UD, LD-in-UD, LE-in-UD',
-                                                                parameterType=PARAMETERTYPE.COMBO, attr='UD_channel', event=self.dummyInitialization)
+                                                                parameterType=PARAMETERTYPE.COMBO, attr='UD_channelName', event=self.dummyInitialization)
         defaultSettings[f'{self.UPDOWN}/{self.START}'] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_from', event=self.estimateScanTime)
         defaultSettings[f'{self.UPDOWN}/{self.STOP}'] = parameterDict(value=5, parameterType=PARAMETERTYPE.FLOAT, attr='UD_stop', event=self.estimateScanTime)
         defaultSettings[f'{self.UPDOWN}/{self.STEP}'] = parameterDict(value=2, parameterType=PARAMETERTYPE.FLOAT, attr='UD_step', minimum=.1, maximum=10,
@@ -215,43 +237,46 @@ class Beam(Scan):
 
     def useLimits(self) -> None:
         """Use current display limits as scan limits."""
-        if self.displayActive():
+        if self.displayActive() and self.display:
             self.LR_from, self.LR_stop = self.display.axes[0].get_xlim()
             self.UD_from, self.UD_stop = self.display.axes[0].get_ylim()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
-        if self.loading or len(self.outputChannels) == 0:
+        if self.loading or len(self.outputChannels) == 0 or not self.display or not self.display.fig:
             return
         x, y = self.getMeshgrid()  # data coordinates
-        if update:
-            z = self.outputChannels[self.getOutputIndex()].getRecordingData().ravel()
-            self.display.cont.set_array(z.ravel())
-            self.display.cbar.mappable.set_clim(vmin=np.min(z), vmax=np.max(z))
-        else:
-            self.display.axes[0].clear()  # only update would be preferred but not yet possible with contourf
-            self.display.cax.clear()
-            if len(self.outputChannels) > 0:
-                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
-                self.display.axes[0].set_ylabel(f'{self.inputChannels[1].name} ({self.inputChannels[1].unit})')
-                if done and self.display.interpolateAction.state:
-                    rbf = interpolate.Rbf(x.ravel(), y.ravel(), self.outputChannels[self.getOutputIndex()].getRecordingData().ravel())
-                    xi, yi = self.getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
-                    zi = rbf(xi, yi)
-                    self.display.cont = self.display.axes[0].contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
-                else:
-                    # contour without interpolation
-                    self.display.cont = self.display.axes[0].pcolormesh(x, y, self.outputChannels[self.getOutputIndex()].getRecordingData(), cmap='afmhot')
-                # ax=self.display.axes[0] instead of cax -> colorbar using all available height and does not scale to plot
-                self.display.cbar = self.display.fig.colorbar(self.display.cont, cax=self.display.cax)  # match axis and color bar size  # , format='%d'
-                self.display.cbar.ax.set_title(self.outputChannels[0].unit)
-                self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight)  # has to be initialized last, otherwise axis limits may be affected
+        outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()
+        if outputRecordingData is not None:
+            if update:
+                if self.display.cont and self.display.cbar:
+                    z = outputRecordingData.ravel()
+                    self.display.cont.set_array(z.ravel())
+                    self.display.cbar.mappable.set_clim(vmin=np.min(z), vmax=np.max(z))
+            else:
+                self.display.axes[0].clear()  # only update would be preferred but not yet possible with contourf
+                self.display.cax.clear()
+                if len(self.outputChannels) > 0:
+                    self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+                    self.display.axes[0].set_ylabel(f'{self.inputChannels[1].name} ({self.inputChannels[1].unit})')
+                    if done and self.display.interpolateAction.state:
+                        rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputRecordingData.ravel())
+                        xi, yi = self.getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+                        zi = rbf(xi, yi)
+                        self.display.cont = self.display.axes[0].contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
+                    else:
+                        # contour without interpolation
+                        self.display.cont = self.display.axes[0].pcolormesh(x, y, outputRecordingData, cmap='afmhot')
+                    # ax=self.display.axes[0] instead of cax -> colorbar using all available height and does not scale to plot
+                    self.display.cbar = self.display.fig.colorbar(self.display.cont, cax=self.display.cax)  # match axis and color bar size  # , format='%d'
+                    self.display.cbar.ax.set_title(self.outputChannels[0].unit)
+                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight)  # has to be initialized last, otherwise axis limits may be affected
 
-        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and self.inputChannels[1].sourceChannel is not None:
-            self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
-        self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+            if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and self.inputChannels[1].sourceChannel is not None:
+                self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
+            self.updateToolBar(update=update)
+            self.defaultLabelPlot(self.display.axes[0])
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
@@ -299,7 +324,7 @@ cbar.ax.set_title(outputChannels[0].unit)
 fig.show()
         """
 
-    def getMeshgrid(self, scaling=1) -> np.meshgrid:
+    def getMeshgrid(self, scaling=1) -> tuple[np.ndarray, ...]:
         """Get a mesh grid of x a coordinates.
 
         :param scaling: _descCan be used to increase resolution, e.g. when interpolating. Defaults to 1
@@ -308,5 +333,6 @@ fig.show()
         :rtype: np.meshgrid
         """
         # interpolation with more than 50 x 50 grid points gets slow and does not add much to the quality for typical scans
-        return np.meshgrid(*[np.linspace(i.getRecordingData()[0], i.getRecordingData()[-1], len(i.getRecordingData()) if
-                                         scaling == 1 else min(len(i.getRecordingData()) * scaling, 50)) for i in self.inputChannels])
+        return np.meshgrid(*[np.linspace(inputRecordingData[0], inputRecordingData[-1], len(inputRecordingData) if
+                                         scaling == 1 else min(len(inputRecordingData) * scaling, 50)) for i in self.inputChannels
+                                          if (inputRecordingData := i.getRecordingData()) is not None])

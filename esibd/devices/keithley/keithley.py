@@ -22,6 +22,7 @@ class KEITHLEY(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'keithley.png'
+    channels: 'list[CurrentChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -43,11 +44,6 @@ class KEITHLEY(Device):
         for channel in self.channels:
             channel.resetCharge()
 
-    def updateTheme(self) -> None:
-        super().updateTheme()
-        self.onAction.iconTrue = self.getIcon()
-        self.onAction.updateIcon(self.isOn())
-
 
 class CurrentChannel(Channel):
     """UI for picoammeter with integrated functionality."""
@@ -60,6 +56,7 @@ class CurrentChannel(Channel):
     CHARGE = 'Charge'
     ADDRESS = 'Address'
     VOLTAGE = 'Voltage'
+    channelParent: KEITHLEY
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -87,7 +84,7 @@ class CurrentChannel(Channel):
 
     def enabledChanged(self) -> None:
         super().enabledChanged()
-        if self.device.liveDisplayActive() and self.device.recording:
+        if self.channelParent.liveDisplayActive() and self.channelParent.recording:
             if self.enabled:
                 self.controller.initializeCommunication()
             elif self.controller.acquiring:
@@ -96,7 +93,7 @@ class CurrentChannel(Channel):
     def appendValue(self, lenT, nan=False) -> None:
         super().appendValue(lenT, nan=nan)
         if not nan and not np.isnan(self.value) and not np.isinf(self.value):
-            chargeIncrement = (self.value - self.background) * self.device.interval / 1000 / 3600 if self.values.size > 1 else 0
+            chargeIncrement = (self.value - self.background) * self.channelParent.interval / 1000 / 3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement  # display accumulated charge  # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
 
@@ -110,24 +107,25 @@ class CurrentChannel(Channel):
         self.preciseCharge = 0
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
+        self.getParameterByName(self.ADDRESS).setVisible(self.real)
         super().realChanged()
 
 
 class CurrentController(DeviceController):
     """Implements visa communication with KEITHLEY 6487."""
 
-    def __init__(self, controllerParent) -> None:
+    port: pyvisa.resources.gpib.GPIBInstrument | None
+    controllerParent: CurrentChannel
+
+    def __init__(self, controllerParent: 'CurrentChannel') -> None:
         super().__init__(controllerParent=controllerParent)
-        self.channel = controllerParent
-        self.device = self.channel.getDevice()
         self.port = None
         self.phase = self.rng.random() * 10  # used in test mode
         self.omega = self.rng.random()  # used in test mode
         self.offset = self.rng.random() * 10  # used in test mode
 
     def initializeCommunication(self) -> None:
-        if self.channel.enabled and self.channel.active and self.channel.real:
+        if self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             super().initializeCommunication()
         else:
             self.stopAcquisition()
@@ -144,9 +142,9 @@ class CurrentController(DeviceController):
         try:
             # use rm.list_resources() to check for available resources
             self.rm = pyvisa.ResourceManager()
-            self.port = self.rm.open_resource(self.channel.address)
+            self.port = self.rm.open_resource(self.controllerParent.address)  # type: ignore  # noqa: PGH003
             self.KeithleyWrite('*RST')
-            self.device.print(self.KeithleyQuery('*IDN?'))
+            self.controllerParent.print(self.KeithleyQuery('*IDN?'))
             self.KeithleyWrite('SYST:ZCH OFF')
             self.KeithleyWrite('CURR:NPLC 6')
             self.KeithleyWrite('SOUR:VOLT:RANG 50')
@@ -157,7 +155,7 @@ class CurrentController(DeviceController):
             self.initializing = False
 
     def startAcquisition(self) -> None:
-        if self.channel.active:
+        if self.controllerParent.active:
             super().startAcquisition()
 
     def runAcquisition(self) -> None:
@@ -170,32 +168,32 @@ class CurrentController(DeviceController):
                         self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
                     # no sleep needed, timing controlled by waiting during readNumbers
-            if getTestMode():
-                time.sleep(self.channel.device.interval / 1000)
+            if getTestMode() and self.controllerParent.channelParent:
+                time.sleep(self.controllerParent.channelParent.interval / 1000)
 
     def applyVoltage(self) -> None:
         # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
         """Apply voltage value."""
         if self.port is not None:
-            self.KeithleyWrite(f'SOUR:VOLT {self.channel.voltage}')
+            self.KeithleyWrite(f'SOUR:VOLT {self.controllerParent.voltage}')
 
     def toggleOn(self) -> None:
         self.applyVoltage()  # apply voltages before turning power supply on or off
-        self.KeithleyWrite(f"SOUR:VOLT:STAT {'ON' if self.device.isOn() else 'OFF'}")
+        self.KeithleyWrite(f"SOUR:VOLT:STAT {'ON' if self.controllerParent.channelParent.isOn() else 'OFF'}")
 
     def fakeNumbers(self) -> None:
-        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
-            self.values = [np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset]
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
+            self.values = np.array([np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset])
 
     def readNumbers(self) -> None:
-        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             try:
                 self.KeithleyWrite('INIT')
-                self.values = [float(self.KeithleyQuery('FETCh?').split(',')[0][:-1]) * 1E12]
+                self.values = np.array([float(self.KeithleyQuery('FETCh?').split(',')[0][:-1]) * 1E12])
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
                 self.errorCount += 1
-                self.values = [np.nan]
+                self.values = np.array([np.nan])
 
     def KeithleyWrite(self, message: str) -> None:
         """KEITHLEY specific pyvisa write.
@@ -203,8 +201,9 @@ class CurrentController(DeviceController):
         :param message: The message to be send.
         :type message: str
         """
-        self.print('KeithleyWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
-        self.port.write(message)
+        if self.port:
+            self.print('KeithleyWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
+            self.port.write(message)
 
     def KeithleyQuery(self, query: str) -> str:
         """KEITHLEY specific pyvisa query.
@@ -212,7 +211,9 @@ class CurrentController(DeviceController):
         :param query: The query to be queried.
         :type query: str
         """
-        response = self.port.query(query)
-        self.print('KeithleyQuery query: ' + query.replace('\r', '').replace('\n', '') +
+        if self.port:
+            response = self.port.query(query)
+            self.print('KeithleyQuery query: ' + query.replace('\r', '').replace('\n', '') +
                     ', response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
-        return response
+            return response
+        return ''

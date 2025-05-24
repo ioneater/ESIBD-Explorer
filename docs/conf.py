@@ -39,8 +39,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-autodoc_mock_imports = ["PyQt6", "pyqtgraph", "PyQt5", "PySide2", "matplotlib", "serial", "mpl_toolkits", "pywin32", "picosdk",
-                        "picosdk.usbPT104", "picosdk.functions", "pfeiffer_vacuum_protocol", "nidaqmx", "pyvisa", "lakeshore"]
+autodoc_mock_imports = ['PyQt6', 'pyqtgraph', 'PyQt5', 'PySide2', 'matplotlib', 'serial', 'mpl_toolkits', 'pywin32', 'picosdk',
+                        'picosdk.usbPT104', 'picosdk.functions', 'pfeiffer_vacuum_protocol', 'nidaqmx', 'pyvisa', 'lakeshore']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

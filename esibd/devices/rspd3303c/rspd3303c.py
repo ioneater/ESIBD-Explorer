@@ -28,6 +28,7 @@ class RSPD3303C(Device):
     unit = 'V'
     useMonitors = True
     iconFile = 'RSPD3303C.png'
+    channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -45,7 +46,9 @@ class RSPD3303C(Device):
         super().finalizeInit()
 
     ADDRESS = 'Address'
+    address: str
     SHUTDOWNTIMER = 'Shutdown timer'
+    shutDownTime: int
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -87,6 +90,7 @@ class VoltageChannel(Channel):
     CURRENT = 'Current'
     POWER = 'Power'
     ID = 'ID'
+    channelParent: RSPD3303C
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -118,20 +122,20 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        self.updateWarningState(self.enabled and self.device.controller.acquiring and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                                                    or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
+        self.updateWarningState(self.enabled and self.channelParent.controller.acquiring and ((self.channelParent.isOn() and abs(self.monitor - self.value) > 1)
+                                                                    or (not self.channelParent.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.POWER).getWidget().setVisible(self.real)
-        self.getParameterByName(self.CURRENT).getWidget().setVisible(self.real)
-        self.getParameterByName(self.ID).getWidget().setVisible(self.real)
+        self.getParameterByName(self.POWER).setVisible(self.real)
+        self.getParameterByName(self.CURRENT).setVisible(self.real)
+        self.getParameterByName(self.ID).setVisible(self.real)
         super().realChanged()
 
 
 class VoltageController(DeviceController):
 
-    def __init__(self, controllerParent) -> None:
-        super().__init__(controllerParent=controllerParent)
+    port: 'pyvisa.resources.usb.USBInstrument | None'
+    controllerParent: RSPD3303C
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
@@ -141,20 +145,21 @@ class VoltageController(DeviceController):
         try:
             rm = pyvisa.ResourceManager()
             # name = rm.list_resources()  # noqa: ERA001
-            self.port = rm.open_resource(self.device.address, open_timeout=500)
-            self.device.print(self.port.query('*IDN?'))
-            self.signalComm.initCompleteSignal.emit()
+            self.port = rm.open_resource(self.controllerParent.address, open_timeout=500)  # type: ignore  # noqa: PGH003
+            if self.port:
+                self.controllerParent.print(self.port.query('*IDN?'))
+                self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.print(f'Could not establish connection to {self.device.address}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish connection to {self.controllerParent.address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
     def initComplete(self) -> None:
-        self.currents = [np.nan] * len(self.device.getChannels())
-        self.values = [np.nan] * len(self.device.getChannels())
+        self.currents = np.array([np.nan] * len(self.controllerParent.getChannels()))
+        self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))
         super().initComplete()
 
-    def applyValue(self, channel) -> None:
+    def applyValue(self, channel: VoltageChannel) -> None:
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
     def updateValues(self) -> None:
@@ -162,20 +167,21 @@ class VoltageController(DeviceController):
         if getTestMode():
             self.fakeNumbers()
         else:
-            for i, channel in enumerate(self.device.getChannels()):
-                if channel.enabled and channel.real:
+            for i, channel in enumerate(self.controllerParent.getChannels()):
+                if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
                     channel.monitor = self.values[i]
                     channel.current = self.currents[i]
                     channel.power = channel.monitor * channel.current
 
     def toggleOn(self) -> None:
-        for channel in self.device.getChannels():
-            self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.device.isOn() else 'OFF'}")
+        for channel in self.controllerParent.getChannels():
+            if isinstance(channel, VoltageChannel):
+                self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.controllerParent.isOn() else 'OFF'}")
 
     def fakeNumbers(self) -> None:
-        for channel in self.device.getChannels():
-            if channel.enabled and channel.real:
-                if self.device.isOn() and channel.enabled:
+        for channel in self.controllerParent.getChannels():
+            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
+                if self.controllerParent.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
                 else:
@@ -184,15 +190,16 @@ class VoltageController(DeviceController):
                 channel.power = channel.monitor * channel.current
 
     def runAcquisition(self) -> None:
-        while self.acquiring:
+        while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
                     if not getTestMode():
-                        for i, channel in enumerate(self.device.getChannels()):
-                            self.values[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired)
-                            self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=lock_acquired)
+                        for i, channel in enumerate(self.controllerParent.getChannels()):
+                            if isinstance(channel, VoltageChannel):
+                                self.values[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired)
+                                self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=lock_acquired)
                     self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     def RSWrite(self, message) -> None:
         """RS specific pyvisa write.
@@ -200,10 +207,11 @@ class VoltageController(DeviceController):
         :param message: The message to be send.
         :type message: str
         """
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
-            if lock_acquired:
-                self.print('RSWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
-                self.port.write(message)
+        if self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message {message}.') as lock_acquired:
+                if lock_acquired:
+                    self.print('RSWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
+                    self.port.write(message)
 
     def RSQuery(self, query, already_acquired=False) -> str | float:
         """RS specific pyvisa query.
@@ -216,8 +224,9 @@ class VoltageController(DeviceController):
         :rtype: str
         """
         response = ''
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {query}.', already_acquired=already_acquired) as lock_acquired:
-            if lock_acquired:
-                response = self.port.query(query)
-                self.print('RSQuery query: ' + query.replace('\r', '').replace('\n', '') + f', response: {response}', flag=PRINT.TRACE)
+        if self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for query {query}.', already_acquired=already_acquired) as lock_acquired:
+                if lock_acquired:
+                    response = self.port.query(query)
+                    self.print('RSQuery query: ' + query.replace('\r', '').replace('\n', '') + f', response: {response}', flag=PRINT.TRACE)
         return response

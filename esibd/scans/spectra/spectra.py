@@ -1,11 +1,11 @@
 import itertools
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import h5py
 import numpy as np
 
-from esibd.core import MultiState, getDarkMode, plotting
+from esibd.core import CursorAxes, MultiState, getDarkMode, plotting
 from esibd.scans import Beam
 
 if TYPE_CHECKING:
@@ -37,6 +37,7 @@ class Spectra(Beam):
     iconFile = 'stacked.png'
     LEFTRIGHT = 'X'
     UPDOWN = 'Y'
+    display: 'Display | None'
 
     class Display(Beam.Display):
         """Displays data for Spectra scan."""
@@ -46,7 +47,7 @@ class Spectra(Beam):
 
         def __init__(self, scan, **kwargs) -> None:
             super(Beam.Display, self).__init__(scan, **kwargs)
-            self.lines = None
+            self.lines = None  # type: ignore  # noqa: PGH003
 
         def finalizeInit(self) -> None:
             self.mouseActive = False
@@ -63,14 +64,15 @@ class Spectra(Beam):
         def initFig(self) -> None:
             if self.plotModeAction is None:
                 return
-            self.lines = None
+            self.lines = None  # type: ignore  # noqa: PGH003
             if self.plotModeAction.state == self.plotModeAction.labels.contour:
                 super().initFig()
                 return
             super(Beam.Display, self).initFig()
-            self.axes.append(self.fig.add_subplot(111))
-            if not self.axesAspectAction.state:
-                self.axes[0].set_aspect('equal', adjustable='box')
+            if self.fig:
+                self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
+                if self.axesAspectAction and not self.axesAspectAction.state:
+                    self.axes[0].set_aspect('equal', adjustable='box')
 
         def updateTheme(self) -> None:
             if self.averageAction is not None:
@@ -87,18 +89,19 @@ class Spectra(Beam):
     def initData(self) -> None:
         # self.toggleDisplay(visible=True) todo delete?
         super().initData()
-        if self.displayActive():
-            self.display.lines = None
+        if self.displayActive() and self.display:
+            self.display.lines = None  # type: ignore  # noqa: PGH003
 
     def loadDataInternal(self) -> bool:
-        self.display.lines = None
+        if self.display:
+            self.display.lines = None  # type: ignore  # noqa: PGH003
         if self.file.name.endswith('beam.h5'):
             with h5py.File(self.file, 'r') as h5file:
-                group = h5file[self.pluginManager.Beam.name]  # only modification needed to open beam files. data structure is identical
-                input_group = group[self.INPUTCHANNELS]
+                group = cast('h5py.Group', h5file['Beam'])  # only modification needed to open beam files. data structure is identical
+                input_group = cast('h5py.Group', group[self.INPUTCHANNELS])
                 for name, data in input_group.items():
                     self.addInputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
-                output_group = group[self.OUTPUTCHANNELS]
+                output_group = cast('h5py.Group', group[self.OUTPUTCHANNELS])
                 for name, data in output_group.items():
                     self.addOutputChannel(name=name, unit=data.attrs[self.UNIT], recordingData=data[:])
                 self.finalizeChannelTree()
@@ -106,55 +109,64 @@ class Spectra(Beam):
         return super(Beam, self).loadDataInternal()
 
     @plotting
-    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: C901, PLR0912
+    def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: C901, PLR0912, PLR0915
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
-
+        if not self.display or not self.display.plotModeAction or not self.display.averageAction:
+            return
         if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
             self.plotting = False  # decorator will be called again
             super().plot(update=update, done=done, **kwargs)
             return
         if self.loading or len(self.outputChannels) == 0:
             return
+        recordingData0 = self.inputChannels[0].getRecordingData()
+        recordingData1 = self.inputChannels[1].getRecordingData()
+        if recordingData0 is None or recordingData1 is None:
+            return
 
-        x = np.linspace(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1], len(self.inputChannels[0].getRecordingData()))
-        y = np.linspace(self.inputChannels[1].getRecordingData()[0], self.inputChannels[1].getRecordingData()[-1], len(self.inputChannels[1].getRecordingData()))
-        if self.display.lines is None:
+        x = np.linspace(recordingData0[0], recordingData0[-1], len(recordingData0))
+        y = np.linspace(recordingData1[0], recordingData1[-1], len(recordingData1))
+        if self.display and self.display.lines is None:
             self.display.axes[0].clear()
             self.display.lines = []  # dummy plots
-            for i in range(len(self.outputChannels[self.getOutputIndex()].getRecordingData())):
-                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                    self.display.lines.append(self.display.axes[0].plot([], [])[0])
-                else:  # self.display.plotModeAction.labels.overlay
-                    self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
-            if self.display.averageAction.state:
-                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                    self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
-                else:  # self.display.plotModeAction.labels.overlay
-                    self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
-            if self.display.plotModeAction.state == self.display.plotModeAction.labels.overlay:
-                legend = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
-                legend.set_in_layout(False)
+            outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()
+            if outputRecordingData is not None:
+                for i in range(len(outputRecordingData)):
+                    if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                        self.display.lines.append(self.display.axes[0].plot([], [])[0])
+                    else:  # self.display.plotModeAction.labels.overlay
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
+                if self.display.averageAction.state:
+                    if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                        self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
+                    else:  # self.display.plotModeAction.labels.overlay
+                        self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
+                if self.display.plotModeAction.state == self.display.plotModeAction.labels.overlay:
+                    legend = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
+                    legend.set_in_layout(False)
 
         if not update:
             self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
             self.display.axes[0].set_ylabel(f'{self.inputChannels[1].name} ({self.inputChannels[1].unit})')
-        for i, z in enumerate(self.outputChannels[self.getOutputIndex()].getRecordingData()):
-            if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                z_offset = None
-                if np.abs(z.max() - z.min()) != 0:
-                    z_normalized = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
-                    z_offset = z_normalized + y[i] - z_normalized[0]
-                self.display.lines[i].set_data(x, z_offset if z_offset is not None else z)
-            else:  # self.display.plotModeAction.labels.overlay
-                self.display.lines[i].set_data(x, z)
-        if self.display.averageAction.state:
-            z = np.mean(self.outputChannels[self.getOutputIndex()].getRecordingData(), 0)
-            if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
-                if np.abs(z.max() - z.min()) != 0:
-                    z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
-                self.display.lines[-1].set_data(x, z + y[-1] + y[1] - y[0] - z[0])
-            else:  # self.display.plotModeAction.labels.overlay
-                self.display.lines[-1].set_data(x, z)
+        recordingDataOutputIndex = self.outputChannels[self.getOutputIndex()].getRecordingData()
+        if self.display.lines and recordingDataOutputIndex is not None:
+            for i, z in enumerate(recordingDataOutputIndex):
+                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                    z_offset = None
+                    if np.abs(z.max() - z.min()) != 0:
+                        z_normalized = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
+                        z_offset = z_normalized + y[i] - z_normalized[0]
+                    self.display.lines[i].set_data(x, z_offset if z_offset is not None else z)
+                else:  # self.display.plotModeAction.labels.overlay
+                    self.display.lines[i].set_data(x, z)
+            if self.display.averageAction.state:
+                z = np.mean(recordingDataOutputIndex, 0)
+                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                    if np.abs(z.max() - z.min()) != 0:
+                        z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
+                    self.display.lines[-1].set_data(x, z + y[-1] + y[1] - y[0] - z[0])
+                else:  # self.display.plotModeAction.labels.overlay
+                    self.display.lines[-1].set_data(x, z)
 
         self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
@@ -170,18 +182,22 @@ class Spectra(Beam):
             for j, inputChannel in enumerate(self.inputChannels):
                 if not waitLong and abs(inputChannel.value - step[j]) > self.largestep:
                     waitLong = True
-                inputChannel.updateValueSignal.emit(step[j])
+                if inputChannel.updateValueSignal:
+                    inputChannel.updateValueSignal.emit(step[j])
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             self.bufferLagging()
             self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             for output in self.outputChannels:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                output.recordingData[i // len(self.inputChannels[0].getRecordingData()), i % len(self.inputChannels[0].getRecordingData())] = np.mean(output.getValues(
-                    subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep))
+                inputRecordingData0 = self.inputChannels[0].getRecordingData()
+                outputValues = output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
+                if output.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
+                    output.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
             if i == len(steps) - 1 or not recording():  # last step
                 for inputChannel in self.inputChannels:
-                    inputChannel.updateValueSignal.emit(inputChannel.initialValue)
+                    if inputChannel.updateValueSignal:
+                        inputChannel.updateValueSignal.emit(inputChannel.initialValue)
                 time.sleep(.5)  # allow time to reset to initial value before saving
                 self.stepProcessed = False
                 self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003

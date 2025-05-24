@@ -12,7 +12,7 @@ PROGRAM_NAME = 'ESIBD Explorer'
 ABOUTHTML = f"""<p>{PROGRAM_NAME} controls all aspects of an ESIBD experiment, including ion beam guiding and steering, beam energy analysis,
                     deposition monitoring, and data analysis.<br> Using the build-in plugin system, it can be extended to support additional
                     hardware as well as custom controls for data acquisition, analysis, and visualization.<br> Read the docs online at
-                    <a href='http://esibd-explorer.rtfd.io/'>http://esibd-explorer.rtfd.io/</a> or <a href='{(Path(__file__).parent / 'docs/index.html').resolve()}'>offline</a>
+                    <a href='https://esibd-explorer.rtfd.io/'>http://esibd-explorer.rtfd.io/</a> or <a href='{(Path(__file__).parent / 'docs/index.html').resolve()}'>offline</a>
                     for more details.<br><br>
                     Github: <a href='https://github.com/ioneater/ESIBD-Explorer'>https://github.com/ioneater/ESIBD-Explorer</a><br>
                     Rauschenbach Lab: <a href='https://esibd.web.ox.ac.uk/home'>https://esibd.web.ox.ac.uk/home</a><br>

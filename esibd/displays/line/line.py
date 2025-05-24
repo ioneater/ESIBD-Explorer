@@ -40,8 +40,9 @@ class LINE(Plugin):
 
     def initFig(self) -> None:
         self.provideFig()
-        self.axes.append(self.fig.add_subplot(111))
-        self.line = None
+        if self.fig:
+            self.axes.append(self.fig.add_subplot(111))
+        self.line = None  # type: ignore  # noqa: PGH003
 
     def provideDock(self) -> None:
         if super().provideDock():
@@ -100,15 +101,15 @@ class LINE(Plugin):
         self.setLabelMargin(self.axes[0], 0.15)
         self.canvas.draw_idle()
         self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
-        self.labelPlot(self.axes[0], self.file.name)
+        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
+        self.labelPlot(self.axes[0], self.file.name if self.file else 'Line')
 
     def generatePythonPlotCode(self) -> str:
         return f"""import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-profile = np.loadtxt('{self.file.as_posix()}', skiprows=3)
+profile = np.loadtxt('{self.file.as_posix() if self.file else ''}', skiprows=3)
 
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax = fig.add_subplot(111)

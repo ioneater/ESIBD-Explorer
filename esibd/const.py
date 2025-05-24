@@ -10,6 +10,7 @@ from enum import Enum
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, Union, cast
 
+import h5py
 import numpy as np
 from PyQt6.QtCore import QSettings
 from PyQt6.QtGui import QColor
@@ -107,7 +108,7 @@ class Colors:
 colors = Colors()
 
 
-def rgb_to_hex(rgba: tuple) -> str:
+def rgb_to_hex(rgba: tuple[float, float, float, float]) -> str:
     """Convert colors from rgb to hex.
 
     :param rgba: RGBA color tuple.
@@ -367,7 +368,7 @@ def infoDict(name: str) -> dict[str, str]:
     return {PROGRAM: PROGRAM_NAME, VERSION: str(PROGRAM_VERSION), PLUGIN: name, TIMESTAMP: datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 
-def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
+def validatePath(path: 'Path | None', default: 'Path | None') -> 'tuple[Path | None, bool]':
     """Return a valid path. If the path does not exist, falling back to default.
 
     If default does not exist it will be created.
@@ -379,17 +380,19 @@ def validatePath(path: Path, default: Path) -> tuple[Path, bool]:
     :return: Validated path and indication if path has changed during validation.
     :rtype: pathlib.Path, bool
     """
-    path = Path(path)
-    default = Path(default)
-    if not path.exists():
+    if path and default:
+        path = Path(path)
         default = Path(default)
-        if path == default:
-            print(f'Creating {default.as_posix()}.')  # noqa: T201
-        else:
-            print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')  # noqa: T201
-        default.mkdir(parents=True, exist_ok=True)
-        return default, True
-    return path, False
+        if not path.exists():
+            default = Path(default)
+            if path == default:
+                print(f'Creating {default.as_posix()}.')  # noqa: T201
+            else:
+                print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')  # noqa: T201
+            default.mkdir(parents=True, exist_ok=True)
+            return default, True
+        return path, False
+    return None, False
 
 
 def smooth(array: np.ndarray, smooth: int) -> np.ndarray:
@@ -493,3 +496,14 @@ def openInDefaultApplication(file: str | Path) -> None:
         subprocess.Popen(f'explorer {file}')  # noqa: S603
     else:
         subprocess.Popen(['xdg-open', file])  # noqa: S603, S607
+
+
+def datasetToStrList(dataset: h5py.Dataset) -> list[str]:
+    """Convert a h5py string dataset into a list of str.
+
+    :param dataset: The dataset.
+    :type dataset: h5py.Dataset
+    :return: The list.
+    :rtype: list[str]
+    """
+    return [str(k) for k in dataset.asstr()]

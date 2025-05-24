@@ -80,6 +80,9 @@ Developer Notes
 - Renamed scan.run to scan.runScan
 - Removed acquiring argument in DeviceController.runAcquisition. Use self.acquiring instead.
 - Renamed QLabviewSpinBox, QLabviewDoubleSpinBox, QLabviewSciSpinBox to LabviewSpinBox, LabviewDoubleSpinBox, LabviewSciSpinBox.
+- Merged deviceController.device and deviceController.channel into deviceController.controllerParent.
+- Renamed channel.device to channel.channelParent.
+- Added type hints and refactored code based on type checking.
 
 Performance
 ~~~~~~~~~~~

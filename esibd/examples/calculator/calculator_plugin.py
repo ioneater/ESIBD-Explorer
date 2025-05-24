@@ -44,8 +44,9 @@ class ExtendedCalculatorWidget(CalculatorWidget):
         for name in channelNames:
             if name in equ:
                 channel_equ = next((channel for channel in channels if channel.name == name), None)
-                self.parentPlugin.print(f'Replacing channel name {name} with value '
+                if channel_equ:
+                    self.parentPlugin.print(f'Replacing channel name {name} with value '
                                         f'{channel_equ.value - channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}.', flag=PRINT.MESSAGE)
-                equ = equ.replace(channel_equ.name, f'{channel_equ.value - channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}')
+                    equ = equ.replace(channel_equ.name, f'{channel_equ.value - channel_equ.background if channel_equ.useBackgrounds else channel_equ.value}')
         self.display.setText(equ)
         super().evaluate()

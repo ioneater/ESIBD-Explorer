@@ -19,6 +19,7 @@ class NI9263(Device):
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     iconFile = 'NI9263.png'
+    channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -33,6 +34,7 @@ class NI9263(Device):
 class VoltageChannel(Channel):
 
     ADDRESS = 'Address'
+    channelParent: NI9263
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -52,11 +54,13 @@ class VoltageChannel(Channel):
         self.displayedParameters.append(self.ADDRESS)
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.ADDRESS).getWidget().setVisible(self.real)
+        self.getParameterByName(self.ADDRESS).setVisible(self.real)
         super().realChanged()
 
 
 class VoltageController(DeviceController):
+
+    controllerParent: NI9263
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
@@ -69,19 +73,19 @@ class VoltageController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
             self.closeCommunication()
-            self.print(f'Could not establish connection at {self.device.channels[0].address}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish connection at {self.controllerParent.channels[0].address}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
-    def applyValue(self, channel) -> None:
+    def applyValue(self, channel: VoltageChannel) -> None:
         with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to set voltage of {channel.name}.') as lock_acquired:
             if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
-                    task.write(channel.value if (channel.enabled and self.device.isOn()) else 0)
+                    task.write(channel.value if (channel.enabled and self.controllerParent.isOn()) else 0)
 
     def toggleOn(self) -> None:
-        for channel in self.device.getChannels():
+        for channel in self.controllerParent.getChannels():
             if channel.real:
                 self.applyValueFromThread(channel)
 

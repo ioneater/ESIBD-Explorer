@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import h5py
-import matplotlib as mpl
 import numpy as np
+from matplotlib.text import Annotation
 from scipy import optimize
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, MetaChannel, Parameter, colors, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, CursorAxes, MetaChannel, Parameter, colors, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -30,8 +30,13 @@ class Energy(Scan):
     version = '1.0'
     iconFile = 'energy.png'
 
+    display: 'Energy.Display'
+
     class Display(Scan.Display):
         """Display for Energy scan."""
+
+        scan: 'Energy'
+        axes: list[CursorAxes]
 
         def initGUI(self) -> None:
             """Initialize GUI."""
@@ -40,21 +45,22 @@ class Energy(Scan):
 
         def initFig(self) -> None:
             super().initFig()
-            self.axes.append(self.fig.add_subplot(111))
-            self.axes.append(self.axes[0].twinx())  # creating twin axis
-            self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
-            self.canvas.mpl_connect('button_press_event', self.mouseEvent)
-            self.canvas.mpl_connect('button_release_event', self.mouseEvent)
-            self.axes[0].yaxis.label.set_color(self.scan.MYBLUE)
-            self.axes[0].tick_params(axis='y', colors=self.scan.MYBLUE)
-            self.axes[1].set_ylabel('-dI/dV (%)')
-            self.axes[1].set_ylim([0, 115])  # keep top 15 % for label
-            self.axes[1].yaxis.label.set_color(self.scan.MYRED)
-            self.axes[1].tick_params(axis='y', colors=self.scan.MYRED)
-            self.seRaw = self.axes[0].plot([], [], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0]  # dummy plot
-            self.seGrad = self.axes[1].plot([], [], marker='.', linestyle='None', color=self.scan.MYRED)[0]  # dummy plot
-            self.seFit = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
-            self.axes[-1].cursor = None
+            if self.fig:
+                self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
+                self.axes.append(cast('CursorAxes', self.axes[0].twinx()))  # creating twin axis
+                self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
+                self.canvas.mpl_connect('button_press_event', self.mouseEvent)
+                self.canvas.mpl_connect('button_release_event', self.mouseEvent)
+                self.axes[0].yaxis.label.set_color(self.scan.MYBLUE)
+                self.axes[0].tick_params(axis='y', colors=self.scan.MYBLUE)
+                self.axes[1].set_ylabel('-dI/dV (%)')
+                self.axes[1].set_ylim((0, 115))  # keep top 15 % for label
+                self.axes[1].yaxis.label.set_color(self.scan.MYRED)
+                self.axes[1].tick_params(axis='y', colors=self.scan.MYRED)
+                self.seRaw = self.axes[0].plot([], [], marker='.', linestyle='None', color=self.scan.MYBLUE, label='.')[0]  # dummy plot
+                self.seGrad = self.axes[1].plot([], [], marker='.', linestyle='None', color=self.scan.MYRED)[0]  # dummy plot
+                self.seFit = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
+                self.axes[-1].cursor = None  # type: ignore  # noqa: PGH003
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -84,20 +90,22 @@ class Energy(Scan):
         if self.file.name.endswith('.swp.h5'):
             with h5py.File(self.file, 'r') as h5file:
                 is03 = h5file[self.VERSION].attrs['VALUE'] == '0.3'  # legacy version 0.3, 0.4 if False
-                self.inputChannels.append(MetaChannel(parentPlugin=self, name=h5file['SESETTINGS']['Channel'].attrs['VALUE'],
-                                                       recordingData=h5file['Voltage'][:] if is03 else h5file['INPUT'][:],
+                self.inputChannels.append(MetaChannel(parentPlugin=self, name=cast('str', cast('h5py.Group', h5file['SESETTINGS'])['Channel'].attrs['VALUE']),
+                                                       recordingData=cast('h5py.Dataset', h5file['Voltage'])[:] if is03 else cast('h5py.Dataset', h5file['INPUT'])[:],
                                                unit='V', inout=INOUT.IN))
-                output_group = h5file['Current'] if is03 else h5file['OUTPUTS']
+                output_group = cast('h5py.Group', h5file['Current'] if is03 else h5file['OUTPUTS'])
                 for name, item in output_group.items():
                     self.addOutputChannel(name=name, unit='pA', recordingData=item[:])
             return True
         return super().loadDataInternal()
 
+    channelName: str
+
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through.', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel', event=self.dummyInitialization)
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channelName', event=self.dummyInitialization)
         defaultSettings[self.START] = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
         defaultSettings[self.STOP] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
         defaultSettings[self.STEP] = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
@@ -105,7 +113,7 @@ class Energy(Scan):
 
     def addInputChannels(self) -> None:
         super().addInputChannels()
-        self.addInputChannel(self.channel, self.start, self.stop, self.step)
+        self.addInputChannel(self.channelName, self.start, self.stop, self.step)
 
     def map_percent(self, x) -> np.ndarray:
         """Map any range on range 0 to 100.
@@ -117,54 +125,57 @@ class Energy(Scan):
         """
         # can't map if largest deviation from minimum is 0, i.e. all zero
         # has to return a sequence as matplotlib now expects sequences for set_x(y)data
-        return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else [0]
+        return (x - np.min(x)) / np.max(x - np.min(x)) * 100 if np.max(x - np.min(x)) > 0 else x
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
         if len(self.outputChannels) > 0:  # noqa: PLR1702
-            y = np.diff(self.outputChannels[self.getOutputIndex()].getRecordingData()) / np.diff(self.inputChannels[0].getRecordingData())
-            x = self.inputChannels[0].getRecordingData()[:y.shape[0]] + np.diff(self.inputChannels[0].getRecordingData())[0] / 2  # use as many data points as needed
-            if update:  # only update data
-                self.display.seRaw.set_data(self.inputChannels[0].getRecordingData(), self.outputChannels[self.getOutputIndex()].getRecordingData())
-                self.display.seGrad.set_data(x, self.map_percent(-y))
-            else:
-                self.removeAnnotations(self.display.axes[1])
-                if len(self.outputChannels) > 0:
-                    self.display.axes[0].set_xlim(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1])
-                    self.display.axes[0].set_ylabel(f'{self.outputChannels[self.getOutputIndex()].name} {self.outputChannels[self.getOutputIndex()].unit}')
-                    self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
-                    self.display.seRaw.set_data(self.inputChannels[0].getRecordingData(), self.outputChannels[self.getOutputIndex()].getRecordingData())
-                    self.display.seFit.set_data([], [])  # init
+            inputRecordingData0 = self.inputChannels[0].getRecordingData()
+            outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()
+            if inputRecordingData0 is not None and outputRecordingData is not None:
+                y = np.diff(outputRecordingData) / np.diff(inputRecordingData0)
+                x = inputRecordingData0[:y.shape[0]] + np.diff(inputRecordingData0)[0] / 2  # use as many data points as needed
+                if update:  # only update data
+                    self.display.seRaw.set_data(inputRecordingData0, outputRecordingData)
                     self.display.seGrad.set_data(x, self.map_percent(-y))
-                    for ann in [child for child in self.display.axes[1].get_children() if isinstance(child, mpl.text.Annotation)]:
-                        ann.remove()
-                    if done:
-                        try:
-                            x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x))  # use center as starting guess
-                            if self.inputChannels[0].getRecordingData()[0] <= expected_value <= self.inputChannels[0].getRecordingData()[-1]:
-                                self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
-                                self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data',
-                                                               xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
-                                    arrowprops={'arrowstyle': '<->', 'color': self.MYRED}, va='center')
-                                self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V',
-                                                               xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
-                                    textcoords='data', ha='right', va='center', color=self.MYRED)
-                            else:
-                                self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
-                        except (RuntimeError, ValueError) as e:
-                            self.print(f'Fit failed with error: {e}')
-                    # ControlCursor has to be initialized last, otherwise axis limits may be affected.
-                    self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False)
-                else:  # no data
-                    self.display.seRaw.set_data([], [])
-                    self.display.seFit.set_data([], [])
-                    self.display.seGrad.set_data([], [])
-            self.display.axes[0].relim()  # only affects y axis
-            self.setLabelMargin(self.display.axes[0], 0.15)
-            # workaround as .relim() is not working on x ais due to twinx bug
-            self.display.axes[0].set_xlim(self.inputChannels[0].getRecordingData()[0], self.inputChannels[0].getRecordingData()[-1])  # has to be called after setLabelMargin
+                else:
+                    self.removeAnnotations(self.display.axes[1])
+                    if len(self.outputChannels) > 0:
+                        self.display.axes[0].set_xlim(inputRecordingData0[0], inputRecordingData0[-1])
+                        self.display.axes[0].set_ylabel(f'{self.outputChannels[self.getOutputIndex()].name} {self.outputChannels[self.getOutputIndex()].unit}')
+                        self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+                        self.display.seRaw.set_data(inputRecordingData0, outputRecordingData)
+                        self.display.seFit.set_data([], [])  # init
+                        self.display.seGrad.set_data(x, self.map_percent(-y))
+                        for ann in [child for child in self.display.axes[1].get_children() if isinstance(child, Annotation)]:
+                            ann.remove()
+                        if done:
+                            try:
+                                x_fit, y_fit, expected_value, fwhm = self.gauss_fit(x, y, np.mean(x))  # use center as starting guess
+                                if inputRecordingData0[0] <= expected_value <= inputRecordingData0[-1]:
+                                    self.display.seFit.set_data(x_fit, self.map_percent(y_fit))
+                                    self.display.axes[1].annotate(text='', xy=(expected_value - fwhm / 2.3, 50), xycoords='data',
+                                                                   xytext=(expected_value + fwhm / 2.3, 50), textcoords='data',
+                                        arrowprops={'arrowstyle': '<->', 'color': self.MYRED}, va='center')
+                                    self.display.axes[1].annotate(text=f'center: {expected_value:2.1f} V\nFWHM: {fwhm:2.1f} V',
+                                                                   xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
+                                        textcoords='data', ha='right', va='center', color=self.MYRED)
+                                else:
+                                    self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
+                            except (RuntimeError, ValueError) as e:
+                                self.print(f'Fit failed with error: {e}')
+                        # ControlCursor has to be initialized last, otherwise axis limits may be affected.
+                        self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight, horizOn=False)
+                    else:  # no data
+                        self.display.seRaw.set_data([], [])
+                        self.display.seFit.set_data([], [])
+                        self.display.seGrad.set_data([], [])
+                self.display.axes[0].relim()  # only affects y axis
+                self.setLabelMargin(self.display.axes[0], 0.15)
+                # workaround as .relim() is not working on x ais due to twinx bug
+                self.display.axes[0].set_xlim(inputRecordingData0[0], inputRecordingData0[-1])  # has to be called after setLabelMargin
         if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and not np.isnan(self.inputChannels[0].value):
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
@@ -274,7 +285,7 @@ fig.show()
         """
         return amp1 * (1 / (sigma1 * (np.sqrt(2 * np.pi)))) * (np.exp(-((x - cen1)**2) / (2 * (sigma1)**2)))
 
-    def gauss_fit(self, x, y, c) -> np.ndarray:
+    def gauss_fit(self, x, y, c) -> tuple[np.ndarray, np.ndarray, float, float]:
         """Perform simple gaussian fit.
 
         :param x: X values.
@@ -283,8 +294,8 @@ fig.show()
         :type y: np.ndarray
         :param c: Guess of central value.
         :type c: float
-        :return: X values with fine step size, corresponding fitted Y values, full with have maximum
-        :rtype: np.ndarray, np.ndarray, float
+        :return: X values with fine step size, corresponding fitted Y values, center, full with have maximum
+        :rtype: np.ndarray, np.ndarray, float, float
         """
         # Define a gaussian to start with
         amp1 = 100

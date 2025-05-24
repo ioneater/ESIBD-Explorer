@@ -44,7 +44,8 @@ class PDB(Plugin):
 
     def initFig(self) -> None:
         self.provideFig()
-        self.axes.append(cast('Axes3D', self.fig.add_subplot(111, projection='3d')))
+        if self.fig:
+            self.axes.append(cast('Axes3D', self.fig.add_subplot(111, projection='3d')))
 
     def provideDock(self) -> None:
         if super().provideDock():
@@ -93,7 +94,7 @@ class PDB(Plugin):
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
         self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
+        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
         self.canvas.draw_idle()
 
     def set_axes_equal(self, ax) -> None:
@@ -161,7 +162,7 @@ def set_axes_equal(ax):
     ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
-_, XYZ = get_structure('{self.file.as_posix()}')
+_, XYZ = get_structure('{self.file.as_posix() if self.file else ''}')
 x, y, z = XYZ[:, 0], XYZ[:, 1], XYZ[:, 2]
 
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)

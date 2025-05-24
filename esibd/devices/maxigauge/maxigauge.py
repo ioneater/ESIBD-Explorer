@@ -22,12 +22,15 @@ class MAXIGAUGE(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_maxi.png'
+    channels: 'list[PressureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(controllerParent=self)
         self.logY = True
+
+    COM: str
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -42,6 +45,7 @@ class PressureChannel(Channel):
     """UI for pressure with integrated functionality."""
 
     ID = 'ID'
+    channelParent: MAXIGAUGE
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -61,17 +65,20 @@ class PressureChannel(Channel):
 
 class PressureController(DeviceController):
 
+    controllerParent: MAXIGAUGE
+
     def closeCommunication(self) -> None:
         super().closeCommunication()
         if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.port.close()
-                self.port = None
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
+                if lock_acquired:
+                    self.port.close()
+                    self.port = None
         self.initialized = False
 
     def runInitialization(self) -> None:
         try:
-            self.port = serial.Serial(f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+            self.port = serial.Serial(f'{self.controllerParent.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                                     parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
@@ -91,7 +98,7 @@ class PressureController(DeviceController):
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     PRESSURE_READING_STATUS = {  # noqa: RUF012
       0: 'Measurement data okay',
@@ -104,8 +111,8 @@ class PressureController(DeviceController):
     }
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
-            if channel.enabled and channel.active and channel.real:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if isinstance(channel, PressureChannel) and channel.enabled and channel.active and channel.real:
                 if self.initialized:
                     msg = self.TPGWriteRead(message=f'PR{channel.id}', already_acquired=True)
                     try:
@@ -123,7 +130,7 @@ class PressureController(DeviceController):
                     self.values[i] = np.nan
 
     def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
@@ -139,8 +146,9 @@ class PressureController(DeviceController):
         :param message: The serial message to be send.
         :type message: str
         """
-        self.serialWrite(self.port, f'{message}\r', encoding='ascii')
-        self.serialRead(self.port, encoding='ascii')  # read acknowledgment
+        if self.port:
+            self.serialWrite(self.port, f'{message}\r', encoding='ascii')
+            self.serialRead(self.port, encoding='ascii')  # read acknowledgment
 
     def TPGRead(self) -> str:
         """TPG specific serial read.
@@ -148,10 +156,12 @@ class PressureController(DeviceController):
         :return: The serial response received.
         :rtype: str
         """
-        self.serialWrite(self.port, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
-        enq = self.serialRead(self.port, encoding='ascii')  # response
-        self.serialRead(self.port, encoding='ascii')  # followed by NAK
-        return enq
+        if self.port:
+            self.serialWrite(self.port, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
+            enq = self.serialRead(self.port, encoding='ascii')  # response
+            self.serialRead(self.port, encoding='ascii')  # followed by NAK
+            return enq
+        return ''
 
     def TPGWriteRead(self, message: str, already_acquired: bool = False) -> str:
         """TPG specific serial write and read.
@@ -164,7 +174,7 @@ class PressureController(DeviceController):
         :rtype: str
         """
         response = ''
-        with self.tpgLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
+        with self.lock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
             if lock_acquired:
                 self.TPGWrite(message)
                 response = self.TPGRead()  # reads return value

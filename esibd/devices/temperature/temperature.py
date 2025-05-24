@@ -27,6 +27,7 @@ class Temperature(Device):
     unit = 'K'
     useMonitors = True
     iconFile = 'temperature.png'
+    channels: 'list[TemperatureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -51,6 +52,9 @@ class Temperature(Device):
         if self.staticDisplayActive():
             self.staticDisplay.plot()
 
+    CRYOTELCOM: str
+    toggleThreshold: int
+
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[f'{self.name}/Interval'][Parameter.VALUE] = 5000  # overwrite default value
@@ -61,7 +65,7 @@ class Temperature(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 
-    def convertDataDisplay(self, data) -> None:
+    def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
         return data - 273.15 if self.unitAction.state else data
 
     def getUnit(self) -> str:
@@ -78,6 +82,7 @@ class TemperatureChannel(Channel):
     """UI for pressure with integrated functionality."""
 
     CRYOTEL = 'CryoTel'
+    channelParent: Temperature
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
@@ -86,6 +91,8 @@ class TemperatureChannel(Channel):
 
 
 class TemperatureController(DeviceController):
+
+    controllerParent: Temperature
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent)
@@ -102,7 +109,7 @@ class TemperatureController(DeviceController):
     def runInitialization(self) -> None:
         try:
             self.port = serial.Serial(
-                self.device.CRYOTELCOM,
+                self.controllerParent.CRYOTELCOM,
                 baudrate=9600,  # used to be 4800
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
@@ -126,12 +133,12 @@ class TemperatureController(DeviceController):
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     toggleCounter = 0
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
                 value = self.CryoTelWriteRead(message='TC')  # Display Cold-Tip Temperature (same on old and new controller)
                 try:
@@ -146,41 +153,42 @@ class TemperatureController(DeviceController):
         # only test once a minute as cooler takes 30 s to turn on or off
         # in case of over current error the cooler won't turn on and there is no need for additional safety check
         self.toggleCounter += 1
-        if (self.device.isOn() and np.mod(self.toggleCounter, int(60000 / self.device.interval)) == 0 and
-            self.device.getChannels()[0].monitor != 0 and not np.isnan(self.device.getChannels()[0].monitor)):
-            if self.device.getChannels()[0].monitor < self.device.getChannels()[0].value - self.device.toggleThreshold:
-                self.print(f'Toggle cooler off. {self.device.getChannels()[0].monitor} K is under lower threshold '
-                           f'of {self.device.getChannels()[0].value - self.device.toggleThreshold} K.')
+        if (self.controllerParent.isOn() and np.mod(self.toggleCounter, int(60000 / self.controllerParent.interval)) == 0 and
+            self.controllerParent.getChannels()[0].monitor != 0 and not np.isnan(self.controllerParent.getChannels()[0].monitor)):
+            if self.controllerParent.getChannels()[0].monitor < self.controllerParent.getChannels()[0].value - self.controllerParent.toggleThreshold:
+                self.print(f'Toggle cooler off. {self.controllerParent.getChannels()[0].monitor} K is under lower threshold '
+                           f'of {self.controllerParent.getChannels()[0].value - self.controllerParent.toggleThreshold} K.')
                 self.CryoTelWriteRead(message='COOLER=OFF')
-            elif self.device.getChannels()[0].monitor > self.device.getChannels()[0].value + self.device.toggleThreshold:
+            elif self.controllerParent.getChannels()[0].monitor > self.controllerParent.getChannels()[0].value + self.controllerParent.toggleThreshold:
                 if self.CryoTelWriteRead('COOLER') != 'POWER':  # avoid sending command repeatedly
-                    self.print(f'Toggle cooler on. {self.device.getChannels()[0].monitor} K is over upper threshold '
-                               f'of {self.device.getChannels()[0].value + self.device.toggleThreshold} K.')
+                    self.print(f'Toggle cooler on. {self.controllerParent.getChannels()[0].monitor} K is over upper threshold '
+                               f'of {self.controllerParent.getChannels()[0].value + self.controllerParent.toggleThreshold} K.')
                     self.CryoTelWriteRead(message='COOLER=POWER')
 
     def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             # exponentially approach target or room temp + small fluctuation
             if channel.enabled and channel.real:
-                self.values[i] = max((self.values[i] + self.rng.uniform(-1, 1)) + 0.1 * ((channel.value if self.device.isOn() else 300) - self.values[i]), 0)
+                self.values[i] = max((self.values[i] + self.rng.uniform(-1, 1)) + 0.1 * ((channel.value if self.controllerParent.isOn() else 300) - self.values[i]), 0)
 
     def rndTemperature(self) -> float:
         """Return a random temperature."""
         return self.rng.uniform(0, 400)
 
     def toggleOn(self) -> None:
-        if self.device.isOn():
+        if self.controllerParent.isOn():
             self.CryoTelWriteRead(message='COOLER=POWER')  # 'COOLER=ON' start (used to be 'SET SSTOP=0')
         else:
             self.CryoTelWriteRead(message='COOLER=OFF')  # stop (used to be 'SET SSTOP=1')
-        self.messageBox.setText(f"Remember to turn water cooling {'on' if self.device.isOn() else 'off'} and gas ballast {'off' if self.device.isOn() else 'on'}!")
-        self.messageBox.setWindowIcon(self.device.getIcon())
-        if not self.device.testing:
+        self.messageBox.setText(f"Remember to turn water cooling {'on' if self.controllerParent.isOn() else 'off'}"
+                                " and gas ballast {'off' if self.controllerParent.isOn() else 'on'}!")
+        self.messageBox.setWindowIcon(self.controllerParent.getIcon())
+        if not self.controllerParent.testing:
             self.messageBox.open()  # show non blocking, defined outside so it does not get eliminated when the function completes.
             self.messageBox.raise_()
-        self.processEvents()
+        self.controllerParent.processEvents()
 
-    def applyValue(self, channel) -> None:
+    def applyValue(self, channel: TemperatureChannel) -> None:
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
 
     def CryoTelWriteRead(self, message: str) -> str:
@@ -204,8 +212,9 @@ class TemperatureController(DeviceController):
         :param message: The serial message to be send.
         :type message: str
         """
-        self.serialWrite(self.port, f'{message}\r')
-        self.CryoTelRead()  # repeats query
+        if self.port:
+            self.serialWrite(self.port, f'{message}\r')
+            self.CryoTelRead()  # repeats query
 
     def CryoTelRead(self) -> str:
         """TPG specific serial read.
@@ -213,4 +222,6 @@ class TemperatureController(DeviceController):
         :return: The response received.
         :rtype: str
         """
-        return self.serialRead(self.port)
+        if self.port:
+            return self.serialRead(self.port)
+        return ''

@@ -8,9 +8,8 @@ import matplotlib as mpl
 import matplotlib.backends.backend_pdf  # pylint: disable = unused-import  # required to assure backend is included
 from PyQt6.QtCore import QSharedMemory
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
-from PyQt6.QtWidgets import QApplication
 
-from esibd.core import PROGRAM_NAME, EsibdExplorer, MouseInterceptor, colors
+from esibd.core import PROGRAM_NAME, Application, EsibdExplorer, MouseInterceptor, colors
 
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format'] = 'pdf'  # make pdf default export format
@@ -31,7 +30,7 @@ warnings.filterwarnings('ignore', message='No artists with labels found to put i
 
 def main() -> bool:
     """Configure graphics, check for other running instances, and execute the app."""
-    app = QApplication(sys.argv)
+    app = Application(sys.argv)
     app.setStyle('Fusion')
     os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1'
     appStr = f'{PROGRAM_NAME}'  # same string across versions!

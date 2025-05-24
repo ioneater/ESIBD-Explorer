@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
 from pathlib import Path
+from typing import cast
 
 import h5py
 import numpy as np
@@ -8,7 +9,7 @@ import serial
 import serial.serialutil
 from PyQt6.QtCore import pyqtSignal
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, MetaChannel, Parameter, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, CompactComboBox, DeviceController, MetaChannel, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin, Scan, StaticDisplay
 
 
@@ -31,6 +32,7 @@ class RBD(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'RBD.png'
+    channels: 'list[CurrentChannel]'
 
     class StaticDisplay(StaticDisplay):
         """A display for device data from files."""
@@ -63,8 +65,8 @@ class RBD(Device):
                                                            recordingData=np.linspace(0, 120000, self.outputChannels[0].getRecordingData().shape[0])))
             elif file.name.endswith('.cur.h5'):
                 with h5py.File(file, 'r') as h5file:
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[self.TIME][:]))
-                    output_group = h5file['Current']
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=cast('h5py.Dataset', h5file[self.TIME])[:]))
+                    output_group = cast('h5py.Group', h5file['Current'])
                     for name, item in output_group.items():
                         if '_BG' in name:
                             self.outputChannels[-1].recordingBackground = item[:]
@@ -72,8 +74,8 @@ class RBD(Device):
                             self.outputChannels.append(MetaChannel(parentPlugin=self, name=name, recordingData=item[:], unit='pA'))
             elif file.name.endswith('OUT.h5'):  # old Output format when EBD was the only output
                 with h5py.File(file, 'r') as h5file:
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=h5file[Scan.INPUTCHANNELS][self.TIME][:]))
-                    output_group = h5file[Scan.OUTPUTCHANNELS]
+                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=cast('h5py.Dataset', h5file[Scan.INPUTCHANNELS])[self.TIME][:]))
+                    output_group = cast('h5py.Group', h5file[Scan.OUTPUTCHANNELS])
                     for name, item in output_group.items():
                         if '_BG' in name:
                             self.outputChannels[-1].recordingBackground = item[:]
@@ -120,6 +122,7 @@ class CurrentChannel(Channel):
     OUTOFRANGE = 'OutOfRange'
     UNSTABLE = 'Unstable'
     ERROR = 'Error'
+    channelParent: RBD
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -184,7 +187,7 @@ class CurrentChannel(Channel):
         # make sure that the data interval is the same as used in data acquisition
         super().appendValue(lenT, nan=nan)
         if not nan and not np.isnan(self.value) and not np.isinf(self.value):
-            chargeIncrement = (self.value - self.background) * self.device.interval / 1000 / 3600 if self.values.size > 1 else 0
+            chargeIncrement = (self.value - self.background) * self.channelParent.interval / 1000 / 3600 if self.values.size > 1 else 0
             self.preciseCharge += chargeIncrement  # display accumulated charge  # don't use np.sum(self.charges) to allow
             self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]  # attribute defined dynamically
 
@@ -198,19 +201,19 @@ class CurrentChannel(Channel):
         self.preciseCharge = 0
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.COM).getWidget().setVisible(self.real)
-        self.getParameterByName(self.DEVICENAME).getWidget().setVisible(self.real)
-        self.getParameterByName(self.RANGE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.AVERAGE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.BIAS).getWidget().setVisible(self.real)
-        self.getParameterByName(self.OUTOFRANGE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.UNSTABLE).getWidget().setVisible(self.real)
-        if self.device.recording:
+        self.getParameterByName(self.COM).setVisible(self.real)
+        self.getParameterByName(self.DEVICENAME).setVisible(self.real)
+        self.getParameterByName(self.RANGE).setVisible(self.real)
+        self.getParameterByName(self.AVERAGE).setVisible(self.real)
+        self.getParameterByName(self.BIAS).setVisible(self.real)
+        self.getParameterByName(self.OUTOFRANGE).setVisible(self.real)
+        self.getParameterByName(self.UNSTABLE).setVisible(self.real)
+        if self.channelParent.recording:
             self.controller.initializeCommunication()
         super().realChanged()
 
     def activeChanged(self) -> None:
-        if self.device.recording:
+        if self.channelParent.recording:
             self.controller.initializeCommunication()
         return super().activeChanged()
 
@@ -232,6 +235,9 @@ class CurrentChannel(Channel):
 
 class CurrentController(DeviceController):  # noqa: PLR0904
 
+    signalComm: 'SignalCommunicate'
+    controllerParent: CurrentChannel
+
     class SignalCommunicate(DeviceController.SignalCommunicate):
         """Bundle pyqtSignals."""
 
@@ -240,9 +246,6 @@ class CurrentController(DeviceController):  # noqa: PLR0904
 
     def __init__(self, controllerParent: CurrentChannel) -> None:
         super().__init__(controllerParent=controllerParent)
-        # setup port
-        self.channel = controllerParent
-        self.device = self.channel.getDevice()
         self.port = None
         self.signalComm.updateDeviceNameSignal.connect(self.updateDeviceName)
         self.updateAverageFlag = False
@@ -253,7 +256,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         self.offset = self.rng.random() * 10  # used in test mode
 
     def initializeCommunication(self) -> None:
-        if self.channel.enabled and self.channel.active and self.channel.real:
+        if self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             super().initializeCommunication()
         else:
             self.stopAcquisition()  # as this is a channel controller it should only stop acquisition but not recording
@@ -261,7 +264,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
     def closeCommunication(self) -> None:
         super().closeCommunication()
         if self.port is not None:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.channel.devicename}.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.controllerParent.devicename}.') as lock_acquired:
                 if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
                     self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
                 self.port.close()
@@ -271,7 +274,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
     def runInitialization(self) -> None:
         try:
             self.port = serial.Serial(
-                f'{self.channel.com}',
+                f'{self.controllerParent.com}',
                 baudrate=57600,
                 bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE,
@@ -284,27 +287,28 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             self.setBias()
             name = self.getName()
             if not name:
-                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.channel.com} did not provide a name. Abort initialization.')  # noqa: FBT003
+                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.controllerParent.com} did not provide a name. Abort initialization.')  # noqa: FBT003
                 return
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.channel.com}')  # noqa: FBT003
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.controllerParent.com}')  # noqa: FBT003
             self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.channel.com} is not open: {e}')  # noqa: FBT003
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.controllerParent.com} is not open: {e}')  # noqa: FBT003
         except serial.serialutil.SerialException as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.channel.com}: {e}')  # noqa: FBT003
+            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.controllerParent.com}: {e}')  # noqa: FBT003
         finally:
             self.initializing = False
 
     def startAcquisition(self) -> None:
-        if self.channel.active and self.channel.real:
+        if self.controllerParent.active and self.controllerParent.real:
             super().startAcquisition()
 
     def runAcquisition(self) -> None:
         if not getTestMode():
-            self.RBDWriteRead(message=f'I{self.channel.getDevice().interval:04d}')  # start sampling with given interval (implement high speed communication if available)
+            # start sampling with given interval (implement high speed communication if available)
+            self.RBDWriteRead(message=f'I{self.controllerParent.channelParent.interval:04d}')
         while self.acquiring:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.channel.devicename}.') as lock_acquired:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.controllerParent.devicename}.') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
                         self.fakeNumbers()
@@ -312,7 +316,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                         self.readNumbers()  # no sleep needed, timing controlled by waiting during readNumbers
                         self.updateParameters()
             if getTestMode():
-                time.sleep(self.channel.getDevice().interval / 1000)
+                time.sleep(self.controllerParent.channelParent.interval / 1000)
 
     def updateDeviceName(self, name) -> None:
         """Update the name received from the device in the channel.
@@ -320,32 +324,36 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         :param name: The received device name.
         :type name: str
         """
-        self.channel.devicename = name
+        self.controllerParent.devicename = name
 
     def updateValues(self, value, outOfRange, unstable, error='') -> None:  # pylint: disable=[arguments-differ]  # arguments differ by intention
         # Overwriting to also update additional custom channel properties
-        self.channel.value = value
-        self.channel.outOfRange = outOfRange
-        self.channel.unstable = unstable
-        self.channel.error = error
-        if error and self.channel.getDevice().log:
+        self.controllerParent.value = value
+        self.controllerParent.outOfRange = outOfRange
+        self.controllerParent.unstable = unstable
+        self.controllerParent.error = error
+        if error and self.controllerParent.channelParent.log:
             self.print(error)
 
     def setRange(self) -> None:
         """Set the range. Typically autorange is sufficient."""
-        self.RBDWriteRead(message=f'R{self.channel.getParameterByName(self.channel.RANGE).getWidget().currentIndex()}')  # set range
+        rangeWidget = cast('CompactComboBox', self.controllerParent.getParameterByName(self.controllerParent.RANGE).getWidget())
+        if rangeWidget:
+            self.RBDWriteRead(message=f'R{rangeWidget.currentIndex()}')  # set range
         self.updateRangeFlag = False
 
     def setAverage(self) -> None:
         """Set the averaging filter."""
-        average_filter = self.channel.getParameterByName(self.channel.AVERAGE).getWidget().currentIndex()
-        average_filter = 2**average_filter if average_filter > 0 else 0
-        self.RBDWriteRead(message=f'F0{average_filter:02}')  # set filter
+        averageWidget = cast('CompactComboBox', self.controllerParent.getParameterByName(self.controllerParent.AVERAGE).getWidget())
+        if averageWidget:
+            average_filter = averageWidget.currentIndex()
+            average_filter = 2**average_filter if average_filter > 0 else 0
+            self.RBDWriteRead(message=f'F0{average_filter:02}')  # set filter
         self.updateAverageFlag = False
 
     def setBias(self) -> None:
         """Set the bias voltage on or off."""
-        self.RBDWriteRead(message=f'B{int(self.channel.bias)}')  # set bias, convert from bool to int
+        self.RBDWriteRead(message=f'B{int(self.controllerParent.bias)}')  # set bias, convert from bool to int
         self.updateBiasFlag = False
 
     def setGrounding(self) -> None:
@@ -391,11 +399,11 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
 
     def fakeNumbers(self) -> None:
-        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
 
     def readNumbers(self) -> None:
-        if not self.channel.pluginManager.closing and self.channel.enabled and self.channel.active and self.channel.real:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             msg = ''
             msg = self.RBDRead()
             if not self.acquiring:  # may have changed while waiting on message
@@ -437,7 +445,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         except ValueError as e:
             self.print(f'Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
             self.errorCount += 1
-            return self.channel.value  # keep last valid value
+            return self.controllerParent.value  # keep last valid value
         match unit:
             case 'mA':
                 return x * 1E9
@@ -449,7 +457,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                 return x * 1
             case _:
                 self.print(f'Error: No handler for unit {unit} implemented!', PRINT.ERROR)
-                return self.channel.value  # keep last valid value
+                return self.controllerParent.value  # keep last valid value
 
     def RBDWrite(self, message) -> None:
         """RBD specific serial write.
@@ -457,11 +465,14 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         :param message: The serial message to be send.
         :type message: str
         """
-        self.serialWrite(self.port, f'&{message}\n')
+        if self.port:
+            self.serialWrite(self.port, f'&{message}\n')
 
     def RBDRead(self) -> str:
         """RBD specific serial read."""
-        return self.serialRead(self.port)
+        if self.port:
+            return self.serialRead(self.port)
+        return ''
 
     def RBDWriteRead(self, message, already_acquired=False) -> str:
         """RBD specific serial write and read.

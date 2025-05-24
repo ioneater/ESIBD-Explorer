@@ -23,12 +23,15 @@ class OMNICONTROL(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_omni.png'
+    channels: 'list[PressureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(controllerParent=self)
         self.logY = True
+
+    com: str
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -43,6 +46,7 @@ class PressureChannel(Channel):
     """UI for pressure with integrated functionality."""
 
     ID = 'ID'
+    channelParent: OMNICONTROL
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -62,6 +66,8 @@ class PressureChannel(Channel):
 
 class PressureController(DeviceController):
 
+    controllerParent: OMNICONTROL
+
     def closeCommunication(self) -> None:
         super().closeCommunication()
         if self.port is not None:
@@ -72,7 +78,7 @@ class PressureController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.port = serial.Serial(self.device.com, timeout=1)
+            self.port = serial.Serial(self.controllerParent.com, timeout=1)
             pvp.enable_valid_char_filter()
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
@@ -86,11 +92,11 @@ class PressureController(DeviceController):
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
-            if channel.enabled and channel.active and channel.real:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if isinstance(channel, PressureChannel) and channel.enabled and channel.active and channel.real:
                 try:
                     pressure = pvp.read_pressure(self.port, channel.id)
                     self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
@@ -101,7 +107,7 @@ class PressureController(DeviceController):
                     self.values[i] = np.nan
 
     def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 

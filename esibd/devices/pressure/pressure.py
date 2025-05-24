@@ -27,6 +27,7 @@ class Pressure(Device):
     unit = 'mbar'
     iconFile = 'pressure_light.png'
     iconFileDark = 'pressure_dark.png'
+    channels: 'list[PressureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -37,6 +38,9 @@ class Pressure(Device):
     def finalizeInit(self) -> None:
         super().finalizeInit()
         self.print('This plugin is deprecated and will be removed in the future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
+
+    TICCOM: str
+    TPGCOM: str
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -56,6 +60,7 @@ class PressureChannel(Channel):
     TIC = 'TIC'
     TPG = 'TPG'
     ID = 'ID'
+    channelParent: Pressure
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -78,6 +83,8 @@ class PressureChannel(Channel):
 
 
 class PressureController(DeviceController):
+
+    controllerParent: Pressure
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
@@ -106,7 +113,7 @@ class PressureController(DeviceController):
     def runInitialization(self) -> None:
         try:
             self.ticPort = serial.Serial(
-                f'{self.device.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                f'{self.controllerParent.TICCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'TIC Status: {TICStatus}')  # query status
@@ -119,7 +126,7 @@ class PressureController(DeviceController):
             self.ticInitialized = True
         try:
             self.tpgPort = serial.Serial(
-                f'{self.device.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                f'{self.controllerParent.TPGCOM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False, timeout=2)
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
@@ -140,7 +147,7 @@ class PressureController(DeviceController):
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     PRESSURE_READING_STATUS = {  # noqa: RUF012
       0: 'Measurement data okay',
@@ -153,8 +160,8 @@ class PressureController(DeviceController):
     }
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
-            if channel.enabled and channel.active and channel.real:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if isinstance(channel, PressureChannel) and channel.enabled and channel.active and channel.real:
                 if channel.pressure_controller == channel.TIC and self.ticInitialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
                     try:
@@ -180,7 +187,7 @@ class PressureController(DeviceController):
                     self.values[i] = np.nan
 
     def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
@@ -196,12 +203,15 @@ class PressureController(DeviceController):
         :param _id: The sensor id to be send.
         :type _id: str
         """
-        self.serialWrite(self.ticPort, f'?V{_id}\r')
+        if self.ticPort:
+            self.serialWrite(self.ticPort, f'?V{_id}\r')
 
     def TICRead(self) -> str:
         """TIC specific serial read."""
         # Note: unlike most other devices TIC terminates messages with \r and not \r\n
-        return self.serialRead(self.ticPort, EOL='\r')
+        if self.ticPort:
+            return self.serialRead(self.ticPort, EOL='\r')
+        return ''
 
     def TICWriteRead(self, message, already_acquired=False) -> str:
         """TIC specific serial write and read.
@@ -226,8 +236,9 @@ class PressureController(DeviceController):
         :param message: The serial message to be send.
         :type message: str
         """
-        self.serialWrite(self.tpgPort, f'{message}\r', encoding='ascii')
-        self.serialRead(self.tpgPort, encoding='ascii')  # read acknowledgment
+        if self.tpgPort:
+            self.serialWrite(self.tpgPort, f'{message}\r', encoding='ascii')
+            self.serialRead(self.tpgPort, encoding='ascii')  # read acknowledgment
 
     def TPGRead(self) -> str:
         """TPG specific serial read.
@@ -235,9 +246,11 @@ class PressureController(DeviceController):
         :return: The serial response received.
         :rtype: str
         """
-        self.serialWrite(self.tpgPort, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
-        enq = self.serialRead(self.tpgPort, encoding='ascii')  # response
-        self.serialRead(self.tpgPort, encoding='ascii')  # followed by NAK
+        enq = ''
+        if self.tpgPort:
+            self.serialWrite(self.tpgPort, '\x05\r', encoding='ascii')  # Enquiry prompts sending return from previously send mnemonic
+            enq = self.serialRead(self.tpgPort, encoding='ascii')  # response
+            self.serialRead(self.tpgPort, encoding='ascii')  # followed by NAK
         return enq
 
     def TPGWriteRead(self, message, already_acquired=False) -> str:

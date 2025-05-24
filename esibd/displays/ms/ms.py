@@ -51,10 +51,11 @@ class MS(Plugin):
 
     def initFig(self) -> None:
         self.provideFig()
-        self.axes.append(self.fig.add_subplot(111))
-        self.mzCalc.setAxis(self.axes[0])  # update axis but reuse picked positions until reset explicitly
+        if self.fig:
+            self.axes.append(self.fig.add_subplot(111))
+            self.mzCalc.setAxis(self.axes[0])  # update axis but reuse picked positions until reset explicitly
         self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
-        self.msLine = None  # self.axes[0].plot([],[])[0]  # dummy plot
+        self.line = None  # type: ignore  # noqa: PGH003 # self.axes[0].plot([],[])[0]  # dummy plot
 
     def provideDock(self) -> None:
         if super().provideDock():
@@ -64,7 +65,7 @@ class MS(Plugin):
     def finalizeInit(self) -> None:
         super().finalizeInit()
         self.copyAction = self.addAction(event=self.copyClipboard, toolTip=f'{self.name} image to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
-        self.dataAction = self.addAction(event=lambda: self.copyLineDataClipboard(line=self.msLine), toolTip=f'{self.name} data to clipboard.',
+        self.dataAction = self.addAction(event=lambda: self.copyLineDataClipboard(line=self.line), toolTip=f'{self.name} data to clipboard.',
                                           icon=self.dataClipboardIcon, before=self.copyAction)
         self.paperAction = self.addStateAction(event=self.plot, toolTipFalse='Plot in paper style.',
                                                 iconFalse=self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png'),
@@ -107,16 +108,16 @@ class MS(Plugin):
             self.axes[0].spines['right'].set_visible(False)
             self.axes[0].spines['top'].set_visible(False)
             if self._x is not None and self._y is not None:
-                self.msLine = self.axes[0].plot(self._x, self.map_percent(self._x, self.smooth(self._y, 10)),
+                self.line = self.axes[0].plot(self._x, self.map_percent(self._x, self.smooth(self._y, 10)),
                                             color=colors.fg if plt.rcParams['axes.facecolor'] == colors.bg else colors.bg)[0]
             self.axes[0].set_ylabel('')
-            self.axes[0].set_ylim([1, 100 + 2])
+            self.axes[0].set_ylim((1, 100 + 2))
             self.axes[0].set_yticks([1, 50, 100])
             self.axes[0].set_yticklabels(['0', '%', '100'])
         else:
             self.axes[0].set_ylabel('Intensity')
             if self._x is not None and self._y is not None:
-                self.msLine = self.axes[0].plot(self._x, self._y)[0]
+                self.line = self.axes[0].plot(self._x, self._y)[0]
             self.axes[0].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))  # use shared exponent for short y labels, even for smaller numbers
 
         self.axes[0].set_autoscale_on(True)
@@ -124,9 +125,9 @@ class MS(Plugin):
         self.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
         self.setLabelMargin(self.axes[0], 0.15)
         self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf')  # set up save file dialog
+        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0], '' if self.paperAction and self.paperAction.state else self.file.name)
+        self.labelPlot(self.axes[0], '' if self.paperAction and self.paperAction.state else (self.file.name if self.file else self.name))
 
     def find_nearest(self, array, value) -> float:
         """Return the nearest value in the given array.
@@ -231,7 +232,7 @@ def find_nearest(array, value):
 
 paperStyle = False
 
-x, y = np.loadtxt('{self.file.as_posix()}', skiprows=10, usecols=[0, 1], unpack=True)
+x, y = np.loadtxt('{self.file.as_posix() if self.file else ''}', skiprows=10, usecols=[0, 1], unpack=True)
 
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax = fig.add_subplot(111)

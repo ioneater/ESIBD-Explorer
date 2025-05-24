@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
 
+import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
@@ -33,6 +34,7 @@ class CustomDevice(Device):
     useBackgrounds = False
     useDisplays = True
     useOnOffLogic = True
+    channels: 'list[CustomChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -72,6 +74,9 @@ class CustomDevice(Device):
             self.messageBox.open()  # show non blocking
             self.messageBox.raise_()
 
+    # TODO add type hints for setting attributes generated at runtime
+    custom: int
+
     def getDefaultSettings(self) -> dict[str, dict]:
         settings = super().getDefaultSettings()
         settings[f'{self.name}/Custom Setting'] = parameterDict(value=100, minimum=100, maximum=10000, toolTip='Custom Tooltip',
@@ -92,9 +97,10 @@ class CustomChannel(Channel):
     """Custom channel. Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
 
     ID = 'ID'
+    channelParent: CustomDevice
 
-    def __init__(self, device, tree) -> None:
-        super().__init__(device, tree)
+    def __init__(self, channelParent, tree) -> None:
+        super().__init__(channelParent, tree)
         # TODO (optional) initialize any custom variables
 
     def initGUI(self, item) -> None:
@@ -128,7 +134,7 @@ class CustomChannel(Channel):
         # TODO (optional) add any custom code that is needed when a channel is enabled or disabled
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.ID).getWidget().setVisible(self.real)
+        self.getParameterByName(self.ID).setVisible(self.real)
         # TODO (optional) hide parameters that are only used by real channels
         super().realChanged()
 
@@ -143,6 +149,8 @@ class CustomChannel(Channel):
 
 class CustomController(DeviceController):
     """Custom Device controller. Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
+
+    controllerParent: CustomDevice
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
@@ -185,7 +193,7 @@ class CustomController(DeviceController):
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
                 if lock_acquired:
                     if getTestMode():
-                        self.values = [channel.value + self.rng.random() for channel in self.device.getChannels()]  # TODO implement fake feedback
+                        self.values = np.array([channel.value + self.rng.random() for channel in self.controllerParent.getChannels()])  # TODO implement fake feedback
                     elif True:
                         # TODO implement real feedback
                         pass
@@ -193,15 +201,15 @@ class CustomController(DeviceController):
                         # TODO increment error count if you catch a communication error here
                         self.errorCount += 1
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)  # release lock before waiting!
+            time.sleep(self.controllerParent.interval / 1000)  # release lock before waiting!
 
-    def applyValue(self, channel) -> None:
+    def applyValue(self, channel: CustomChannel) -> None:
         # TODO (optional) overwrite depending on hardware
         # Pseudocode: Apply channel.value to channel with channel.id
         pass
 
     def updateValues(self) -> None:
         # TODO (optional) adjust how you want to update values to the gui
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
                 channel.monitor = self.values[i]

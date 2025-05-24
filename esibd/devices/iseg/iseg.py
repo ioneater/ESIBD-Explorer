@@ -28,6 +28,7 @@ class ISEG(Device):
     unit = 'V'
     useMonitors = True
     iconFile = 'ISEG.png'
+    channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -37,6 +38,9 @@ class ISEG(Device):
     def initGUI(self) -> None:
         super().initGUI()
         self.controller = VoltageController(controllerParent=self, modules=self.getModules())  # after all channels loaded
+
+    ip: str
+    port: int
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -62,6 +66,7 @@ class VoltageChannel(Channel):
 
     MODULE = 'Module'
     ID = 'ID'
+    channelParent: ISEG
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -84,23 +89,26 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        self.updateWarningState(self.enabled and self.device.controller.acquiring
-                                and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
+        self.updateWarningState(self.enabled and self.channelParent.controller.acquiring
+                                and ((self.channelParent.isOn() and abs(self.monitor - self.value) > 1)
+                                or (not self.channelParent.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.MODULE).getWidget().setVisible(self.real)
-        self.getParameterByName(self.ID).getWidget().setVisible(self.real)
+        self.getParameterByName(self.MODULE).setVisible(self.real)
+        self.getParameterByName(self.ID).setVisible(self.real)
         super().realChanged()
 
 
 class VoltageController(DeviceController):
 
-    def __init__(self, controllerParent, modules) -> None:
+    controllerParent: ISEG
+
+    def __init__(self, controllerParent: ISEG, modules) -> None:
         super().__init__(controllerParent=controllerParent)
         self.modules = modules or [0]
         self.socket = None
-        self.maxID = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
+        self.maxID = max(channel.id if channel.real and isinstance(channel, VoltageChannel)
+                         else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
@@ -108,11 +116,11 @@ class VoltageController(DeviceController):
 
     def runInitialization(self) -> None:
         try:
-            self.socket = socket.create_connection(address=(self.device.ip, int(self.device.port)), timeout=3)
+            self.socket = socket.create_connection(address=(self.controllerParent.ip, int(self.controllerParent.port)), timeout=3)
             self.print(self.ISEGWriteRead(message=b'*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.print(f'Could not establish SCPI connection to {self.device.ip} on port {int(self.device.port)}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish SCPI connection to {self.controllerParent.ip} on port {int(self.controllerParent.port)}. Exception: {e}', PRINT.WARNING)
         finally:
             self.initializing = False
 
@@ -120,7 +128,7 @@ class VoltageController(DeviceController):
         self.values = np.zeros([len(self.modules), self.maxID + 1])
         super().initComplete()
 
-    def applyValue(self, channel) -> None:
+    def applyValue(self, channel: VoltageChannel) -> None:
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode())
 
     def updateValues(self) -> None:
@@ -128,19 +136,20 @@ class VoltageController(DeviceController):
         if getTestMode():
             self.fakeNumbers()
         else:
-            for channel in self.device.getChannels():
-                if channel.enabled and channel.real:
+            for channel in self.controllerParent.getChannels():
+                if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
                     channel.monitor = self.values[channel.module][channel.id]
 
     def toggleOn(self) -> None:
         for module in self.modules:
-            self.ISEGWriteRead(message=f":VOLT {'ON' if self.device.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode())
+            self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode())
 
     def fakeNumbers(self) -> None:
-        for channel in self.device.getChannels():
+        for channel in self.controllerParent.getChannels():
             if channel.enabled and channel.real:
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
-                channel.monitor = (channel.value if self.device.isOn() and channel.enabled else 0) + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5
+                channel.monitor = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
+                                   + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5)
 
     def runAcquisition(self) -> None:
         while self.acquiring:  # noqa: PLR1702
@@ -158,7 +167,7 @@ class VoltageController(DeviceController):
                                     self.print(f'Parsing error: {e} for {res}.')
                                     self.errorCount += 1
                     self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     def ISEGWriteRead(self, message, already_acquired=False) -> str:
         """ISEG specific serial write and read.
@@ -173,7 +182,7 @@ class VoltageController(DeviceController):
         response = ''
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', already_acquired=already_acquired) as lock_acquired:
-                if lock_acquired:
+                if lock_acquired and self.socket:
                     self.socket.sendall(message)  # get channel name
                     response = self.socket.recv(4096).decode('utf-8')
                     self.print('ISEGWriteRead message: ' + message.replace('\r', '').replace('\n', '') +

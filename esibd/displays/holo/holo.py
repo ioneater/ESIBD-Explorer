@@ -50,8 +50,9 @@ class HOLO(Plugin):
         self.angleSlider.valueChanged.connect(lambda: self.value_changed(plotAngle=True))
         self.amplitudeSlider = QSlider(Qt.Orientation.Horizontal)
         self.amplitudeSlider.valueChanged.connect(lambda: self.value_changed(plotAngle=False))
-        self.titleBar.addWidget(self.angleSlider)
-        self.titleBar.addWidget(self.amplitudeSlider)
+        if self.titleBar:
+            self.titleBar.addWidget(self.angleSlider)
+            self.titleBar.addWidget(self.amplitudeSlider)
         self.angle = None
         self.amplitude = None
         self.plotAngle = None
@@ -122,7 +123,9 @@ class HOLO(Plugin):
                 verts, faces = pg.isosurface(self.amplitude, self.mapSliderToData(self.amplitudeSlider, self.amplitude))
 
             md = gl.MeshData(vertexes=verts, faces=faces)
-            faceColors = np.ones((md.faceCount(), 4), dtype=float)
+            faceCount = md.faceCount()
+            if faceCount:
+                faceColors = np.ones((faceCount, 4), dtype=float)
             faceColors[:, 3] = 0.2
             faceColors[:, 2] = np.linspace(0, 1, faceColors.shape[0])
             md.setFaceColors(faceColors)
@@ -166,7 +169,7 @@ class Foo(QMainWindow):
         self.init()
 
     def init(self):
-        data = np.load('{self.file.as_posix()}')
+        data = np.load('{self.file.as_posix() if self.file else ''}')
         self.angle = np.ascontiguousarray(np.angle(data))  # make c contiguous
         self.amplitude = np.ascontiguousarray(np.abs(data))  # make c contiguous
         self.glAngleView.setCameraPosition(distance=max(self.angle.shape)*2)

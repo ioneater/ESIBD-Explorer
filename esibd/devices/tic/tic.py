@@ -36,11 +36,12 @@ class TIC(OMNICONTROL):
 class TICPressureController(PressureController):
 
     TICgaugeID = (913, 914, 915, 934, 935, 936)
+    controllerParent: TIC
 
     def runInitialization(self) -> None:
         try:
             self.port = serial.Serial(
-                f'{self.device.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                f'{self.controllerParent.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'Status: {TICStatus}')  # query status
@@ -56,7 +57,7 @@ class TICPressureController(PressureController):
             self.initializing = False
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 if self.initialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)

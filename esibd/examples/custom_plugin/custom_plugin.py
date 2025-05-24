@@ -7,7 +7,7 @@ from esibd.core import PLUGINTYPE
 from esibd.plugins import Plugin
 
 
-def providePlugins() -> list[Plugin]:
+def providePlugins() -> list['type[Plugin]']:
     """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [CustomPlugin]
 

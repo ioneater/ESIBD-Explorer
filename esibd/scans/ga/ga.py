@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, dynamicImport, parameterDict, plotting, pyqtSignal
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, dynamicImport, parameterDict, plotting, pyqtSignal
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -45,28 +45,45 @@ class GA(Scan):
     iconFile = 'GA_light.png'
     iconFileDark = 'GA_dark.png'
 
+    signalComm: 'SignalCommunicate'
+    display: 'GA.Display'
+    inputChannels: list['GA.MetaChannel']
+    outputChannels: list['GA.ScanChannel | GA.MetaChannel']
+
     class SignalCommunicate(Scan.SignalCommunicate):
         """Bundle pyqtSignals."""
 
         updateValuesSignal = pyqtSignal(int, bool)
 
+    class MetaChannel(MetaChannel):
+        recordingData: 'DynamicNp'
+
+    class ScanChannel(ScanChannel):
+
+        recordingData: 'DynamicNp'
+
     class Display(Scan.Display):
         """Display for GA scan."""
 
+        scan: 'GA'
+
         def initFig(self) -> None:
             super().initFig()
-            self.axes.append(self.fig.add_subplot(111))
-            self.bestLine = self.axes[0].plot([[datetime.now()]], [0], label='best fitness')[0]  # need to be initialized with datetime on x axis
-            self.avgLine = self.axes[0].plot([[datetime.now()]], [0], label='avg fitness')[0]
-            legend = self.axes[0].legend(loc='lower right', prop={'size': 10}, frameon=False)
-            legend.set_in_layout(False)
-            self.axes[0].set_xlabel(self.TIME)
-            self.axes[0].set_ylabel('Fitness Value')
-            self.tilt_xlabels(self.axes[0])
+            if self.fig:
+                self.axes.append(self.fig.add_subplot(111))
+                self.bestLine = self.axes[0].plot([[datetime.now()]], [0], label='best fitness')[0]  # type: ignore  # noqa: PGH003  # need to be initialized with datetime on x axis
+                self.avgLine = self.axes[0].plot([[datetime.now()]], [0], label='avg fitness')[0]  # type: ignore  # noqa: PGH003
+                legend = self.axes[0].legend(loc='lower right', prop={'size': 10}, frameon=False)
+                legend.set_in_layout(False)
+                self.axes[0].set_xlabel(self.TIME)
+                self.axes[0].set_ylabel('Fitness Value')
+                self.tilt_xlabels(self.axes[0])
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.ga = dynamicImport('ga_standalone', self.dependencyPath / 'ga_standalone.py').GA()
+        Module = dynamicImport('ga_standalone', self.dependencyPath / 'ga_standalone.py')
+        if Module:
+            self.ga = Module.GA()
         self.signalComm.updateValuesSignal.connect(self.updateValues)
         self.changeLog = []
 
@@ -82,6 +99,7 @@ class GA(Scan):
         super().runTestParallel()
 
     GACHANNEL = 'GA Channel'
+    log: bool
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -107,7 +125,7 @@ class GA(Scan):
         super().addInputChannels()
         self.addTimeInputChannel()
 
-    def initScan(self) -> None:
+    def initScan(self) -> bool:
         """Start optimization."""
         # overwrite parent
         if super().initScan() and self.displayActive() and not self._dummy_initialization:
@@ -128,14 +146,15 @@ class GA(Scan):
         return False
 
     def addOutputChannels(self) -> None:
-        self.print('addOutputChannels', flag=PRINT.DEBUG)
-        self.addOutputChannel(name=f'{self.displayDefault}')  # only add ga channel
-        self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
-                                    for name, parameterDict in self.headerChannel.getSortedDefaultChannel().items()])
-        if len(self.outputChannels) > 0:
-            self.outputChannels[0].recordingData = DynamicNp()
-            self.outputChannels.append(MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
-            self.toggleAdvanced(advanced=False)
+        if self.channelTree:
+            self.print('addOutputChannels', flag=PRINT.DEBUG)
+            self.addOutputChannel(name=f'{self.displayDefault}')  # only add ga channel
+            self.channelTree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
+                                        for name, parameterDict in self.headerChannel.getSortedDefaultChannel().items()])
+            if len(self.outputChannels) > 0:
+                self.outputChannels[0].recordingData = DynamicNp()
+                self.outputChannels.append(self.MetaChannel(parentPlugin=self, name=f'{self.displayDefault}_Avg', recordingData=DynamicNp()))
+                self.toggleAdvanced(advanced=False)
 
     @plotting
     def plot(self, update=False, **kwargs) -> None:  # pylint:disable=unused-argument, missing-param-doc  # noqa: ARG002
@@ -147,17 +166,20 @@ class GA(Scan):
         # timing test with 160 generations: update True: 25 ms, update False: 37 ms
         if self.loading:
             return
+        bestData = self.getData(0, INOUT.IN)
+        avgData = self.getData(1, INOUT.OUT)
         if len(self.outputChannels) > 0:
-            time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in self.getData(0, INOUT.IN)]  # convert timestamp to datetime
-            self.display.bestLine.set_data(time_axis, self.getData(0, INOUT.OUT))
-            self.display.avgLine.set_data(time_axis, self.getData(1, INOUT.OUT))
+            if bestData is not None and avgData is not None:
+                time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in bestData]  # convert timestamp to datetime
+                self.display.bestLine.set_data(time_axis, bestData)  # type: ignore  # noqa: PGH003
+                self.display.avgLine.set_data(time_axis, avgData)  # type: ignore  # noqa: PGH003
         else:  # no data
             self.display.bestLine.set_data([], [])
             self.display.avgLine.set_data([], [])
         self.display.axes[0].autoscale(enable=True, axis='x')
         self.display.axes[0].relim()
         self.display.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
-        if len(self.getData(0, INOUT.OUT)) > 1:
+        if bestData is not None and len(bestData) > 1:
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         self.defaultLabelPlot(self.display.axes[0])
@@ -183,26 +205,32 @@ fig.show()
     def runScan(self, recording) -> None:
         # first datapoint before optimization
         self.inputChannels[0].recordingData.add(time.time())
-        fitnessStart = np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep))
-        self.outputChannels[0].recordingData.add(fitnessStart)
-        self.outputChannels[1].recordingData.add(fitnessStart)
-        while recording():
-            self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
-            time.sleep((self.wait + self.average) / 1000)
-            self.bufferLagging()
-            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
-            self.ga.fitness(np.mean(self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)))
-            if self.log:
-                self.print(self.ga.step_string().replace('GA: ', ''))
-            _, session_saved = self.ga.check_restart()
-            if session_saved:
-                self.print(f'Session Saved -- Average Fitness: {self.ga.average_fitness():6.2f} Best Fitness: {self.ga.best_fitness():6.2f}')
-                self.print(f'Starting Generation {self.ga.current_generation}:')
-                self.inputChannels[0].recordingData.add(time.time())
-                self.outputChannels[0].recordingData.add(self.ga.best_fitness())
-                self.outputChannels[1].recordingData.add(self.ga.average_fitness())
-                self.stepProcessed = False
-                self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
+        outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
+        if outputChannelValues is not None:
+            fitnessStart = float(np.mean(outputChannelValues))
+            self.outputChannels[0].recordingData.add(fitnessStart)
+            self.outputChannels[1].recordingData.add(fitnessStart)
+            while recording():
+                outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
+                if not outputChannelValues:
+                    self.print('outputChannelValues not defined', flag=PRINT.ERROR)
+                    return
+                self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
+                time.sleep((self.wait + self.average) / 1000)
+                self.bufferLagging()
+                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
+                self.ga.fitness(np.mean(outputChannelValues))
+                if self.log:
+                    self.print(self.ga.step_string().replace('GA: ', ''))
+                _, session_saved = self.ga.check_restart()
+                if session_saved:
+                    self.print(f'Session Saved -- Average Fitness: {self.ga.average_fitness():6.2f} Best Fitness: {self.ga.best_fitness():6.2f}')
+                    self.print(f'Starting Generation {self.ga.current_generation}:')
+                    self.inputChannels[0].recordingData.add(time.time())
+                    self.outputChannels[0].recordingData.add(self.ga.best_fitness())
+                    self.outputChannels[1].recordingData.add(self.ga.average_fitness())
+                    self.stepProcessed = False
+                    self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
         self.ga.check_restart(_terminate=True)  # sort population
         self.signalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003
         self.signalComm.scanUpdateSignal.emit(True)  # noqa: FBT003

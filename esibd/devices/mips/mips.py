@@ -4,6 +4,7 @@ from random import choices
 
 import numpy as np
 import serial
+from serial.serialutil import SerialException
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
@@ -27,6 +28,7 @@ class MIPS(Device):
     unit = 'V'
     useMonitors = True
     iconFile = 'mips.png'
+    channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -52,6 +54,7 @@ class VoltageChannel(Channel):
 
     COM = 'COM'
     ID = 'ID'
+    channelParent: MIPS
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -74,30 +77,33 @@ class VoltageChannel(Channel):
 
     def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
-        self.updateWarningState(self.enabled and self.device.controller.acquiring
-                                and ((self.device.isOn() and abs(self.monitor - self.value) > 1)
-                                or (not self.device.isOn() and abs(self.monitor - 0) > 1)))
+        self.updateWarningState(self.enabled and self.channelParent.controller.acquiring
+                                and ((self.channelParent.isOn() and abs(self.monitor - self.value) > 1)
+                                or (not self.channelParent.isOn() and abs(self.monitor - 0) > 1)))
 
     def realChanged(self) -> None:
-        self.getParameterByName(self.COM).getWidget().setVisible(self.real)
-        self.getParameterByName(self.ID).getWidget().setVisible(self.real)
+        self.getParameterByName(self.COM).setVisible(self.real)
+        self.getParameterByName(self.ID).setVisible(self.real)
         super().realChanged()
 
 
 class VoltageController(DeviceController):
 
-    def __init__(self, controllerParent, COMs) -> None:
+    controllerParent: MIPS
+
+    def __init__(self, controllerParent: MIPS, COMs) -> None:
         super().__init__(controllerParent=controllerParent)
         self.COMs = COMs or ['COM1']
-        self.ports = [None] * len(self.COMs)
-        self.maxID = max(channel.id if channel.real else 0 for channel in self.device.getChannels())  # used to query correct amount of monitors
+        self.ports: list[serial.Serial] = [None] * len(self.COMs)  # type: ignore  # noqa: PGH003
+        self.maxID = max(channel.id if channel.real and isinstance(channel, VoltageChannel)
+                         else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
 
     def runInitialization(self) -> None:
         try:
             self.ports = [serial.Serial(baudrate=9600, port=COM, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                                         bytesize=serial.EIGHTBITS, timeout=2) for COM in self.COMs]
             result = self.MIPSWriteRead(self.COMs[0], 'GDCBV,1\r\n')
-        except (ValueError, serial.serialutil.SerialException) as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
+        except (ValueError, SerialException) as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
             self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
         else:
             if result:
@@ -109,7 +115,7 @@ class VoltageController(DeviceController):
             self.initializing = False
 
     def initComplete(self) -> None:
-        self.values = np.zeros([len(self.COMs), self.maxID + 1])
+        self.values = np.zeros([len(self.COMs), self.maxID + 1], dtype=np.float32)
         super().initComplete()
 
     def closeCommunication(self) -> None:
@@ -118,29 +124,29 @@ class VoltageController(DeviceController):
             if port is not None:
                 with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {port.port}.'):
                     port.close()
-                    self.ports[i] = None
+                    self.ports[i] = None  # type: ignore  # noqa: PGH003
         self.initialized = False
 
-    def applyValue(self, channel) -> None:
-        self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.device.isOn()) else 0}\r\n')
+    def applyValue(self, channel: VoltageChannel) -> None:
+        self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.controllerParent.isOn()) else 0}\r\n')
 
     def updateValues(self) -> None:
         # Overwriting to use values for multiple COM ports
         if getTestMode():
             self.fakeNumbers()
         else:
-            for channel in self.device.getChannels():
-                if channel.enabled and channel.real:
+            for channel in self.controllerParent.getChannels():
+                if isinstance(channel, VoltageChannel) and channel.enabled and channel.real:
                     channel.monitor = self.values[self.COMs.index(channel.com)][channel.id - 1]
 
     def toggleOn(self) -> None:
-        for channel in self.device.getChannels():
+        for channel in self.controllerParent.getChannels():
             self.applyValueFromThread(channel)
 
     def fakeNumbers(self) -> None:
-        for channel in self.device.getChannels():
+        for channel in self.controllerParent.getChannels():
             if channel.enabled and channel.real:
-                if self.device.isOn() and channel.enabled:
+                if self.controllerParent.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
                     channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
                 else:
@@ -160,7 +166,7 @@ class VoltageController(DeviceController):
                                     self.errorCount += 1
                                     self.values[i][ID] = np.nan
                     self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     def MIPSWrite(self, COM, message) -> None:
         """MIPS specific serial write.
@@ -170,7 +176,8 @@ class VoltageController(DeviceController):
         :param message: The serial message to be send.
         :type message: str
         """
-        self.serialWrite(self.ports[self.COMs.index(COM)], message)
+        if self.ports:
+            self.serialWrite(self.ports[self.COMs.index(COM)], message)
 
     def MIPSRead(self, COM) -> str:
         """MIPS specific serial read.

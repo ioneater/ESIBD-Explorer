@@ -25,6 +25,7 @@ class PICO(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'K'
     iconFile = 'pico_104.png'
+    channels: 'list[TemperatureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -54,7 +55,7 @@ class PICO(Device):
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'][Parameter.VALUE] = 1E6  # overwrite default value
         return defaultSettings
 
-    def convertDataDisplay(self, data) -> float:
+    def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
         return data - 273.15 if self.unitAction.state else data
 
     def getUnit(self) -> str:
@@ -73,6 +74,7 @@ class TemperatureChannel(Channel):
     CHANNEL = 'Channel'
     DATATYPE = 'Datatype'
     NOOFWIRES = 'noOfWires'
+    channelParent: PICO
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -102,6 +104,7 @@ class TemperatureChannel(Channel):
 class TemperatureController(DeviceController):
 
     chandle = ctypes.c_int16()
+    controllerParent: PICO
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent)
@@ -116,17 +119,18 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.initialized:
+        if self.initialized and self.lock:
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
-                self.usbPt104.UsbPt104CloseUnit(self.chandle)
+                self.usbPt104.UsbPt104CloseUnit(self.chandle)  # type: ignore  # noqa: PGH003
         self.initialized = False
 
     def runInitialization(self) -> None:
         try:
-            self.assert_pico_ok(self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0))
-            for channel in self.device.getChannels():
-                self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],
-                                                        self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))
+            self.assert_pico_ok(self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0))  # type: ignore  # noqa: PGH003
+            for channel in self.controllerParent.getChannels():
+                if isinstance(channel, TemperatureChannel):
+                    self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],  # type: ignore  # noqa: PGH003
+                                                        self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))  # type: ignore  # noqa: PGH003
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
@@ -139,14 +143,14 @@ class TemperatureController(DeviceController):
                 if lock_acquired:
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.device.interval / 1000)
+            time.sleep(self.controllerParent.interval / 1000)
 
     def readNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
-            if channel.enabled and channel.active and channel.real:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if isinstance(channel, TemperatureChannel) and channel.enabled and channel.active and channel.real:
                 try:
                     meas = ctypes.c_int32()
-                    self.usbPt104.UsbPt104GetValue(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)
+                    self.usbPt104.UsbPt104GetValue(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)  # type: ignore  # noqa: PGH003
                     self.print(f'UsbPt104GetValue channel.channel: {channel.channel}, response {meas.value}', flag=PRINT.TRACE)
                     if meas.value != ctypes.c_long(0).value:  # 0 during initialization phase
                         self.values[i] = float(meas.value) / 1000 + 273.15  # always return Kelvin
@@ -158,7 +162,7 @@ class TemperatureController(DeviceController):
                     self.values[i] = np.nan
 
     def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.device.getChannels()):
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 # exponentially approach target or room temp + small fluctuation
                 self.values[i] = float(self.rng.integers(1, 300)) if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation

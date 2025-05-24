@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QSlider  # , QTextEdit  #, QSizePolicy  # QLabel, QMessageBox
 from scipy.stats import binned_statistic
 
-from esibd.core import PARAMETERTYPE, DynamicNp, Parameter, parameterDict, plotting
+from esibd.core import PARAMETERTYPE, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -32,25 +32,38 @@ class Omni(Scan):
     useDisplayParameter = True
     iconFile = 'omni.png'
 
+    display: 'Omni.Display'
+    inputChannels: list['Omni.ScanChannel | Omni.MetaChannel']
+    outputChannels: list['Omni.ScanChannel']
+
+    class ScanChannel(ScanChannel):
+        recordingData: 'DynamicNp'
+
+    class MetaChannel(MetaChannel):
+        recordingData: 'DynamicNp'
+
     class Display(Scan.Display):
         """Display for Omni scan."""
 
+        scan: 'Omni'
+
         def __init__(self, **kwargs) -> None:
             super().__init__(**kwargs)
-            self.xSlider = None
-            self.lines = None
+            self.xSlider: QSlider = None  # type: ignore  # noqa: PGH003
+            self.lines = None  # type: ignore  # noqa: PGH003
 
         def initFig(self) -> None:
             super().initFig()
-            self.lines = None
-            self.axes = []
-            self.axes.append(self.fig.add_subplot(111))
-            if self.xSlider is not None:
-                self.xSlider.deleteLater()
-            self.xSlider = QSlider(Qt.Orientation.Horizontal)
-            self.vertLayout.addWidget(self.xSlider)
-            self.xSlider.valueChanged.connect(self.updateX)
-            self.updateInteractive()
+            if self.fig:
+                self.lines = None  # type: ignore  # noqa: PGH003
+                self.axes = []
+                self.axes.append(self.fig.add_subplot(111))
+                if self.xSlider is not None:
+                    self.xSlider.deleteLater()
+                self.xSlider = QSlider(Qt.Orientation.Horizontal)
+                self.vertLayout.addWidget(self.xSlider)
+                self.xSlider.valueChanged.connect(self.updateX)
+                self.updateInteractive()
 
         def updateX(self, value) -> None:
             """Update the value of the independent variable based on slider value.
@@ -73,11 +86,15 @@ class Omni(Scan):
                     self.xSlider.setValue(int((self.scan.inputChannels[0].value - self.scan.inputChannels[0].min) *
                                               self.xSlider.maximum() / (self.scan.inputChannels[0].max - self.scan.inputChannels[0].min)))
 
+    channelName: str
+    bins: int
+    interactive: bool
+
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
         defaultSettings[self.WAIT][Parameter.VALUE] = 2000
         defaultSettings[self.CHANNEL] = parameterDict(value='RT_Grid', toolTip='Electrode that is swept through', items='RT_Grid, RT_Sample-Center, RT_Sample-End',
-                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channel', event=self.dummyInitialization)
+                                                                      parameterType=PARAMETERTYPE.COMBO, attr='channelName', event=self.dummyInitialization)
         defaultSettings[self.START] = parameterDict(value=-10, parameterType=PARAMETERTYPE.FLOAT, attr='start', event=self.estimateScanTime)
         defaultSettings[self.STOP] = parameterDict(value=-5, parameterType=PARAMETERTYPE.FLOAT, attr='stop', event=self.estimateScanTime)
         defaultSettings[self.STEP] = parameterDict(value=.2, parameterType=PARAMETERTYPE.FLOAT, attr='step', minimum=.1, maximum=10, event=self.estimateScanTime)
@@ -98,7 +115,7 @@ class Omni(Scan):
 
     @Scan.finished.setter
     def finished(self, finished) -> None:
-        Scan.finished.fset(self, finished)
+        Scan.finished.fset(self, finished)  # type: ignore  # noqa: PGH003
         # disable inputs while scanning
         self.settingsMgr.settings[self.INTERACTIVE].setEnabled(finished)
 
@@ -110,11 +127,11 @@ class Omni(Scan):
 
     def addInputChannels(self) -> None:
         super().addInputChannels()
-        self.addInputChannel(self.channel, self.start, self.stop, self.step)
+        self.addInputChannel(self.channelName, self.start, self.stop, self.step)
 
-    def initScan(self) -> None:
+    def initScan(self) -> bool:
         if super().initScan() and self.displayActive() and not self._dummy_initialization:
-            self.display.lines = None
+            self.display.lines = None  # type: ignore  # noqa: PGH003
             self.display.updateInteractive()
             if self.interactive:
                 self.inputChannels[0].recordingData = DynamicNp()
@@ -124,12 +141,13 @@ class Omni(Scan):
         return False
 
     def loadDataInternal(self) -> bool:
-        self.display.lines = None
+        self.display.lines = None  # type: ignore  # noqa: PGH003
         return super().loadDataInternal()
 
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, C901, PLR0912
-        if len(self.outputChannels) > 0:
+        if len(self.outputChannels) > 0 and self.display:
+            inputRecordingData = self.inputChannels[0].getRecordingData()
             if self.display.lines is None:
                 self.display.axes[0].clear()
                 self.display.lines = []  # dummy plots
@@ -147,7 +165,7 @@ class Omni(Scan):
             if self.interactive:
                 for i, output in enumerate(self.outputChannels):
                     if output.display:
-                        x = self.inputChannels[0].getRecordingData()
+                        x = inputRecordingData
                         y = output.getRecordingData()
                         mean, bin_edges, _ = binned_statistic(x, y, bins=self.bins, range=(int(self.start), int(self.stop)))
                         self.display.lines[i].set_data((bin_edges[:-1] + bin_edges[1:]) / 2, mean)
@@ -155,8 +173,9 @@ class Omni(Scan):
                         self.display.lines[i].set_data([], [])
             else:
                 for i, output in enumerate(self.outputChannels):
-                    if output.display:
-                        self.display.lines[i].set_data(self.inputChannels[0].getRecordingData(), output.getRecordingData())
+                    outputRecordingData = output.getRecordingData()
+                    if output.display and inputRecordingData is not None and outputRecordingData is not None:
+                        self.display.lines[i].set_data(inputRecordingData, outputRecordingData)
                     else:
                         self.display.lines[i].set_data([], [])
             self.display.axes[0].relim()  # adjust to data
@@ -186,21 +205,23 @@ ax0.legend(loc='best', prop={{'size': 7}}, frameon=False)
 fig.show()
         """  # similar to staticDisplay
 
-    def runScan(self, recording) -> None:
+    def runScan(self, recording) -> None:  # noqa: C901, PLR0912
         if self.interactive:
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
                 time.sleep((self.wait + self.average) / 1000)  # if step is larger than threshold use longer wait time
                 self.bufferLagging()
                 self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
-                if self.inputChannels[0].recording:  # get average
-                    self.inputChannels[0].recordingData.add(np.mean(self.inputChannels[0].getValues(subtractBackground=self.inputChannels[0].subtractBackgroundActive(),
-                                                                                                     length=self.measurementsPerStep)))
-                else:  # use last value
-                    self.inputChannels[0].recordingData.add(self.inputChannels[0].value)
-                for j, outputChannel in enumerate(self.outputChannels):
-                    self.outputChannels[j].recordingData.add(np.mean(outputChannel.getValues(subtractBackground=outputChannel.subtractBackgroundActive(),
-                                                                                              length=self.measurementsPerStep)))
+                inputChannelValues0 = self.inputChannels[0].getValues(subtractBackground=self.inputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
+                if inputChannelValues0 is not None:
+                    if self.inputChannels[0].recording:  # get average
+                        self.inputChannels[0].recordingData.add(float(np.mean(inputChannelValues0)))
+                    else:  # use last value
+                        self.inputChannels[0].recordingData.add(self.inputChannels[0].value)
+                    for j, outputChannel in enumerate(self.outputChannels):
+                        outputChannelValues = outputChannel.getValues(subtractBackground=outputChannel.subtractBackgroundActive(), length=self.measurementsPerStep)
+                        if outputChannelValues is not None:
+                            self.outputChannels[j].recordingData.add(float(np.mean(outputChannelValues)))
                 if not recording():  # last step
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                     self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
@@ -210,22 +231,27 @@ fig.show()
         else:
             steps = self.inputChannels[0].getRecordingData()
             self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
-            for i, step in enumerate(steps):  # scan over all steps
-                waitLong = False
-                if not waitLong and abs(self.inputChannels[0].value - step) > self.largestep:
-                    waitLong = True
-                self.inputChannels[0].updateValueSignal.emit(step)
-                time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
-                self.bufferLagging()
-                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
-                for outputChannel in self.outputChannels:
-                    outputChannel.recordingData[i] = np.mean(outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(),
-                                                                                      length=self.measurementsPerStep))
-                if i == len(steps) - 1 or not recording():  # last step
-                    self.inputChannels[0].updateValueSignal.emit(self.inputChannels[0].initialValue)
-                    time.sleep(.5)  # allow time to reset to initial value before saving
-                    self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
-                    self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
-                    break  # in case this is last step
-                self.stepProcessed = False
-                self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
+            if steps is not None:
+                for i, step in enumerate(steps):  # scan over all steps
+                    waitLong = False
+                    if not waitLong and abs(self.inputChannels[0].value - step) > self.largestep:
+                        waitLong = True
+                    if self.inputChannels[0].updateValueSignal:
+                        self.inputChannels[0].updateValueSignal.emit(step)
+                    time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
+                    self.bufferLagging()
+                    self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
+                    for outputChannel in self.outputChannels:
+                        outputRecordingData = outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(),
+                                                                                          length=self.measurementsPerStep)
+                        if outputRecordingData is not None:
+                            outputChannel.recordingData[i] = np.mean(outputRecordingData)
+                    if i == len(steps) - 1 or not recording():  # last step
+                        if self.inputChannels[0].updateValueSignal:
+                            self.inputChannels[0].updateValueSignal.emit(self.inputChannels[0].initialValue)
+                        time.sleep(.5)  # allow time to reset to initial value before saving
+                        self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
+                        self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
+                        break  # in case this is last step
+                    self.stepProcessed = False
+                    self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
