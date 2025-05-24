@@ -5039,7 +5039,7 @@ class Tree(Plugin):
                 dataset_widget = QTreeWidgetItem(tree, [name])
                 dataset_widget.setIcon(0, QIcon(self.ICON_DATASET))
 
-    def pyShow(self, class_obj: Any, tree: QTreeWidget | QTreeWidgetItem, expansionLevel: int) -> None:  # noqa: ANN401
+    def pyShow(self, class_obj: Any, tree: 'QTreeWidget | QTreeWidgetItem', expansionLevel: int) -> None:  # noqa: ANN401
         """Populate tree based on contents of a python class.
 
         :param class_obj: Valid python class.

@@ -212,7 +212,7 @@ fig.show()
             self.outputChannels[1].recordingData.add(fitnessStart)
             while recording():
                 outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
-                if not outputChannelValues:
+                if outputChannelValues is not None:
                     self.print('outputChannelValues not defined', flag=PRINT.ERROR)
                     return
                 self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003

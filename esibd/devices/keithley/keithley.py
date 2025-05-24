@@ -114,7 +114,7 @@ class CurrentChannel(Channel):
 class CurrentController(DeviceController):
     """Implements visa communication with KEITHLEY 6487."""
 
-    port: pyvisa.resources.gpib.GPIBInstrument | None
+    port: 'pyvisa.resources.gpib.GPIBInstrument | None'
     controllerParent: CurrentChannel
 
     def __init__(self, controllerParent: 'CurrentChannel') -> None:

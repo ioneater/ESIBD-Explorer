@@ -3490,7 +3490,7 @@ class TreeWidgetItem(QTreeWidgetItem):
     """TreeWidgetItem with path_info."""
 
     path_info: Path
-    obj: QObject | Any
+    obj: 'QObject | Any'
 
 
 class CheckBox(QCheckBox, ParameterWidget):
@@ -5319,19 +5319,20 @@ class DeviceController(QObject):  # noqa: PLR0904
     def updateValues(self) -> None:
         """Update the value or monitor of the channel(s) in the main thread. Called from acquisitionThread."""
         # Overwrite with specific update code if applicable.
-        if isinstance(self.controllerParent, Channel) and self.values:
-            if self.controllerParent is None:  # controls device with multiple channels
-                for channel, value in zip(self.controllerParent.getDevice().getChannels(), self.values, strict=True):
+        if self.values is not None and self.controllerParent is not None:
+            if isinstance(self.controllerParent, self.pluginManager.Device):
+                for channel, value in zip(self.controllerParent.getChannels(), self.values, strict=True):
                     if channel.useMonitors and channel.enabled and channel.real:
                         # Monitors of input devices should be updated even if the channel is not active (value determined by equation).
                         channel.monitor = value
                     elif channel.enabled and channel.active and channel.real:
                         # Should only be called for output devices
                         channel.value = value
-            elif self.controllerParent.useMonitors:
-                self.controllerParent.monitor = self.values[0]
-            else:
-                self.controllerParent.value = self.values[0]
+            elif isinstance(self.controllerParent, Channel):
+                if self.controllerParent.useMonitors:
+                    self.controllerParent.monitor = self.values[0]
+                else:
+                    self.controllerParent.value = self.values[0]
 
     def toggleOnFromThread(self, parallel: bool = True) -> None:
         """Toggles device on or off (tread safe).
