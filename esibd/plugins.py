@@ -543,7 +543,10 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.dock = DockWidget(self)
 
     def provideDock(self) -> bool:  # noqa: C901, PLR0912
-        """Add existing :attr:`~esibd.plugins.Plugin.dock` to UI at position defined by :attr:`esibd.plugins.Plugin.pluginType`."""
+        """Add existing :attr:`~esibd.plugins.Plugin.dock` to UI at position defined by :attr:`esibd.plugins.Plugin.pluginType`.
+
+        Always call from the main_thread.
+        """
         mw = self.pluginManager.mainWindow
         if not self.initializedDock:
             self.print('provideDock', PRINT.DEBUG)

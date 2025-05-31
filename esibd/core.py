@@ -568,12 +568,13 @@ class PluginManager:  # noqa: PLR0904
         for plugin in self.plugins:
             self.logger.print(f'Starting testing for {plugin.name} {plugin.version}.')
             plugin.testing = True
-            plugin.provideDock()  # most dock will already be open after loading test files, not all test files may be present outside of production environment
-            plugin.raiseDock(showPlugin=True)
-            plugin.waitForCondition(condition=lambda plugin=plugin: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'dock of {plugin.name}')
-            plugin.runTestParallel()
-            if not plugin.waitForCondition(condition=lambda plugin=plugin: not plugin.testing_state, timeout=60, timeoutMessage=f'testing {plugin.name} to complete.'):
-                plugin.signalComm.testCompleteSignal.emit()
+            # make sure dock is provided in main thread
+            QTimer.singleShot(0, plugin.provideDock)  # most dock will already be open after loading test files, not all test files may be present outside of production environment
+            if plugin.waitForCondition(condition=lambda plugin=plugin: hasattr(plugin, 'videoRecorderAction'), timeoutMessage=f'dock of {plugin.name}'):
+                plugin.raiseDock(showPlugin=True)
+                plugin.runTestParallel()
+                if not plugin.waitForCondition(condition=lambda plugin=plugin: not plugin.testing_state, timeout=60, timeoutMessage=f'testing {plugin.name} to complete.'):
+                    plugin.signalComm.testCompleteSignal.emit()
             if not self.testing:
                 break
             self.DeviceManager.bufferLagging()
@@ -2349,7 +2350,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.lastAppliedValue = None  # keep track of last value to identify what has changed
         self.parameters = []
         self.displayedParameters = []
-        self.controller = None
+        self.controller = None  # type: ignore  # noqa: PGH003
         self.defaultStyleSheet = None  # will be initialized when color is set
         self.warningStyleSheet = 'background: rgb(255,0,0)'
         self.warningState = False
