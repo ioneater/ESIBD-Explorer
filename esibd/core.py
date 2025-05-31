@@ -1032,7 +1032,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         """
         if self.active:
             self.writeToLogAndTerminal(message=message)
-        if hasattr(self.pluginManager, 'Console') and self.pluginManager.Console.initializedGUI:
+        if hasattr(self.pluginManager, 'Console') and hasattr(self.pluginManager.Console, 'mainConsole'):
             # handles new lines in system error messages better than Console.repl.write()
             # needs to run in main_thread
             self.pluginManager.Console.write(message.rstrip('\n') if fromConsole else message)
@@ -2319,6 +2319,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     useBackgrounds: bool = False
     useMonitors: bool = False
     logY: bool = False
+    controller: 'DeviceController'
     """Indicates if logarithmic controls and scales should be used."""
 
     def __init__(self, channelParent: 'ChannelManager | Scan', tree: 'QTreeWidget | None' = None) -> None:
@@ -5362,7 +5363,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         2. closing your custom hardware communication
         3. self.initialized = False
         """
-        self.print('closeCommunication', PRINT.DEBUG)
+        self.print('closeCommunication controller', PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()  # only call if not already called by device
         # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
@@ -5692,6 +5693,9 @@ class MouseInterceptor(QObject):
         :return: Indicates if the event has been handles. Always False as we want to add the ripple effect without altering anything else.
         :rtype: bool
         """
+        if not hasattr(self.window, 'pluginManager') or self.window.pluginManager.closing:
+            return False
+
         if (isinstance(event, QMouseEvent) and event.type() == QMouseEvent.Type.MouseButtonPress and hasattr(self.window.pluginManager, 'Settings')
             and self.window.pluginManager.Settings.showMouseClicks):
             local_pos = self.window.mapFromGlobal(event.globalPosition().toPoint())

@@ -3048,9 +3048,9 @@ class Device(ChannelManager):  # noqa: PLR0904
             if self.controller is None:
                 for channel in self.channels:
                     if channel.controller:
-                        channel.controller.toggleOnFromThread()
+                        channel.controller.toggleOnFromThread(parallel=False)
             else:
-                self.controller.toggleOnFromThread()
+                self.controller.toggleOnFromThread(parallel=False)
         elif self.isOn():
             self.initializeCommunication()
 

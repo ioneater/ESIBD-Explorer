@@ -77,6 +77,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [lint.per-file-ignores]
 "!esibd/{config.py,const.py,core.py,plugins.py}" = ["ANN001", "D101" , "D102", "D103", "D106", "D107"]  # ignore everywhere but here -> avoids false positives if parent method has types annotated
+"esibd/devices/*.py" = ["FIX002", "TD002", "TD003", "TD004"]  # No authors or issue links for TODOs. TODOs here are instructions for plugin developers.
 "esibd/examples/*.py" = ["FIX002", "TD002", "TD003", "TD004"]  # No authors or issue links for TODOs. TODOs here are instructions for plugin developers.
 "plugins_external/*.py" = ["FIX002", "TD002", "TD003", "TD004"]  # No authors or issue links for TODOs. TODOs here are instructions for plugin developers.
 

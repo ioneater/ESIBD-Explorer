@@ -1,18 +1,18 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import serial
 
 from esibd.core import PRINT
-from esibd.devices.omnicontrol.omnicontrol import OMNICONTROL, PressureController
+from esibd.devices.omnicontrol.omnicontrol import OMNICONTROL, PressureChannel, PressureController
 
 if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> list['type[Plugin]']:
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [TIC]
 
@@ -41,7 +41,7 @@ class TICPressureController(PressureController):
     def runInitialization(self) -> None:
         try:
             self.port = serial.Serial(
-                f'{self.controllerParent.COM}', baudrate=9600, bytesize=serial.EIGHTBITS,
+                f'{self.controllerParent.com}', baudrate=9600, bytesize=serial.EIGHTBITS,
                 parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=True, timeout=2)
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'Status: {TICStatus}')  # query status
@@ -60,7 +60,7 @@ class TICPressureController(PressureController):
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 if self.initialized:
-                    msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
+                    msg = self.TICWriteRead(message=f"{self.TICgaugeID[cast('PressureChannel', channel).id]}", already_acquired=True)
                     try:
                         self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
                     except Exception as e:  # noqa: BLE001
@@ -81,9 +81,8 @@ class TICPressureController(PressureController):
         :rtype: str
         """
         response = ''
-        with self.ticLock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
-            if lock_acquired:
-                self.TICWrite(message)
+        with self.lock.acquire_timeout(2, timeoutMessage=f'Cannot acquire lock for message: {message}', already_acquired=already_acquired) as lock_acquired:
+            if lock_acquired and self.port:
                 self.serialWrite(self.port, f'?V{message}\r')
                 # Note: unlike most other devices TIC terminates messages with \r and not \r\n
                 response = self.serialRead(self.port, EOL='\r')  # reads return value

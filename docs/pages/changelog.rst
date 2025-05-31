@@ -21,6 +21,7 @@ Added
 - Input channels are now shown in the channel list of scans.
 - Added icons to change log and documentation.
 - Input and output messages from console |console| will now appear in terminal and log file.
+- Added Lakeshore335 plugin.
 
 Changed
 ~~~~~~~
@@ -46,6 +47,7 @@ Fixed
 - Preventing error when changing directories to fast by ignoring double click while loading.
 - Fixed an issue where the data type of channel values would be changed to float64 when extending the dynamic numpy array.
 - Instead of reloading plugins, the application performs a clean restart. This is to avoid memory leaks from incompletely closed plugins.
+- Fixed TIC, ISEG, and Temperature after testing with hardware.
 
 Removed
 ~~~~~~~

@@ -28,6 +28,7 @@ class Temperature(Device):
     useMonitors = True
     iconFile = 'temperature.png'
     channels: 'list[TemperatureChannel]'
+    controller: 'TemperatureController'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -77,17 +78,51 @@ class Temperature(Device):
         self.unitAction.iconTrue = self.makeIcon('tempK_dark.png' if getDarkMode() else 'tempK_light.png')
         self.unitAction.updateIcon(self.unitAction.state)
 
+    def setOn(self, on: 'bool | None' = None) -> None:
+        # super().setOn(on)  # do not use super but implement specifically in this case.  # noqa: ERA001
+        if on is not None and self.onAction.state is not on:
+            self.onAction.state = on
+        if self.initialized():
+            # updateValues not needed for CryoTel, we use the power which is restored in the device and do not need to update the unused temperature setpoint.
+            # TODO: when turning off, updateValues(on=False) caused a dead lock at the com port freezing the entire application until the port is physically disconnected.
+            # self.updateValues(apply=True)  # noqa: ERA001
+            if self.controller is None:
+                for channel in self.channels:
+                    if channel.controller:
+                        channel.controller.toggleOnFromThread(parallel=False)
+            else:
+                self.controller.toggleOnFromThread(parallel=False)
+        elif self.isOn():
+            self.initializeCommunication()
+
 
 class TemperatureChannel(Channel):
     """UI for pressure with integrated functionality."""
 
     CRYOTEL = 'CryoTel'
+    POWER = 'Power'
+    power: int
     channelParent: Temperature
 
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
-        channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
+        channel[self.VALUE][Parameter.HEADER] = 'Temp (K) DISABLED'
+        channel[self.VALUE][Parameter.INDICATOR] = True
+        channel[self.VALUE][Parameter.ADVANCED] = True
+        channel[self.POWER] = parameterDict(value=120, parameterType=PARAMETERTYPE.INT, minimum=80, maximum=180, attr='power', instantUpdate=False,
+                                event=self.setPower)
         return channel
+
+    def setDisplayedParameters(self) -> None:
+        super().setDisplayedParameters()
+        self.insertDisplayedParameter(self.POWER, before=self.MONITOR)
+
+    def setPower(self) -> None:
+        """Set the power."""
+        self.channelParent.controller.setPower(self)
+
+    def monitorChanged(self) -> None:
+        """Use power rather than temperature setpoint."""
 
 
 class TemperatureController(DeviceController):
@@ -99,7 +134,9 @@ class TemperatureController(DeviceController):
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
 
     def closeCommunication(self) -> None:
-        super().closeCommunication()
+        self.print('closeCommunication', PRINT.DEBUG)
+        if self.acquiring:
+            self.stopAcquisition()
         if self.port is not None:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
@@ -141,6 +178,9 @@ class TemperatureController(DeviceController):
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
                 value = self.CryoTelWriteRead(message='TC')  # Display Cold-Tip Temperature (same on old and new controller)
+                if not value:
+                    self.print('CryoTel returned empty string. Message: TC', PRINT.TRACE)
+                    return
                 try:
                     self.values[i] = float(value)
                 except ValueError as e:
@@ -181,7 +221,7 @@ class TemperatureController(DeviceController):
         else:
             self.CryoTelWriteRead(message='COOLER=OFF')  # stop (used to be 'SET SSTOP=1')
         self.messageBox.setText(f"Remember to turn water cooling {'on' if self.controllerParent.isOn() else 'off'}"
-                                " and gas ballast {'off' if self.controllerParent.isOn() else 'on'}!")
+                                f" and gas ballast {'off' if self.controllerParent.isOn() else 'on'}!")
         self.messageBox.setWindowIcon(self.controllerParent.getIcon())
         if not self.controllerParent.testing:
             self.messageBox.open()  # show non blocking, defined outside so it does not get eliminated when the function completes.
@@ -191,6 +231,14 @@ class TemperatureController(DeviceController):
     def applyValue(self, channel: TemperatureChannel) -> None:
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
 
+    def setPower(self, channel: TemperatureChannel) -> None:
+        """Set the power.
+
+        :param channel: The channel for which to change the power.
+        :type channel: TemperatureChannel
+        """
+        self.CryoTelWriteRead(message=f'PWOUT={channel.power}')
+
     def CryoTelWriteRead(self, message: str) -> str:
         """CryoTel specific serial write and read.
 
@@ -199,12 +247,11 @@ class TemperatureController(DeviceController):
         :return: The serial response received.
         :rtype: str
         """
-        response = ''
-        with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
-            if lock_acquired:
-                self.CryoTelWrite(message)
-                response = self.CryoTelRead()  # reads return value
-        return response
+        # TODO: lock is not working as expected, possibly as a consequence of hardware issue with deadlocked com port
+        # with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}') as lock_acquired:
+        #    if lock_acquired:
+        self.CryoTelWrite(message)
+        return self.CryoTelRead()
 
     def CryoTelWrite(self, message: str) -> None:
         """CryoTel specific serial write.

@@ -117,7 +117,7 @@ class VoltageController(DeviceController):
     def runInitialization(self) -> None:
         try:
             self.socket = socket.create_connection(address=(self.controllerParent.ip, int(self.controllerParent.port)), timeout=3)
-            self.print(self.ISEGWriteRead(message=b'*IDN?\r\n'))
+            self.print(self.ISEGWriteRead(message='*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
             self.print(f'Could not establish SCPI connection to {self.controllerParent.ip} on port {int(self.controllerParent.port)}. Exception: {e}', PRINT.WARNING)
@@ -129,7 +129,7 @@ class VoltageController(DeviceController):
         super().initComplete()
 
     def applyValue(self, channel: VoltageChannel) -> None:
-        self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n'.encode())
+        self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n')
 
     def updateValues(self) -> None:
         # Overwriting to use values for multiple modules
@@ -142,7 +142,7 @@ class VoltageController(DeviceController):
 
     def toggleOn(self) -> None:
         for module in self.modules:
-            self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n".encode())
+            self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n")
 
     def fakeNumbers(self) -> None:
         for channel in self.controllerParent.getChannels():
@@ -157,7 +157,7 @@ class VoltageController(DeviceController):
                 if lock_acquired:
                     if not getTestMode():
                         for module in self.modules:
-                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n'.encode(), already_acquired=lock_acquired)
+                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=lock_acquired)
                             if res:
                                 try:
                                     monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
@@ -169,7 +169,7 @@ class VoltageController(DeviceController):
                     self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
             time.sleep(self.controllerParent.interval / 1000)
 
-    def ISEGWriteRead(self, message, already_acquired=False) -> str:
+    def ISEGWriteRead(self, message: str, already_acquired: bool = False) -> str:
         """ISEG specific serial write and read.
 
         :param message: The serial message to be send.
@@ -183,7 +183,7 @@ class VoltageController(DeviceController):
         if not getTestMode():
             with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock for message: {message}.', already_acquired=already_acquired) as lock_acquired:
                 if lock_acquired and self.socket:
-                    self.socket.sendall(message)  # get channel name
+                    self.socket.sendall(message.encode())
                     response = self.socket.recv(4096).decode('utf-8')
                     self.print('ISEGWriteRead message: ' + message.replace('\r', '').replace('\n', '') +
                                ', response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
