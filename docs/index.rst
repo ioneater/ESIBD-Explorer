@@ -1,5 +1,3 @@
-.. include:: icons.rst
-
 Welcome to ESIBD Explorer's documentation!
 ==========================================
 
