@@ -3,7 +3,7 @@ name = "esibd-explorer"  # package name can include hyphens, module names should
 requires-python = ">=3.11"
 version = "0.8.0"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
-license = {file = "LICENSE"}
+license = "LICENSE"
 readme = "README.rst"
 # For tools, versions should be fixed. For libraries they should be constrained as little as possible.
 # https://www.reddit.com/r/Python/comments/13j6bri/why_is_strict_fixed_requirements_a_best_practice/
