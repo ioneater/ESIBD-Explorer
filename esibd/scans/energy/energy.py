@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Energy]
 

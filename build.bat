@@ -157,6 +157,7 @@ python -m esibd.explorer
 
 REM create environment for offline installation
 create_esibd_offline.bat
+add start_esibd_offline.bat to zip file 
 
 REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work

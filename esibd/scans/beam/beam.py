@@ -6,7 +6,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import interpolate
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, CursorAxes, MetaChannel, colors, getDarkMode, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, ControlCursor, CursorAxes, MetaChannel, ScanChannel, colors, getDarkMode, parameterDict, plotting
 from esibd.plugins import Plugin, Scan
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from matplotlib.contour import QuadContourSet
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Beam]
 
@@ -41,6 +41,11 @@ class Beam(Scan):
     iconFile = 'beam.png'
 
     display: 'Beam.Display'
+
+    outputChannels: list['Beam.ScanChannel']
+
+    class ScanChannel(ScanChannel):
+        recordingData: 'np.ndarray'
 
     class Display(Scan.Display):
         """Display for Beam Scan."""

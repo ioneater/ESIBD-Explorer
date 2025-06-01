@@ -85,6 +85,7 @@ Developer Notes
 - Merged deviceController.device and deviceController.channel into deviceController.controllerParent.
 - Renamed channel.device to channel.channelParent.
 - Added type hints and refactored code based on type checking.
+- Reimplemented MultiStateAction labels with Enums to enable type checking.
 
 Performance
 ~~~~~~~~~~~

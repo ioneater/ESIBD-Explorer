@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from threading import Thread, Timer, current_thread, main_thread
 from typing import TYPE_CHECKING, Any, TextIO, TypeVar, cast
@@ -319,7 +320,7 @@ class PluginManager:  # noqa: PLR0904
         validConfigPath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0]
         if validConfigPath:
             self.pluginFile = validConfigPath / 'plugins.ini'
-        self.plugins: list['Plugin'] = []
+        self.plugins: 'list[Plugin]' = []
         self.pluginNames = []
         self.firstControl = None
         self.firstDisplay = None
@@ -740,11 +741,11 @@ class PluginManager:  # noqa: PLR0904
         self.Console.mainDisplayWidget.setMinimumHeight(50)
         self.Console.mainDisplayWidget.setMaximumHeight(10000)
 
-    def getMainPlugins(self) -> list['Plugin']:
+    def getMainPlugins(self) -> 'list[Plugin]':
         """Return all plugins found in the control section, including devices, controls, and scans."""
         return self.getPluginsByType([PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE, PLUGINTYPE.CONTROL, PLUGINTYPE.SCAN])
 
-    def getPluginsByType(self, pluginTypes: PLUGINTYPE | list[PLUGINTYPE]) -> list['Plugin']:
+    def getPluginsByType(self, pluginTypes: PLUGINTYPE | list[PLUGINTYPE]) -> 'list[Plugin]':
         """Return all plugins of the specified type.
 
         :param pluginTypes: A single type or list of types.
@@ -762,7 +763,7 @@ class PluginManager:  # noqa: PLR0904
         """Return all plugins of the specified type.
 
         :param parentClasses: A single class or list of classes.
-        :type parentClasses: 'Plugin' | list['Plugin']
+        :type parentClasses: 'Plugin' | 'list[Plugin]'
         :return: List of matching plugins.
         :rtype: [:class:`~esibd.plugins.Plugin`]
         """
@@ -3008,13 +3009,12 @@ class ScanChannel(RelayChannel, Channel):
         # scan channel devices will always be of type Device
         return super().getDevice()  # type: ignore  # noqa: PGH003
 
+    # definitions for type hinting
+    display: bool
+    unit: str
+    notes: str
+
     def getDefaultChannel(self) -> dict[str, dict]:  # noqa: D102
-
-        # definitions for type hinting
-        self.display: bool
-        self.unit: str
-        self.notes: str
-
         channel = super().getDefaultChannel()
         channel.pop(Channel.SELECT)
         channel.pop(Channel.ACTIVE)
@@ -3730,7 +3730,7 @@ class StateAction(Action):
 class MultiState:
     """Represents a state of a MultiStateAction including label, toolTip and icon."""
 
-    label: str
+    label: Enum
     toolTip: str
     icon: Icon
 
@@ -3740,9 +3740,6 @@ class MultiStateAction(Action):
 
     Values are restored using QSettings if name is provided.
     """
-
-    class Labels:
-        """Dummy class used to store labels."""
 
     def __init__(self, parentPlugin: 'Plugin', states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913, PLR0917
                  attr: str = '', restore: bool = True, defaultState: int = 0) -> None:
@@ -3766,9 +3763,6 @@ class MultiStateAction(Action):
         super().__init__(states[0].icon, states[0].toolTip, parentPlugin)
         self.parentPlugin = parentPlugin
         self.states = states
-        self.labels = self.Labels()  # use labels as parameters to avoid hard coding
-        for state in self.states:
-            setattr(self.labels, state.label, state.label)
         self.setToolTip(states[0].toolTip)
         self.attr = attr
         self.fullName = ''
@@ -3798,17 +3792,7 @@ class MultiStateAction(Action):
         :return: Index of corresponding state, defaults to 0.
         :rtype: int
         """
-        return next((i for i in range(len(self.states)) if self.states[i].label == label), 0)
-
-    def labelFromState(self, state: int) -> str:
-        """Return label corresponding to provided state.
-
-        :param state: state index
-        :type state: int
-        :return: state label, defaults to label of first state
-        :rtype: str
-        """
-        return self.states[state].label if state < len(self.states) else self.states[0].label
+        return next((i for i in range(len(self.states)) if self.states[i].label.name == label), 0)
 
     def rollState(self) -> None:
         """Roll to next state."""
@@ -3816,9 +3800,9 @@ class MultiStateAction(Action):
         self.updateIcon()
 
     @property
-    def state(self) -> str:  # use labels for api
+    def state(self) -> Enum:  # use labels for api
         """Label representation of current state."""
-        return self.labelFromState(self._state)
+        return self.states[self._state].label if self._state < len(self.states) else self.states[0].label
 
     @state.setter
     def state(self, label: str) -> None:

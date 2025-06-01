@@ -8,7 +8,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceControll
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [KEITHLEY]
 
@@ -57,6 +57,7 @@ class CurrentChannel(Channel):
     ADDRESS = 'Address'
     VOLTAGE = 'Voltage'
     channelParent: KEITHLEY
+    controller: 'CurrentController'
 
     def getDefaultChannel(self) -> dict[str, dict]:
 

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [GA]
 
@@ -212,7 +212,7 @@ fig.show()
             self.outputChannels[1].recordingData.add(fitnessStart)
             while recording():
                 outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
-                if outputChannelValues is not None:
+                if outputChannelValues is None:
                     self.print('outputChannelValues not defined', flag=PRINT.ERROR)
                     return
                 self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003

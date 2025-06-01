@@ -8,7 +8,7 @@ from esibd.extended import ESIBDSettings
 from esibd.plugins import PID, UCM, Browser, Console, DeviceManager, Explorer, Notes, Plugin, Text, Tree
 
 
-def providePlugins() -> list['Plugin']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of :class:`plugins<esibd.plugins.Plugin>`.
 
     Plugins are available for activation in the :class:`~esibd.core.PluginManager` user interface accessible from :ref:`sec:settings`.

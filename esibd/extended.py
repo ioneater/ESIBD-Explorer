@@ -13,11 +13,15 @@ class ESIBDSettings(Settings):
     If you need to customize Settings for another experiment you only need to replace this class.
     """
 
-    documentation = Settings.__doc__ + __doc__
+    documentation = (Settings.__doc__ or '') + (__doc__ or '')
 
     SUBSTRATE = 'Substrate'
     ION = 'Ion'
     SESSIONTYPE = 'Session type'
+
+    substrate: str
+    molion: str
+    sessionType: str
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()

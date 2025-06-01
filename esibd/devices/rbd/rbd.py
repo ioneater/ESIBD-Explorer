@@ -13,7 +13,7 @@ from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, CompactComboBo
 from esibd.plugins import Device, Plugin, Scan, StaticDisplay
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [RBD]
 
@@ -123,6 +123,7 @@ class CurrentChannel(Channel):
     UNSTABLE = 'Unstable'
     ERROR = 'Error'
     channelParent: RBD
+    controller: 'CurrentController'
 
     def getDefaultChannel(self) -> dict[str, dict]:
 

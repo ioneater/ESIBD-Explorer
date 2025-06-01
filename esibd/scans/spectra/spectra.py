@@ -1,18 +1,20 @@
 import itertools
 import time
+from enum import Enum
 from typing import TYPE_CHECKING, cast
 
 import h5py
 import numpy as np
 
 from esibd.core import CursorAxes, MultiState, getDarkMode, plotting
+from esibd.plugins import Device
 from esibd.scans import Beam
 
 if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
     return [Spectra]
 
@@ -45,6 +47,11 @@ class Spectra(Beam):
         plotModeAction = None
         averageAction = None
 
+        class PlotActionState(Enum):
+            STACKED = 'STACKED'
+            OVERLAY = 'OVERLAY'
+            CONTOUR = 'CONTOUR'
+
         def __init__(self, scan, **kwargs) -> None:
             super(Beam.Display, self).__init__(scan, **kwargs)
             self.lines = None  # type: ignore  # noqa: PGH003
@@ -54,9 +61,9 @@ class Spectra(Beam):
             super().finalizeInit()
             self.averageAction = self.addStateAction(toolTipFalse='Show average.', toolTipTrue='Hide average.', iconFalse=self.scan.getIcon(),  # defined in updateTheme
                                                         before=self.copyAction, event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='average')
-            self.plotModeAction = self.addMultiStateAction(states=[MultiState('stacked', 'Overlay plots.', self.scan.makeIcon('overlay.png')),
-                                                               MultiState('overlay', 'Contour plot.', self.scan.makeIcon('beam.png')),
-                                                               MultiState('contour', 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
+            self.plotModeAction = self.addMultiStateAction(states=[MultiState(self.PlotActionState.STACKED, 'Overlay plots.', self.scan.makeIcon('overlay.png')),
+                                                               MultiState(self.PlotActionState.OVERLAY, 'Contour plot.', self.scan.makeIcon('beam.png')),
+                                                               MultiState(self.PlotActionState.CONTOUR, 'Stack plots.', self.scan.makeIcon('stacked.png'))], before=self.copyAction,
                                                         event=lambda: (self.initFig(), self.scan.plot(update=False, done=True)), attr='plotMode')
             self.updateTheme()  # set icons
             self.initFig()  # axes aspect or plotMode may have changed
@@ -65,7 +72,7 @@ class Spectra(Beam):
             if self.plotModeAction is None:
                 return
             self.lines = None  # type: ignore  # noqa: PGH003
-            if self.plotModeAction.state == self.plotModeAction.labels.contour:
+            if self.plotModeAction.state == self.PlotActionState.CONTOUR:
                 super().initFig()
                 return
             super(Beam.Display, self).initFig()
@@ -113,7 +120,7 @@ class Spectra(Beam):
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
         if not self.display or not self.display.plotModeAction or not self.display.averageAction:
             return
-        if self.display.plotModeAction.state == self.display.plotModeAction.labels.contour:
+        if self.display.plotModeAction.state == self.display.PlotActionState.CONTOUR:
             self.plotting = False  # decorator will be called again
             super().plot(update=update, done=done, **kwargs)
             return
@@ -132,16 +139,16 @@ class Spectra(Beam):
             outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()
             if outputRecordingData is not None:
                 for i in range(len(outputRecordingData)):
-                    if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                    if self.display.plotModeAction.state == self.display.PlotActionState.STACKED:
                         self.display.lines.append(self.display.axes[0].plot([], [])[0])
                     else:  # self.display.plotModeAction.labels.overlay
                         self.display.lines.append(self.display.axes[0].plot([], [], label=y[i])[0])
                 if self.display.averageAction.state:
-                    if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                    if self.display.plotModeAction.state == self.display.PlotActionState.STACKED:
                         self.display.lines.append(self.display.axes[0].plot([], [], linewidth=4)[0])
                     else:  # self.display.plotModeAction.labels.overlay
                         self.display.lines.append(self.display.axes[0].plot([], [], label='avg', linewidth=4)[0])
-                if self.display.plotModeAction.state == self.display.plotModeAction.labels.overlay:
+                if self.display.plotModeAction.state == self.display.PlotActionState.OVERLAY:
                     legend = self.display.axes[0].legend(loc='best', prop={'size': 10}, frameon=False)
                     legend.set_in_layout(False)
 
@@ -151,7 +158,7 @@ class Spectra(Beam):
         recordingDataOutputIndex = self.outputChannels[self.getOutputIndex()].getRecordingData()
         if self.display.lines and recordingDataOutputIndex is not None:
             for i, z in enumerate(recordingDataOutputIndex):
-                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                if self.display.plotModeAction.state == self.display.PlotActionState.STACKED:
                     z_offset = None
                     if np.abs(z.max() - z.min()) != 0:
                         z_normalized = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
@@ -161,7 +168,7 @@ class Spectra(Beam):
                     self.display.lines[i].set_data(x, z)
             if self.display.averageAction.state:
                 z = np.mean(recordingDataOutputIndex, 0)
-                if self.display.plotModeAction.state == self.display.plotModeAction.labels.stacked:
+                if self.display.plotModeAction.state == self.display.PlotActionState.STACKED:
                     if np.abs(z.max() - z.min()) != 0:
                         z = z / (np.abs(z.max() - z.min())) * np.abs(y[1] - y[0])
                     self.display.lines[-1].set_data(x, z + y[-1] + y[1] - y[0] - z[0])
@@ -173,9 +180,13 @@ class Spectra(Beam):
         self.updateToolBar(update=update)
         self.defaultLabelPlot(self.display.axes[0])
 
-    def runScan(self, recording) -> None:
+    def runScan(self, recording) -> None:  # noqa: C901
         # definition of steps updated to scan along x instead of y axis.
-        steps = [steps_1d[::-1] for steps_1d in list(itertools.product(*[i.getRecordingData() for i in [self.inputChannels[1], self.inputChannels[0]]]))]
+        inputRecordingData0 = self.inputChannels[0].getRecordingData()
+        inputRecordingData1 = self.inputChannels[1].getRecordingData()
+        if inputRecordingData0 is None or inputRecordingData1 is None:
+            return
+        steps = [steps_1d[::-1] for steps_1d in list(itertools.product(inputRecordingData1, inputRecordingData0))]
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
         for i, step in enumerate(steps):  # scan over all steps
             waitLong = False
@@ -190,8 +201,9 @@ class Spectra(Beam):
             for output in self.outputChannels:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                inputRecordingData0 = self.inputChannels[0].getRecordingData()
-                outputValues = output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
+                outputDevice = output.getDevice()
+                if isinstance(outputDevice, Device):
+                    outputValues = output.getValues(subtractBackground=outputDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
                 if output.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
                     output.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
             if i == len(steps) - 1 or not recording():  # last step

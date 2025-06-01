@@ -20,7 +20,7 @@ from esibd.core import (
 from esibd.plugins import Device, Plugin
 
 
-def providePlugins() -> list['type[Plugin]']:
+def providePlugins() -> 'list[type[Plugin]]':
     """Indicate that this module provides plugins. Returns list of provided plugins."""
     return [LS335]
 

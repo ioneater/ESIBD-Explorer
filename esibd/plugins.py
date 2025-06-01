@@ -1497,6 +1497,21 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
     DISPLAYTIME = 'displayTime'
     parentPlugin: 'ChannelManager'
 
+    class StackActionState(Enum):
+        """States for the Stack Action."""
+
+        VERTICAL = 'VERTICAL'
+        HORIZONTAL = 'HORIZONTAL'
+        STACKED = 'STACKED'
+
+    class GroupActionState(Enum):
+        """States for the Group Action."""
+
+        ALL = 'ALL'
+        DEVICE = 'DEVICE'
+        UNIT = 'UNIT'
+        GROUP = 'GROUP'
+
     def __init__(self, parentPlugin: 'ChannelManager', **kwargs) -> None:  # noqa: D107
         super().__init__(**kwargs)
         self.parentPlugin = parentPlugin  # should be a device that will define which channel to plot
@@ -1535,14 +1550,14 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 self.subtractBackgroundAction.state = parentPlugin.subtractBackgroundAction.state
                 self.addAction(event=parentPlugin.setBackground, toolTip=f'Set current value as background for {self.parentPlugin.name}.',
                                 icon=self.makeCoreIcon('eraser--pencil.png'))
-        self.stackAction = self.addMultiStateAction(states=[MultiState('vertical', 'Stack axes horizontally.', self.makeCoreIcon('stack_horizontal.png')),
-                                                            MultiState('horizontal', 'Stack axes on top of each other.', self.makeCoreIcon('stack_top.png')),
-                                                            MultiState('stacked', 'Stack axes vertically.', self.makeCoreIcon('stack_vertical.png'))],
+        self.stackAction = self.addMultiStateAction(states=[MultiState(self.StackActionState.VERTICAL, 'Stack axes horizontally.', self.makeCoreIcon('stack_horizontal.png')),
+                                                            MultiState(self.StackActionState.HORIZONTAL, 'Stack axes on top of each other.', self.makeCoreIcon('stack_top.png')),
+                                                            MultiState(self.StackActionState.STACKED, 'Stack axes vertically.', self.makeCoreIcon('stack_vertical.png'))],
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='stackMode')
-        self.groupAction = self.addMultiStateAction(states=[MultiState('all', 'Group channels by device.', self.makeCoreIcon('group_device.png')),
-                                                            MultiState('device', 'Group channels by unit.', self.makeCoreIcon('group_unit.png')),
-                                                            MultiState('unit', 'Group channels by group parameter.', self.makeCoreIcon('group_group.png')),
-                                                            MultiState('group', 'Show all channels together.', self.makeCoreIcon('group_all.png'))],
+        self.groupAction = self.addMultiStateAction(states=[MultiState(self.GroupActionState.ALL, 'Group channels by device.', self.makeCoreIcon('group_device.png')),
+                                                            MultiState(self.GroupActionState.DEVICE, 'Group channels by unit.', self.makeCoreIcon('group_unit.png')),
+                                                            MultiState(self.GroupActionState.UNIT, 'Group channels by group parameter.', self.makeCoreIcon('group_group.png')),
+                                                            MultiState(self.GroupActionState.GROUP, 'Show all channels together.', self.makeCoreIcon('group_all.png'))],
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='groupMode')
         self.displayTimeComboBox = RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=self.displayTimeChanged, minimum=.2, maximum=3600,
@@ -1614,19 +1629,19 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         """
         self.channelGroups = {}
         match self.groupAction.state:
-            case self.groupAction.labels.device:
+            case self.GroupActionState.DEVICE:
                 groupLabels = list({channel.getDevice().name for channel in self.parentPlugin.getActiveChannels() if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
                 [groups[groupLabels.index(channel.getDevice().name)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
-            case self.groupAction.labels.unit:
+            case self.GroupActionState.UNIT:
                 groupLabels = list({channel.unit for channel in self.parentPlugin.getActiveChannels() if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
                 [groups[groupLabels.index(channel.unit)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
-            case self.groupAction.labels.group:
+            case self.GroupActionState.GROUP:
                 groupLabels = list({channel.displayGroup for channel in self.parentPlugin.getActiveChannels() if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
                 [groups[groupLabels.index(channel.displayGroup)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
-            case _:  # all
+            case _:  # ALL
                 groupLabels = [self.parentPlugin.name]
                 groups = [[channel for channel in self.parentPlugin.getActiveChannels() if channel.display]]
         for label, group in zip(groupLabels, groups, strict=True):
@@ -1652,14 +1667,14 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         self.noPlotLabel.setVisible(len(self.getGroups()) == 0)
         for i, (groupLabel, group) in enumerate(self.getGroups().items()):
             logY = all(channel.logY for channel in group)
-            if self.stackAction.state in {self.stackAction.labels.horizontal, self.stackAction.labels.vertical}:
+            if self.stackAction.state in {self.StackActionState.HORIZONTAL, self.StackActionState.VERTICAL}:
                 livePlotWidget = PlotWidget(parentPlugin=self, groupLabel=groupLabel)
                 self.plotSplitter.addWidget(livePlotWidget)
                 livePlotWidget.init()
                 livePlotWidget.setLogMode(x=False, y=logY)
                 self.livePlotWidgets.append(livePlotWidget)
                 livePlotWidget.getViewBox().userMouseEnabledChanged.connect(self.updateMouseEnabled)
-                if self.stackAction.state == self.stackAction.labels.vertical:
+                if self.stackAction.state == self.StackActionState.VERTICAL:
                     livePlotWidget.addLegend(labelTextColor=colors.fg, colCount=3, offset=0.15, labelTextSize='8pt')  # before adding plots
                     self.plotSplitter.setOrientation(Qt.Orientation.Vertical)
                     if i < len(self.channelGroups) - 1:  # only label bottom x axis
@@ -1725,13 +1740,13 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 livePlotWidget.axis_leftright.setWidth(60 if logY else 40)
                 livePlotWidget.setMouseEnabled(x=False, y=True)
                 self.livePlotWidgets.append(livePlotWidget)
-            if self.stackAction.state == self.stackAction.labels.stacked:
+            if self.stackAction.state == self.StackActionState.STACKED:
                 self.updateStackedViews()  # call after all initialized
         self.parentPlugin.plotting = False
 
     def updateStackedViews(self) -> None:
         """Ensure stacked views use same x axis."""
-        if self.stackAction.state == self.stackAction.labels.stacked and len(self.livePlotWidgets) > 0:
+        if self.stackAction.state == self.StackActionState.STACKED and len(self.livePlotWidgets) > 0:
             livePlotWidget0 = cast('PlotWidget | PlotItem', self.livePlotWidgets[0])
             if livePlotWidget0.vb:
                 for livePlotWidget in self.livePlotWidgets[1:]:
@@ -1774,12 +1789,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             # init, start, pause, stop acquisition will be tested by DeviceManager
             self.testControl(self.copyAction, value=True)
             # self.testControl(self.clearHistoryAction, True)  # keep history, test manually if applicable  # noqa: ERA001
-            initialState = self.stackAction.stateFromLabel(self.stackAction.state)
             for _ in range(3):
-                self.testControl(self.stackAction, 0)
+                self.testControl(self.stackAction, value=0)  # value does not matter, just rolling
                 self.app.processEvents()
                 time.sleep(1)
-            self.testControl(self.stackAction, value=initialState)
             file = self.parentPlugin.file
             if hasattr(self, 'exportAction') and file and self.pluginManager.Explorer.activeFileFullPath:
                 self.testControl(self.exportAction, value=True)
@@ -4085,23 +4098,23 @@ class Scan(Plugin):  # noqa: PLR0904
                 if not self._dummy_initialization and not self.loading:
                     self.print(f'Could not find output channel {name}.', PRINT.WARNING)
                 sourceInitialized = False
-            elif recordingData is None:
-                device = outputChannel.getDevice()
-                if isinstance(device, Device):
-                    if not device.initialized():
-                        if not self._dummy_initialization:
-                            self.print(f'{device.name} is not initialized.', PRINT.WARNING)
-                        sourceInitialized = False
-                    elif outputChannel.real and not outputChannel.acquiring:
-                        # do not check for virtual channels
-                        if not self._dummy_initialization:
-                            self.print(f'{outputChannel.name} is not acquiring.', PRINT.WARNING)
-                        sourceInitialized = False
-                    elif outputChannel.real and not device.recording:
-                        # do not check for virtual channels
-                        if not self._dummy_initialization:
-                            self.print(f'{outputChannel.name} is not recording.', PRINT.WARNING)
-                        sourceInitialized = False
+        if not self.loading:
+            device = outputChannel.getDevice()
+            if isinstance(device, Device):
+                if not device.initialized():
+                    if not self._dummy_initialization:
+                        self.print(f'{device.name} is not initialized.', PRINT.WARNING)
+                    sourceInitialized = False
+                elif outputChannel.real and not outputChannel.acquiring:
+                    # do not check for virtual channels
+                    if not self._dummy_initialization:
+                        self.print(f'{outputChannel.name} is not acquiring.', PRINT.WARNING)
+                    sourceInitialized = False
+                elif outputChannel.real and not device.recording:
+                    # do not check for virtual channels
+                    if not self._dummy_initialization:
+                        self.print(f'{outputChannel.name} is not recording.', PRINT.WARNING)
+                    sourceInitialized = False
         if recordingData is not None:
             outputChannel.recordingData = recordingData  # type: ignore  # noqa: PGH003
         if recordingBackground is not None:
@@ -4488,7 +4501,10 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
             for outputChannel in self.outputChannels:
                 outputChannelDevice = outputChannel.getDevice()
                 if isinstance(outputChannelDevice, Device):
-                    outputChannelValues = outputChannel.getValues(subtractBackground=outputChannelDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
+                    if outputChannel.recording:
+                        outputChannelValues = outputChannel.getValues(subtractBackground=outputChannelDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
+                    else:  # e.g. a virtual output channel that is not recording
+                        outputChannelValues = outputChannel.value
                 if outputChannelValues is not None and outputChannel.recordingData is not None and isinstance(outputChannel, ScanChannel):
                     if len(self.inputChannels) == 1:  # 1D scan
                         outputChannel.recordingData[i] = np.mean(outputChannelValues)
