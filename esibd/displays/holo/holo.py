@@ -60,10 +60,12 @@ class HOLO(Plugin):
         self.update_timer.setSingleShot(True)
         self.update_timer.timeout.connect(self.drawSurface)
 
-    def provideDock(self) -> None:
+    def provideDock(self) -> bool:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def supportsFile(self, file: Path) -> bool:
         if super().supportsFile(file):
@@ -126,18 +128,18 @@ class HOLO(Plugin):
             faceCount = md.faceCount()
             if faceCount:
                 faceColors = np.ones((faceCount, 4), dtype=float)
-            faceColors[:, 3] = 0.2
-            faceColors[:, 2] = np.linspace(0, 1, faceColors.shape[0])
-            md.setFaceColors(faceColors)
+                faceColors[:, 3] = 0.2
+                faceColors[:, 2] = np.linspace(0, 1, faceColors.shape[0])
+                md.setFaceColors(faceColors)
 
-            m1 = gl.GLMeshItem(meshdata=md, smooth=True, shader='balloon')
-            m1.setGLOptions('additive')
-            m1.translate(-self.angle.shape[0] / 2, -self.angle.shape[1] / 2, -self.angle.shape[2] / 2)
+                m1 = gl.GLMeshItem(meshdata=md, smooth=True, shader='balloon')
+                m1.setGLOptions('additive')
+                m1.translate(-self.angle.shape[0] / 2, -self.angle.shape[1] / 2, -self.angle.shape[2] / 2)
 
-            if self.plotAngle:
-                self.glAngleView.addItem(m1)
-            else:
-                self.glAmplitudeView.addItem(m1)
+                if self.plotAngle:
+                    self.glAngleView.addItem(m1)
+                else:
+                    self.glAmplitudeView.addItem(m1)
 
     def generatePythonPlotCode(self) -> str:
         return f"""import pyqtgraph as pg

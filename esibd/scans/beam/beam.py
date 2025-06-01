@@ -177,6 +177,8 @@ class Beam(Scan):
                 return
         else:
             self.print('Limits are equal.', PRINT.WARNING)
+            self.scantime = 'n/a'
+            return
         seconds = 0  # estimate scan time
         for i in range(len(steps)):
             waitLong = False

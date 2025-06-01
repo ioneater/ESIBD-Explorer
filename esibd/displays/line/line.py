@@ -44,10 +44,12 @@ class LINE(Plugin):
             self.axes.append(self.fig.add_subplot(111))
         self.line = None  # type: ignore  # noqa: PGH003
 
-    def provideDock(self) -> None:
+    def provideDock(self) -> bool:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def finalizeInit(self) -> None:
         super().finalizeInit()

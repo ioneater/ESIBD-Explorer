@@ -204,8 +204,8 @@ class Spectra(Beam):
                 outputDevice = output.getDevice()
                 if isinstance(outputDevice, Device):
                     outputValues = output.getValues(subtractBackground=outputDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
-                if output.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
-                    output.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
+                    if output.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
+                        output.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
             if i == len(steps) - 1 or not recording():  # last step
                 for inputChannel in self.inputChannels:
                     if inputChannel.updateValueSignal:

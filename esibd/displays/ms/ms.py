@@ -57,10 +57,12 @@ class MS(Plugin):
         self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
         self.line = None  # type: ignore  # noqa: PGH003 # self.axes[0].plot([],[])[0]  # dummy plot
 
-    def provideDock(self) -> None:
+    def provideDock(self) -> bool:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def finalizeInit(self) -> None:
         super().finalizeInit()

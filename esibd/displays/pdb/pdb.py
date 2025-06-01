@@ -47,10 +47,12 @@ class PDB(Plugin):
         if self.fig:
             self.axes.append(cast('Axes3D', self.fig.add_subplot(111, projection='3d')))
 
-    def provideDock(self) -> None:
+    def provideDock(self) -> bool:
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def finalizeInit(self) -> None:
         super().finalizeInit()

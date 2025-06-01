@@ -1121,11 +1121,12 @@ class Plugin(QWidget):  # noqa: PLR0904
         """Indicate if the display is active."""
         return self.display is not None and self.display.initializedDock
 
-    def close(self) -> None:
+    def close(self) -> bool:
         """Close plugin cleanly without leaving any data or communication running.
 
         Extend to make sure your custom data and custom communication is closed.
         """
+        return super().close()
 
     def closeUserGUI(self) -> None:
         """Perform additional closing actions when user is closing the plugin GUI."""
@@ -1226,8 +1227,8 @@ class StaticDisplay(Plugin):
         self.togglePlotType()
         self.staticPlotWidget.updateGrid()
 
-    def getIcon(self, **kwargs) -> Icon:  # noqa: D102
-        return self.parentPlugin.getIcon(**kwargs)
+    def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: D102
+        return self.parentPlugin.getIcon(desaturate=desaturate)
 
     def runTestParallel(self) -> None:  # noqa: D102
         if self.initializedDock:
@@ -1241,9 +1242,9 @@ class StaticDisplay(Plugin):
         if self.plotEfficientAction.state:  # matplotlib
             super().copyClipboard()
         elif getDarkMode() and not getClipboardTheme():  # pyqt
+            viewRange = self.staticPlotWidget.viewRange()
             try:
                 setDarkMode(False)  # temporary switch to light mode
-                viewRange = self.staticPlotWidget.viewRange()
                 self.updateTheme()  # use default light theme for clipboard
                 self.staticPlotWidget.setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
                 self.processEvents()  # update GUI before grabbing
@@ -1257,10 +1258,12 @@ class StaticDisplay(Plugin):
         else:
             self.imageToClipboard(self.staticPlotWidget.grab())
 
-    def provideDock(self) -> None:  # noqa: D102
+    def provideDock(self) -> bool:  # noqa: D102
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def supportsFile(self, file: Path) -> bool:  # noqa: D102
         if super().supportsFile(file):
@@ -1781,8 +1784,8 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                     livePlotWidget.enableAutoRange(x=False, y=True)
 
-    def getIcon(self, **kwargs) -> Icon:  # noqa: D102
-        return self.parentPlugin.getIcon(**kwargs)
+    def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: D102
+        return self.parentPlugin.getIcon(desaturate=desaturate)
 
     def runTestParallel(self) -> None:  # noqa: D102
         if self.initializedDock:
@@ -1793,15 +1796,14 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 self.testControl(self.stackAction, value=0)  # value does not matter, just rolling
                 self.app.processEvents()
                 time.sleep(1)
-            file = self.parentPlugin.file
-            if hasattr(self, 'exportAction') and file and self.pluginManager.Explorer.activeFileFullPath:
+            if hasattr(self, 'exportAction') and self.parentPlugin.file:
                 self.testControl(self.exportAction, value=True)
-                if self.waitForCondition(condition=lambda: file.name, timeoutMessage='saving data'):
-                    self.pluginManager.Explorer.activeFileFullPath = file
+                if self.waitForCondition(condition=lambda parentPlugin=self.parentPlugin: parentPlugin.file.name, timeoutMessage='saving data', timeout=10):
+                    self.pluginManager.Explorer.activeFileFullPath = self.parentPlugin.file
                     self.pluginManager.Explorer.displayContentSignal.emit()  # call displayContent in main thread
                     self.pluginManager.Explorer.loadingContent = True
                     self.waitForCondition(condition=lambda: not self.pluginManager.Explorer.loadingContent,
-                                           timeoutMessage=f'displaying content of {self.pluginManager.Explorer.activeFileFullPath.name}')
+                                           timeoutMessage=f'displaying content of {self.pluginManager.Explorer.activeFileFullPath.name}', timeout=10)
                     if self.parentPlugin.staticDisplay:
                         self.parentPlugin.staticDisplay.testPythonPlotCode(closePopup=True)
         super().runTestParallel()
@@ -1817,12 +1819,12 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             self.print('Plot not initialized', flag=PRINT.WARNING)
             return
         if getDarkMode() and not getClipboardTheme():
+            viewRange = self.livePlotWidgets[0].viewRange()
+            viewBox = self.livePlotWidgets[0].getViewBox()
+            restoreAutoRange = not viewBox.mouseEnabled()[0] if viewBox else False  # as mouse enabled is linked all livePlotWidgets will have the same state
+            sizes = self.plotSplitter.sizes()
             try:
                 setDarkMode(False)  # temporary switch to light mode
-                viewBox = self.livePlotWidgets[0].getViewBox()
-                restoreAutoRange = not viewBox.mouseEnabled()[0] if viewBox else False  # as mouse enabled is linked all livePlotWidgets will have the same state
-                viewRange = self.livePlotWidgets[0].viewRange()
-                sizes = self.plotSplitter.sizes()
                 self.parentPlugin.clearPlot()
                 self.initFig()
                 self.plotSplitter.setSizes(sizes)
@@ -1847,10 +1849,12 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         else:
             self.imageToClipboard(self.plotSplitter.grab())
 
-    def provideDock(self) -> None:  # noqa: D102
+    def provideDock(self) -> bool:  # noqa: D102
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def getTimeAxes(self) -> dict[str, tuple[int, int, int, np.ndarray]]:
         """Return the time axes for all devices.
@@ -2098,10 +2102,12 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 self.axes.append(self.fig.add_subplot(111))
             self.line = None  # type: ignore  # noqa: PGH003
 
-        def provideDock(self) -> None:  # noqa: D102
+        def provideDock(self) -> bool:  # noqa: D102
             if super().provideDock():
                 self.finalizeInit()
                 self.afterFinalizeInit()
+                return True
+            return False
 
         def finalizeInit(self) -> None:  # noqa: D102
             super().finalizeInit()
@@ -2373,6 +2379,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.tree.takeTopLevelItem(index)
             oldValues = selectedChannel.values.get()
             oldValue = selectedChannel.value
+            oldBackgrounds = None
+            oldBackground = None
             if selectedChannel.useBackgrounds:
                 oldBackgrounds = selectedChannel.backgrounds
                 oldBackground = selectedChannel.background
@@ -2384,7 +2392,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             if len(oldValues) > 0 and newChannel:
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
                 newChannel.value = oldValue
-                if newChannel.useBackgrounds:
+                if newChannel.useBackgrounds and oldBackground and oldBackgrounds:
                     newChannel.backgrounds = oldBackgrounds
                     newChannel.background = oldBackground
             self.loading = False
@@ -2865,10 +2873,10 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """
         self.clearPlot()
 
-    def close(self) -> None:  # noqa: D102
+    def close(self) -> bool:  # noqa: D102
         if self.channelConfigChanged(useDefaultFile=True) or self.channelsChanged:
             self.exportConfiguration(useDefaultFile=True)
-        super().close()
+        return super().close()
 
     def closeGUI(self) -> None:  # noqa: D102
         self.toggleChannelPlot(visible=False)
@@ -3271,6 +3279,8 @@ class Device(ChannelManager):  # noqa: PLR0904
         fullRange = True
         group = self.requireGroup(h5file, self.name)  # , track_order=True
         time_axis = self.time.get()
+        i_min = None
+        i_max = None
         if not useDefaultFile and time_axis.shape[0] > 0 and len(self.liveDisplay.livePlotWidgets) > 0:
             # Only save currently visible data (specific regions of interest).
             # Otherwise history of last few days might be added to files, making it hard to find the region of interest.
@@ -3283,7 +3293,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         input_group = self.requireGroup(group, INPUTCHANNELS)
         try:
             # need double precision to keep all decimal places
-            input_group.create_dataset(self.TIME, data=time_axis if fullRange else time_axis[i_min:i_max], dtype=np.float64, track_order=True)
+            input_group.create_dataset(self.TIME, data=time_axis[i_min:i_max] if not fullRange and i_min and i_max else time_axis, dtype=np.float64, track_order=True)
         except ValueError as e:
             self.print(f'Could not create data set. If the file already exists, make sure to increase the measurement number and try again. Original error: {e}', PRINT.ERROR)
             return
@@ -3293,12 +3303,13 @@ class Device(ChannelManager):  # noqa: PLR0904
             if channel.name in output_group:
                 self.print(f'Ignoring duplicate channel {channel.name}', PRINT.WARNING)
                 continue
-            value_dataset = output_group.create_dataset(channel.name, data=channel.values.get() if fullRange else channel.values.get()[i_min:i_max], dtype='f')
+            value_dataset = output_group.create_dataset(channel.name, data=channel.values.get()[i_min:i_max] if not fullRange and i_min and i_max
+                                                        else channel.values.get(), dtype='f')
             value_dataset.attrs[UNIT] = self.unit
             if self.useBackgrounds:
                 # Note: If data format will be changed in future (ensuring backwards compatibility), consider saving single 2D data set with data and background instead.
-                background_dataset = output_group.create_dataset(channel.name + '_BG', data=channel.backgrounds.get() if fullRange else channel.backgrounds.get()[i_min:i_max],
-                                                                  dtype='f')
+                background_dataset = output_group.create_dataset(channel.name + '_BG', data=channel.backgrounds.get()[i_min:i_max] if not fullRange and i_min and i_max
+                                                                 else channel.backgrounds.get(), dtype='f')
                 background_dataset.attrs[UNIT] = self.unit
 
     def restoreOutputData(self) -> None:
@@ -3327,11 +3338,11 @@ class Device(ChannelManager):  # noqa: PLR0904
                     self.print(f'Could not restore data from {file.name}. You can try to fix and then restart. If you record new data it will be overwritten! Error {e}',
                                 flag=PRINT.ERROR)
 
-    def close(self) -> None:  # noqa: D102
+    def close(self) -> bool:  # noqa: D102
         self.closeCommunication()
         if self.hasRecorded:
             self.exportOutputData(useDefaultFile=True)
-        super().close()
+        return super().close()
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
         if self.staticDisplay and ((self.liveDisplay and self.liveDisplay.supportsFile(file)) or self.staticDisplay.supportsFile(file)):
@@ -3622,15 +3633,16 @@ class Scan(Plugin):  # noqa: PLR0904
             self.scan = scan
             super().__init__(**kwargs)
 
-        def resizeEvent(self, event: 'QResizeEvent') -> None:
+        def resizeEvent(self, a0: 'QResizeEvent | None') -> None:
             """Make sure settingsTree takes up as much space as possible but there is no gap between settingsTree and channelTree.
 
-            :param event: The resize event.
-            :type event: QResizeEvent
+            :param a0: The resize event.
+            :type a0: QResizeEvent
             """
-            super().resizeEvent(event)  # Ensure default behavior
-            if self.scan.settingsTree:
-                self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height() - self.scan.settingsTree.sizeHint().height()])
+            if a0:
+                super().resizeEvent(a0)  # Ensure default behavior
+                if self.scan.settingsTree:
+                    self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height() - self.scan.settingsTree.sizeHint().height()])
 
     class Display(Plugin):
         """Display for base scan. Extend as needed."""
@@ -3660,10 +3672,12 @@ class Scan(Plugin):  # noqa: PLR0904
         def initFig(self) -> None:  # noqa: D102
             self.provideFig()
 
-        def provideDock(self) -> None:  # noqa: D102
+        def provideDock(self) -> bool:  # noqa: D102
             if super().provideDock():
                 self.finalizeInit()
                 self.afterFinalizeInit()
+                return True
+            return False
 
         def finalizeInit(self) -> None:  # noqa: D102
             super().finalizeInit()
@@ -3684,8 +3698,8 @@ class Scan(Plugin):  # noqa: PLR0904
         def test(self) -> None:  # noqa: D102
             self.print('Run tests from parent scan.', flag=PRINT.WARNING)
 
-        def getIcon(self, **kwargs) -> Icon:  # noqa: D102
-            return self.scan.getIcon(**kwargs)
+        def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: D102
+            return self.scan.getIcon(desaturate=desaturate)
 
         def runTestParallel(self) -> None:  # noqa: D102
             if self.initializedDock:
@@ -4488,7 +4502,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         """
         steps = list(itertools.product(*[inputRecordingData for inputChannel in self.inputChannels if (inputRecordingData := inputChannel.getRecordingData()) is not None]))
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
-        for i, step in enumerate(steps):  # scan over all steps
+        for i, step in enumerate(steps):  # scan over all steps  # noqa: PLR1702
             waitLong = False
             for j, inputChannel in enumerate(self.inputChannels):
                 if not waitLong and abs(inputChannel.value - step[j]) > self.largestep:
@@ -4505,13 +4519,13 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                         outputChannelValues = outputChannel.getValues(subtractBackground=outputChannelDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
                     else:  # e.g. a virtual output channel that is not recording
                         outputChannelValues = outputChannel.value
-                if outputChannelValues is not None and outputChannel.recordingData is not None and isinstance(outputChannel, ScanChannel):
-                    if len(self.inputChannels) == 1:  # 1D scan
-                        outputChannel.recordingData[i] = np.mean(outputChannelValues)
-                    else:  # 2D scan, higher dimensions not jet supported
-                        inputRecordingData1 = self.inputChannels[1].getRecordingData()
-                        if inputRecordingData1 is not None:
-                            outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = np.mean(outputChannelValues)
+                    if outputChannelValues is not None and outputChannel.recordingData is not None and isinstance(outputChannel, ScanChannel):
+                        if len(self.inputChannels) == 1:  # 1D scan
+                            outputChannel.recordingData[i] = np.mean(outputChannelValues)
+                        else:  # 2D scan, higher dimensions not jet supported
+                            inputRecordingData1 = self.inputChannels[1].getRecordingData()
+                            if inputRecordingData1 is not None:
+                                outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = np.mean(outputChannelValues)
             if i == len(steps) - 1 or not recording():  # last step
                 for inputChannel in self.inputChannels:
                     if inputChannel.updateValueSignal:
@@ -4523,10 +4537,11 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
             self.stepProcessed = False
             self.signalComm.scanUpdateSignal.emit(False)  # update graph  # noqa: FBT003
 
-    def close(self) -> None:  # noqa: D102
-        super().close()
+    def close(self) -> bool:  # noqa: D102
+        response = super().close()
         if self.recording:
             self.recording = False
+        return response
 
     def closeGUI(self) -> None:  # noqa: D102
         self.toggleDisplay(visible=False)
@@ -4814,10 +4829,12 @@ class Text(Plugin):
         lay.addWidget(self.editor)
         self.addContentLayout(lay)
 
-    def provideDock(self) -> None:  # noqa: D102
+    def provideDock(self) -> bool:  # noqa: D102
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
@@ -4971,10 +4988,12 @@ class Tree(Plugin):
         if self.titleBar:
             self.titleBar.insertWidget(self.aboutAction, self.filterLineEdit)
 
-    def provideDock(self) -> None:  # noqa: D102
+    def provideDock(self) -> bool:  # noqa: D102
         if super().provideDock():
             self.finalizeInit()
             self.afterFinalizeInit()
+            return True
+        return False
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
         self.provideDock()
@@ -5703,6 +5722,9 @@ class SettingsManager(Plugin):
                     useFile = True
                 except KeyError:
                     pass
+            else:
+                self.print('Could not load file.')
+                return
             for name, defaultSetting in self.defaultSettings.items():
                 if not defaultSetting[Parameter.INTERNAL] and useFile and name not in confParser:
                     self.print(f'Using default value {defaultSetting[Parameter.VALUE]} for setting {name}.')
@@ -5725,12 +5747,15 @@ class SettingsManager(Plugin):
                     event=defaultSetting[Parameter.EVENT]))
         else:
             with h5py.File(file, 'r' if file.exists() else 'w') as h5file:
+                group = None
                 if self.parentPlugin.name == self.SETTINGS:
                     group = cast('h5py.Group', h5file[self.parentPlugin.name])
                     useFile = True
                 elif self.parentPlugin.name in h5file and self.SETTINGS in cast('h5py.Group', h5file[self.parentPlugin.name]):
                     group = cast('h5py.Group', cast('h5py.Group', h5file[self.parentPlugin.name])[self.SETTINGS])
                     useFile = True
+                if not group:
+                    return
                 for name, defaultSetting in self.defaultSettings.items():
                     if useFile and name not in group:
                         self.print(f'Using default value {defaultSetting[Parameter.VALUE]} for setting {name}.')
@@ -6296,7 +6321,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 initialState = plugin.toggleLiveDisplayAction.state
                 self.testControl(plugin.toggleLiveDisplayAction, value=True, delay=1)
                 if self.waitForCondition(condition=lambda plugin=plugin: plugin.liveDisplayActive() and hasattr(plugin.liveDisplay, 'displayTimeComboBox'),
-                                         timeoutMessage=f'live display of {plugin.name}.', timeout=10):
+                                         timeoutMessage=f'live display of {plugin.name}.', timeout=15):
                     self.testControl(plugin.liveDisplay.displayTimeComboBox, 1)
                     plugin.liveDisplay.runTestParallel()
                 self.testControl(plugin.toggleLiveDisplayAction, initialState, 1)
@@ -6472,15 +6497,17 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         :param closing: Indicate that the application is closing and needs to wait for scans to finish. Defaults to False
         :type closing: bool, optional
         """
-        for scan in self.pluginManager.getPluginsByClass(Scan):
+        scans = self.pluginManager.getPluginsByClass(Scan)
+        for scan in scans:
             scan.recording = False  # stop all running scans
         if closing:
             unfinishedScans = ''
-            for scan in self.pluginManager.getPluginsByClass(Scan):
+            for scan in scans:
                 if not scan.finished:  # Give scan time to complete and save file. Avoid scan trying to access main GUI after it has been destroyed.
                     unfinishedScans += f'{scan.name}, '
             if unfinishedScans:
-                self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
+                self.waitForCondition(condition=lambda scans=scans: all(scan.finished for scan in scans),
+                                       timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
 
     @synchronized()
     def exportOutputData(self, file: 'Path | None' = None) -> None:
@@ -6563,9 +6590,10 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             if plugin.recordingAction:
                 plugin.toggleRecording(on=self.recordingAction.state, manual=False)
 
-    def close(self) -> None:  # noqa: D102
-        super().close()
+    def close(self) -> bool:  # noqa: D102
+        response = super().close()
         self.timer.stop()
+        return response
 
 
 class Notes(Plugin):
@@ -6778,7 +6806,8 @@ class Explorer(Plugin):  # noqa: PLR0904
                 break
             self.populating = True
             self.testControl(action, value=True)
-            self.waitForCondition(condition=lambda: not self.populating, timeoutMessage=f'testing {action.objectName()}')
+            # populateTree can take longer if there are many folders and files
+            self.waitForCondition(condition=lambda: not self.populating, timeoutMessage=f'testing {action.objectName()}', timeout=15)
             # NOTE: using self.populating flag makes sure further test are only run after populating has completed. using locks and signals is more error prone
         testDir = self.pluginManager.Settings.dataPath / 'test_files'
         if testDir.exists():
@@ -7242,9 +7271,10 @@ class Explorer(Plugin):  # noqa: PLR0904
             if newRoot is not None:  # None on program closing
                 self.pluginManager.Notes.loadData(newRoot, showPlugin=False)
 
-    def close(self) -> None:  # noqa: D102
-        super().close()
+    def close(self) -> bool:  # noqa: D102
+        response = super().close()
         self.rootChanging(self.pluginManager.Explorer.root, None)
+        return response
 
     def updateTheme(self) -> None:  # noqa: D102
         super().updateTheme()

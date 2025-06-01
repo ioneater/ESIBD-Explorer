@@ -179,19 +179,20 @@ class EsibdExplorer(QMainWindow):
         qSet.setValue(SETTINGSHEIGHT, self.pluginManager.Settings.mainDisplayWidget.height())  # store height
         qSet.setValue(CONSOLEHEIGHT, self.pluginManager.Console.mainDisplayWidget.height())  # store height
 
-    def closeEvent(self, event: 'QCloseEvent') -> None:
+    def closeEvent(self, a0: 'QCloseEvent | None') -> None:
         """Triggers PluginManager to close all plugins and all related communication.
 
-        :param event: The close event.
-        :type event: QCloseEvent
+        :param a0: The close event.
+        :type a0: QCloseEvent
         """
-        if not self.pluginManager.loading:
-            if self.closeApplication():
-                event.accept()
+        if a0:
+            if not self.pluginManager.loading:
+                if self.closeApplication():
+                    a0.accept()
+                else:
+                    a0.ignore()
             else:
-                event.ignore()
-        else:
-            event.ignore()
+                a0.ignore()
 
     def closeApplication(self, restart: bool = False) -> bool:
         """Close communication and plugins, restart if applicable.
@@ -802,6 +803,7 @@ class PluginManager:  # noqa: PLR0904
 
     def updateTheme(self) -> None:
         """Update application theme while showing a splash screen if necessary."""
+        splash = None
         if not self.loading:
             splash = SplashScreen()
             splash.show()
@@ -857,7 +859,7 @@ class PluginManager:  # noqa: PLR0904
                         plugin.updateTheme()
                     except Exception:  # noqa: BLE001
                         self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
-            if not (self.loading or self.finalizing):
+            if not (self.loading or self.finalizing) and splash:
                 self.mainWindow.setUpdatesEnabled(True)
                 splash.close()
             self.toggleTitleBarDelayed(update=True)
@@ -1700,7 +1702,7 @@ class Parameter:  # noqa: PLR0904
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(self.initContextMenu)
 
-    def containerize(self, widget: 'ParameterWidget') -> QWidget:
+    def containerize(self, widget: 'ParameterWidgetType') -> QWidget:
         """Add a container around the widget that ensures correct handling of visibility and color changes.
 
         :param widget: The widget to be added to a container.
@@ -1736,28 +1738,28 @@ class Parameter:  # noqa: PLR0904
             widget.setMinimumHeight(self.rowHeight)
             widget.setMaximumHeight(self.rowHeight)
             font = widget.font()
-        font.setPointSize(int(height / 2))
-        if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
-            self.combo.setFont(font)
-        elif self.parameterType == PARAMETERTYPE.TEXT:
-            self.line.setFont(font)
-        elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
-            if self.spin:
-                self.spin.setMinimumWidth(int(scaling * 50) + 10)  # empirical fixed width
-                lineEdit = self.spin.lineEdit()
-                if lineEdit:
-                    lineEdit.setFont(font)
-        elif self.parameterType == PARAMETERTYPE.BOOL:
-            if isinstance(self.check, QCheckBox):
-                checkBoxHeight = min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
-                self.check.checkBoxHeight = checkBoxHeight  # remember for updateColor
-                self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
-            elif isinstance(self.check, (QToolButton, QPushButton)):
-                iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
-                self.check.setFont(font)
-                self.check.setIconSize(QSize(iconHeight, iconHeight))
-        elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
-            self.label.setFont(font)
+            font.setPointSize(int(height / 2))
+            if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
+                self.combo.setFont(font)
+            elif self.parameterType == PARAMETERTYPE.TEXT:
+                self.line.setFont(font)
+            elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
+                if self.spin:
+                    self.spin.setMinimumWidth(int(scaling * 50) + 10)  # empirical fixed width
+                    lineEdit = self.spin.lineEdit()
+                    if lineEdit:
+                        lineEdit.setFont(font)
+            elif self.parameterType == PARAMETERTYPE.BOOL:
+                if isinstance(self.check, QCheckBox):
+                    checkBoxHeight = min(self.rowHeight - 4, QCheckBox().sizeHint().height() - 2)
+                    self.check.checkBoxHeight = checkBoxHeight  # remember for updateColor
+                    self.check.setStyleSheet(f'QCheckBox::indicator {{ width: {checkBoxHeight}; height: {checkBoxHeight};}}')
+                elif isinstance(self.check, (QToolButton, QPushButton)):
+                    iconHeight = min(self.rowHeight, QCheckBox().sizeHint().height())
+                    self.check.setFont(font)
+                    self.check.setIconSize(QSize(iconHeight, iconHeight))
+            elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
+                self.label.setFont(font)
 
     def getWidget(self) -> ParameterWidgetType | None:
         """Return the widget used to display the Parameter value in the user interface."""
@@ -2790,7 +2792,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         if not self.loading and self.tree:
             self.tree.scheduleDelayedItemsLayout()
 
-    def sizeHint(self, option, index) -> QSize:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: ANN001, ARG002
+    def sizeHint(self, column) -> QSize:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: ANN001, ARG002
         """Provide a custom size hint based on the item's content."""
         return QSize(100, self.rowHeight)  # Width is not relevant
 
@@ -3153,7 +3155,7 @@ class ScanChannel(RelayChannel, Channel):
         return self.scan.loading
 
 
-class ParameterWidget(QWidget):
+class ParameterWidget:
     """Implement functionality shared by all parameter widgets."""
 
     container: QWidget
@@ -3177,18 +3179,19 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event: 'QContextMenuEvent') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def contextMenuEvent(self, e: 'QContextMenuEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Suppresses context menu for indicators."""
-        if self.indicator:
-            event.ignore()
+        if e and self.indicator:
+            e.ignore()
         else:
-            super().contextMenuEvent(event)
+            super().contextMenuEvent(e)
 
-    def wheelEvent(self, event: 'QWheelEvent') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def wheelEvent(self, e: 'QWheelEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Overwrite to disable accidental change of values via the mouse wheel."""
-        event.ignore()
+        if e:
+            e.ignore()
 
-    def stepBy(self, step: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def stepBy(self, steps: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Handle stepping value depending con caret position."""
         lineEdit = self.lineEdit()
         if lineEdit:
@@ -3199,7 +3202,7 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
                 pos = len(text) - 1
             if cur <= 1 and '-' in text:  # left of number
                 pos = len(text) - 2
-            val = self.value() + 10**pos * step  # use step for sign
+            val = self.value() + 10**pos * steps  # use steps for sign
             self.setValue(val)
             # keep cursor position fixed relative to .
             newText = lineEdit.text()
@@ -3235,12 +3238,12 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def contextMenuEvent(self, event: 'QContextMenuEvent') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def contextMenuEvent(self, e: 'QContextMenuEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Do not use context menu for indicators."""
-        if self.indicator:
-            event.ignore()
+        if e and self.indicator:
+            e.ignore()
         else:
-            super().contextMenuEvent(event)
+            super().contextMenuEvent(e)
 
     def setDisplayDecimals(self, displayDecimals: int) -> None:
         """Set display precision.
@@ -3254,7 +3257,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         self.setDecimals(max(self.displayDecimals, self.decimals()))
         self.setValue(self.value())
 
-    def valueFromText(self, text: str) -> float:
+    def valueFromText(self, text: 'str | None') -> float:
         """Convert text to value.
 
         :param text: Input text.
@@ -3262,13 +3265,15 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         :return: value
         :rtype: float
         """
-        return float(text)
+        if text:
+            return float(text)
+        return np.nan
 
-    def textFromValue(self, value: float) -> str:  # pylint: disable = missing-param-doc, missing-type-doc
+    def textFromValue(self, v: float) -> str:  # pylint: disable = missing-param-doc, missing-type-doc
         """Make sure nan and inf will be represented by NaN."""
-        if np.isnan(value) or np.isinf(value):
+        if np.isnan(v) or np.isinf(v):
             return self.NAN
-        return f'{value:.{self.displayDecimals}f}'
+        return f'{v:.{self.displayDecimals}f}'
 
     def value(self) -> float:
         """Return nan instead of trying convert it."""
@@ -3283,11 +3288,12 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         if (np.isnan(val) or np.isinf(val)) and lineEdit:
             lineEdit.setText(self.NAN)  # needed in rare cases where setting to nan would set to maximum
 
-    def wheelEvent(self, event: 'QWheelEvent') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def wheelEvent(self, e: 'QWheelEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Overwrite to disable accidental change of values via the mouse wheel."""
-        event.ignore()
+        if e:
+            e.ignore()
 
-    def stepBy(self, step: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: C901, PLR0912
+    def stepBy(self, steps: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: C901, PLR0912
         """Handle stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
         if self.text() == self.NAN:
             return
@@ -3313,7 +3319,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
             # remaining digits after decimal
             else:
                 pos = dig - cur + 2 if '-' in text else dig - cur + 1
-            val = self.value() + 10**pos * step  # use step for sign
+            val = self.value() + 10**pos * steps  # use steps for sign
             self.setValue(val)
             # keep cursor position fixed relative to .
             newText = lineEdit.text()
@@ -3344,16 +3350,19 @@ class LabviewSciSpinBox(LabviewDoubleSpinBox):
             match = self._float_re.search(string)
             return match.groups()[0] == string if match else False
 
-        def validate(self, string, position):  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: ANN001, ANN201, D102
-            if self.valid_float_string(string):
-                return self.State.Acceptable, string, position
-            if not string or string[position - 1] in 'e.-+':
-                return self.State.Intermediate, string, position
-            return self.State.Invalid, string, position
+        def validate(self, a0, a1):  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: ANN001, ANN201, D102
+            # a0 is string, a1 is position
+            if a0 and self.valid_float_string(a0):
+                return self.State.Acceptable, a0, a1
+            if a0 is not None and (not a0 or a0[a1 - 1] in 'e.-+'):
+                return self.State.Intermediate, a0, a1
+            return self.State.Invalid, a0 or '', a1
 
-        def fixup(self, text):  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: ANN001, ANN201, D102
-            match = self._float_re.search(text)
-            return match.groups()[0] if match else ''
+        def fixup(self, a0):  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: ANN001, ANN201, D102
+            if a0:
+                match = self._float_re.search(a0)
+                return match.groups()[0] if match else ''
+            return ''
 
     def __init__(self, indicator: bool = False, displayDecimals: int = 2) -> None:
         """Initialize a LabviewSciSpinBox.
@@ -3367,20 +3376,20 @@ class LabviewSciSpinBox(LabviewDoubleSpinBox):
         super().__init__(indicator=indicator, displayDecimals=displayDecimals)
         self.setDecimals(1000)  # need this to allow internal handling of data as floats 1E-20 = 0.0000000000000000001
 
-    def validate(self, text: str, position: int) -> tuple[QValidator.State, str, int]:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: D102
-        return self.validator.validate(text, position)
+    def validate(self, input: 'str | None', pos: int) -> tuple[QValidator.State, str, int]:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
+        return self.validator.validate(input, pos)
 
-    def fixup(self, text: str) -> str:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: D102
-        return self.validator.fixup(text)
+    def fixup(self, str: 'str | None') -> str:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
+        return self.validator.fixup(str)
 
-    def textFromValue(self, value: float) -> str:  # noqa: D102
-        if np.isnan(value) or np.isinf(value):
+    def textFromValue(self, v: float) -> str:  # noqa: D102
+        if np.isnan(v) or np.isinf(v):
             return self.NAN
-        return f'{value:.{self.displayDecimals}E}'.replace('E-0', 'E-')
+        return f'{v:.{self.displayDecimals}E}'.replace('E-0', 'E-')
 
     DIGITS_BEFORE_DOT = 1
 
-    def stepBy(self, step: int) -> None:  # noqa: D102
+    def stepBy(self, steps: int) -> None:  # noqa: D102
         if self.text() == self.NAN:
             return
         lineEdit = self.lineEdit()
@@ -3395,7 +3404,7 @@ class LabviewSciSpinBox(LabviewDoubleSpinBox):
                 pos = 0  # step by 1
             else:  # right of dot
                 pos = self.DIGITS_BEFORE_DOT + 2 - cur if '-' in v else self.DIGITS_BEFORE_DOT + 1 - cur  # step by 0.1, 0.01, ...
-            self.setValue(float(str(float(v) + 10**pos * step) + 'E' + sign + pot))
+            self.setValue(float(str(float(v) + 10**pos * steps) + 'E' + sign + pot))
             # keep cursor position fixed relative to .
             newText = lineEdit.text()
             if len(newText) > len(text):
@@ -3784,15 +3793,15 @@ class MultiStateAction(Action):
             else:
                 self.parentPlugin.titleBar.insertAction(before, self)
 
-    def stateFromLabel(self, label: str) -> int:
+    def stateFromEnum(self, state: Enum) -> int:
         """Return state corresponding to provided label.
 
-        :param label: State label.
-        :type label: str
+        :param state: State Enum.
+        :type state: Enum
         :return: Index of corresponding state, defaults to 0.
         :rtype: int
         """
-        return next((i for i in range(len(self.states)) if self.states[i].label.name == label), 0)
+        return next((i for i in range(len(self.states)) if self.states[i].label == state), 0)
 
     def rollState(self) -> None:
         """Roll to next state."""
@@ -3805,8 +3814,8 @@ class MultiStateAction(Action):
         return self.states[self._state].label if self._state < len(self.states) else self.states[0].label
 
     @state.setter
-    def state(self, label: str) -> None:
-        self._state = self.stateFromLabel(label)
+    def state(self, state: Enum) -> None:
+        self._state = self.stateFromEnum(state)
 
     def updateIcon(self) -> None:
         """Update icon and icon toolTip based on current state."""
@@ -3823,13 +3832,13 @@ class MultiStateAction(Action):
         """Get the tooltip. API consistent with other Action classes."""
         return self.states[self._state].toolTip
 
-    def setValue(self, value: str) -> None:
+    def setValue(self, value: Enum) -> None:
         """Set action state. API consistent with other Action classes.
 
         :param value: A valid label corresponding to one of the defined states.
-        :type value: str
+        :type value: Enum
         """
-        self._state = self.stateFromLabel(value)
+        self._state = self.stateFromEnum(value)
 
 
 class CompactComboBox(QComboBox, ParameterWidget):
@@ -3865,7 +3874,7 @@ class CompactComboBox(QComboBox, ParameterWidget):
             if maxWidth:
                 view.setMinimumWidth(maxWidth)
 
-    def wheelEvent(self, _: 'QWheelEvent') -> None:
+    def wheelEvent(self, e: 'QWheelEvent | None') -> None:  # noqa: ARG002 pylint: disable = missing-param-doc
         """Ignore wheel event."""
         return
 
@@ -3941,7 +3950,7 @@ class DockWidget(QDockWidget):
                 if not isinstance(parent, EsibdExplorer):
                     parent.setStyleSheet(self.parentPlugin.pluginManager.styleSheet)  # use same separators as in main window
 
-    def closeEvent(self, event: 'QCloseEvent') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+    def closeEvent(self, event: 'QCloseEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Close the GUI when the dock is closing."""
         self.signalComm.dockClosingSignal.emit()
         super().closeEvent(event)
@@ -4078,15 +4087,15 @@ class LedIndicator(QAbstractButton, ParameterWidget):
         self.on_color = QColor(0, 220, 0)
         self.off_color = QColor(0, 60, 0)
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # pylint: disable = unused-argument, missing-function-docstring, missing-param-doc
+    def mousePressEvent(self, e: 'QMouseEvent | None') -> None:  # pylint: disable = unused-argument, missing-function-docstring, missing-param-doc
         """Allow to open context menu while preventing change of LedIndicator state by user."""
-        if event.button() == Qt.MouseButton.RightButton:
-            super().mousePressEvent(event)
+        if e and e.button() == Qt.MouseButton.RightButton:
+            super().mousePressEvent(e)
 
-    def resizeEvent(self, event: 'QResizeEvent') -> None:  # pylint: disable = unused-argument, missing-function-docstring  # matching standard signature  # noqa: ARG002, D102
+    def resizeEvent(self, a0: 'QResizeEvent | None') -> None:  # pylint: disable = unused-argument, missing-function-docstring  # matching standard signature  # noqa: ARG002, D102
         self.update()
 
-    def paintEvent(self, event: 'QPaintEvent') -> None:  # pylint: disable = unused-argument, missing-function-docstring  # matching standard signature  # noqa: ARG002, D102
+    def paintEvent(self, e: 'QPaintEvent | None') -> None:  # pylint: disable = unused-argument, missing-function-docstring  # matching standard signature  # noqa: ARG002, D102
         realSize = min(self.width(), self.height())
 
         painter = QPainter(self)
@@ -4245,41 +4254,42 @@ class TextEdit(QPlainTextEdit, ParameterWidget):
             self._completer.setWidget(self)
         super().focusInEvent(e)
 
-    def keyPressEvent(self, e: QKeyEvent):  # pylint: disable = missing-function-docstring  # noqa: ANN201, D102
-        if e.key() == Qt.Key.Key_Tab:
-            self.textCursor().insertText('    ')
-            return
-        if self._completer is not None and self._completer.popup().isVisible() and e.key() in {Qt.Key.Key_Enter, Qt.Key.Key_Return}:
-            # The above keys are forwarded by the completer to the widget.
-            e.ignore()
-            # Let the completer do default behavior.
-            return
+    def keyPressEvent(self, e: 'QKeyEvent | None'):  # pylint: disable = missing-function-docstring  # noqa: ANN201, D102
+        if e:
+            if e.key() == Qt.Key.Key_Tab:
+                self.textCursor().insertText('    ')
+                return
+            if self._completer is not None and self._completer.popup().isVisible() and e.key() in {Qt.Key.Key_Enter, Qt.Key.Key_Return}:
+                # The above keys are forwarded by the completer to the widget.
+                e.ignore()
+                # Let the completer do default behavior.
+                return
 
-        isShortcut = ((e.modifiers() & Qt.KeyboardModifier.ControlModifier) != 0 and e.key() == Qt.Key.Key_Escape)
-        if self._completer is None or not isShortcut:
-            # Do not process the shortcut when we have a completer.
-            super().keyPressEvent(e)
+            isShortcut = ((e.modifiers() & Qt.KeyboardModifier.ControlModifier) != 0 and e.key() == Qt.Key.Key_Escape)
+            if self._completer is None or not isShortcut:
+                # Do not process the shortcut when we have a completer.
+                super().keyPressEvent(e)
 
-        ctrlOrShift = e.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
-        if self._completer is None or (ctrlOrShift and len(e.text()) == 0):
-            return
+            ctrlOrShift = e.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+            if self._completer is None or (ctrlOrShift and len(e.text()) == 0):
+                return
 
-        eow = "~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="
-        hasModifier = (e.modifiers() != Qt.KeyboardModifier.NoModifier) and not ctrlOrShift
-        completionPrefix = self.textUnderCursor()
+            eow = "~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="
+            hasModifier = (e.modifiers() != Qt.KeyboardModifier.NoModifier) and not ctrlOrShift
+            completionPrefix = self.textUnderCursor()
 
-        if not isShortcut and (hasModifier or len(e.text()) == 0 or len(completionPrefix) < 2 or e.text()[-1] in eow):  # noqa: PLR2004
-            self._completer.popup().hide()
-            return
+            if not isShortcut and (hasModifier or len(e.text()) == 0 or len(completionPrefix) < 2 or e.text()[-1] in eow):  # noqa: PLR2004
+                self._completer.popup().hide()
+                return
 
-        if completionPrefix != self._completer.completionPrefix():
-            self._completer.setCompletionPrefix(completionPrefix)
-            self._completer.popup().setCurrentIndex(
-                    self._completer.completionModel().index(0, 0))
+            if completionPrefix != self._completer.completionPrefix():
+                self._completer.setCompletionPrefix(completionPrefix)
+                self._completer.popup().setCurrentIndex(
+                        self._completer.completionModel().index(0, 0))
 
-        cr = self.cursorRect()
-        cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
-        self._completer.complete(cr)
+            cr = self.cursorRect()
+            cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
+            self._completer.complete(cr)
 
 
 class IconStatusBar(QStatusBar):
@@ -4378,14 +4388,14 @@ class NumberBar(QWidget):
         if self.width() != width:
             self.setFixedWidth(width)
 
-    def paintEvent(self, event) -> None:  # pylint: disable = missing-function-docstring  # noqa: ANN001, D102
-        if self.isVisible():
+    def paintEvent(self, a0) -> None:  # pylint: disable = missing-function-docstring  # noqa: ANN001, D102
+        if self.isVisible() and a0:
             block = self.editor.firstVisibleBlock()
             height = self.fontMetrics().height()
             number = block.blockNumber()
             painter = QPainter(self)
-            painter.fillRect(event.rect(), self.lineBarColor)
-            painter.drawRect(0, 0, event.rect().width() - 1, event.rect().height() - 1)
+            painter.fillRect(a0.rect(), self.lineBarColor)
+            painter.drawRect(0, 0, a0.rect().width() - 1, a0.rect().height() - 1)
             font = painter.font()
 
             current_block = self.editor.textCursor().block().blockNumber() + 1
@@ -4407,7 +4417,7 @@ class NumberBar(QWidget):
                 painter.setFont(font)
                 painter.drawText(rect, Qt.AlignmentFlag.AlignRight, f'{number:d}')  # added .AlignmentFlag
 
-                if block_top > event.rect().bottom():
+                if block_top > a0.rect().bottom():
                     condition = False
 
                 block = block.next()
@@ -4588,10 +4598,11 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
         self.parentPlugin = parentPlugin
         self.updateNavToolbarTheme()
 
-    def updateNavToolbarTheme(self) -> None:
+    def updateNavToolbarTheme(self) -> None:  # noqa: C901
         """Change color of icons in matplotlib navigation toolBar to match theme."""
         dark = getDarkMode()
         for a in self.actions()[:-1]:
+            icon = None
             match a.text():
                 case 'Home':
                     icon = self.parentPlugin.makeCoreIcon('home_large_dark.png' if dark else 'home_large.png')
@@ -4609,8 +4620,9 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                     icon = self.parentPlugin.makeCoreIcon('qt4_editor_options_large_dark.png' if dark else 'qt4_editor_options_large.png')
                 case 'Save':
                     icon = self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png')
-            a.setIcon(icon)
-            a.fileName = icon.fileName
+            if icon:
+                a.setIcon(icon)
+                a.fileName = icon.fileName
 
     def save_figure(self, *args) -> None:  # pylint: disable = missing-param-doc
         """Adjust theme used for saved figure."""
@@ -4776,11 +4788,12 @@ class ViewBox(pg.ViewBox):
         self.draggingTimer.timeout.connect(self.resetDragging)
         self.draggingTimer.setInterval(1000)  # 1 s
 
-    def mousePressEvent(self, ev) -> None:  # noqa: ANN001, D102  # pylint: disable = missing-function-docstring
-        if ev.button() == Qt.MouseButton.LeftButton:
-            self.dragging = True
-            self.draggingTimer.start()  # as mouseReleaseEvent is not called, this workaround makes sure the flag is reset
-        super().mousePressEvent(ev)
+    def mousePressEvent(self, event) -> None:  # noqa: ANN001, D102  # pylint: disable = missing-function-docstring
+        if event:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self.dragging = True
+                self.draggingTimer.start()  # as mouseReleaseEvent is not called, this workaround makes sure the flag is reset
+            super().mousePressEvent(event)
 
     def resetDragging(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
         self.dragging = False
@@ -4881,14 +4894,16 @@ class PlotItem(pg.PlotItem):
             scene.sigMouseMoved.connect(self.mouseMoveEvent)
         self.sigXRangeChanged.connect(self.parentPlot)
 
-    def mouseMoveEvent(self, ev: 'QGraphicsSceneMouseEvent') -> None:
+    def mouseMoveEvent(self, event: 'QGraphicsSceneMouseEvent | None') -> None:
         """Update the xyLabel with the current position.
 
-        :param ev: The mouseMoveEvent
-        :type ev: QGraphicsSceneMouseEvent
+        :param event: The mouseMoveEvent
+        :type event: QGraphicsSceneMouseEvent
         """
+        if not event:
+            return
         if self.showXY:
-            pos = cast('QPointF', ev)  # called with QPointF instead of event?
+            pos = cast('QPointF', event)  # called with QPointF instead of event?
             viewBox = self.getViewBox()
             if viewBox and viewBox.geometry().contains(pos):  # add offset
                 pos = viewBox.mapSceneToView(pos)
@@ -4902,8 +4917,8 @@ class PlotItem(pg.PlotItem):
                     pass  # ignore errors that occur before time axis is initialized
             else:
                 self.xyLabel.setText('')
-        if isinstance(ev, QMouseEvent):
-            super().mouseMoveEvent(ev)
+        if isinstance(event, QMouseEvent):
+            super().mouseMoveEvent(event)
 
     def parentPlot(self) -> None:
         """Plot if Xrange changed by user.
@@ -5468,18 +5483,18 @@ class SplashScreen(QSplashScreen):
         app = cast('Application', QApplication.instance())
         if app:
             currentDesktopsCenter = app.mainWindow.geometry().center()
-        self.move(currentDesktopsCenter.x() - 100, currentDesktopsCenter.y() - 100)  # move to center
-        self.labels = []
-        self.index = 3
-        self.label = QLabel()
-        self.label.setMaximumSize(200, 200)
-        self.label.setScaledContents(True)
-        self.lay.addWidget(self.label)
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.animate)
-        self.timer.setInterval(1000)
-        self.timer.start()
-        self.closed = False
+            self.move(currentDesktopsCenter.x() - 100, currentDesktopsCenter.y() - 100)  # move to center
+            self.labels = []
+            self.index = 3
+            self.label = QLabel()
+            self.label.setMaximumSize(200, 200)
+            self.label.setScaledContents(True)
+            self.lay.addWidget(self.label)
+            self.timer = QTimer()
+            self.timer.timeout.connect(self.animate)
+            self.timer.setInterval(1000)
+            self.timer.start()
+            self.closed = False
 
     def animate(self) -> None:
         """Advances to the next frame."""
@@ -5627,11 +5642,11 @@ class RippleEffect(QWidget):
             self.deleteLater()  # Remove effect
         self.update()  # Trigger repaint
 
-    def paintEvent(self, event: 'QPaintEvent') -> None:  # noqa: ARG002
+    def paintEvent(self, a0: 'QPaintEvent | None') -> None:  # noqa: ARG002
         """Draws the ripple effect.
 
-        :param event: The paint event.
-        :type event: QPaintEvent
+        :param a0: The paint event.
+        :type a0: QPaintEvent
         """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -5668,24 +5683,24 @@ class MouseInterceptor(QObject):
         """
         RippleEffect(self.window, x, y, color)
 
-    def eventFilter(self, obj: QObject, event: 'QEvent') -> bool:  # noqa: ARG002
+    def eventFilter(self, a0: 'QObject | None', a1: 'QEvent | None') -> bool:  # noqa: ARG002
         """Intercept mouse clicks and applies ripple effect.
 
-        :param obj: Sender of the event.
-        :type obj: QObject
-        :param event: The Event.
-        :type event: QEvent
+        :param a0: Sender of the event.
+        :type a0: QObject
+        :param a1: The Event.
+        :type a1: QEvent
         :return: Indicates if the event has been handles. Always False as we want to add the ripple effect without altering anything else.
         :rtype: bool
         """
         if not hasattr(self.window, 'pluginManager') or self.window.pluginManager.closing:
             return False
 
-        if (isinstance(event, QMouseEvent) and event.type() == QMouseEvent.Type.MouseButtonPress and hasattr(self.window.pluginManager, 'Settings')
+        if (isinstance(a1, QMouseEvent) and a1.type() == QMouseEvent.Type.MouseButtonPress and hasattr(self.window.pluginManager, 'Settings')
             and self.window.pluginManager.Settings.showMouseClicks):
-            local_pos = self.window.mapFromGlobal(event.globalPosition().toPoint())
-            if event.button() == Qt.MouseButton.LeftButton:
+            local_pos = self.window.mapFromGlobal(a1.globalPosition().toPoint())
+            if a1.button() == Qt.MouseButton.LeftButton:
                 QTimer.singleShot(200, lambda: self.rippleEffectSignal.emit(local_pos.x(), local_pos.y(), QColor(colors.highlight)))
-            elif event.button() == Qt.MouseButton.RightButton:
+            elif a1.button() == Qt.MouseButton.RightButton:
                 QTimer.singleShot(200, lambda: self.rippleEffectSignal.emit(local_pos.x(), local_pos.y(), QColor(255, 50, 50)))
         return False

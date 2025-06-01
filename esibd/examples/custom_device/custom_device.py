@@ -1,11 +1,15 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import time
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
+
+if TYPE_CHECKING:
+    from PyQt6.QtGui import QColor
 
 # TODO It is recommended to edit a copy of this file using VS Code with the Better Comments extension installed to highlight the sections that need to be customized.
 
@@ -138,9 +142,10 @@ class CustomChannel(Channel):
         # TODO (optional) hide parameters that are only used by real channels
         super().realChanged()
 
-    def updateColor(self) -> None:
-        color = super().updateColor()  # noqa: F841
+    def updateColor(self) -> 'QColor':
+        color = super().updateColor()
         # TODO (optional) implement any custom reaction to color changes
+        return color  # noqa: RET504
 
     def appendValue(self, lenT, nan=False) -> None:
         super().appendValue(lenT, nan)
