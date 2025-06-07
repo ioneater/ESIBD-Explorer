@@ -98,11 +98,11 @@ class PressureController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.ticPort is not None:
+        if self.ticPort:
             with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.'):
                 self.ticPort.close()
                 self.ticPort = None
-        if self.tpgPort is not None:
+        if self.tpgPort:
             with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.'):
                 self.tpgPort.close()
                 self.tpgPort = None

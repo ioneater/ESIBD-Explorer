@@ -427,7 +427,7 @@ def shorten_text(text: str, max_length: int = 100) -> str:
     :return: shortened text
     :rtype: str
     """
-    keep_chars = (max_length - 3) // 2
+    keep_chars = (max_length - 1) // 2
     text = text.replace('\n', '')
     return text if len(text) < max_length else f'{text[:keep_chars]}…{text[-keep_chars:]}'
 

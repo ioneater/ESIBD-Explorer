@@ -31,6 +31,7 @@ Changed
 - In liveDisplays, the mouse enabled mode of subplots is now linked.
 - Data files are now only saved while closing if new data has been recorded since starting the program.
 - While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
+- Instead of showing the last valid value after stopping acquisition, NAN is displayed to indicate that the current value is unknown.
 
 Fixed
 ~~~~~
@@ -66,7 +67,7 @@ Developer Notes
 - generatePythonPlotCode method now only returns text. When running generated code from the context menu, other plots are no longer changed into popups.
 - Removed unused getInitializedChannels method.
 - Restructured project structure to separate scans and displays. Using lower case convention for project folders and module files. Enabling simplified import statements,
-  e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.scans import Beam, from esibd.displays import PDB.
+  e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.displays import PDB.
 - Introduced restore option for parameters and settings and used it to not restore values for lagging, errorCount, and interval measured.
 - Removed option to edit indicators through the context menu.
 - Enabled context menu for LedIndicators.
@@ -87,6 +88,7 @@ Developer Notes
 - Renamed channel.device to channel.channelParent.
 - Added type hints and refactored code based on type checking.
 - Reimplemented MultiStateAction labels with Enums to enable type checking.
+- Changed Device.initialized() to Device.initialized.
 
 Performance
 ~~~~~~~~~~~

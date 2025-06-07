@@ -163,7 +163,7 @@ class CustomController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()  # call this first
-        if self.initialized and self.port is not None:
+        if self.initialized and self.port:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 # TODO replace with device and communication protocol specific code to close communication
                 # try to close port even if lock could not be acquired! resulting errors should be excepted

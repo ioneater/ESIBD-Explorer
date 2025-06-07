@@ -176,7 +176,7 @@ class Energy(Scan):
                 self.setLabelMargin(self.display.axes[0], 0.15)
                 # workaround as .relim() is not working on x ais due to twinx bug
                 self.display.axes[0].set_xlim(inputRecordingData0[0], inputRecordingData0[-1])  # has to be called after setLabelMargin
-        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and not np.isnan(self.inputChannels[0].value):
+        if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel and not np.isnan(self.inputChannels[0].value):
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
         self.defaultLabelPlot(self.display.axes[0])

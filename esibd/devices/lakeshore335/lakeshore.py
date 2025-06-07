@@ -144,7 +144,7 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.ls335 is not None:
+        if self.ls335:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.ls335.disconnect_usb()
         self.initialized = False
@@ -174,6 +174,7 @@ class TemperatureController(DeviceController):
                     self.values[i] = float(value)
                 except ValueError as e:
                     self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.errorCount += 1
                     self.values[i] = np.nan
 
     def fakeNumbers(self) -> None:

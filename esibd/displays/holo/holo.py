@@ -108,7 +108,7 @@ class HOLO(Plugin):
         self.plotAngle = plotAngle
         self.update_timer.start(200)
 
-    def drawSurface(self, plotAngle=None) -> None:
+    def drawSurface(self, plotAngle: 'bool | None' = None) -> None:
         """Draw an isosurface at a value defined by the sliders.
 
         :param plotAngle: True for angle, False for amplitude, defaults to None

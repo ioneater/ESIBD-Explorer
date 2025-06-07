@@ -193,14 +193,14 @@ class Beam(Scan):
     def centerLimits(self) -> None:
         """Centers scan range around current channel values."""
         channel = self.getChannelByName(self.LR_channelName)
-        if channel is not None:
+        if channel:
             delta = abs(self.LR_stop - self.LR_from) / 2
             self.LR_from = channel.value - delta
             self.LR_stop = channel.value + delta
         else:
             self.print(f'Could not find channel {self.LR_channelName}')
         channel = self.getChannelByName(self.UD_channelName)
-        if channel is not None:
+        if channel:
             delta = abs(self.UD_stop - self.UD_from) / 2
             self.UD_from = channel.value - delta
             self.UD_stop = channel.value + delta
@@ -280,7 +280,7 @@ class Beam(Scan):
                     self.display.cbar.ax.set_title(self.outputChannels[0].unit)
                     self.display.axes[-1].cursor = ControlCursor(self.display.axes[-1], colors.highlight)  # has to be initialized last, otherwise axis limits may be affected
 
-            if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel is not None and self.inputChannels[1].sourceChannel is not None:
+            if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel and self.inputChannels[1].sourceChannel:
                 self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
             self.updateToolBar(update=update)
             self.defaultLabelPlot(self.display.axes[0])

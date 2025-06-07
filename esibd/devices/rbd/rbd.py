@@ -220,17 +220,17 @@ class CurrentChannel(Channel):
 
     def updateAverage(self) -> None:
         """Set flag to trigger update of average."""
-        if self.controller is not None and self.controller.acquiring:
+        if self.controller and self.controller.acquiring:
             self.controller.updateAverageFlag = True
 
     def updateRange(self) -> None:
         """Set flag to trigger update of range."""
-        if self.controller is not None and self.controller.acquiring:
+        if self.controller and self.controller.acquiring:
             self.controller.updateRangeFlag = True
 
     def updateBias(self) -> None:
         """Set flag to trigger update of bias."""
-        if self.controller is not None and self.controller.acquiring:
+        if self.controller and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
 
@@ -264,7 +264,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.port is not None:
+        if self.port:
             with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.controllerParent.devicename}.') as lock_acquired:
                 if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
                     self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling

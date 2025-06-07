@@ -177,7 +177,7 @@ class MS(Plugin):
 
     def updateTheme(self) -> None:
         super().updateTheme()
-        if self.paperAction is not None:
+        if self.paperAction:
             self.paperAction.iconFalse = self.makeIcon('percent_dark.png' if getDarkMode() else 'percent_light.png')
             self.paperAction.iconTrue = self.getIcon()
             self.paperAction.updateIcon(self.paperAction.state)

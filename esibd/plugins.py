@@ -202,7 +202,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.copyAction = None
         self.initializedGUI = False
         self.initializedDock = False  # visible in GUI, some plugins will only appear when needed to display specific content
-        if dependencyPath is not None:
+        if dependencyPath:
             self.dependencyPath = dependencyPath
         self.dataClipboardIcon = self.makeCoreIcon('clipboard-paste-document-text.png')
         self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
@@ -290,7 +290,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         else:
             message = f'Testing {control.objectName()} with value {value}'
         message = message.replace('\n', '')
-        message = message if len(message) <= self.LOG_LINE_LENGTH else f'{message[:self.LOG_LINE_LENGTH - 3]}…'  # limit length to keep log clean
+        message = shorten_text(message, max_length=self.LOG_LINE_LENGTH)
         with self.lock.acquire_timeout(5, timeoutMessage=f'Could not acquire lock to test {message}') as lock_acquired:
             # allow any critical function to finish before testing next control
             if lock_acquired:
@@ -483,7 +483,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         # mainLayout contains the actual content
         self.print('initGUI', PRINT.DEBUG)
         if not self.initializedGUI:
-            if self.layout() is None:  # layout will be retained even if dock is closed.
+            if not self.layout():  # layout will be retained even if dock is closed.
                 self.mainDisplayLayout = QVBoxLayout()
                 self.setLayout(self.mainDisplayLayout)
                 self.mainDisplayLayout.setContentsMargins(0, 0, 0, 0)
@@ -554,11 +554,11 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.initGUI()
             self.initDock()
             if self.pluginType in {PLUGINTYPE.CHANNELMANAGER, PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE, PLUGINTYPE.CONTROL, PLUGINTYPE.SCAN}:
-                if self.pluginManager.firstControl is None:
+                if self.pluginManager.firstControl:
+                    mw.tabifyDockWidget(self.pluginManager.firstControl.dock, self.dock)
+                else:
                     self.pluginManager.firstControl = self
                     mw.splitDockWidget(self.pluginManager.DeviceManager.dock, self.dock, Qt.Orientation.Vertical)  # below DeviceManager
-                else:
-                    mw.tabifyDockWidget(self.pluginManager.firstControl.dock, self.dock)
             elif self.pluginType == PLUGINTYPE.DEVICEMGR:  # should be loaded before any other plugin
                 mw.splitDockWidget(self.pluginManager.topDock, self.dock, Qt.Orientation.Vertical)  # below topDock
             elif self.pluginType == PLUGINTYPE.LIVEDISPLAY:
@@ -570,11 +570,11 @@ class Plugin(QWidget):  # noqa: PLR0904
             elif self.pluginType == PLUGINTYPE.CONSOLE and self.pluginManager.firstControl:
                 mw.splitDockWidget(self.pluginManager.firstControl.dock, self.dock, Qt.Orientation.Vertical)
             elif self.pluginType == PLUGINTYPE.DISPLAY and self.pluginManager.firstControl:
-                if self.pluginManager.firstDisplay is None:
+                if self.pluginManager.firstDisplay:
+                    mw.tabifyDockWidget(self.pluginManager.firstDisplay.dock, self.dock)
+                else:
                     self.pluginManager.firstDisplay = self
                     mw.splitDockWidget(self.pluginManager.firstControl.dock, self.dock, Qt.Orientation.Horizontal)
-                else:
-                    mw.tabifyDockWidget(self.pluginManager.firstDisplay.dock, self.dock)
             self.initializedDock = True  # only True after initializing and adding dock to GUI
             self.loading = False
             if not self.pluginManager.finalizing and not self.pluginManager.loading:
@@ -632,10 +632,10 @@ class Plugin(QWidget):  # noqa: PLR0904
             a.triggered.connect(event)
         a.setObjectName(f"{self.name}/toolTip: {toolTip.strip('.')}.")
         if self.titleBar:
-            if before is None:
-                self.titleBar.addAction(a)
-            else:
+            if before:
                 self.titleBar.insertAction(before, a)
+            else:
+                self.titleBar.addAction(a)
         return a
 
     def addStateAction(self, event: 'Callable | None' = None, toolTipFalse: str = '', *, iconFalse: Icon,  # noqa: PLR0913
@@ -826,7 +826,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param figure: A matplotlib figure.
         :type figure: matplotlib.figure.Figure
         """
-        if self.canvas is not None:
+        if self.canvas:
             self.canvas.setVisible(False)  # need to get out of the way quickly when changing themes, deletion may take longer
             self.canvas.deleteLater()
             self.navToolBar.deleteLater()
@@ -849,7 +849,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         """
         fontsize = 10
         # call after all other plotting operations are completed for scaling to work properly
-        if self.labelAnnotation is not None:
+        if self.labelAnnotation:
             with contextlib.suppress(ValueError, NotImplementedError):  # might have been deleted already
                 self.labelAnnotation.remove()
         if label:
@@ -931,7 +931,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         :return: Icon
         :rtype: :class:`~esibd.core.Icon`
         """
-        iconPath = Path(str((path if path is not None else self.dependencyPath) / file))
+        iconPath = Path(str((path or self.dependencyPath) / file))
         if not iconPath.exists():
             self.print(f'Could not find icon {iconPath.as_posix()}', flag=PRINT.ERROR)
             return Icon(internalMediaPath / 'unicode_error.png')
@@ -944,10 +944,10 @@ class Plugin(QWidget):  # noqa: PLR0904
         Only update the remaining controls using style sheets.
         Extend to adjust colors to app theme.
         """
-        if self.fig is not None and not self.loading and (self.scan is None or self.scan.file.name):
+        if self.fig and not self.loading and (not self.scan or self.scan.file.name):
             self.initFig()
             self.plot()
-        if hasattr(self, 'navToolBar') and self.navToolBar is not None:
+        if hasattr(self, 'navToolBar') and self.navToolBar:
             self.navToolBar.updateNavToolbarTheme()
         if hasattr(self, 'closeAction'):
             self.closeAction.setIcon(self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
@@ -965,18 +965,18 @@ class Plugin(QWidget):  # noqa: PLR0904
 
     def provideFig(self) -> None:
         """Create or reinitialize a matplotlib figure."""
-        if self.fig is not None and rgb_to_hex(cast('tuple[float, float, float, float]', self.fig.get_facecolor())) != colors.bg:
+        if self.fig and rgb_to_hex(cast('tuple[float, float, float, float]', self.fig.get_facecolor())) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
             self.fig = None
-        if self.fig is None:
-            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
-            self.makeFigureCanvasWithToolbar(self.fig)
-            self.addContentWidget(self.canvas)
-        else:
+        if self.fig:
             self.fig.clf()  # reuse if possible
             self.fig.set_constrained_layout(True)  # type: ignore  # noqa: PGH003
             self.fig.set_dpi(getDPI())
+        else:
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
+            self.makeFigureCanvasWithToolbar(self.fig)
+            self.addContentWidget(self.canvas)
         self.axes = []
 
     @plotting
@@ -1052,7 +1052,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param line: The line with the data do be copied.
         :type line: Line2D
         """
-        if line is not None:
+        if line:
             text = ''
             for x, y in zip(cast('np.ndarray', line.get_xdata()), cast('np.ndarray', line.get_ydata()), strict=True):
                 text += f'{x:12.2e}\t{y:12.2e}\n'
@@ -1139,7 +1139,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         """
         self.close()
         self.disconnect_all_signals()
-        if self.dock is not None and self.initializedDock:
+        if self.dock and self.initializedDock:
             self.pluginManager.mainWindow.removeDockWidget(self.dock)
             self.dock.setParent(None)
             self.dock.deleteLater()
@@ -1204,18 +1204,18 @@ class StaticDisplay(Plugin):
         self.initData()
 
     def initFig(self) -> None:  # noqa: D102
-        if self.fig is not None and rgb_to_hex(cast('tuple[float, float, float, float]', self.fig.get_facecolor())) != colors.bg:
+        if self.fig and rgb_to_hex(cast('tuple[float, float, float, float]', self.fig.get_facecolor())) != colors.bg:
             # need to create new fig to change matplotlib style
             plt.close(self.fig)
             self.fig = None
-        if self.fig is None:
-            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
-            self.makeFigureCanvasWithToolbar(self.fig)
-            self.outputLayout.addWidget(self.canvas)
-        else:
+        if self.fig:
             self.fig.clf()  # reuse if possible
             self.fig.set_constrained_layout(True)  # type: ignore  # noqa: PGH003
             self.fig.set_dpi(getDPI())
+        else:
+            self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
+            self.makeFigureCanvasWithToolbar(self.fig)
+            self.outputLayout.addWidget(self.canvas)
         self.axes = []
         self.axes.append(self.fig.add_subplot(111))
 
@@ -1320,7 +1320,7 @@ class StaticDisplay(Plugin):
             y = self.parentPlugin.convertDataDisplay((output.getRecordingData() - output.recordingBackground)[:length]
                                            if isinstance(self.parentPlugin, Device) and self.parentPlugin.useBackgrounds and self.parentPlugin.subtractBackgroundActive()
                                            else output.getRecordingData()[:length])
-            if output.sourceChannel is None:
+            if not output.sourceChannel:
                 if self.plotEfficientAction.state:
                     self.axes[0].plot(time_stamp_axis, y, label=f'{output.name} ({output.unit})')  # type: ignore  # noqa: PGH003
                 else:
@@ -1453,7 +1453,7 @@ fig.show()
         plotItem = cast('PlotItem', self.staticPlotWidget.getPlotItem())
         if plotItem:
             plotItem.xyLabel.setColor(fg)
-        if self.legend is not None:
+        if self.legend:
             self.legend.setLabelTextColor(fg)
         self.plot()  # triggers update of legend
         if not self.loading:
@@ -1609,7 +1609,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         for livePlotWidget in self.livePlotWidgets:
             livePlotWidget.hide()
             livePlotWidget.deleteLater()
-        if self.stackedGraphicsLayoutWidget is not None:
+        if self.stackedGraphicsLayoutWidget:
             try:
                 self.stackedGraphicsLayoutWidget.hide()
                 self.stackedGraphicsLayoutWidget.deleteLater()
@@ -1617,7 +1617,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 pass  # Ignore if already been deleted
             finally:
                 self.stackedGraphicsLayoutWidget = None
-        if self.plotSplitter is not None:
+        if self.plotSplitter:
             self.plotSplitter.hide()
             self.plotSplitter.deleteLater()
             self.plotSplitter = None
@@ -1937,7 +1937,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                     legend = cast('PlotItem | PlotWidget', self.livePlotWidgets[0]).legend  # use first one (already cleared)
                 if legend:
                     for channel in channels:
-                        if channel.plotCurve is not None:
+                        if channel.plotCurve:
                             legend.addItem(channel.plotCurve, name=channel.plotCurve.name())
             self.updateLegend = False
 
@@ -1991,7 +1991,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                         if channel.smooth != 0:
                             # y = uniform_filter1d(y, channel.smooth)  # revert once nan_policy implemented  # noqa: ERA001
                             y = smooth(y, channel.smooth)
-                        if channel.plotCurve is None:
+                        if not channel.plotCurve:
                             # only create new plotCurve if it is actually going to be used
                             if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                                 channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
@@ -2205,7 +2205,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
 
     def runTestParallel(self) -> None:  # noqa: D102
         if self.initializedDock:
-            if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
+            if hasattr(self, 'channelPlotAction') and self.channelPlotAction:
                 self.testControl(self.channelPlotAction, value=True)  # , 1
             self.testControl(self.copyAction, value=True)  # with advanced = False
             self.testControl(self.advancedAction, value=True)
@@ -2319,7 +2319,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :rtype: esibd.core.Channel
         """
         selectedChannel = next((channel for channel in self.channels if channel.select), None)
-        if selectedChannel is None:
+        if not selectedChannel:
             self.print('No channel selected.')
             return None
         return selectedChannel
@@ -2328,7 +2328,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def duplicateChannel(self) -> Channel | None:
         """Duplicates the currently selected channel."""
         selectedChannel = self.modifyChannel()
-        if selectedChannel is not None:
+        if selectedChannel:
             self.print(f'duplicateChannel {selectedChannel.name}', flag=PRINT.DEBUG)
             index = self.channels.index(selectedChannel)
             newChannelDict = selectedChannel.asDict()
@@ -2347,7 +2347,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def deleteChannel(self) -> None:
         """Delete the currently selected channel."""
         selectedChannel = self.modifyChannel()
-        if selectedChannel is not None:
+        if selectedChannel:
             self.print(f'deleteChannel {selectedChannel.name}', flag=PRINT.DEBUG)
             if len(self.channels) == 1:
                 self.print('Need to keep at least one channel.')
@@ -2367,7 +2367,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :type up: bool
         """
         selectedChannel = self.modifyChannel()
-        if selectedChannel is not None:
+        if selectedChannel:
             self.print(f'moveChannel {selectedChannel.name} {"up" if up else "down"}', flag=PRINT.DEBUG)
             index = self.channels.index(selectedChannel)
             if (index == 0 and up) or (index == len(self.channels) - 1 and not up):
@@ -2449,7 +2449,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             return
         if useDefaultFile:
             file = self.customConfigFile(self.confINI)
-        if file is None:  # get file via dialog
+        if not file:  # get file via dialog
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path():
             if file.suffix == FILE_INI:
@@ -2538,8 +2538,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """
         if useDefaultFile:
             file = self.customConfigFile(self.confINI)
-        if file is None:  # get file via dialog
-            if isinstance(self, Device) and self.initialized():
+        if not file:  # get file via dialog
+            if isinstance(self, Device) and self.initialized:
                 self.print('Stop communication to load channels.', flag=PRINT.WARNING)
                 return
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
@@ -2626,7 +2626,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :param append: True if changelog should be appended to previous change logs, e.g. when loading from multiple devices at once. Defaults to False
         :type append: bool, optional
         """
-        if file is None:  # get file via dialog
+        if not file:  # get file via dialog
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5)[0])
         if file != Path():
             self.changeLog = [f'Change log for loading values for {self.name} from {file.name}:']
@@ -2655,7 +2655,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :type value: float
         """
         channel = self.getChannelByName(name)
-        if channel is not None:
+        if channel:
             parameter = channel.getParameterByName(Parameter.VALUE)
             initialVal = channel.value
             channel.value = value
@@ -2707,9 +2707,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         default = self.channelType(channelParent=self, tree=None)
         for item in items:
             channel = self.getChannelByName(cast('str', item[Parameter.NAME]))
-            if channel is None:
-                changeLog.append(f'Adding channel {item[Parameter.NAME]}')
-            else:
+            if channel:
                 for name in default.getSortedDefaultChannel():
                     if name in channel.tempParameters():
                         continue
@@ -2718,6 +2716,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                         if parameter.indicator and ignoreIndicators:
                             continue
                         changeLog.append(f'Updating parameter {name} on channel {channel.name} from {parameter.formatValue()} to {parameter.formatValue(item[name])}')
+            else:
+                changeLog.append(f'Adding channel {item[Parameter.NAME]}')
         newNames = [item[Parameter.NAME] for item in items]
         changeLog.extend(f'Removing channel {channel.name}' for channel in self.getChannels() if channel.name not in newNames)
         if len(changeLog) == 0:
@@ -2768,7 +2768,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :type visible: bool
         """
         if visible:
-            if self.channelPlot is None or not self.channelPlot.initializedDock:
+            if not self.channelPlot or not self.channelPlot.initializedDock:
                 self.channelPlot = self.ChannelPlot(parentPlugin=self, pluginManager=self.pluginManager, dependencyPath=self.dependencyPath)
                 self.channelPlot.provideDock()
         elif self.channelPlot is not None and self.channelPlot.initializedDock:
@@ -2898,7 +2898,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :param visible: Requested visibility for liveDisplay.
         :type visible: bool
         """
-        if self.liveDisplay is None:
+        if not self.liveDisplay:
             return  # liveDisplay not supported
         if (visible if visible is not None else self.toggleLiveDisplayAction.state):
             if not self.liveDisplayActive():  # only if not already visible
@@ -2917,7 +2917,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :param visible: Requested visibility for staticDisplay.
         :type visible: bool
         """
-        if self.staticDisplay is None:
+        if not self.staticDisplay:
             return  # staticDisplay not supported
         if visible:
             if not self.staticDisplayActive():  # only if not already visible
@@ -3067,14 +3067,14 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def setOn(self, on: 'bool | None' = None) -> None:  # noqa: D102
         super().setOn(on)
-        if self.initialized():
+        if self.initialized:
             self.updateValues(apply=True)  # update equations before turning on or off
-            if self.controller is None:
+            if self.controller:
+                self.controller.toggleOnFromThread(parallel=False)
+            else:
                 for channel in self.channels:
                     if channel.controller:
                         channel.controller.toggleOnFromThread(parallel=False)
-            else:
-                self.controller.toggleOnFromThread(parallel=False)
         elif self.isOn():
             self.initializeCommunication()
 
@@ -3145,15 +3145,31 @@ class Device(ChannelManager):  # noqa: PLR0904
                 if channel.controller:
                     channel.controller.stopAcquisition()
 
+    @property
     def initialized(self) -> bool:
         """Extend or overwrite to indicate when the device is initialized.
 
         Default implementation works when using :class:`~esibd.core.DeviceController`.
         """
         if not self.controller:
-            if self.channels[0].controller is None:
+            if not self.channels[0].controller:
                 return False
+            # strictly return True if any device has an initialized controller
+            # ignore virtual channels
             return any(channel.controller.initialized for channel in self.channels if channel.controller)
+        return self.controller.initialized
+
+    @property
+    def plotableChannels(self) -> bool:
+        """Extend or overwrite to indicate when the device has plotable channels.
+
+        Default implementation works when using :class:`~esibd.core.DeviceController`.
+        """
+        if not self.controller:
+            if not self.channels[0].controller:
+                return False
+            # return True if any device has an initialized controller or is not active and thus plotable even if not initialized
+            return any(channel.controller.initialized or not channel.active for channel in self.channels if channel.controller)
         return self.controller.initialized
 
     def initializeCommunication(self) -> None:
@@ -3329,7 +3345,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                     output_group = cast('h5py.Group', group[OUTPUTCHANNELS])
                     for name, item in output_group.items():
                         channel = self.getChannelByName(name.strip('_BG'))
-                        if channel is not None:
+                        if channel:
                             if name.endswith('_BG'):
                                 channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
                             else:
@@ -3378,13 +3394,13 @@ class Device(ChannelManager):  # noqa: PLR0904
                 for name in channelNames:
                     if name in equ:
                         channel_equ = next((channel for channel in channels if channel.name == name), None)
-                        if channel_equ is None:
-                            self.print(f'Could not find channel {name} in equation of channel {channel.name}.', PRINT.WARNING)
-                            error = True
-                        else:
+                        if channel_equ:
                             channelValue = channel_equ.value
                             if channelValue is not None:
                                 equ = equ.replace(channel_equ.name, f'{channelValue - channel_equ.background if channel_equ.useBackgrounds else channelValue}')
+                        else:
+                            self.print(f'Could not find channel {name} in equation of channel {channel.name}.', PRINT.WARNING)
+                            error = True
                 if error:
                     self.print(f'Could not resolve equation of channel {channel.name}: {channel.equation}', PRINT.WARNING)
                 else:
@@ -3408,7 +3424,7 @@ class Device(ChannelManager):  # noqa: PLR0904
             # (on is not None and on) (on is None and not self.recording):
             # Turn on if not already on
             self.clearPlot()
-            if not self.initialized():
+            if not self.initialized:
                 self.initializeCommunication()  # will start recording when initialization is complete
             else:
                 self.startAcquisition()
@@ -3430,7 +3446,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         :param skipPlotting: Skip plotting if previous plot was too recent, defaults to False
         :type skipPlotting: bool, optional
         """
-        if self.initialized() or nan:
+        if self.plotableChannels or nan:
             self.updateValues()  # this makes equations work for output devices.
             # Equations for output devices are evaluated only when plotting. Calling them for every value change event would cause a massive computational load.
             for channel in self.getChannels():
@@ -3504,25 +3520,25 @@ class Device(ChannelManager):  # noqa: PLR0904
             # NOTE self.bufferLagging() # does not allow to reduce lag
 
     def duplicateChannel(self) -> None:  # noqa: D102
-        if self.modifyChannel() is None:
+        if not self.modifyChannel():
             return
-        if self.initialized():
+        if self.initialized:
             self.print(f'Stop communication for {self.name} to duplicate selected channel.', flag=PRINT.WARNING)
             return
         super().duplicateChannel()
 
     def deleteChannel(self) -> None:  # noqa: D102
-        if self.modifyChannel() is None:
+        if not self.modifyChannel():
             return
-        if self.initialized():
+        if self.initialized:
             self.print(f'Stop communication for {self.name} to delete selected channel.', flag=PRINT.WARNING)
             return
         super().deleteChannel()
 
     def moveChannel(self, up: bool) -> None:  # noqa: D102
-        if self.modifyChannel() is None:
+        if not self.modifyChannel():
             return
-        if self.initialized():
+        if self.initialized:
             self.print(f'Stop communication for {self.name} to move selected channel.', flag=PRINT.WARNING)
             return
         newChannel = super().moveChannel(up=up)
@@ -3587,8 +3603,6 @@ class Scan(Plugin):  # noqa: PLR0904
     MYBLUE = '#1f77b4'
     MYGREEN = '#00aa00'
     MYRED = '#d62728'
-    getChannelByName: Callable
-    """Reference to :meth:`~esibd.plugins.DeviceManager.getChannelByName`."""
     file: Path
     """The scan file. Either existing file or file to be created when scan finishes."""
     useDisplayChannel: bool
@@ -3719,15 +3733,15 @@ class Scan(Plugin):  # noqa: PLR0904
             self.mouseMoving = True
             if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:
                 for i, inputChannel in enumerate(self.scan.inputChannels):
-                    if inputChannel.sourceChannel is not None:
+                    if inputChannel.sourceChannel:
                         if i == 0:
                             inputChannel.sourceChannel.value = event.xdata
                         elif event.ydata:
                             inputChannel.sourceChannel.value = event.ydata
                     else:
                         self.print(f'Could not find input channel {self.scan.inputChannels[i].name}.')
-                if isinstance(self.axes[-1], CursorAxes):
-                    self.axes[-1].cursor.ondrag(event)
+                if hasattr(self.axes[-1], 'cursor'):
+                    cast('CursorAxes', self.axes[-1]).cursor.ondrag(event)
             self.mouseMoving = False
 
         def closeGUI(self) -> None:  # noqa: D102
@@ -3851,7 +3865,7 @@ class Scan(Plugin):  # noqa: PLR0904
         """Clear all channels before (re-)initialization."""
         for channel in self.channels:
             channel.onDelete()
-        if self.channelTree is not None:
+        if self.channelTree:
             self.channelTree.clear()
             self.channelTree.setIndentation(0)  # indentation can push device icon out of visible part of first column
             self.inputChannelGroupItem = QTreeWidgetItem(self.channelTree.invisibleRootItem(), ['Input Channels'])
@@ -4108,14 +4122,14 @@ class Scan(Plugin):  # noqa: PLR0904
         self.channels.append(outputChannel)
         if not self.loading or recordingData is not None:
             outputChannel.connectSource()
-            if outputChannel.sourceChannel is None:
+            if not outputChannel.sourceChannel:
                 if not self._dummy_initialization and not self.loading:
                     self.print(f'Could not find output channel {name}.', PRINT.WARNING)
                 sourceInitialized = False
         if not self.loading:
             device = outputChannel.getDevice()
             if isinstance(device, Device):
-                if not device.initialized():
+                if not device.initialized:
                     if not self._dummy_initialization:
                         self.print(f'{device.name} is not initialized.', PRINT.WARNING)
                     sourceInitialized = False
@@ -4192,7 +4206,7 @@ class Scan(Plugin):  # noqa: PLR0904
                     and inputChannel.max is not None and device and isinstance(device, Device)):
                 self.print('Not enough information to initialize input channel.', PRINT.WARNING)
                 return None
-            if inputChannel.sourceChannel is None:
+            if not inputChannel.sourceChannel:
                 if not self._dummy_initialization and not self.loading:
                     self.print(f'No channel found with name {name}.', PRINT.WARNING)
                 sourceInitialized = False
@@ -4204,7 +4218,7 @@ class Scan(Plugin):  # noqa: PLR0904
                 if not self._dummy_initialization:
                     self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
                 sourceInitialized = False
-            elif not device.initialized():
+            elif not device.initialized:
                 if not self._dummy_initialization:
                     self.print(f'{inputChannel.getDevice().name} is not initialized.', PRINT.WARNING)
                 sourceInitialized = False
@@ -4554,7 +4568,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         :type visible: bool
         """
         if visible:
-            if self.display is None or not self.display.initializedDock:
+            if not self.display or not self.display.initializedDock:
                 self.display = self.Display(scan=self, pluginManager=self.pluginManager)
                 self.display.provideDock()
         elif self.displayActive() and self.display:
@@ -4696,13 +4710,13 @@ class Browser(Plugin):
 
     def adjustLocation(self) -> None:
         """Adjust text in address bar after loading completed."""
-        if self.title is None:
+        if self.title:
+            self.locationEdit.setText(self.title)
+            self.title = None  # reset for next update
+        else:
             self.locationEdit.setText(self.webEngineView.url().toString().replace('%5C', '/'))
             self.html = None
             self.plugin = None
-        else:
-            self.locationEdit.setText(self.title)
-            self.title = None  # reset for next update
 
     def openDocumentation(self) -> None:
         """Display the offline documentation."""
@@ -4784,11 +4798,11 @@ class Browser(Plugin):
 
     def updateTheme(self) -> None:  # noqa: D102
         super().updateTheme()
-        if self.html is not None and self.title:
-            if self.plugin is None:
-                self.setHtml(self.title, self.html)
-            else:
+        if self.html and self.title:
+            if self.plugin:
                 self.setAbout(self.plugin, self.title, self.html)
+            else:
+                self.setHtml(self.title, self.html)
 
 
 class Text(Plugin):
@@ -4859,7 +4873,7 @@ class Text(Plugin):
     def saveFile(self) -> None:
         """Save text file containing current text."""
         file = None
-        if self.pluginManager.Explorer.activeFileFullPath is not None:
+        if self.pluginManager.Explorer.activeFileFullPath:
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE, directory=self.pluginManager.Explorer.activeFileFullPath.as_posix())[0])
         else:
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE)[0])
@@ -5038,9 +5052,9 @@ class Tree(Plugin):
         :return: True if widget is visible
         :rtype: bool
         """
-        if parentItem is None:
+        if not parentItem:
             parentItem = self.tree.invisibleRootItem()
-        if parentItem is None:
+        if not parentItem:
             return False
         children = [parentItem.child(i) for i in range(parentItem.childCount())]
         show = (not self.filterLineEdit.text() or self.filterLineEdit.text().lower() in parentItem.text(0).lower() or
@@ -5177,12 +5191,14 @@ class Tree(Plugin):
             for object_name in object_names:
                 try:
                     attr = getattr(obj, object_name)
-                    if callable(attr):
-                        callable_names.append(object_name)
-                    else:
-                        variable_names.append(object_name)
-                except AttributeError:
-                    pass  # apparently some libraries keep deprecated attributes, just to throw deprecation AttributeError if they are accessed.
+                    if attr is not None:
+                        if callable(attr):
+                            callable_names.append(object_name)
+                        else:
+                            variable_names.append(object_name)
+                except AttributeError as e:
+                    # apparently some libraries keep deprecated attributes, just to throw deprecation AttributeError if they are accessed.
+                    self.print(f'Problem with object {object_name}: {e}', flag=PRINT.VERBOSE)
                 except (ValueError, RuntimeError) as e:
                     self.print(f'Problem with object {object_name}: {e}', flag=PRINT.WARNING)
             for object_name in variable_names:
@@ -5208,7 +5224,7 @@ class Tree(Plugin):
                     class_method_widget = QTreeWidgetItem(tree, [object_name])
                     class_method_widget.setIcon(0, QIcon(self.ICON_CLASS if inspect.isclass(attr) else self.ICON_FUNCTIONMETHOD))
                     doc = inspect.getdoc(attr)
-                    if doc is not None:
+                    if doc:
                         class_method_widget.setText(1, doc.split('\n')[0])
                         class_method_widget.setToolTip(1, doc)
         if recursionDepth == self.RECURSION_DEPTH_DEFAULT:  # only once on top level
@@ -5229,7 +5245,7 @@ class Tree(Plugin):
             consoleAction = contextMenu.addAction('Add item to Console')
         copyClipboardAction = contextMenu.addAction('Copy to clipboard')
         contextMenu = contextMenu.exec(self.tree.mapToGlobal(pos))
-        if contextMenu is not None:
+        if contextMenu:
             if contextMenu is copyClipboardAction:
                 column_index = -1
                 header = self.tree.header()
@@ -5659,7 +5675,7 @@ class SettingsManager(Plugin):
             if not settingsContextMenu.actions():
                 return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
-        if settingsContextMenuAction is not None:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
+        if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addSettingToConsoleAction:
                 self.pluginManager.Console.addToNamespace('setting', setting)
                 self.pluginManager.Console.execute(command='setting')
@@ -5705,7 +5721,7 @@ class SettingsManager(Plugin):
         self.loading = True
         if useDefaultFile:
             file = self.defaultFile
-        if file is None:  # get file via dialog
+        if not file:  # get file via dialog
             file = Path(QFileDialog.getOpenFileName(parent=self.pluginManager.mainWindow, caption=SELECTFILE,
                                                     directory=self.pluginManager.Settings.configPath.as_posix(), filter=self.FILTER_INI_H5)[0])
         if file == Path():
@@ -5865,7 +5881,7 @@ class SettingsManager(Plugin):
         """
         if useDefaultFile:
             file = self.defaultFile
-        if file is None:  # get file via dialog
+        if not file:  # get file via dialog
             file = Path(QFileDialog.getSaveFileName(parent=self.pluginManager.mainWindow, caption=SELECTFILE,
                                                     directory=self.pluginManager.Settings.configPath.as_posix(), filter=self.FILTER_INI_H5)[0])
         if file == Path():
@@ -6143,7 +6159,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
     def updateDPI(self) -> None:
         """Update DPI in all active matplotlib figures."""
         for plugin in self.pluginManager.plugins:
-            if hasattr(plugin, 'fig') and plugin.fig is not None:
+            if hasattr(plugin, 'fig') and plugin.fig:
                 plugin.fig.set_dpi(getDPI())
                 plugin.plot()
 
@@ -6360,7 +6376,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         """Indicate if communication to at least one device is initialized."""
         if self.pluginManager.loading:
             return False
-        return any(plugin.initialized() for plugin in self.pluginManager.getPluginsByClass(Device))
+        return any(plugin.initialized for plugin in self.pluginManager.getPluginsByClass(Device))
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
         for device in self.getDevices():
@@ -6517,7 +6533,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         :type file: Path | None, optional
         """
         self.pluginManager.Settings.incrementMeasurementNumber()
-        if file is None:
+        if not file:
             file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
         with h5py.File(name=file, mode=('a'), track_order=True) as h5File:
             self.hdfUpdateVersion(h5File)
@@ -6879,7 +6895,7 @@ class Explorer(Plugin):  # noqa: PLR0904
             openDirAction = explorerContextMenu.addAction('Open folder in file explorer.')
             deleteFileAction = explorerContextMenu.addAction('Move folder to recycle bin.')
             copyFolderNameAction = explorerContextMenu.addAction('Copy folder name to clipboard.')
-        elif self.activeFileFullPath is not None:
+        elif self.activeFileFullPath:
             openContainingDirAction = explorerContextMenu.addAction('Open containing folder in file explorer.')
             openFileAction = explorerContextMenu.addAction('Open with default program.')
             copyFileNameAction = explorerContextMenu.addAction('Copy file name to clipboard.')
@@ -6932,7 +6948,7 @@ class Explorer(Plugin):  # noqa: PLR0904
                         break  # only use first match
 
         explorerContextMenuAction = explorerContextMenu.exec(self.tree.mapToGlobal(pos))
-        if explorerContextMenuAction is not None:  # noqa: PLR1702
+        if explorerContextMenuAction:  # noqa: PLR1702
             if explorerContextMenuAction is openDirAction and itemFullPath:
                 openInDefaultApplication(itemFullPath)
             elif explorerContextMenuAction is copyFolderNameAction and itemFullPath:
@@ -6940,7 +6956,7 @@ class Explorer(Plugin):  # noqa: PLR0904
             elif explorerContextMenuAction is deleteFileAction:
                 send2trash(cast('TreeWidgetItem', self.tree.selectedItems()[0]).path_info)
                 self.populateTree(clear=False)
-            elif self.activeFileFullPath is not None:
+            elif self.activeFileFullPath:
                 if explorerContextMenuAction is runPythonCodeAction:
                     self.pluginManager.Console.execute(command=f"Module = dynamicImport('ModuleName', '{self.activeFileFullPath.as_posix()}')")
                 elif explorerContextMenuAction is openContainingDirAction:
@@ -7241,9 +7257,9 @@ class Explorer(Plugin):  # noqa: PLR0904
         """
         plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)
                        if plugin not in {self.pluginManager.Tree, self.pluginManager.Text}), None)
-        if plugin is None:  # only use Tree or Text if no other supporting Plugin has been found
-            plugin = next((plugin for plugin in self.pluginManager.plugins if plugin.supportsFile(file)), None)
-        if plugin is not None:
+        if not plugin:  # only use Tree or Text if no other supporting Plugin has been found
+            plugin = next((plugin for plugin in {self.pluginManager.Tree, self.pluginManager.Text} if plugin.supportsFile(file)), None)
+        if plugin:
             return plugin.getIcon()
         return self.ICON_DOCUMENT
 
@@ -7266,9 +7282,9 @@ class Explorer(Plugin):  # noqa: PLR0904
         """
         if hasattr(self.pluginManager, 'Notes'):
             # save old notes
-            if oldRoot is not None:
+            if oldRoot:
                 self.pluginManager.Notes.saveData(oldRoot, useDefaultFile=True)
-            if newRoot is not None:  # None on program closing
+            if newRoot:  # None on program closing
                 self.pluginManager.Notes.loadData(newRoot, showPlugin=False)
 
     def close(self) -> bool:  # noqa: D102
@@ -7378,14 +7394,14 @@ class UCM(ChannelManager):
             self.updateColor()
             self.scalingChanged()
             if giveFeedback:
-                if self.sourceChannel is None:
-                    self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
-                else:
+                if self.sourceChannel:
                     self.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
+                else:
+                    self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
 
         def setSourceChannelValue(self) -> None:
             """Update sourceChannel.value."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 try:
                     self.sourceChannel.value = self.value  # type: ignore # noqa: PGH003
                 except RuntimeError as e:
@@ -7395,7 +7411,7 @@ class UCM(ChannelManager):
 
         def relayValueEvent(self) -> None:
             """Update value when sourceChannel.value changed."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 try:
                     value = self.sourceChannel.value
                     sourceDevice = self.sourceChannel.getDevice()
@@ -7410,7 +7426,7 @@ class UCM(ChannelManager):
 
         def relayMonitorEvent(self) -> None:
             """Update monitor and monitor stylesheet when sourceChannel.monitor changed."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 try:
                     self.monitor = self.sourceChannel.monitor
                     monitorWidget = self.getParameterByName(self.MONITOR).getWidget()
@@ -7425,7 +7441,7 @@ class UCM(ChannelManager):
 
         def getSourceChannelValues(self) -> None:
             """Get value and if applicable monitor from sourceChannel."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 if self.sourceChannel.inout == INOUT.OUT:
                     self.monitor = self.sourceChannel.value
                 else:
@@ -7439,7 +7455,7 @@ class UCM(ChannelManager):
 
         def removeEvents(self) -> None:
             """Remove extra events from sourceChannel."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
                 if self.sourceChannel.useMonitors and self.relayMonitorEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
@@ -7515,11 +7531,11 @@ class UCM(ChannelManager):
             self.liveDisplay.plot(apply=True)
 
     def getChannels(self) -> list[Channel]:  # noqa: D102
-        return [channel for channel in self.channels if channel.sourceChannel is not None]
+        return [channel for channel in self.channels if channel.sourceChannel]
 
     def duplicateChannel(self) -> None:  # noqa: D102
         newChannel = cast('UCM.UCMChannel', super().duplicateChannel())
-        if newChannel is not None:
+        if newChannel:
             newChannel.connectSource()
 
     def toggleRecording(self, on: 'bool | None' = None, manual: bool = False) -> None:  # noqa: D102
@@ -7545,7 +7561,7 @@ class UCM(ChannelManager):
         """
         self.loading = True  # suppress plot
         for channel in self.channels:
-            if channel.sourceChannel is None or update:
+            if not channel.sourceChannel or update:
                 channel.connectSource()
             else:  # only reconnect (disconnect) if the reference has become invalid
                 try:
@@ -7617,23 +7633,23 @@ class PID(ChannelManager):
             self.sourceChannel, outNotes = self.findChannel(self.output, self.OUTPUTDEVICE)
             self.inputChannel, inNotes = self.findChannel(self.input, self.INPUTDEVICE)
             self.notes = f'Output: {outNotes}, Input: {inNotes}'
-            if self.sourceChannel is None:
-                self.getValues = lambda *_, **__: None
-            else:
+            if self.sourceChannel:
                 device = self.sourceChannel.getDevice()
                 if isinstance(device, ChannelManager):
                     self.unit = device.unit
                 self.getValues = self.sourceChannel.getValues
+            else:
+                self.getValues = lambda *_, **__: None
             if giveFeedback:
-                if self.sourceChannel is None:
-                    self.print(f'Source channel {self.output} could not be reconnected.', flag=PRINT.ERROR)
-                else:
+                if self.sourceChannel:
                     self.print(f'Source channel {self.output} successfully reconnected.', flag=PRINT.DEBUG)
-                if self.inputChannel is None:
-                    self.print(f'Source channel {self.input} could not be reconnected.', flag=PRINT.ERROR)
                 else:
+                    self.print(f'Source channel {self.output} could not be reconnected.', flag=PRINT.ERROR)
+                if self.inputChannel:
                     self.print(f'Source channel {self.input} successfully reconnected.', flag=PRINT.DEBUG)
-            if self.sourceChannel is None or self.inputChannel is None:
+                else:
+                    self.print(f'Source channel {self.input} could not be reconnected.', flag=PRINT.ERROR)
+            if not self.sourceChannel or not self.inputChannel:
                 return
             if self.sourceChannel.useMonitors:
                 self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.stepPID)
@@ -7681,7 +7697,7 @@ class PID(ChannelManager):
                     inputDevice = cast('Device', self.inputChannel.getDevice())
                     sourceDevice = cast('Device', self.sourceChannel.getDevice())
                     sourceChannelValue = self.sourceChannel.value
-                    if sourceChannelValue:
+                    if sourceChannelValue is not None:
                         if self.sourceChannel.useMonitors:
                             self.monitor = self.sourceChannel.monitor
                         else:
@@ -7689,7 +7705,7 @@ class PID(ChannelManager):
                                             if sourceDevice.subtractBackgroundActive() else sourceChannelValue)
                         if self.active and self.channelParent.isOn() and inputDevice.isOn() and not np.isnan(sourceChannelValue):
                             response = self.pid(sourceChannelValue)
-                            if response:
+                            if response is not None:
                                 self.inputChannel.value = response
                 except RuntimeError as e:
                     self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}. Attempt reconnecting.', flag=PRINT.DEBUG)
@@ -7719,7 +7735,7 @@ class PID(ChannelManager):
 
         def removeEvents(self) -> None:
             """Remove extra events from sourceChannel."""
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 if self.stepPID in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.stepPID)
                 if self.sourceChannel.useMonitors and self.stepPID in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
@@ -7826,17 +7842,17 @@ class PID(ChannelManager):
         self.pluginManager.Text.setText('Import channels from file explicitly.', showPlugin=True)
 
     def getChannels(self) -> list[Channel]:  # noqa: D102
-        return [channel for channel in self.channels if channel.sourceChannel is not None]
+        return [channel for channel in self.channels if channel.sourceChannel]
 
     def moveChannel(self, up: bool) -> None:  # noqa: D102
         newChannel = cast('PID.PIDChannel', super().moveChannel(up=up))
-        if newChannel is not None:
+        if newChannel:
             newChannel.connectSource()
             self.pluginManager.reconnectSource(newChannel.name)
 
     def duplicateChannel(self) -> None:  # noqa: D102
         newChannel = cast('PID.PIDChannel', super().duplicateChannel())
-        if newChannel is not None:
+        if newChannel:
             newChannel.connectSource()
 
     def connectAllSources(self, update: bool = False) -> None:
@@ -7846,7 +7862,7 @@ class PID(ChannelManager):
         :type update: bool, optional
         """
         for channel in self.channels:
-            if channel.sourceChannel is None or channel.inputChannel is None or update:
+            if not channel.sourceChannel or not channel.inputChannel or update:
                 channel.connectSource()
             else:  # only reconnect (disconnect) if the reference has become invalid
                 try:

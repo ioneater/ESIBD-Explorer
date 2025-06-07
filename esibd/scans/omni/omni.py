@@ -59,7 +59,7 @@ class Omni(Scan):
                 self.lines = None  # type: ignore  # noqa: PGH003
                 self.axes = []
                 self.axes.append(self.fig.add_subplot(111))
-                if self.xSlider is not None:
+                if self.xSlider:
                     self.xSlider.deleteLater()
                 self.xSlider = QSlider(Qt.Orientation.Horizontal)
                 self.vertLayout.addWidget(self.xSlider)
@@ -72,7 +72,7 @@ class Omni(Scan):
             :param value: Slider value.
             :type value: float
             """
-            if self.scan.inputChannels[0].sourceChannel is not None:
+            if self.scan.inputChannels[0].sourceChannel:
                 # map slider range onto range
                 self.scan.inputChannels[0].sourceChannel.value = self.scan.start + value / self.xSlider.maximum() * (self.scan.stop - self.scan.start)
 
@@ -81,7 +81,7 @@ class Omni(Scan):
 
             If interactive, a slider is used to change the independent variable in real time.
             """
-            if self.xSlider is not None:
+            if self.xSlider:
                 self.xSlider.setVisible(self.scan.interactive)
                 if self.scan.interactive and len(self.scan.inputChannels) > 0:
                     self.xSlider.setValue(int((self.scan.inputChannels[0].value - self.scan.inputChannels[0].min) *
@@ -149,11 +149,11 @@ class Omni(Scan):
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002, C901, PLR0912
         if len(self.outputChannels) > 0 and self.display:
             inputRecordingData = self.inputChannels[0].getRecordingData()
-            if self.display.lines is None:
+            if not self.display.lines:
                 self.display.axes[0].clear()
                 self.display.lines = []  # dummy plots
                 for output in self.outputChannels:
-                    if output.sourceChannel is not None:
+                    if output.sourceChannel:
                         self.display.lines.append(self.display.axes[0].plot([], [], label=f'{output.name} ({output.unit})', color=output.color)[0])
                     else:
                         self.display.lines.append(self.display.axes[0].plot([], [], label=f'{output.name} ({output.unit})')[0])

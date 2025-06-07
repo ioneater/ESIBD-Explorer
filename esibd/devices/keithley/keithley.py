@@ -133,7 +133,7 @@ class CurrentController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.port is not None:
+        if self.port:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None
@@ -151,7 +151,7 @@ class CurrentController(DeviceController):
             self.KeithleyWrite('SOUR:VOLT:RANG 50')
             self.signalComm.initCompleteSignal.emit()
         except Exception:  # noqa: BLE001
-            self.signalComm.updateValuesSignal.emit(np.nan)
+            self.signalComm.updateValuesSignal.emit()
         finally:
             self.initializing = False
 
@@ -175,7 +175,7 @@ class CurrentController(DeviceController):
     def applyVoltage(self) -> None:
         # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
         """Apply voltage value."""
-        if self.port is not None:
+        if self.port:
             self.KeithleyWrite(f'SOUR:VOLT {self.controllerParent.voltage}')
 
     def toggleOn(self) -> None:

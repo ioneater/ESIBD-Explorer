@@ -196,8 +196,8 @@ class VoltageController(DeviceController):
                     if not getTestMode():
                         for i, channel in enumerate(self.controllerParent.getChannels()):
                             if isinstance(channel, VoltageChannel):
-                                self.values[i] = self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired)
-                                self.currents[i] = self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=lock_acquired)
+                                self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired))
+                                self.currents[i] = float(self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=lock_acquired))
                     self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
             time.sleep(self.controllerParent.interval / 1000)
 
@@ -213,11 +213,11 @@ class VoltageController(DeviceController):
                     self.print('RSWrite message: ' + message.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
                     self.port.write(message)
 
-    def RSQuery(self, query, already_acquired=False) -> str | float:
+    def RSQuery(self, query, already_acquired=False) -> str:
         """RS specific pyvisa query.
 
         :param query: The message to be send.
-        :type query: str | float
+        :type query: str
         :param already_acquired: Indicates if the lock has already been acquired, defaults to False
         :type already_acquired: bool, optional
         :return: The response received.

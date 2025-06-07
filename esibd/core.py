@@ -39,7 +39,7 @@ from matplotlib.widgets import Cursor
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtWidgets, sip
-from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
+from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSharedMemory, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QBrush,
@@ -210,6 +210,7 @@ class EsibdExplorer(QMainWindow):
             self.pluginManager.logger.print('Restarting.', flag=PRINT.EXPLORER)
         self.pluginManager.closePlugins()
         if restart:
+            self.pluginManager.app.sharedAppStr.detach()
             python = sys.executable
             os.execl(python, python, *sys.argv)  # noqa: S606
         return True
@@ -218,6 +219,7 @@ class EsibdExplorer(QMainWindow):
 class Application(QApplication):
     """Application that has a mouseInterceptor."""
 
+    sharedAppStr: QSharedMemory
     mainWindow: EsibdExplorer
     mouseInterceptor: 'MouseInterceptor'
 
@@ -251,7 +253,8 @@ class PluginManager:  # noqa: PLR0904
 
     def __init__(self) -> None:
         """Initialize PluginManager."""
-        self.mainWindow: EsibdExplorer = cast('Application', QApplication.instance()).mainWindow  # type: ignore  # noqa: PGH003
+        self.app = cast('Application', QApplication.instance())
+        self.mainWindow: EsibdExplorer = self.app.mainWindow  # type: ignore  # noqa: PGH003
         self.testing_state = False  # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
@@ -434,7 +437,7 @@ class PluginManager:  # noqa: PLR0904
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
                 plugin = self.loadPlugin(Plugin, dependencyPath=dependencyPath)
-                if plugin is not None:
+                if plugin:
                     self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(plugin.getSupportedFiles())  # requires instance
 
     def loadPlugin(self, Plugin: 'type[Plugin]', dependencyPath: Path = internalMediaPath) -> 'Plugin | None':
@@ -590,7 +593,8 @@ class PluginManager:  # noqa: PLR0904
 
     def managePlugins(self) -> None:  # noqa: C901, PLR0915
         """Select which plugins should be enabled."""
-        assert self.pluginFile, 'pluginFile is None'
+        if not self.pluginFile:
+            return
         dlg = QDialog(self.mainWindow, Qt.WindowType.WindowStaysOnTopHint)
         dlg.resize(800, 400)
         dlg.setWindowTitle('Select Plugins')
@@ -611,7 +615,8 @@ class PluginManager:  # noqa: PLR0904
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
         tree.setColumnWidth(6, 150)
         root = tree.invisibleRootItem()
-        assert root, 'tree.invisibleRootItem is None.'
+        if not root:
+            return
         lay.addWidget(tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         okButton = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
@@ -638,7 +643,7 @@ class PluginManager:  # noqa: PLR0904
                     name = child.text(1)
                     enabled = True
                     internal = True
-                    if tree.itemWidget(child, 2) is not None:
+                    if tree.itemWidget(child, 2):
                         enabled = cast('CheckBox', (tree.itemWidget(child, 2))).isChecked()
                         internal = False
                     if not internal:
@@ -684,7 +689,7 @@ class PluginManager:  # noqa: PLR0904
         tree.setItemWidget(pluginTreeWidget, 6, previewFileTypesLabel)
         descriptionLabel = QLabel()
         description = item[self.DESCRIPTION]
-        if description is not None:
+        if description:
             descriptionLabel.setText(description.splitlines()[0][:100])
             descriptionLabel.setToolTip(description)
         tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
@@ -1050,7 +1055,7 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         :type message: str
         """
         with self.lock.acquire_timeout(1) as lock_acquired:
-            if self.terminalOut is not None:  # after packaging with pyinstaller the program will not be connected to a terminal
+            if self.terminalOut:  # after packaging with pyinstaller the program will not be connected to a terminal
                 self.terminalOut.write(message)  # write to original stdout
             if lock_acquired:
                 self.log.write(message)  # write to log file
@@ -1441,7 +1446,7 @@ class Parameter:  # noqa: PLR0904
         self._default = None
         if default is not None:
             self.default = default
-        if self.tree is None:  # if this is part of a QTreeWidget, applyWidget() should be called after this Parameter is added to the tree
+        if not self.tree:  # if this is part of a QTreeWidget, applyWidget() should be called after this Parameter is added to the tree
             self.applyWidget()  # call after everything else is initialized but before setting value
 
     @property
@@ -1556,9 +1561,9 @@ class Parameter:  # noqa: PLR0904
             # ! adding a print statement to the terminal, console plugin, and statusbar at that rate might make the application unresponsive.
             # ! only uncomment for specific tests. Note that the print statement is always ignored if debug mode is not active.
             for event in self.extraEvents:
-                if event is not None:
+                if event:
                     event()
-            if self.event is not None:
+            if self.event:
                 self.event()
 
     def applyChangedEvent(self) -> None:  # noqa: C901
@@ -1602,7 +1607,7 @@ class Parameter:  # noqa: PLR0904
         """
         if control.receivers(signal) > 0:
             signal.disconnect()
-        if event is not None:
+        if event:
             signal.connect(event)
 
     def setValueChanged(self) -> None:
@@ -1678,13 +1683,13 @@ class Parameter:  # noqa: PLR0904
                 self.colorButton = cast('ColorButton', self.widget)
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label = Label() if self.widget is None else cast('Label', self.widget)
-        if self.spin is not None:  # apply limits  # no limits by default to avoid unpredictable behavior.
+        if self.spin:  # apply limits  # no limits by default to avoid unpredictable behavior.
             if self.min is not None:
                 self.spin.setMinimum(int(self.min)) if isinstance(self.spin, LabviewSpinBox) else self.spin.setMinimum(self.min)
             if self.max is not None:
                 self.spin.setMaximum(int(self.max)) if isinstance(self.spin, LabviewSpinBox) else self.spin.setMaximum(self.max)
-        if self.tree is not None:
-            if self.itemWidget is None:
+        if self.tree:
+            if not self.itemWidget:
                 if self.widget is None and isinstance(self, Setting):  # widget has already been provided and added to the GUI independently
                     self.tree.setItemWidget(self, 1, self.getWidget())
             else:
@@ -1771,7 +1776,7 @@ class Parameter:  # noqa: PLR0904
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             widget = self.spin
         elif self.parameterType == PARAMETERTYPE.BOOL:
-            widget = self.check if self.check is not None else self.button
+            widget = self.check or self.button
         elif self.parameterType == PARAMETERTYPE.COLOR:
             widget = self.colorButton
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
@@ -2000,7 +2005,8 @@ class Setting(QTreeWidgetItem, Parameter):
         if self.internal:
             if self.widget is not None:
                 if self._items is not None:
-                    self._items = qSet.value(self.fullName + self.ITEMS).split(',') if qSet.value(self.fullName + self.ITEMS) is not None else self._items
+                    itemsStr = qSet.value(self.fullName + self.ITEMS)
+                    self._items = itemsStr.split(',') if itemsStr else self._items
                 self.applyWidget()
             self.value = qSet.value(self.fullName, self.default) if self.restore else self.default  # trigger assignment to widget
         else:
@@ -2067,16 +2073,16 @@ class RelayChannel:
 
     def getDevice(self) -> 'ChannelManager | Device | Scan':
         """SourceChannel.getDevice() if available. Default provided."""
-        return self.sourceChannel.getDevice() if self.sourceChannel is not None else self.channelParent
+        return self.sourceChannel.getDevice() if self.sourceChannel else self.channelParent
 
     def subtractBackgroundActive(self) -> bool:
         """SourceChannel.subtractBackgroundActive() if available. Default provided."""
-        return cast('Device', self.sourceChannel.getDevice()).subtractBackgroundActive() if self.sourceChannel is not None else False
+        return cast('Device', self.sourceChannel.getDevice()).subtractBackgroundActive() if self.sourceChannel else False
 
     @property
     def recording(self) -> bool:
         """SourceChannel.recording if available. Default provided."""
-        return self.sourceChannel.getDevice().recording if self.sourceChannel is not None else False
+        return self.sourceChannel.getDevice().recording if self.sourceChannel else False
 
     def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None,
                    index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> 'np.ndarray | None':
@@ -2095,50 +2101,50 @@ class RelayChannel:
         :return: The array of values.
         :rtype: np.ndarray
         """
-        return self.sourceChannel.getValues(length, index_min, index_max, n, subtractBackground) if self.sourceChannel is not None else None
+        return self.sourceChannel.getValues(length, index_min, index_max, n, subtractBackground) if self.sourceChannel else None
 
     @property
     def value(self) -> int | float:  # | None:
         """SourceChannel.value if available. Default provided."""
         # leave decision to subtract background to be handled explicitly at higher level.
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             return self.sourceChannel.value
         return None  # type: ignore  # noqa: PGH003
 
     @value.setter
     def value(self, value: float | None) -> None:
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             self.sourceChannel.value = value  # type: ignore  # noqa: PGH003
 
     @property
     def enabled(self) -> bool:
         """SourceChannel.enabled if available. Default provided."""
-        return self.sourceChannel.enabled if self.sourceChannel is not None else False
+        return self.sourceChannel.enabled if self.sourceChannel else False
 
     @property
     def active(self) -> bool:
         """SourceChannel.active if available. Default provided."""
-        return self.sourceChannel.active if self.sourceChannel is not None else True
+        return self.sourceChannel.active if self.sourceChannel else True
 
     @property
     def real(self) -> bool:
         """SourceChannel.real if available. Default provided."""
-        return self.sourceChannel.real if self.sourceChannel is not None else False
+        return self.sourceChannel.real if self.sourceChannel else False
 
     @property
     def acquiring(self) -> bool:
         """SourceChannel.acquiring if available. Default provided."""
-        return self.sourceChannel.acquiring if self.sourceChannel is not None else False
+        return self.sourceChannel.acquiring if self.sourceChannel else False
 
     @property
     def min(self) -> int | float:  # | None:
         """SourceChannel.min if available. Default provided."""
-        return self.sourceChannel.min if self.sourceChannel is not None else None  # type: ignore  # noqa: PGH003
+        return self.sourceChannel.min if self.sourceChannel else None  # type: ignore  # noqa: PGH003
 
     @property
     def max(self) -> int | float:  # | None:
         """SourceChannel.max if available. Default provided."""
-        return self.sourceChannel.max if self.sourceChannel is not None else None  # type: ignore  # noqa: PGH003
+        return self.sourceChannel.max if self.sourceChannel else None  # type: ignore  # noqa: PGH003
 
     # implement "display" Channel specific, some may prefer to use their internal display!
     # implement "unit" Channel specific
@@ -2146,31 +2152,31 @@ class RelayChannel:
     @property
     def smooth(self) -> int:
         """SourceChannel.smooth if available. Default provided."""
-        return self.sourceChannel.smooth if self.sourceChannel is not None else 0
+        return self.sourceChannel.smooth if self.sourceChannel else 0
 
     @property
     def color(self) -> str:
         """SourceChannel.color if available. Default provided."""
-        return self.sourceChannel.color if self.sourceChannel is not None else '#ffffff'
+        return self.sourceChannel.color if self.sourceChannel else '#ffffff'
 
     @property
     def linewidth(self) -> int:
         """SourceChannel.linewidth if available. Default provided."""
-        return self.sourceChannel.linewidth if self.sourceChannel is not None else 4
+        return self.sourceChannel.linewidth if self.sourceChannel else 4
 
     @property
     def linestyle(self) -> str:
         """SourceChannel.linestyle if available. Default provided."""
-        return self.sourceChannel.linestyle if self.sourceChannel is not None else 'solid'
+        return self.sourceChannel.linestyle if self.sourceChannel else 'solid'
 
     def getQtLineStyle(self) -> Qt.PenStyle:
         """SourceChannel.QtLineStyle if available. Default provided."""
-        return self.sourceChannel.getQtLineStyle() if self.sourceChannel is not None else Qt.PenStyle.DotLine
+        return self.sourceChannel.getQtLineStyle() if self.sourceChannel else Qt.PenStyle.DotLine
 
     @property
     def logY(self) -> bool:
         """SourceChannel.logY if available. Default provided."""
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             return self.sourceChannel.logY
         return self.unit in {'mbar', 'Pa'}
 
@@ -2234,13 +2240,13 @@ class MetaChannel(RelayChannel):
         # Will only be called when using MetaChannel directly. ScanChannel will implements its own version.
         if self.name == 'Time':
             return
-        if self.inout is None:
+        if not self.inout:
             self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
-            if self.sourceChannel is None:
+            if not self.sourceChannel:
                 self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
         else:
             self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=self.inout)
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             self.initialValue = self.sourceChannel.value
             self.unit = self.sourceChannel.unit
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
@@ -2249,14 +2255,14 @@ class MetaChannel(RelayChannel):
             self.unit = ''
             self.updateValueSignal = None  # type: ignore  # noqa: PGH003
         if giveFeedback:
-            if self.sourceChannel is None:
+            if not self.sourceChannel:
                 self.parentPlugin.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
             else:
                 self.parentPlugin.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
 
     def display(self) -> bool:
         """Indicate of the source channel should be displayed."""
-        return self.sourceChannel.display if self.sourceChannel is not None else True
+        return self.sourceChannel.display if self.sourceChannel else True
 
     def onDelete(self) -> None:
         """Provide onDelete for channel API consistency."""
@@ -2365,8 +2371,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 # array of background history. managed by instrument manager to keep timing synchronous
                 self.backgrounds = DynamicNp(max_size=self.channelParent.maxDataPoints)
 
-        # generate property for direct access of Parameter values
-        # NOTE: this assigns properties directly to class and only works as it uses a method that is specific to the current instance
+        # Generate property for direct access of Parameter values.
+        # NOTE: This assigns properties directly to class and only works as it uses a method that is specific to the current instance.
+        # NOTE: Assigning the property directly to the instance "self" does not work as it just becomes a regular object.
+        # NOTE: Errors are expected when accessing these properties for instances that do not implement the corresponding parameter.
+        #       These will never be accessed, with the exception of dir(channel), e.g. used by Tree.inspect where errors should be caught and reported only for higher log levels.
         for name, default in self.getSortedDefaultChannel().items():
             if Parameter.ATTR in default and default[Parameter.ATTR] is not None:
                 setattr(self.__class__, default[Parameter.ATTR], makeWrapper(name))
@@ -2433,12 +2442,26 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     @property
     def acquiring(self) -> bool:
         """Indicates if the channel is acquiring data."""
-        if self.controller is not None:
+        if self.controller:
             return self.controller.acquiring
         device = self.getDevice()
         if isinstance(device, self.pluginManager.Device) and device.controller:
             return device.controller.acquiring
         return False
+
+    @property
+    def initialized(self) -> bool:
+        """Indicate if the channel is initialized and ready for plotting."""
+        if self.real and not self.enabled:
+            return False
+        if not self.active and not self.useMonitors:
+            return True  # no initialization needed as value is provided by equation
+        if self.controller:
+            return self.controller.initialized
+        device = self.getDevice()
+        if isinstance(device, self.pluginManager.Device):
+            return device.initialized
+        return True
 
     def getDefaultChannel(self) -> dict[str, dict]:
         """Define Parameter(s) of the default Channel.
@@ -2589,8 +2612,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :rtype: esibd.core.Parameter
         """
         parameter = next((parameter for parameter in self.parameters if parameter.name.strip().lower() == name.strip().lower()), None)
-        if parameter is None:
-            self.print(f'Could not find Parameter {name}.', PRINT.WARNING)
+        if not parameter:
+            self.print(f'Could not find Parameter {name}.', PRINT.DEBUG)
         return parameter  # type: ignore  # noqa: PGH003 Rather ignore None warning once here than deal with it for every function call.
 
     def asDict(self, includeTempParameters: bool = False, formatValue: bool = False) -> dict[str, ParameterType]:
@@ -2669,7 +2692,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 self.monitor = np.nan
             self.values.add(x=np.nan, lenT=lenT)
         elif self.useMonitors and self.enabled and self.real:
-            if self.monitor:
+            if self.monitor is not None:
                 self.values.add(x=self.monitor, lenT=lenT)
         elif self.value is not None:
             self.values.add(x=self.value, lenT=lenT)
@@ -2702,7 +2725,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     def clearHistory(self) -> None:  # overwrite as needed, e.g. when keeping history of more than one parameter
         """Clear all history data including backgrounds if applicable."""
         if isinstance(self.channelParent, self.pluginManager.Device):
-            if self.pluginManager.DeviceManager is not None and (self.pluginManager.Settings is not None and not self.pluginManager.Settings.loading):
+            if self.pluginManager.DeviceManager and (self.pluginManager.Settings and not self.pluginManager.Settings.loading):
                 self.values = DynamicNp(max_size=self.channelParent.maxDataPoints)
             self.clearPlotCurve()
             if self.useBackgrounds:
@@ -2817,7 +2840,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.clearPlotCurve()
             if self.enabled:
                 self.channelParent.appendData(nan=True)  # prevent interpolation to old data
-            if not self.channelParent.recording and self.channelParent.liveDisplay is not None:
+            if not self.channelParent.recording and self.channelParent.liveDisplay:
                 self.channelParent.liveDisplay.plot(apply=True)
 
     def toggleBackgroundVisible(self) -> bool:
@@ -2844,7 +2867,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Update live and static displays."""
         if not self.channelParent.loading and self.useDisplays and isinstance(self.channelParent, self.pluginManager.ChannelManager):
             self.clearPlotCurve()
-            if not self.channelParent.recording and self.channelParent.liveDisplay is not None:
+            if not self.channelParent.recording and self.channelParent.liveDisplay:
                 self.channelParent.liveDisplay.plot(apply=True)
             self.pluginManager.DeviceManager.updateStaticPlot()
 
@@ -2852,7 +2875,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Highlights monitors if they deviate to far from set point. Extend for custom monitor logic if applicable."""
         device = self.getDevice()
         if isinstance(device, self.pluginManager.Device) and self.monitor is not None and self.value is not None:
-            self.updateWarningState(self.enabled and (hasattr(self.channelParent, 'controller') and device.controller is not None and
+            self.updateWarningState(self.enabled and (hasattr(self.channelParent, 'controller') and device.controller and
                                                   device.controller.acquiring) and device.isOn() and abs(self.monitor - self.value) > 1)
 
     def updateWarningState(self, warn: bool = False) -> None:
@@ -2973,7 +2996,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         if not settingsContextMenu.actions():
             return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
-        if settingsContextMenuAction is not None:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
+        if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addParameterToConsoleAction:
                 self.pluginManager.Console.addToNamespace('parameter', parameter)
                 self.pluginManager.Console.execute(command='parameter')
@@ -3079,14 +3102,14 @@ class ScanChannel(RelayChannel, Channel):
         :type giveFeedback: bool, optional
         """
         self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.OUT)
-        if self.sourceChannel is None:
+        if not self.sourceChannel:
             self.sourceChannel = self.scan.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
-        # if self.unit != '' and self.sourceChannel is not None and self.unit != self.sourceChannel.unit:
+        # if self.unit != '' and self.sourceChannel and self.unit != self.sourceChannel.unit:
         #     Found a channel that has the same name but likely belongs to another device.
         #     In most cases the only consequence is using the wrong color.
         #     Handle in specific scan if other channel specific properties are relevant
         devicePushButton = cast('QPushButton', self.getParameterByName(self.DEVICE).getWidget())
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             self.initialValue = self.sourceChannel.value
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
             devicePushButton.setIcon(self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
@@ -3114,14 +3137,14 @@ class ScanChannel(RelayChannel, Channel):
         self.updateColor()
         self.scalingChanged()
         if giveFeedback:
-            if self.sourceChannel is None:
-                self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
-            else:
+            if self.sourceChannel:
                 self.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
+            else:
+                self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
 
     def relayValueEvent(self) -> None:
         """Update value when sourceChannel.value changed."""
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             # Note self.value should only be used as a display. it should show the background corrected value if applicable
             # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
             try:
@@ -3137,7 +3160,7 @@ class ScanChannel(RelayChannel, Channel):
 
     def removeEvents(self) -> None:
         """Remove extra events from sourceChannel."""
-        if self.sourceChannel is not None:
+        if self.sourceChannel:
             if self.sourceChannel.useMonitors and self.sourceChannel.real:
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
                     self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.remove(self.relayValueEvent)
@@ -3354,7 +3377,7 @@ class LabviewSciSpinBox(LabviewDoubleSpinBox):
             # a0 is string, a1 is position
             if a0 and self.valid_float_string(a0):
                 return self.State.Acceptable, a0, a1
-            if a0 is not None and (not a0 or a0[a1 - 1] in 'e.-+'):
+            if a0 and (not a0 or a0[a1 - 1] in 'e.-+'):
                 return self.State.Intermediate, a0, a1
             return self.State.Invalid, a0 or '', a1
 
@@ -3572,7 +3595,7 @@ class Icon(QIcon):
             r, g, b, a = image.split()
             grayscale = Image.merge('RGB', (r, g, b)).convert('L')
             pixmap = QPixmap.fromImage(ImageQt(Image.merge('RGBA', (grayscale, grayscale, grayscale, a))))
-        if pixmap is None:
+        if not pixmap:
             super().__init__(file)
         else:
             super().__init__(pixmap)
@@ -3664,7 +3687,7 @@ class StateAction(Action):
         self.parentPlugin = parentPlugin
         self.iconFalse = iconFalse
         self.toolTipFalse = toolTipFalse
-        self.iconTrue = iconTrue if iconTrue is not None else iconFalse
+        self.iconTrue = iconTrue or iconFalse
         self.toolTipTrue = toolTipTrue or toolTipFalse
         self.setCheckable(True)
         self.toggled.connect(self.updateIcon)
@@ -3676,17 +3699,17 @@ class StateAction(Action):
             self.setObjectName(self.fullName)
         else:
             self.setObjectName(f'{self.parentPlugin.name}/{self.toolTipFalse}')
-        if event is not None:
+        if event:
             self.triggered.connect(event)
         if restore and self.fullName:
             self.state = qSet.value(self.fullName, defaultValue=defaultState, type=bool)
         else:
             self.state = False  # init
         if self.parentPlugin.titleBar:
-            if before is None:
-                self.parentPlugin.titleBar.addAction(self)
-            else:
+            if before:
                 self.parentPlugin.titleBar.insertAction(before, self)
+            else:
+                self.parentPlugin.titleBar.addAction(self)
 
     def toggle(self) -> bool:
         """Toggles the state."""
@@ -3780,7 +3803,7 @@ class MultiStateAction(Action):
             self.setObjectName(self.fullName)
         else:
             self.setObjectName(f'{self.parentPlugin.name}/{states[0].toolTip}')
-        if event is not None:
+        if event:
             self.triggered.connect(lambda: (self.rollState(), event()))
         if restore and self.fullName:
             self._state = min(int(qSet.value(self.fullName, defaultState)), len(states) - 1)
@@ -3788,10 +3811,10 @@ class MultiStateAction(Action):
             self._state = 0  # init
         self.updateIcon()
         if self.parentPlugin.titleBar:
-            if before is None:
-                self.parentPlugin.titleBar.addAction(self)
-            else:
+            if before:
                 self.parentPlugin.titleBar.insertAction(before, self)
+            else:
+                self.parentPlugin.titleBar.addAction(self)
 
     def stateFromEnum(self, state: Enum) -> int:
         """Return state corresponding to provided label.
@@ -3903,7 +3926,7 @@ class DockWidget(QDockWidget):
         self.title = self.parentPlugin.name
         if hasattr(self.parentPlugin, 'parentPlugin'):
             self.title = self.parentPlugin.parentPlugin.name
-        if hasattr(self.parentPlugin, 'scan') and self.parentPlugin.scan is not None:
+        if hasattr(self.parentPlugin, 'scan') and self.parentPlugin.scan:
             self.title = self.parentPlugin.scan.name
         super().__init__(self.title, self.parentPlugin.app.mainWindow)
         self.signalComm = self.SignalCommunicate()
@@ -3927,7 +3950,7 @@ class DockWidget(QDockWidget):
         parent = cast('EsibdExplorer', parent) if isinstance(parent, EsibdExplorer) else cast('QWidget', parent)
         if self.parentPlugin.initializedDock:  # may have changed between toggleTitleBarDelayed and toggleTitleBar  # noqa: PLR1702
             if self.isFloating():  # dock is floating on its own
-                if self.parentPlugin.titleBarLabel is not None:
+                if self.parentPlugin.titleBarLabel:
                     self.parentPlugin.titleBarLabel.setText(self.title)
                 if hasattr(self.parentPlugin, 'floatAction'):
                     self.parentPlugin.floatAction.state = True
@@ -3936,7 +3959,7 @@ class DockWidget(QDockWidget):
                     self.parentPlugin.floatAction.state = False
                     # do not allow to float from external windows as this causes GUI instabilities (empty external windows, crash without error, ...)
                     # need to allow float to leave external window -> need to make safe / dragging using standard titleBar works but not using custom titleBar
-                if hasattr(self.parentPlugin, 'titleBarLabel') and self.parentPlugin.titleBarLabel is not None:
+                if hasattr(self.parentPlugin, 'titleBarLabel') and self.parentPlugin.titleBarLabel:
                     self.parentPlugin.titleBarLabel.setText(self.title)  # need to apply for proper resizing, even if set to '' next
                     if isinstance(parent, EsibdExplorer) and len(parent.tabifiedDockWidgets(self)) > 0:
                         self.parentPlugin.titleBarLabel.setText('')
@@ -4199,7 +4222,7 @@ class LineEdit(QLineEdit, ParameterWidget):
         """Process new value and update tree if applicable after editing was finished by Enter or loosing focus."""
         if self._edited:
             self._edited = False
-            if self.tree is not None:
+            if self.tree:
                 self.tree.scheduleDelayedItemsLayout()
             self.userEditingFinished.emit(self.text())
 
@@ -4220,7 +4243,7 @@ class TextEdit(QPlainTextEdit, ParameterWidget):
         self._completer = None
 
     def setCompleter(self, c) -> None:  # pylint: disable=missing-function-docstring  # noqa: ANN001, D102
-        if self._completer is not None:
+        if self._completer:
             self._completer.activated.disconnect()
 
         self._completer = c
@@ -4250,7 +4273,7 @@ class TextEdit(QPlainTextEdit, ParameterWidget):
         return tc.selectedText()
 
     def focusInEvent(self, e):  # pylint: disable=missing-function-docstring  # noqa: ANN001, ANN201, D102
-        if self._completer is not None:
+        if self._completer:
             self._completer.setWidget(self)
         super().focusInEvent(e)
 
@@ -4259,19 +4282,19 @@ class TextEdit(QPlainTextEdit, ParameterWidget):
             if e.key() == Qt.Key.Key_Tab:
                 self.textCursor().insertText('    ')
                 return
-            if self._completer is not None and self._completer.popup().isVisible() and e.key() in {Qt.Key.Key_Enter, Qt.Key.Key_Return}:
+            if self._completer and self._completer.popup().isVisible() and e.key() in {Qt.Key.Key_Enter, Qt.Key.Key_Return}:
                 # The above keys are forwarded by the completer to the widget.
                 e.ignore()
                 # Let the completer do default behavior.
                 return
 
             isShortcut = ((e.modifiers() & Qt.KeyboardModifier.ControlModifier) != 0 and e.key() == Qt.Key.Key_Escape)
-            if self._completer is None or not isShortcut:
+            if not self._completer or not isShortcut:
                 # Do not process the shortcut when we have a completer.
                 super().keyPressEvent(e)
 
             ctrlOrShift = e.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
-            if self._completer is None or (ctrlOrShift and len(e.text()) == 0):
+            if not self._completer or (ctrlOrShift and len(e.text()) == 0):
                 return
 
             eow = "~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-="
@@ -4841,7 +4864,7 @@ class PlotItem(pg.PlotItem):
         :param viewBox: Custom ViewBox, defaults to None
         :type viewBox: ViewBox, optional
         """
-        if viewBox is None:
+        if not viewBox:
             viewBox = ViewBox()
         super().__init__(viewBox=viewBox, **kwargs)
         self.parentPlugin = parentPlugin
@@ -4927,7 +4950,7 @@ class PlotItem(pg.PlotItem):
         Make sure the number of displayed data points is appropriate for your data.
         """
         viewBox = self.getViewBox()
-        if self.parentPlugin is not None and viewBox and viewBox.mouseEnabled()[0]:
+        if self.parentPlugin and viewBox and viewBox.mouseEnabled()[0]:
             self.parentPlugin.parentPlugin.signalComm.plotSignal.emit()
 
     @property
@@ -5184,15 +5207,15 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     @errorCount.setter
     def errorCount(self, count: int) -> None:
+        if count > self._errorCount and count % 5 == 0:
+            self.print(f'Error count is {count}. Communication will be closed after {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.WARNING)
+        self._errorCount = count
+        if self.errorCount != 0:
+            QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
+        if self.errorCount > self.MAX_ERROR_COUNT and self.initialized:
+            self.print(f'Closing communication after more than {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
+            self.closeCommunication()
         if isinstance(self.controllerParent, self.pluginManager.Device):
-            if count > self._errorCount and count % 5 == 0:
-                self.print(f'Error count is {count}. Communication will be closed after {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.WARNING)
-            self._errorCount = count
-            if self.errorCount != 0:
-                QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
-            if self.errorCount > self.MAX_ERROR_COUNT and self.initialized:
-                self.print(f'Closing communication after more than {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
-                self.closeCommunication()
             QTimer.singleShot(0, self.controllerParent.errorCountChanged)
 
     def resetErrorCount(self) -> None:
@@ -5209,7 +5232,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         :param flag: Flag used to adjust message display, defaults to :attr:`~esibd.const.PRINT.MESSAGE`
         :type flag: :meth:`~esibd.const.PRINT`, optional
         """
-        controller_name = f'{self.controllerParent.name[:15]:15s} controller' if isinstance(self.controllerParent, Channel) else 'Controller'
+        controller_name = f'{shorten_text(self.controllerParent.name + " controller", max_length=25):25s}' if isinstance(self.controllerParent, Channel) else 'Controller'
         self.controllerParent.print(f'{controller_name}: {message}', flag=flag)
 
     def initializeCommunication(self) -> None:
@@ -5217,7 +5240,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.print('initializeCommunication', flag=PRINT.DEBUG)
         if self.initializing:
             return
-        if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
+        if self.acquisitionThread and self.acquisitionThread.is_alive():
             self.print('Closing communication for reinitialization.', flag=PRINT.DEBUG)
             self.closeCommunication()  # terminate old thread before starting new one
         self.initializing = True
@@ -5245,22 +5268,28 @@ class DeviceController(QObject):  # noqa: PLR0904
         """Write fake channel values in an array that will be used in updateValue."""
         # overwrite to implement function
 
+    def initializeValues(self, reset: bool = False) -> None:
+        """Initialize array used to store current values or readbacks.
+
+        :param reset: If True, will reset values to np.nan, defaults to False
+        :type reset: bool, optional
+        """
+        if self.values is None:  # unless already defined by child class
+            if isinstance(self.controllerParent, Channel):
+                self.values = np.array([np.nan])
+            elif getTestMode() and not reset and self.controllerParent.inout is INOUT.IN and self.controllerParent.useMonitors:
+                self.values = np.array([channel.value for channel in self.controllerParent.getChannels()])
+            else:
+                self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))  # initializing values, Overwrite if needed
+
     def initComplete(self) -> None:
         """Start acquisition from main thread (access to GUI!). Called after successful initialization."""
-        if isinstance(self.controllerParent, Channel):
-            self.initialized = True
-            self.startAcquisition()
-        else:
-            if self.values is None:  # unless defined by child class
-                if getTestMode() and self.controllerParent.inout is INOUT.IN and self.controllerParent.useMonitors:
-                    self.values = np.array([channel.value for channel in self.controllerParent.getChannels()])
-                else:
-                    self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))  # initializing values, Overwrite if needed
-            self.initialized = True
-            self.startAcquisition()
-            if self.controllerParent.isOn():
-                self.controllerParent.updateValues(apply=True)  # apply values before turning on or off
-                self.toggleOnFromThread()
+        self.initializeValues()
+        self.initialized = True
+        self.startAcquisition()
+        if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.isOn():
+            self.controllerParent.updateValues(apply=True)  # apply values before turning on or off
+            self.toggleOnFromThread()
 
     def startAcquisition(self) -> None:
         """Start data acquisition from physical device."""
@@ -5268,7 +5297,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         if not self.initialized:
             self.print('Cannot start acquisition. Not initialized', PRINT.DEBUG)
             return
-        if self.acquisitionThread is not None and self.acquisitionThread.is_alive():
+        if self.acquisitionThread and self.acquisitionThread.is_alive():
             self.controllerParent.print('Wait for data reading thread to complete before restarting acquisition.', PRINT.DEBUG)
             self.acquiring = False
             self.acquisitionThread.join(timeout=5)
@@ -5320,7 +5349,7 @@ class DeviceController(QObject):  # noqa: PLR0904
     def updateValues(self) -> None:
         """Update the value or monitor of the channel(s) in the main thread. Called from acquisitionThread."""
         # Overwrite with specific update code if applicable.
-        if self.values is not None and self.controllerParent is not None:
+        if self.values is not None and self.controllerParent:
             if isinstance(self.controllerParent, self.pluginManager.Device):
                 for channel, value in zip(self.controllerParent.getChannels(), self.values, strict=True):
                     if channel.useMonitors and channel.enabled and channel.real:
@@ -5375,11 +5404,21 @@ class DeviceController(QObject):  # noqa: PLR0904
             # stop recording if controller is stopping acquisition
             # continue if only a channel controller is stopping acquisition
             self.controllerParent.recording = False
-        if self.acquisitionThread is not None:
+        elif (isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device) and
+              self.controllerParent.channelParent.recording and
+              # test if controllerParent is the last initialized channel -> it will be stopped, so recording should end.
+                not any(channel.controller.initialized or not channel.active for channel in self.controllerParent.channelParent.channels
+                         if channel.controller and channel is not self.controllerParent)):
+            # only stop recording if none of the channel controllers is initialized
+            self.controllerParent.channelParent.print('Stopping recording as last initialized channel is closing Communication.', PRINT.DEBUG)
+            self.controllerParent.channelParent.recording = False
+        if self.acquisitionThread:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
                 # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
                 # set acquiring flag anyways if timeout expired. Possible errors have to be handled
                 self.acquiring = False
+            self.initializeValues(reset=True)  # set values and monitors to None to indicate that acquisition has stopped and current value is unknown
+            # self.updateValues()  # update new values in GUI
             return True
         return False
 
@@ -5411,7 +5450,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         except AttributeError as e:
             self.errorCount += 1
             self.print(f'Attribute error, try to reinitialize communication: {e}. Message: {message}.', flag=PRINT.ERROR)
-            if port is not None:
+            if port:
                 self.signalComm.closeCommunicationSignal.emit()
 
     def serialRead(self, port: serial.Serial, encoding: str = 'utf-8', EOL: str = '\n', strip: str = '') -> str:
@@ -5452,7 +5491,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         except AttributeError as e:
             self.errorCount += 1
             self.print(f'Attribute error, try to reinitialize communication: {e}', flag=PRINT.ERROR)
-            if port is not None:
+            if port:
                 self.signalComm.closeCommunicationSignal.emit()
         self.print('serialRead response: ' + response.replace('\r', '').replace('\n', ''), flag=PRINT.TRACE)
         return response
@@ -5463,8 +5502,8 @@ class DeviceController(QObject):  # noqa: PLR0904
         :param port: The port at which to clear the buffer, defaults to None
         :type port: serial.Serial, optional
         """
-        port = port if port is not None else self.port
-        if port is None:
+        port = port or self.port
+        if not port:
             return
         x = port.in_waiting
         if x > 0:
@@ -5540,7 +5579,7 @@ class VideoRecorder:
         self.frameCount = 0
         self.video_writer: cv2.VideoWriter
         self.screen = QGuiApplication.screenAt(self.recordWidget.mapToGlobal(QPoint(0, 0)))
-        if self.screen is not None:
+        if self.screen:
             self.is_recording = True
             self.parentPlugin.pluginManager.Settings.incrementMeasurementNumber()
             self.file = self.parentPlugin.pluginManager.Settings.getMeasurementFileName(f'_{self.parentPlugin.name}.mp4')

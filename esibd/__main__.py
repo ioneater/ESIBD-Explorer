@@ -37,8 +37,8 @@ def main() -> bool:
     if sys.platform == 'win32':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appStr)
     QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.OpenGL)  # https://forum.qt.io/topic/130881/potential-qquickwidget-broken-on-qt6-2/4
-    shared = QSharedMemory(appStr)
-    if not shared.create(512, QSharedMemory.AccessMode.ReadWrite):
+    app.sharedAppStr = QSharedMemory(appStr)
+    if not app.sharedAppStr.create(512, QSharedMemory.AccessMode.ReadWrite):
         print(f"Can't start more than one instance of {appStr}.")  # noqa: T201
         sys.exit(0)
     app.mainWindow = EsibdExplorer()

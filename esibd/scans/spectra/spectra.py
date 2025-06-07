@@ -69,7 +69,7 @@ class Spectra(Beam):
             self.initFig()  # axes aspect or plotMode may have changed
 
         def initFig(self) -> None:
-            if self.plotModeAction is None:
+            if not self.plotModeAction:
                 return
             self.lines = None  # type: ignore  # noqa: PGH003
             if self.plotModeAction.state == self.PlotActionState.CONTOUR:
@@ -82,7 +82,7 @@ class Spectra(Beam):
                     self.axes[0].set_aspect('equal', adjustable='box')
 
         def updateTheme(self) -> None:
-            if self.averageAction is not None:
+            if self.averageAction:
                 self.averageAction.iconFalse = self.scan.makeIcon('average_dark.png' if getDarkMode() else 'average_light.png')
                 self.averageAction.iconTrue = self.averageAction.iconFalse
                 self.averageAction.updateIcon(self.averageAction.state)
@@ -133,7 +133,7 @@ class Spectra(Beam):
 
         x = np.linspace(recordingData0[0], recordingData0[-1], len(recordingData0))
         y = np.linspace(recordingData1[0], recordingData1[-1], len(recordingData1))
-        if self.display and self.display.lines is None:
+        if self.display and not self.display.lines:
             self.display.axes[0].clear()
             self.display.lines = []  # dummy plots
             outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()

@@ -86,7 +86,7 @@ class LINE(Plugin):
         """
         self.provideDock()
         if file.name.endswith('.txt'):  # need to implement handling of different files in future
-            self.profile = np.loadtxt(file, skiprows=3)
+            self.profile = np.loadtxt(file, skiprows=3, dtype=np.float32)
             self.file = file
             self.plot()
         self.raiseDock(showPlugin)

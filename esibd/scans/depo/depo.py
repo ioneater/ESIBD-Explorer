@@ -67,7 +67,7 @@ class Depo(Scan):
             self.isChargeChannel = False
 
         def relayValueEvent(self) -> None:
-            if self.sourceChannel is not None:
+            if self.sourceChannel:
                 device = self.sourceChannel.getDevice()
                 try:
                     if self.isChargeChannel:
@@ -91,7 +91,7 @@ class Depo(Scan):
             if self.isChargeChannel:
                 self.unit = 'pAh'
                 self.name += f'_{Depo.CHARGE}'
-            if self.sourceChannel is not None and not hasattr(self.sourceChannel, 'resetCharge'):
+            if self.sourceChannel and not hasattr(self.sourceChannel, 'resetCharge'):
                 # found channel with same name but likely from different device
                 super().connectSource()  # running again after changing name -> disconnect
             if self.unit in {'pA', 'pAh'}:
@@ -290,7 +290,7 @@ class Depo(Scan):
 
     def updateWarnLevel(self) -> None:
         """Update the warning level line in the plot."""
-        if self.displayActive() and self.display.currentWarnLine is not None:
+        if self.displayActive() and self.display.currentWarnLine:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 
@@ -442,9 +442,9 @@ fig.show()
                     output.recordingData.add(cast('Depo.ChargeChannel', output.sourceChannel).charge)
                 else:
                     outputValues = output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
-                    if outputValues:
+                    if outputValues is not None:
                         output.recordingData.add(float(np.mean(outputValues)))
-            if self.warn and winsound is not None:  # Sound only supported for windows
+            if self.warn and winsound:  # Sound only supported for windows
                 outputData = self.getData(self.getOutputIndex(), INOUT.OUT)
                 outputDataPlus1 = self.getData(self.getOutputIndex() + 1, INOUT.OUT)
                 if outputData is not None and outputDataPlus1 is not None:

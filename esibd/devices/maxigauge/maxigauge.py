@@ -69,7 +69,7 @@ class PressureController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.port is not None:
+        if self.port:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.') as lock_acquired:
                 if lock_acquired:
                     self.port.close()

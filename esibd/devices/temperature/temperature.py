@@ -82,16 +82,16 @@ class Temperature(Device):
         # super().setOn(on)  # do not use super but implement specifically in this case.  # noqa: ERA001
         if on is not None and self.onAction.state is not on:
             self.onAction.state = on
-        if self.initialized():
+        if self.initialized:
             # updateValues not needed for CryoTel, we use the power which is restored in the device and do not need to update the unused temperature setpoint.
             # TODO: when turning off, updateValues(on=False) caused a dead lock at the com port freezing the entire application until the port is physically disconnected.
             # self.updateValues(apply=True)  # noqa: ERA001
-            if self.controller is None:
+            if self.controller:
+                self.controller.toggleOnFromThread(parallel=False)
+            else:
                 for channel in self.channels:
                     if channel.controller:
                         channel.controller.toggleOnFromThread(parallel=False)
-            else:
-                self.controller.toggleOnFromThread(parallel=False)
         elif self.isOn():
             self.initializeCommunication()
 
@@ -137,7 +137,7 @@ class TemperatureController(DeviceController):
         self.print('closeCommunication', PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()
-        if self.port is not None:
+        if self.port:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
                 self.port.close()
                 self.port = None

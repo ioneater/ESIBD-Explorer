@@ -121,7 +121,7 @@ class VoltageController(DeviceController):
     def closeCommunication(self) -> None:
         super().closeCommunication()
         for i, port in enumerate(self.ports):
-            if port is not None:
+            if port:
                 with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing {port.port}.'):
                     port.close()
                     self.ports[i] = None  # type: ignore  # noqa: PGH003
