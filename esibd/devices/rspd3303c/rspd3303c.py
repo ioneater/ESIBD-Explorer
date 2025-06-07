@@ -154,24 +154,18 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self) -> None:
-        self.currents = np.array([np.nan] * len(self.controllerParent.getChannels()))
-        self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))
-        super().initComplete()
-
     def applyValue(self, channel: VoltageChannel) -> None:
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
     def updateValues(self) -> None:
         # Overwriting to also update custom current and power parameters.
-        if getTestMode():
-            self.fakeNumbers()
-        else:
-            for i, channel in enumerate(self.controllerParent.getChannels()):
-                if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
-                    channel.monitor = self.values[i]
-                    channel.current = self.currents[i]
-                    channel.power = channel.monitor * channel.current
+        if self.values is None:
+            return
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
+                channel.monitor = self.values[i]
+                channel.current = self.currents[i]
+                channel.power = channel.monitor * channel.current
 
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():
@@ -179,21 +173,26 @@ class VoltageController(DeviceController):
                 self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.controllerParent.isOn() else 'OFF'}")
 
     def fakeNumbers(self) -> None:
-        for channel in self.controllerParent.getChannels():
+        for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
                 if self.controllerParent.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
+                    self.values[i] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
                 else:
-                    channel.monitor = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
-                channel.current = 50 / channel.monitor if channel.monitor != 0 else 0  # simulate 50 W
-                channel.power = channel.monitor * channel.current
+                    self.values[i] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
+                self.currents[i] = 50 / self.values[i] if self.values[i] != 0 else 0  # simulate 50 W
+
+    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
+        self.currents = np.array([np.nan] * len(self.controllerParent.getChannels()))
+        self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))
 
     def runAcquisition(self) -> None:
         while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if not getTestMode():
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
                         for i, channel in enumerate(self.controllerParent.getChannels()):
                             if isinstance(channel, VoltageChannel):
                                 self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired))

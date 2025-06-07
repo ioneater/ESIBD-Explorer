@@ -95,6 +95,8 @@ class VoltageController(DeviceController):
         super().__init__(controllerParent=controllerParent)
         self.COMs = COMs or ['COM1']
         self.ports: list[serial.Serial] = [None] * len(self.COMs)  # type: ignore  # noqa: PGH003
+
+    def updateMaxID(self) -> None:
         self.maxID = max(channel.id if channel.real and isinstance(channel, VoltageChannel)
                          else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
 
@@ -114,10 +116,6 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self) -> None:
-        self.values = np.zeros([len(self.COMs), self.maxID + 1], dtype=np.float32)
-        super().initComplete()
-
     def closeCommunication(self) -> None:
         super().closeCommunication()
         for i, port in enumerate(self.ports):
@@ -132,31 +130,36 @@ class VoltageController(DeviceController):
 
     def updateValues(self) -> None:
         # Overwriting to use values for multiple COM ports
-        if getTestMode():
-            self.fakeNumbers()
-        else:
-            for channel in self.controllerParent.getChannels():
-                if isinstance(channel, VoltageChannel) and channel.enabled and channel.real:
-                    channel.monitor = self.values[self.COMs.index(channel.com)][channel.id - 1]
+        if self.values is None:
+            return
+        for channel in self.controllerParent.getChannels():
+            if isinstance(channel, VoltageChannel) and channel.enabled and channel.real:
+                channel.monitor = self.values[self.COMs.index(channel.com)][channel.id - 1]
 
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():
             self.applyValueFromThread(channel)
 
     def fakeNumbers(self) -> None:
-        for channel in self.controllerParent.getChannels():
-            if channel.enabled and channel.real:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
                 if self.controllerParent.isOn() and channel.enabled:
                     # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    channel.monitor = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
+                    self.values[self.COMs.index(channel.com)][i] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random() - .5
                 else:
-                    channel.monitor = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
+                    self.values[self.COMs.index(channel.com)][i] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random() - .5
+
+    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
+        self.updateMaxID()
+        self.values = np.full([len(self.COMs), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
 
     def runAcquisition(self) -> None:
         while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if not getTestMode():
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
                         for i in range(len(self.COMs)):
                             for ID in range(8):
                                 try:

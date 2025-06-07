@@ -5274,13 +5274,13 @@ class DeviceController(QObject):  # noqa: PLR0904
         :param reset: If True, will reset values to np.nan, defaults to False
         :type reset: bool, optional
         """
-        if self.values is None:  # unless already defined by child class
+        if self.values is None or reset:  # unless already defined by child class
             if isinstance(self.controllerParent, Channel):
                 self.values = np.array([np.nan])
             elif getTestMode() and not reset and self.controllerParent.inout is INOUT.IN and self.controllerParent.useMonitors:
                 self.values = np.array([channel.value for channel in self.controllerParent.getChannels()])
             else:
-                self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))  # initializing values, Overwrite if needed
+                self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))  # initializing values, overwrite if needed
 
     def initComplete(self) -> None:
         """Start acquisition from main thread (access to GUI!). Called after successful initialization."""
@@ -5370,13 +5370,14 @@ class DeviceController(QObject):  # noqa: PLR0904
         :param parallel: Use parallel thread. Run in main thread if you want the application to wait for this to complete! Defaults to True
         :type parallel: bool, optional
         """
-        if not getTestMode() and self.initialized:
-            if parallel:
+        if self.initialized:
+            if getTestMode():
+                self.fakeNumbers()
+                self.updateValues()
+            elif parallel:
                 Thread(target=self.toggleOn, name=f'{self.controllerParent.name} toggleOnThread').start()
             else:
                 self.toggleOn()
-        elif getTestMode() and self.initialized:
-            self.fakeNumbers()
 
     def toggleOn(self) -> None:
         """Toggles device on or off."""
@@ -5418,7 +5419,11 @@ class DeviceController(QObject):  # noqa: PLR0904
                 # set acquiring flag anyways if timeout expired. Possible errors have to be handled
                 self.acquiring = False
             self.initializeValues(reset=True)  # set values and monitors to None to indicate that acquisition has stopped and current value is unknown
-            # self.updateValues()  # update new values in GUI
+            self.updateValues()  # update new values in GUI
+            if isinstance(self.controllerParent, self.pluginManager.Device):
+                self.controllerParent.updateValues()
+            elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
+                self.controllerParent.channelParent.updateValues()
             return True
         return False
 

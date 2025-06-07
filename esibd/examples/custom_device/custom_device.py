@@ -215,6 +215,8 @@ class CustomController(DeviceController):
 
     def updateValues(self) -> None:
         # TODO (optional) adjust how you want to update values to the gui
+        if self.values is None:
+            return
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
                 channel.monitor = self.values[i]

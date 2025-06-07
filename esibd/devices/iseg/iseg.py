@@ -124,21 +124,16 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self) -> None:
-        self.values = np.zeros([len(self.modules), self.maxID + 1])
-        super().initComplete()
-
     def applyValue(self, channel: VoltageChannel) -> None:
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n')
 
     def updateValues(self) -> None:
         # Overwriting to use values for multiple modules
-        if getTestMode():
-            self.fakeNumbers()
-        else:
-            for channel in self.controllerParent.getChannels():
-                if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
-                    channel.monitor = self.values[channel.module][channel.id]
+        if self.values is None:
+            return
+        for channel in self.controllerParent.getChannels():
+            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
+                channel.monitor = self.values[channel.module][channel.id]
 
     def toggleOn(self) -> None:
         for module in self.modules:
@@ -146,16 +141,21 @@ class VoltageController(DeviceController):
 
     def fakeNumbers(self) -> None:
         for channel in self.controllerParent.getChannels():
-            if channel.enabled and channel.real:
+            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
                 # fake values with noise and 10% channels with offset to simulate defect channel or short
-                channel.monitor = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
+                self.values[channel.module][channel.id] = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
                                    + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5)
+
+    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
+        self.values = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
 
     def runAcquisition(self) -> None:
         while self.acquiring:  # noqa: PLR1702
             with self.lock.acquire_timeout(1) as lock_acquired:
                 if lock_acquired:
-                    if not getTestMode():
+                    if getTestMode():
+                        self.fakeNumbers()
+                    else:
                         for module in self.modules:
                             res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=lock_acquired)
                             if res:

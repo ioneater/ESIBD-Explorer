@@ -242,7 +242,6 @@ class CurrentController(DeviceController):  # noqa: PLR0904
     class SignalCommunicate(DeviceController.SignalCommunicate):
         """Bundle pyqtSignals."""
 
-        updateValuesSignal = pyqtSignal(float, bool, bool, str)
         updateDeviceNameSignal = pyqtSignal(str)
 
     def __init__(self, controllerParent: CurrentChannel) -> None:
@@ -288,15 +287,15 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             self.setBias()
             name = self.getName()
             if not name:
-                self.signalComm.updateValuesSignal.emit(0, False, False, f'Device at port {self.controllerParent.com} did not provide a name. Abort initialization.')  # noqa: FBT003
+                self.setValuesAndUpdate(0, False, False, f'Device at port {self.controllerParent.com} did not provide a name. Abort initialization.')  # noqa: FBT003
                 return
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'{name} initialized at {self.controllerParent.com}')  # noqa: FBT003
+            self.setValuesAndUpdate(0, False, False, f'{name} initialized at {self.controllerParent.com}')  # noqa: FBT003
             self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'Port {self.controllerParent.com} is not open: {e}')  # noqa: FBT003
+            self.setValuesAndUpdate(0, False, False, f'Port {self.controllerParent.com} is not open: {e}')  # noqa: FBT003
         except serial.serialutil.SerialException as e:
-            self.signalComm.updateValuesSignal.emit(0, False, False, f'9103 not found at {self.controllerParent.com}: {e}')  # noqa: FBT003
+            self.setValuesAndUpdate(0, False, False, f'9103 not found at {self.controllerParent.com}: {e}')  # noqa: FBT003
         finally:
             self.initializing = False
 
@@ -327,14 +326,23 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         """
         self.controllerParent.devicename = name
 
-    def updateValues(self, value, outOfRange, unstable, error='') -> None:  # pylint: disable=[arguments-differ]  # arguments differ by intention
+    def setValuesAndUpdate(self, value, outOfRange, unstable, error='') -> None:
+        self.values[0] = value
+        self.outOfRange = outOfRange
+        self.unstable = unstable
+        self.error = error
+        self.signalComm.updateValuesSignal.emit()
+
+    def updateValues(self) -> None:  # pylint: disable=[arguments-differ]  # arguments differ by intention
         # Overwriting to also update additional custom channel properties
-        self.controllerParent.value = value
-        self.controllerParent.outOfRange = outOfRange
-        self.controllerParent.unstable = unstable
-        self.controllerParent.error = error
-        if error and self.controllerParent.channelParent.log:
-            self.print(error)
+        if self.values is None:
+            return
+        self.controllerParent.value = self.values[0]
+        self.controllerParent.outOfRange = self.outOfRange
+        self.controllerParent.unstable = self.unstable
+        self.controllerParent.error = self.error
+        if self.controllerParent.error and self.controllerParent.channelParent.log:
+            self.print(self.controllerParent.error, flag=PRINT.ERROR)
 
     def setRange(self) -> None:
         """Set the range. Typically autorange is sufficient."""
@@ -401,7 +409,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
 
     def fakeNumbers(self) -> None:
         if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
-            self.signalComm.updateValuesSignal.emit(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
+            self.setValuesAndUpdate(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
 
     def readNumbers(self) -> None:
         if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
@@ -411,13 +419,13 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                 return
             parsed = self.parse_message_for_sample(msg)
             if any(sym in parsed for sym in ['<', '>']):
-                self.signalComm.updateValuesSignal.emit(0, True, False, parsed)  # noqa: FBT003
+                self.setValuesAndUpdate(0, True, False, parsed)  # noqa: FBT003
             elif '*' in parsed:
-                self.signalComm.updateValuesSignal.emit(0, False, True, parsed)  # noqa: FBT003
+                self.setValuesAndUpdate(0, False, True, parsed)  # noqa: FBT003
             elif not parsed:
-                self.signalComm.updateValuesSignal.emit(0, False, False, 'got empty message')  # noqa: FBT003
+                self.setValuesAndUpdate(0, False, False, 'got empty message')  # noqa: FBT003
             else:
-                self.signalComm.updateValuesSignal.emit(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
+                self.setValuesAndUpdate(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
 
     # Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg) -> str:
