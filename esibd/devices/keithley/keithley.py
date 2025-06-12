@@ -118,7 +118,7 @@ class CurrentController(DeviceController):
     port: 'pyvisa.resources.gpib.GPIBInstrument | None'
     controllerParent: CurrentChannel
 
-    def __init__(self, controllerParent: 'CurrentChannel') -> None:
+    def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
         self.port = None
         self.phase = self.rng.random() * 10  # used in test mode
@@ -130,14 +130,6 @@ class CurrentController(DeviceController):
             super().initializeCommunication()
         else:
             self.stopAcquisition()
-
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        if self.port:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.port.close()
-                self.port = None
-        self.initialized = False
 
     def runInitialization(self) -> None:
         try:
@@ -159,33 +151,6 @@ class CurrentController(DeviceController):
         if self.controllerParent.active:
             super().startAcquisition()
 
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()
-                    self.signalComm.updateValuesSignal.emit()
-                    # no sleep needed, timing controlled by waiting during readNumbers
-            if getTestMode() and self.controllerParent.channelParent:
-                time.sleep(self.controllerParent.channelParent.interval / 1000)
-
-    def applyVoltage(self) -> None:
-        # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
-        """Apply voltage value."""
-        if self.port:
-            self.KeithleyWrite(f'SOUR:VOLT {self.controllerParent.voltage}')
-
-    def toggleOn(self) -> None:
-        self.applyVoltage()  # apply voltages before turning power supply on or off
-        self.KeithleyWrite(f"SOUR:VOLT:STAT {'ON' if self.controllerParent.channelParent.isOn() else 'OFF'}")
-
-    def fakeNumbers(self) -> None:
-        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
-            self.values = np.array([np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset])
-
     def readNumbers(self) -> None:
         if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
             try:
@@ -194,7 +159,39 @@ class CurrentController(DeviceController):
             except (pyvisa.errors.VisaIOError, pyvisa.errors.InvalidSession, AttributeError) as e:
                 self.print(f'Error while reading current {e}', flag=PRINT.ERROR)
                 self.errorCount += 1
-                self.values = np.array([np.nan])
+                self.values[0] = np.nan
+
+    def fakeNumbers(self) -> None:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
+            self.values[0] = np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset
+
+    def runAcquisition(self) -> None:
+        while self.acquiring:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
+                if lock_acquired:
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
+                    self.signalComm.updateValuesSignal.emit()
+            if getTestMode() and self.controllerParent.channelParent:
+                # no sleep needed when communicating, as timing controlled by waiting during readNumbers
+                time.sleep(self.controllerParent.channelParent.interval / 1000)
+
+    def toggleOn(self) -> None:
+        self.applyVoltage()  # apply voltages before turning power supply on or off
+        self.KeithleyWrite(f"SOUR:VOLT:STAT {'ON' if self.controllerParent.channelParent.isOn() else 'OFF'}")
+
+    def applyVoltage(self) -> None:
+        # NOTE this is different from the general applyValue function as this is not setting the channel value but an additional custom channel parameter
+        """Apply voltage value."""
+        if self.port:
+            self.KeithleyWrite(f'SOUR:VOLT {self.controllerParent.voltage}')
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
+                self.port.close()
+                self.port = None
+        self.initialized = False
 
     def KeithleyWrite(self, message: str) -> None:
         """KEITHLEY specific pyvisa write.

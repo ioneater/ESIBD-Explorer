@@ -1,6 +1,6 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import socket
-import time
+from typing import cast
 
 import numpy as np
 
@@ -37,7 +37,10 @@ class ISEG(Device):
 
     def initGUI(self) -> None:
         super().initGUI()
-        self.controller = VoltageController(controllerParent=self, modules=self.getModules())  # after all channels loaded
+        self.controller = VoltageController(controllerParent=self)  # after all channels loaded
+
+    def getChannels(self) -> 'list[VoltageChannel]':
+        return cast('list[VoltageChannel]', super().getChannels())
 
     ip: str
     port: int
@@ -54,7 +57,7 @@ class ISEG(Device):
 
     def getModules(self) -> list[int]:
         """Get list of used modules."""
-        return list({channel.module for channel in self.channels})
+        return list({channel.module for channel in self.channels if channel.real})
 
     def closeCommunication(self) -> None:
         self.setOn(False)
@@ -103,16 +106,17 @@ class VoltageController(DeviceController):
 
     controllerParent: ISEG
 
-    def __init__(self, controllerParent: ISEG, modules) -> None:
+    def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
-        self.modules = modules or [0]
         self.socket = None
-        self.maxID = max(channel.id if channel.real and isinstance(channel, VoltageChannel)
-                         else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
+        self.modules = None
+        self.maxID = None
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        self.initialized = False
+    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
+        self.modules = self.controllerParent.getModules() or [0]
+        self.maxID = max(channel.id if channel.real else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
+        if self.modules and self.maxID:
+            self.values = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
 
     def runInitialization(self) -> None:
         try:
@@ -124,6 +128,26 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
+    def readNumbers(self) -> None:
+        if self.modules and self.maxID:
+            for module in self.modules:
+                res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=True)
+                if res:
+                    try:
+                        monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
+                        # fill up to self.maxID to handle all modules the same independent of the number of channels.
+                        self.values[module] = np.hstack([monitors, np.zeros(self.maxID + 1 - len(monitors))])
+                    except (ValueError, TypeError) as e:
+                        self.print(f'Parsing error: {e} for {res}.')
+                        self.errorCount += 1
+
+    def fakeNumbers(self) -> None:
+        for channel in self.controllerParent.getChannels():
+            if channel.enabled and channel.real:
+                # fake values with noise and 10% channels with offset to simulate defect channel or short
+                self.values[channel.module][channel.id] = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
+                                   + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5)
+
     def applyValue(self, channel: VoltageChannel) -> None:
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n')
 
@@ -132,42 +156,18 @@ class VoltageController(DeviceController):
         if self.values is None:
             return
         for channel in self.controllerParent.getChannels():
-            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
+            if channel.enabled and channel.real:
                 channel.monitor = self.values[channel.module][channel.id]
 
     def toggleOn(self) -> None:
-        for module in self.modules:
-            self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n")
+        if self.modules:
+            for module in self.modules:
+                self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n")
 
-    def fakeNumbers(self) -> None:
-        for channel in self.controllerParent.getChannels():
-            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
-                # fake values with noise and 10% channels with offset to simulate defect channel or short
-                self.values[channel.module][channel.id] = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
-                                   + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5)
-
-    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
-        self.values = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
-
-    def runAcquisition(self) -> None:
-        while self.acquiring:  # noqa: PLR1702
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        for module in self.modules:
-                            res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=lock_acquired)
-                            if res:
-                                try:
-                                    monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
-                                    # fill up to self.maxID to handle all modules the same independent of the number of channels.
-                                    self.values[module] = np.hstack([monitors, np.zeros(self.maxID + 1 - len(monitors))])
-                                except (ValueError, TypeError) as e:
-                                    self.print(f'Parsing error: {e} for {res}.')
-                                    self.errorCount += 1
-                    self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
-            time.sleep(self.controllerParent.interval / 1000)
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.socket = None
+        self.initialized = False
 
     def ISEGWriteRead(self, message: str, already_acquired: bool = False) -> str:
         """ISEG specific serial write and read.

@@ -7,7 +7,6 @@ import h5py
 import numpy as np
 import serial
 import serial.serialutil
-from PyQt6.QtCore import pyqtSignal
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, CompactComboBox, DeviceController, MetaChannel, Parameter, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin, Scan, StaticDisplay
@@ -58,7 +57,7 @@ class RBD(Device):
                     return False
                 for dat, header in zip(data, headers, strict=True):
                     self.outputChannels.append(MetaChannel(parentPlugin=self, name=header.strip(),
-                                                            recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0]), unit='pA'))
+                                                            recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0], dtype=np.float32), unit='pA'))
                 if len(self.outputChannels) > 0:  # might be empty
                     # need to fake time axis as it was not implemented
                     self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME,
@@ -156,7 +155,7 @@ class CurrentChannel(Channel):
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
         channel[self.UNSTABLE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
-        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=False, attr='error', indicator=True)
+        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='error', indicator=True, event=self.updateError)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -170,6 +169,10 @@ class CurrentChannel(Channel):
         self.displayedParameters.append(self.OUTOFRANGE)
         self.displayedParameters.append(self.UNSTABLE)
         self.displayedParameters.append(self.ERROR)
+
+    def initGUI(self, item: dict) -> None:
+        super().initGUI(item)
+        self.getParameterByName(self.ERROR).line.max_width = 800
 
     def tempParameters(self) -> list[str]:
         return [*super().tempParameters(), self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
@@ -233,21 +236,20 @@ class CurrentChannel(Channel):
         if self.controller and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
+    def updateError(self) -> None:
+        """Autoscale error display as needed."""
+        if self.tree:
+            self.getParameterByName(self.ERROR).line.updateGeometry()
+            self.tree.scheduleDelayedItemsLayout()
+
 
 class CurrentController(DeviceController):  # noqa: PLR0904
 
-    signalComm: 'SignalCommunicate'
     controllerParent: CurrentChannel
-
-    class SignalCommunicate(DeviceController.SignalCommunicate):
-        """Bundle pyqtSignals."""
-
-        updateDeviceNameSignal = pyqtSignal(str)
 
     def __init__(self, controllerParent: CurrentChannel) -> None:
         super().__init__(controllerParent=controllerParent)
         self.port = None
-        self.signalComm.updateDeviceNameSignal.connect(self.updateDeviceName)
         self.updateAverageFlag = False
         self.updateRangeFlag = False
         self.updateBiasFlag = False
@@ -260,16 +262,6 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             super().initializeCommunication()
         else:
             self.stopAcquisition()  # as this is a channel controller it should only stop acquisition but not recording
-
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        if self.port:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.controllerParent.devicename}.') as lock_acquired:
-                if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
-                    self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
-                self.port.close()
-                self.port = None
-        self.initialized = False
 
     def runInitialization(self) -> None:
         try:
@@ -289,8 +281,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             if not name:
                 self.setValuesAndUpdate(0, False, False, f'Device at port {self.controllerParent.com} did not provide a name. Abort initialization.')  # noqa: FBT003
                 return
-            self.setValuesAndUpdate(0, False, False, f'{name} initialized at {self.controllerParent.com}')  # noqa: FBT003
-            self.signalComm.updateDeviceNameSignal.emit(name)  # pass name to main thread as init thread will die
+            self.setValuesAndUpdate(0, False, False, f'{name} initialized at {self.controllerParent.com}', deviceName=name)  # noqa: FBT003
             self.signalComm.initCompleteSignal.emit()
         except serial.serialutil.PortNotOpenError as e:
             self.setValuesAndUpdate(0, False, False, f'Port {self.controllerParent.com} is not open: {e}')  # noqa: FBT003
@@ -301,48 +292,65 @@ class CurrentController(DeviceController):  # noqa: PLR0904
 
     def startAcquisition(self) -> None:
         if self.controllerParent.active and self.controllerParent.real:
+            if not getTestMode():
+                # start sampling with given interval (implement high speed communication if available)
+                self.RBDWriteRead(message=f'I{self.controllerParent.channelParent.interval:04d}')
             super().startAcquisition()
 
-    def runAcquisition(self) -> None:
-        if not getTestMode():
-            # start sampling with given interval (implement high speed communication if available)
-            self.RBDWriteRead(message=f'I{self.controllerParent.channelParent.interval:04d}')
-        while self.acquiring:
-            with self.lock.acquire_timeout(1, timeoutMessage=f'Cannot acquire lock to read current from {self.controllerParent.devicename}.') as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        self.readNumbers()  # no sleep needed, timing controlled by waiting during readNumbers
-                        self.updateParameters()
-            if getTestMode():
-                time.sleep(self.controllerParent.channelParent.interval / 1000)
+    def readNumbers(self) -> None:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
+            msg = ''
+            msg = self.RBDRead()
+            if not self.acquiring:  # may have changed while waiting on message
+                return
+            parsed = self.parse_message_for_sample(msg)
+            if any(sym in parsed for sym in ['<', '>']):
+                self.setValuesAndUpdate(0, True, False, parsed)  # noqa: FBT003
+            elif '*' in parsed:
+                self.setValuesAndUpdate(0, False, True, parsed)  # noqa: FBT003
+            elif not parsed:
+                self.setValuesAndUpdate(0, False, False, 'got empty message')  # noqa: FBT003
+            else:
+                self.setValuesAndUpdate(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
+        self.updateParameters()
 
-    def updateDeviceName(self, name) -> None:
-        """Update the name received from the device in the channel.
+    def fakeNumbers(self) -> None:
+        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
+            self.setValuesAndUpdate(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
 
-        :param name: The received device name.
-        :type name: str
+    def updateValues(self) -> None:
+        if self.values is not None:
+            self.controllerParent.value = self.values[0]
+        self.controllerParent.outOfRange = self.outOfRange
+        self.controllerParent.unstable = self.unstable
+        if self.controllerParent.error != self.error:
+            self.controllerParent.error = self.error
+        if self.controllerParent.error:
+            self.print(self.controllerParent.error, flag=PRINT.ERROR if self.controllerParent.channelParent.log else PRINT.VERBOSE)
+        if self.deviceName:
+            self.controllerParent.devicename = self.deviceName
+
+    def setValuesAndUpdate(self, value: float, outOfRange: bool, unstable: bool, error: str = '', deviceName: str = '') -> None:
+        """Set value and additional parameters before calling update in main thread.
+
+        :param value: New value.
+        :type value: float
+        :param outOfRange: Indicates if signal is out of range.
+        :type outOfRange: bool
+        :param unstable: Indicates if measurement is unstable.
+        :type unstable: bool
+        :param error: Error message provided by device, defaults to ''
+        :type error: str, optional
+        :param deviceName: Name set on device, defaults to ''
+        :type deviceName: str, optional
         """
-        self.controllerParent.devicename = name
-
-    def setValuesAndUpdate(self, value, outOfRange, unstable, error='') -> None:
-        self.values[0] = value
+        if self.values is not None:
+            self.values[0] = value
         self.outOfRange = outOfRange
         self.unstable = unstable
         self.error = error
+        self.deviceName = deviceName
         self.signalComm.updateValuesSignal.emit()
-
-    def updateValues(self) -> None:  # pylint: disable=[arguments-differ]  # arguments differ by intention
-        # Overwriting to also update additional custom channel properties
-        if self.values is None:
-            return
-        self.controllerParent.value = self.values[0]
-        self.controllerParent.outOfRange = self.outOfRange
-        self.controllerParent.unstable = self.unstable
-        self.controllerParent.error = self.error
-        if self.controllerParent.error and self.controllerParent.channelParent.log:
-            self.print(self.controllerParent.error, flag=PRINT.ERROR)
 
     def setRange(self) -> None:
         """Set the range. Typically autorange is sufficient."""
@@ -407,26 +415,6 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
         # self.print(self.RBDRead())  # -> b'P, PID=TRACKSMURF\r\n'  # noqa: ERA001
 
-    def fakeNumbers(self) -> None:
-        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
-            self.setValuesAndUpdate(np.sin(self.omega * time.time() / 5 + self.phase) * 10 + self.rng.random() + self.offset, False, False, '')  # noqa: FBT003
-
-    def readNumbers(self) -> None:
-        if not self.controllerParent.pluginManager.closing and self.controllerParent.enabled and self.controllerParent.active and self.controllerParent.real:
-            msg = ''
-            msg = self.RBDRead()
-            if not self.acquiring:  # may have changed while waiting on message
-                return
-            parsed = self.parse_message_for_sample(msg)
-            if any(sym in parsed for sym in ['<', '>']):
-                self.setValuesAndUpdate(0, True, False, parsed)  # noqa: FBT003
-            elif '*' in parsed:
-                self.setValuesAndUpdate(0, False, True, parsed)  # noqa: FBT003
-            elif not parsed:
-                self.setValuesAndUpdate(0, False, False, 'got empty message')  # noqa: FBT003
-            else:
-                self.setValuesAndUpdate(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
-
     # Single sample (standard speed) message parsing
     def parse_message_for_sample(self, msg) -> str:
         """Only returns response if it contains a sample.
@@ -467,6 +455,16 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             case _:
                 self.print(f'Error: No handler for unit {unit} implemented!', PRINT.ERROR)
                 return self.controllerParent.value  # keep last valid value
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage=f'Could not acquire lock before closing port of {self.controllerParent.devicename}.') as lock_acquired:
+                if self.initialized and lock_acquired:  # pylint: disable=[access-member-before-definition]  # defined in DeviceController class
+                    self.RBDWriteRead('I0000', already_acquired=lock_acquired)  # stop sampling
+                self.port.close()
+                self.port = None
+        self.initialized = False
 
     def RBDWrite(self, message) -> None:
         """RBD specific serial write.

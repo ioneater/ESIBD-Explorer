@@ -258,7 +258,6 @@ class PluginManager:  # noqa: PLR0904
         self.testing_state = False  # has to be defined before logger
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
-        self.userPluginPath = None
         self.pluginFile: 'Path | None' = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
@@ -309,7 +308,7 @@ class PluginManager:  # noqa: PLR0904
         else:
             self._loading -= 1
 
-    def loadPlugins(self) -> None:  # noqa: C901, PLR0912, PLR0915
+    def loadPlugins(self) -> None:  # noqa: C901, PLR0915
         """Load all enabled plugins."""
         self.updateTheme()
         self.splash = SplashScreen()
@@ -319,21 +318,16 @@ class PluginManager:  # noqa: PLR0904
         self.loading = True  # some events should not be triggered until after the UI is completely initialized
         self.closing = False
 
-        self.userPluginPath = validatePath(qSet.value(f'{GENERAL}/{PLUGINPATH}', defaultPluginPath), defaultPluginPath)[0]
         # self.mainWindow.configPath not yet be available -> use directly from qSet
-        validConfigPath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0]
-        if validConfigPath:
-            self.pluginFile = validConfigPath / 'plugins.ini'
+        self.pluginFile = getValidConfigPath() / 'plugins.ini'
         self.plugins: 'list[Plugin]' = []
         self.pluginNames = []
         self.firstControl = None
         self.firstDisplay = None
 
         self.confParser = configparser.ConfigParser()
-        if self.pluginFile:
-            self.pluginFile.parent.mkdir(parents=True, exist_ok=True)
-            if self.pluginFile.exists():
-                self.confParser.read(self.pluginFile)
+        if self.pluginFile.exists():
+            self.confParser.read(self.pluginFile)
         self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.provide_plugins  # pylint: disable = import-outside-toplevel  # avoid circular import  # noqa: PLC0415
@@ -342,9 +336,7 @@ class PluginManager:  # noqa: PLR0904
         self.loadPluginsFromPath(esibdPath / 'devices')
         self.loadPluginsFromPath(esibdPath / 'scans')
         self.loadPluginsFromPath(esibdPath / 'displays')
-        if self.userPluginPath:
-            self.userPluginPath.mkdir(parents=True, exist_ok=True)
-            self.loadPluginsFromPath(self.userPluginPath)
+        self.loadPluginsFromPath(getValidPluginPath())
 
         obsoletePluginNames = [name for name in self.confParser if name != Parameter.DEFAULT.upper() and name != INFO and name not in self.pluginNames]
         if len(obsoletePluginNames) > 0:
@@ -960,15 +952,13 @@ class Logger(QObject):
     def open(self) -> None:
         """Activates logging of Plugin.print statements, stdout, and stderr to the log file."""
         if not self.active:
-            validConfigPath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0]
-            if validConfigPath:
-                self.logFilePath = validConfigPath / f'{PROGRAM_NAME.lower()}.log'
-                self.terminalOut = sys.stdout
-                self.terminalErr = sys.stderr
-                sys.stderr = sys.stdout = self  # redirect all calls to stdout and stderr to the write function of our logger
-                self.log = self.logFilePath.open('a', encoding='utf-8-sig')  # pylint: disable=consider-using-with  # keep file open instead of reopening for every new line
-                self.active = True
-                self.timer.start()
+            self.logFilePath = getValidConfigPath() / f'{PROGRAM_NAME.lower()}.log'
+            self.terminalOut = sys.stdout
+            self.terminalErr = sys.stderr
+            sys.stderr = sys.stdout = self  # redirect all calls to stdout and stderr to the write function of our logger
+            self.log = self.logFilePath.open('a', encoding='utf-8-sig')  # pylint: disable=consider-using-with  # keep file open instead of reopening for every new line
+            self.active = True
+            self.timer.start()
 
     def openLog(self) -> None:
         """Open the log file in an external program."""
@@ -2047,7 +2037,7 @@ class Setting(QTreeWidgetItem, Parameter):
         """
         if not self.indicator:  # Setting indicators should never need to trigger events
             if self.parameterType == PARAMETERTYPE.PATH:
-                path, changed = validatePath(cast('Path | None', self.value), cast('Path | None', self.default))
+                path, changed = validatePath(cast('Path | None', self.value), cast('Path', self.default))
                 if changed:
                     self.value = path
             if self.internal:
@@ -5260,14 +5250,6 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.print('Faking values for testing!', PRINT.DEBUG)
         self.initializing = False
 
-    def readNumbers(self) -> None:
-        """Write channel values in an array that will be used in updateValue."""
-        # overwrite to implement function if applicable
-
-    def fakeNumbers(self) -> None:
-        """Write fake channel values in an array that will be used in updateValue."""
-        # overwrite to implement function
-
     def initializeValues(self, reset: bool = False) -> None:
         """Initialize array used to store current values or readbacks.
 
@@ -5281,15 +5263,6 @@ class DeviceController(QObject):  # noqa: PLR0904
                 self.values = np.array([channel.value for channel in self.controllerParent.getChannels()])
             else:
                 self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))  # initializing values, overwrite if needed
-
-    def initComplete(self) -> None:
-        """Start acquisition from main thread (access to GUI!). Called after successful initialization."""
-        self.initializeValues()
-        self.initialized = True
-        self.startAcquisition()
-        if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.isOn():
-            self.controllerParent.updateValues(apply=True)  # apply values before turning on or off
-            self.toggleOnFromThread()
 
     def startAcquisition(self) -> None:
         """Start data acquisition from physical device."""
@@ -5310,24 +5283,33 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.acquiring = True  # terminate old thread before starting new one
         self.acquisitionThread.start()
 
-    def runAcquisition(self) -> None:
-        """Run acquisition loop. Executed in acquisitionThread.
+    def initComplete(self) -> None:
+        """Start acquisition from main thread (access to GUI!). Called after successful initialization."""
+        self.initializeValues()
+        self.initialized = True
+        self.startAcquisition()
+        if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.isOn():
+            self.controllerParent.updateValues(apply=True)  # apply values before turning on or off
+            self.toggleOnFromThread()
 
-        Overwrite with hardware specific acquisition code.
-        """
-        while self.acquiring:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        pass  # implement fake feedback
-                    else:
-                        pass  # implement real feedback
-                    self.signalComm.updateValuesSignal.emit()
-            # release lock before waiting!
-            if isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
-                time.sleep(self.controllerParent.channelParent.interval / 1000)
-            elif isinstance(self.controllerParent, self.pluginManager.Device):
-                time.sleep(self.controllerParent.interval / 1000)
+    def readNumbers(self) -> None:
+        """Write channel values in an array that will be used in updateValue."""
+        # overwrite to implement function if applicable
+
+    def fakeNumbers(self) -> None:
+        """Write fake channel values in an array that will be used in updateValue."""
+        # overwrite to implement function
+        if isinstance(self.controllerParent, self.pluginManager.Device):
+            for i, channel in enumerate(self.controllerParent.getChannels()):
+                if self.controllerParent.inout == INOUT.IN:
+                    self.values[i] = channel.value + self.rng.random() - .5
+                else:
+                    self.values[i] = float(self.rng.integers(1, 100)) if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)
+        elif isinstance(self.controllerParent, Channel):
+            if self.controllerParent.inout == INOUT.IN:
+                self.values[0] = self.controllerParent.value + self.rng.random() - .5
+            else:
+                self.values[0] = float(self.rng.integers(1, 100)) if np.isnan(self.values[0]) else self.values[0] * self.rng.uniform(.99, 1.01)
 
     def applyValueFromThread(self, channel: Channel) -> None:
         """Apply value to device (thread safe).
@@ -5340,6 +5322,8 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     def applyValue(self, channel: Channel) -> None:
         """Apply value to device.
+
+        Should only be called for real channels!
 
         :param channel: Channel for which the value should be applied.
         :type channel: esibd.core.Channel
@@ -5364,6 +5348,22 @@ class DeviceController(QObject):  # noqa: PLR0904
                 else:
                     self.controllerParent.value = self.values[0]
 
+    def runAcquisition(self) -> None:
+        """Run acquisition loop. Executed in acquisitionThread.
+
+        Overwrite with hardware specific acquisition code.
+        """
+        while self.acquiring:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
+                if lock_acquired:
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
+                    self.signalComm.updateValuesSignal.emit()
+            # release lock before waiting!
+            if isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
+                time.sleep(self.controllerParent.channelParent.interval / 1000)
+            elif isinstance(self.controllerParent, self.pluginManager.Device):
+                time.sleep(self.controllerParent.interval / 1000)
+
     def toggleOnFromThread(self, parallel: bool = True) -> None:
         """Toggles device on or off (tread safe).
 
@@ -5382,21 +5382,6 @@ class DeviceController(QObject):  # noqa: PLR0904
     def toggleOn(self) -> None:
         """Toggles device on or off."""
         # Implement device specific
-
-    def closeCommunication(self) -> None:
-        """Close all open ports. Ths method has to be extended as described below.
-
-        This should free up all resources and allow for clean reinitialization.
-        Extend to add hardware specific code.
-        Keep following order to make sure acquisition is stopped before communication is closed:
-        1. super().closeCommunication()
-        2. closing your custom hardware communication
-        3. self.initialized = False
-        """
-        self.print('closeCommunication controller', PRINT.DEBUG)
-        if self.acquiring:
-            self.stopAcquisition()  # only call if not already called by device
-        # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
 
     def stopAcquisition(self) -> bool:
         """Terminate acquisition but leaves communication initialized."""
@@ -5426,6 +5411,21 @@ class DeviceController(QObject):  # noqa: PLR0904
                 self.controllerParent.channelParent.updateValues()
             return True
         return False
+
+    def closeCommunication(self) -> None:
+        """Close all open ports. Ths method has to be extended as described below.
+
+        This should free up all resources and allow for clean reinitialization.
+        Extend to add hardware specific code.
+        Keep following order to make sure acquisition is stopped before communication is closed:
+        1. super().closeCommunication()
+        2. closing your custom hardware communication
+        3. self.initialized = False
+        """
+        self.print('closeCommunication controller', PRINT.DEBUG)
+        if self.acquiring:
+            self.stopAcquisition()  # only call if not already called by device
+        # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
 
     def serialWrite(self, port: serial.Serial, message: str, encoding: str = 'utf-8') -> None:
         """Write a string to a serial port. Takes care of decoding messages to bytes and catches common exceptions.

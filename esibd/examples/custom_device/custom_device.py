@@ -1,11 +1,9 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
-import time
 from typing import TYPE_CHECKING
 
-import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, parameterDict
 from esibd.plugins import Device, Plugin
 
 if TYPE_CHECKING:
@@ -74,7 +72,7 @@ class CustomDevice(Device):
             self.messageBox.setWindowTitle('Custom Dialog')
             self.messageBox.setWindowIcon(self.getIcon())
             self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}.\n'
-                                    'The value of your custom setting is {"on" if self.isOn() else "off"}.')
+                                    f'The value of your custom setting is {"on" if self.isOn() else "off"}.')
             self.messageBox.open()  # show non blocking
             self.messageBox.raise_()
 
@@ -156,23 +154,14 @@ class CustomController(DeviceController):
     """Custom Device controller. Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
 
     controllerParent: CustomDevice
+    # TODO adjust controllerParent type hint to device or channel type
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
         # TODO (optional) initialize any custom variables
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()  # call this first
-        if self.initialized and self.port:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                # TODO replace with device and communication protocol specific code to close communication
-                # try to close port even if lock could not be acquired! resulting errors should be excepted
-                self.port.close()
-                self.port = None
-        self.initialized = False  # call this last
-
     def initializeCommunication(self) -> None:
-        # TODO set any flags needed for initialization
+        # TODO (optional) set any flags needed for initialization
         super().initializeCommunication()
 
     def runInitialization(self) -> None:
@@ -184,29 +173,28 @@ class CustomController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self) -> None:
-        super().initComplete()
-        # TODO (optional) any custom code here.
-        # TODO This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
+    def initializeValues(self, reset: bool = False) -> None:
+        # TODO (optional) change definition of self.values
+        pass
 
     def startAcquisition(self) -> None:
         if True:  # TODO (optional) add custom condition for acquisition
             super().startAcquisition()
 
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        self.values = np.array([channel.value + self.rng.random() for channel in self.controllerParent.getChannels()])  # TODO implement fake feedback
-                    elif True:
-                        # TODO implement real feedback
-                        pass
-                    else:
-                        # TODO increment error count if you catch a communication error here
-                        self.errorCount += 1
-                    self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.controllerParent.interval / 1000)  # release lock before waiting!
+    def initComplete(self) -> None:
+        super().initComplete()
+        # TODO (optional) any custom code here.
+        # TODO This is the first time the communication is established and you might want to configure the hardware, and turn power supplies on at this point.
+
+    def readNumbers(self) -> None:
+        # TODO implement real feedback
+        if False:
+            # TODO increment error count if you catch a communication error here
+            self.errorCount += 1
+
+    def fakeNumbers(self) -> None:
+        # TODO implement custom fake feedback used in test mode
+        super().fakeNumbers()
 
     def applyValue(self, channel: CustomChannel) -> None:
         # TODO (optional) overwrite depending on hardware
@@ -220,3 +208,17 @@ class CustomController(DeviceController):
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
                 channel.monitor = self.values[i]
+
+    def runAcquisition(self) -> None:
+        # TODO (optional) overwrite acquisition loop if needed
+        super().runAcquisition()
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()  # call this first
+        if self.initialized and self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
+                # TODO replace with device and communication protocol specific code to close communication
+                # try to close port even if lock could not be acquired! resulting errors should be excepted
+                self.port.close()
+                self.port = None
+        self.initialized = False  # call this last

@@ -245,9 +245,13 @@ fig.show()
         """
         # only call in main thread as updates GUI
         self.pluginManager.loading = True  # only update after setting all voltages
-        for channel in [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if channel.optimize]:
-            channel.value = self.ga.GAget(channel.name, channel.value, index=index, initial=initial)
-        self.pluginManager.loading = False
+        try:
+            for channel in [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if channel.optimize]:
+                channel.value = self.ga.GAget(channel.name, channel.value, index=index, initial=initial)
+        except ValueError as e:
+            self.print(f'Could not assign value: {e}', flag=PRINT.ERROR)
+        finally:
+            self.pluginManager.loading = False
         self.pluginManager.DeviceManager.globalUpdate(inout=INOUT.IN)
 
     def saveScanParallel(self, file) -> None:

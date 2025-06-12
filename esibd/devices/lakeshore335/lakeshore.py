@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 # install lakeshore drivers from here if not automatically installed via windows updates: https://www.lakeshore.com/resources/software/drivers
-import time
+
+from typing import cast
 
 import numpy as np
 from lakeshore import Model335
@@ -14,7 +15,6 @@ from esibd.core import (
     Parameter,
     ToolButton,
     getDarkMode,
-    getTestMode,
     parameterDict,
 )
 from esibd.plugins import Device, Plugin
@@ -39,6 +39,9 @@ class LS335(Device):
     unit = 'K'
     useMonitors = True
 
+    controller: 'TemperatureController'
+    channels: 'list[TemperatureChannel]'
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.useOnOffLogic = True
@@ -49,6 +52,9 @@ class LS335(Device):
         super().initGUI()
         self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
+
+    def getChannels(self) -> 'list[TemperatureChannel]':
+        return cast('list[TemperatureChannel]', super().getChannels())
 
     def runTestParallel(self) -> None:
         self.testControl(self.unitAction, self.unitAction.state)
@@ -92,6 +98,9 @@ class TemperatureChannel(Channel):
     HEATER = 'HEATER'
     active = True
     channelParent: LS335
+    KP = 'Kp'
+    KI = 'Ki'
+    KD = 'Kd'
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -99,6 +108,9 @@ class TemperatureChannel(Channel):
         self.id: str
         self.heater: int
         self.channel_active: bool
+        self.Kp: float
+        self.Ki: float
+        self.Kd: float
 
         channel = super().getDefaultChannel()
         channel.pop(Channel.EQUATION)
@@ -110,6 +122,12 @@ class TemperatureChannel(Channel):
                                         items='A, B', attr='id')
         channel[self.HEATER] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='1, 2', attr='heater')
+        channel[self.KP] = parameterDict(value=500, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=1000, attr='Kp', instantUpdate=False,
+                                        event=self.setPID, advanced=True)
+        channel[self.KI] = parameterDict(value=14, parameterType=PARAMETERTYPE.FLOAT, minimum=1, maximum=1000, attr='Ki', instantUpdate=False,
+                                        event=self.setPID, advanced=True)
+        channel[self.KD] = parameterDict(value=100, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=200, attr='Kd', instantUpdate=False,
+                                        event=self.setPID, advanced=True)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -118,6 +136,9 @@ class TemperatureChannel(Channel):
         self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
         self.displayedParameters.append(self.ID)
         self.displayedParameters.append(self.HEATER)
+        self.displayedParameters.append(self.KP)
+        self.displayedParameters.append(self.KI)
+        self.displayedParameters.append(self.KD)
 
     def initGUI(self, item) -> None:
         super().initGUI(item)
@@ -132,6 +153,10 @@ class TemperatureChannel(Channel):
             active.check.setCheckable(True)
         active.value = value
 
+    def setPID(self) -> None:
+        """Set PID values."""
+        self.channelParent.controller.setPID(self)
+
 
 class TemperatureController(DeviceController):
     """Implements communication with LakeShore 335.
@@ -142,13 +167,6 @@ class TemperatureController(DeviceController):
     ls335 = None
     controllerParent: LS335
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        if self.ls335:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.ls335.disconnect_usb()
-        self.initialized = False
-
     def runInitialization(self) -> None:
         try:
             self.ls335 = Model335(baud_rate=57600, com_port=self.controllerParent.COM)  # may raise AttributeError that can not be excepted
@@ -158,17 +176,20 @@ class TemperatureController(DeviceController):
         finally:
             self.initializing = False
 
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.controllerParent.interval / 1000)
+    def initComplete(self) -> None:
+        if self.ls335:
+            for channel in self.controllerParent.channels:
+                if channel.real:
+                    # update pid values from hardware to make sure the displayed value is meaningful
+                    heater_pid = self.ls335.get_heater_pid(channel.heater)
+                    channel.Kp = heater_pid['gain']
+                    channel.Ki = heater_pid['integral']
+                    channel.Kd = heater_pid['ramp_rate']
+        super().initComplete()
 
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if isinstance(channel, TemperatureChannel) and self.ls335:
+            if self.ls335:
                 value = self.ls335.get_kelvin_reading(channel.id)
                 try:
                     self.values[i] = float(value)
@@ -183,13 +204,12 @@ class TemperatureController(DeviceController):
             if channel.enabled and channel.real:
                 self.values[i] = max((self.values[i] + self.rng.uniform(-1, 1)) + 0.1 * ((channel.value if self.controllerParent.isOn() else 300) - self.values[i]), 0)
 
-    def rndTemperature(self) -> float:
-        """Return a random temperature."""
-        return self.rng.uniform(0, 400)
+    def applyValue(self, channel) -> None:
+        self.set_control_setpoint(channel)
 
     def toggleOn(self) -> None:
         for channel in self.controllerParent.channels:
-            if isinstance(channel, TemperatureChannel) and self.ls335:
+            if self.ls335:
                 if channel.channel_active and self.controllerParent.isOn():
                     # self.ls335.set_heater_pid(output=channel.heater, gain=200, integral=14, derivative=100)  # noqa: ERA001
                     # self.ls335._set_autotune(output=channel.heater, mode=self.ls335.AutotuneMode.P_I_D)  # noqa: ERA001
@@ -211,5 +231,21 @@ class TemperatureController(DeviceController):
         if self.ls335:
             self.ls335.set_control_setpoint(output=channel.heater, value=channel.value)
 
-    def applyValue(self, channel) -> None:
-        self.set_control_setpoint(channel)
+    def setPID(self, channel: TemperatureChannel) -> None:
+        """Set PID values for given Channel.
+
+        :param channel: The channel for which parameters should be set.
+        :type channel: TemperatureChannel
+        """
+        if self.ls335 and channel.real and channel.channel_active and self.controllerParent.isOn():
+            self.ls335.set_heater_pid(channel.heater, channel.Kp, channel.Ki, channel.Kd)
+        else:
+            self.print('Could not set PID values. Make sure communication is active, channel is active, and heater is on.', flag=PRINT.WARNING)
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.ls335:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
+                self.ls335.disconnect_usb()
+                self.ls335 = None
+        self.initialized = False

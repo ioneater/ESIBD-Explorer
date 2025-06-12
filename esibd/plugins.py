@@ -4202,10 +4202,16 @@ class Scan(Plugin):  # noqa: PLR0904
         if not self.loading:
             inputChannel.connectSource()
             device = inputChannel.getDevice()
-            if not (start is not None and stop is not None and step is not None and inputChannel.min is not None
-                    and inputChannel.max is not None and device and isinstance(device, Device)):
+            if not (start is not None and stop is not None and step is not None and
+                    (not hasattr(inputChannel, 'min') or (inputChannel.min is not None and inputChannel.max is not None))
+                      and device and isinstance(device, Device)):
                 self.print('Not enough information to initialize input channel.', PRINT.WARNING)
                 return None
+            if inputChannel.sourceChannel and inputChannel.sourceChannel.inout == INOUT.OUT:  # noqa: SIM102
+                # Output channels only read and have no set option as well as no min max range.
+                # May still make sense if the output channel is a virtual channel only used for calculations.
+                if not self._dummy_initialization:
+                    self.print(f'Using output channel {name} as input channel.', PRINT.WARNING)
             if not inputChannel.sourceChannel:
                 if not self._dummy_initialization and not self.loading:
                     self.print(f'No channel found with name {name}.', PRINT.WARNING)
@@ -4214,7 +4220,7 @@ class Scan(Plugin):  # noqa: PLR0904
                 if not self._dummy_initialization:
                     self.print('Limits are equal.', PRINT.WARNING)
                 sourceInitialized = False
-            elif inputChannel.min > min(start, stop) or inputChannel.max < max(start, stop):
+            elif hasattr(inputChannel, 'min') and (inputChannel.min > min(start, stop) or inputChannel.max < max(start, stop)):
                 if not self._dummy_initialization:
                     self.print(f'Limits are larger than allowed for {name}.', PRINT.WARNING)
                 sourceInitialized = False
@@ -5380,7 +5386,7 @@ class Console(Plugin):
     def initGUI(self) -> None:  # noqa: D102
         super().initGUI()
         self.mainDisplayWidget.setMinimumHeight(1)  # enable hiding
-        validConfigPath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0]
+        validConfigPath = getValidConfigPath()
         if validConfigPath:
             self.historyFile = validConfigPath / 'console_history.bin'
             self.mainConsole = ThemedConsole(parentPlugin=self, historyFile=self.historyFile)
@@ -5964,9 +5970,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
             header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.confINI = f'{self.name}.ini'
         self.loadGeneralSettings = f'Load {PROGRAM_NAME} settings.'
-        validConfigPath = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)[0]
-        if validConfigPath:
-            super().__init__(parentPlugin=self, tree=self.tree, defaultFile=validConfigPath / self.confINI, pluginManager=pluginManager, **kwargs)
+        super().__init__(parentPlugin=self, tree=self.tree, defaultFile=getValidConfigPath() / self.confINI, pluginManager=pluginManager, **kwargs)
         self.previewFileTypes = [self.confINI]
 
     def initDock(self) -> None:  # noqa: D102
@@ -6055,17 +6059,10 @@ class Settings(SettingsManager):  # noqa: PLR0904
                                         parameterType=PARAMETERTYPE.PATH, internal=True, event=self.updateConfigPath, attr='configPath')
         ds[f'{GENERAL}/{PLUGINPATH}'] = parameterDict(value=defaultPluginPath,
                                         parameterType=PARAMETERTYPE.PATH, internal=True, event=self.updatePluginPath, attr='pluginPath')
-        # validate config path before loading settings from file
-        path, changed = validatePath(qSet.value(f'{GENERAL}/{DATAPATH}', defaultDataPath), defaultDataPath)
-        if changed:
-            qSet.setValue(f'{GENERAL}/{DATAPATH}', path)
-        path, changed = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)
-        if path and changed:
-            qSet.setValue(f'{GENERAL}/{CONFIGPATH}', path)
-            self.defaultFile = path / self.confINI
-        path, changed = validatePath(qSet.value(f'{GENERAL}/{PLUGINPATH}', defaultPluginPath), defaultPluginPath)
-        if changed:
-            qSet.setValue(f'{GENERAL}/{PLUGINPATH}', path)
+        # validate paths before loading settings from file
+        getValidDataPath()
+        self.defaultFile = getValidConfigPath() / self.confINI
+        getValidPluginPath()
         # access using getDPI()
         ds[f'{GENERAL}/{DPI}'] = parameterDict(value='100', toolTip='DPI used for graphs.', internal=True, event=self.updateDPI,
                                                                 items='100, 150, 200, 300', parameterType=PARAMETERTYPE.INTCOMBO)
@@ -6350,7 +6347,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             scan.raiseDock(showPlugin=True)
             self.testControl(scan.recordingAction, value=True)
             if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction') and scan.recording,
-                                     timeoutMessage=f'display of {scan.name} scan.'):
+                                     timeoutMessage=f'display of {scan.name} scan.', timeout=10):
                 time.sleep(5)  # scan for 5 seconds
                 self.print(f'Stopping scan {scan.name}.')
                 self.testControl(scan.recordingAction, value=False)

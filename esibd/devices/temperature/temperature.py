@@ -1,11 +1,10 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
-import time
 
 import numpy as np
 import serial
 from PyQt6.QtWidgets import QMessageBox
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -132,16 +131,7 @@ class TemperatureController(DeviceController):
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent)
         self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Water cooling!', 'Water cooling!', buttons=QMessageBox.StandardButton.Ok)
-
-    def closeCommunication(self) -> None:
-        self.print('closeCommunication', PRINT.DEBUG)
-        if self.acquiring:
-            self.stopAcquisition()
-        if self.port:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.port.close()
-                self.port = None
-        self.initialized = False
+        self.toggleCounter = 0
 
     def runInitialization(self) -> None:
         try:
@@ -163,16 +153,6 @@ class TemperatureController(DeviceController):
             self.print(f'Error while initializing: {e}', PRINT.ERROR)
         finally:
             self.initializing = False
-
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.controllerParent.interval / 1000)
-
-    toggleCounter = 0
 
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
@@ -211,9 +191,8 @@ class TemperatureController(DeviceController):
             if channel.enabled and channel.real:
                 self.values[i] = max((self.values[i] + self.rng.uniform(-1, 1)) + 0.1 * ((channel.value if self.controllerParent.isOn() else 300) - self.values[i]), 0)
 
-    def rndTemperature(self) -> float:
-        """Return a random temperature."""
-        return self.rng.uniform(0, 400)
+    def applyValue(self, channel: TemperatureChannel) -> None:
+        self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
 
     def toggleOn(self) -> None:
         if self.controllerParent.isOn():
@@ -228,9 +207,6 @@ class TemperatureController(DeviceController):
             self.messageBox.raise_()
         self.controllerParent.processEvents()
 
-    def applyValue(self, channel: TemperatureChannel) -> None:
-        self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
-
     def setPower(self, channel: TemperatureChannel) -> None:
         """Set the power.
 
@@ -238,6 +214,16 @@ class TemperatureController(DeviceController):
         :type channel: TemperatureChannel
         """
         self.CryoTelWriteRead(message=f'PWOUT={channel.power}')
+
+    def closeCommunication(self) -> None:
+        self.print('closeCommunication', PRINT.DEBUG)
+        if self.acquiring:
+            self.stopAcquisition()
+        if self.port:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
+                self.port.close()
+                self.port = None
+        self.initialized = False
 
     def CryoTelWriteRead(self, message: str) -> str:
         """CryoTel specific serial write and read.

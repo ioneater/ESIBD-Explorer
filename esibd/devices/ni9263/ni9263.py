@@ -62,10 +62,6 @@ class VoltageController(DeviceController):
 
     controllerParent: NI9263
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        self.initialized = False
-
     def runInitialization(self) -> None:
         try:
             with nidaqmx.Task() as task:
@@ -84,10 +80,14 @@ class VoltageController(DeviceController):
                     task.ao_channels.add_ao_voltage_chan(channel.address)
                     task.write(channel.value if (channel.enabled and self.controllerParent.isOn()) else 0)
 
+    def runAcquisition(self) -> None:
+        pass  # nothing to acquire, no readbacks
+
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():
             if channel.real:
                 self.applyValueFromThread(channel)
 
-    def runAcquisition(self) -> None:
-        pass  # nothing to acquire, no readbacks
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.initialized = False

@@ -1,10 +1,10 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import ctypes
-import time
+from typing import cast
 
 import numpy as np
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -36,6 +36,9 @@ class PICO(Device):
         super().initGUI()
         self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
+
+    def getChannels(self) -> 'list[TemperatureChannel]':
+        return cast('list[TemperatureChannel]', super().getChannels())
 
     def runTestParallel(self) -> None:
         self.testControl(self.unitAction, self.unitAction.state)
@@ -117,19 +120,11 @@ class TemperatureController(DeviceController):
         self.usbPt104 = usbPt104
         self.assert_pico_ok = assert_pico_ok
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        if self.initialized and self.lock:
-            with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
-                self.usbPt104.UsbPt104CloseUnit(self.chandle)  # type: ignore  # noqa: PGH003
-        self.initialized = False
-
     def runInitialization(self) -> None:
         try:
             self.assert_pico_ok(self.usbPt104.UsbPt104OpenUnit(ctypes.byref(self.chandle), 0))  # type: ignore  # noqa: PGH003
             for channel in self.controllerParent.getChannels():
-                if isinstance(channel, TemperatureChannel):
-                    self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],  # type: ignore  # noqa: PGH003
+                self.assert_pico_ok(self.usbPt104.UsbPt104SetChannel(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel],  # type: ignore  # noqa: PGH003
                                                         self.usbPt104.PT104_DATA_TYPE[channel.datatype], ctypes.c_int16(int(channel.noOfWires))))  # type: ignore  # noqa: PGH003
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
@@ -137,17 +132,9 @@ class TemperatureController(DeviceController):
         finally:
             self.initializing = False
 
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.controllerParent.interval / 1000)
-
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if isinstance(channel, TemperatureChannel) and channel.enabled and channel.active and channel.real:
+            if channel.enabled and channel.active and channel.real:
                 try:
                     meas = ctypes.c_int32()
                     self.usbPt104.UsbPt104GetValue(self.chandle, self.usbPt104.PT104_CHANNELS[channel.channel], ctypes.byref(meas), 1)  # type: ignore  # noqa: PGH003
@@ -167,6 +154,9 @@ class TemperatureController(DeviceController):
                 # exponentially approach target or room temp + small fluctuation
                 self.values[i] = float(self.rng.integers(1, 300)) if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
-    def rndTemperature(self) -> float:
-        """Return a random temperature."""
-        return self.rng.uniform(0, 400)
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.initialized and self.lock:
+            with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
+                self.usbPt104.UsbPt104CloseUnit(self.chandle)  # type: ignore  # noqa: PGH003
+        self.initialized = False

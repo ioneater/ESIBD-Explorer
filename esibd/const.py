@@ -120,7 +120,7 @@ def rgb_to_hex(rgba: tuple[float, float, float, float]) -> str:
 
 
 class INOUT(Enum):
-    """Used to specify if a function affects only input, only output, or all Channels."""
+    """Specify if a function affects only input, only output, or all Channels."""
 
     IN = 0
     """Input"""
@@ -135,7 +135,7 @@ class INOUT(Enum):
 
 
 class PRINT(Enum):
-    """Used to specify if a function affects only input, only output, or all Channels."""
+    """Specify type of message in Plugin.print."""
 
     EXPLORER = 0
     """Key messages by Explorer"""
@@ -274,6 +274,42 @@ def dynamicImport(module: str, path: Path | str) -> 'ModuleType | None':
     return None
 
 
+def getValidConfigPath() -> Path:
+    """Get validated configuration path.
+
+    :return: Validated path and indication if path has changed during validation.
+    :rtype: pathlib.Path, bool
+    """
+    path, changed = validatePath(qSet.value(f'{GENERAL}/{CONFIGPATH}', defaultConfigPath), defaultConfigPath)
+    if changed:
+        qSet.setValue(f'{GENERAL}/{CONFIGPATH}', path)
+    return path
+
+
+def getValidDataPath() -> Path:
+    """Get validated data path.
+
+    :return: Validated path and indication if path has changed during validation.
+    :rtype: pathlib.Path, bool
+    """
+    path, changed = validatePath(qSet.value(f'{GENERAL}/{DATAPATH}', defaultDataPath), defaultDataPath)
+    if changed:
+        qSet.setValue(f'{GENERAL}/{DATAPATH}', path)
+    return path
+
+
+def getValidPluginPath() -> Path:
+    """Get validated plugin path.
+
+    :return: Validated path and indication if path has changed during validation.
+    :rtype: pathlib.Path, bool
+    """
+    path, changed = validatePath(qSet.value(f'{GENERAL}/{PLUGINPATH}', defaultPluginPath), defaultPluginPath)
+    if changed:
+        qSet.setValue(f'{GENERAL}/{PLUGINPATH}', path)
+    return path
+
+
 def getDebugMode() -> bool:
     """Get the debug mode from :ref:`sec:settings`.
 
@@ -368,7 +404,7 @@ def infoDict(name: str) -> dict[str, str]:
     return {PROGRAM: PROGRAM_NAME, VERSION: str(PROGRAM_VERSION), PLUGIN: name, TIMESTAMP: datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 
-def validatePath(path: 'Path | None', default: 'Path | None') -> 'tuple[Path | None, bool]':
+def validatePath(path: 'Path | None', default: Path) -> 'tuple[Path, bool]':
     """Return a valid path. If the path does not exist, falling back to default.
 
     If default does not exist it will be created.
@@ -380,19 +416,15 @@ def validatePath(path: 'Path | None', default: 'Path | None') -> 'tuple[Path | N
     :return: Validated path and indication if path has changed during validation.
     :rtype: pathlib.Path, bool
     """
-    if path and default:
-        path = Path(path)
+    if not path or not path.exists():
         default = Path(default)
-        if not path.exists():
-            default = Path(default)
-            if path == default:
-                print(f'Creating {default.as_posix()}.')  # noqa: T201
-            else:
-                print(f'Could not find path {path.as_posix()}. Defaulting to {default.as_posix()}.')  # noqa: T201
-            default.mkdir(parents=True, exist_ok=True)
-            return default, True
-        return path, False
-    return None, False
+        if path == default:
+            print(f'Creating {default.as_posix()}.')  # noqa: T201
+        else:
+            print(f'Could not find path {path.as_posix() if path else "None"}. Defaulting to {default.as_posix()}.')  # noqa: T201
+        default.mkdir(parents=True, exist_ok=True)
+        return default, True
+    return path, False
 
 
 def smooth(array: np.ndarray, smooth: int) -> np.ndarray:

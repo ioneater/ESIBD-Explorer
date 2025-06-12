@@ -1,11 +1,11 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 import re
-import time
+from typing import cast
 
 import numpy as np
 import serial
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, TimeoutLock, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, TimeoutLock, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -38,6 +38,9 @@ class Pressure(Device):
     def finalizeInit(self) -> None:
         super().finalizeInit()
         self.print('This plugin is deprecated and will be removed in the future. Use TIC and MAXIGAUGE instead.', flag=PRINT.WARNING)
+
+    def getChannels(self) -> 'list[PressureChannel]':
+        return cast('list[PressureChannel]', super().getChannels())
 
     TICCOM: str
     TPGCOM: str
@@ -85,6 +88,15 @@ class PressureChannel(Channel):
 class PressureController(DeviceController):
 
     controllerParent: Pressure
+    PRESSURE_READING_STATUS = {  # noqa: RUF012
+      0: 'Measurement data okay',
+      1: 'Underrange',
+      2: 'Overrange',
+      3: 'Sensor error',
+      4: 'Sensor off',
+      5: 'No sensor',
+      6: 'Identification error',
+    }
 
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent=controllerParent)
@@ -95,20 +107,6 @@ class PressureController(DeviceController):
         self.TICgaugeID = [913, 914, 915, 934, 935, 936]
         self.ticInitialized = False
         self.tpgInitialized = False
-
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        if self.ticPort:
-            with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.'):
-                self.ticPort.close()
-                self.ticPort = None
-        if self.tpgPort:
-            with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.'):
-                self.tpgPort.close()
-                self.tpgPort = None
-        self.ticInitialized = False
-        self.tpgInitialized = False
-        self.initialized = False
 
     def runInitialization(self) -> None:
         try:
@@ -141,27 +139,9 @@ class PressureController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         self.initializing = False
 
-    def runAcquisition(self) -> None:
-        while self.acquiring:
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    self.fakeNumbers() if getTestMode() else self.readNumbers()
-                    self.signalComm.updateValuesSignal.emit()
-            time.sleep(self.controllerParent.interval / 1000)
-
-    PRESSURE_READING_STATUS = {  # noqa: RUF012
-      0: 'Measurement data okay',
-      1: 'Underrange',
-      2: 'Overrange',
-      3: 'Sensor error',
-      4: 'Sensor off',
-      5: 'No sensor',
-      6: 'Identification error',
-    }
-
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if isinstance(channel, PressureChannel) and channel.enabled and channel.active and channel.real:
+            if channel.enabled and channel.active and channel.real:
                 if channel.pressure_controller == channel.TIC and self.ticInitialized:
                     msg = self.TICWriteRead(message=f'{self.TICgaugeID[channel.id]}', already_acquired=True)
                     try:
@@ -186,16 +166,30 @@ class PressureController(DeviceController):
                 else:
                     self.values[i] = np.nan
 
-    def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.controllerParent.getChannels()):
-            if channel.enabled and channel.active and channel.real:
-                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
-
     def rndPressure(self) -> float:
         """Return a random pressure."""
         exp = float(self.rng.integers(-11, 3))
         significand = 0.9 * self.rng.random() + 0.1
         return significand * 10**exp
+
+    def fakeNumbers(self) -> None:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if channel.enabled and channel.active and channel.real:
+                self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.ticPort:
+            with self.ticLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing ticPort.'):
+                self.ticPort.close()
+                self.ticPort = None
+        if self.tpgPort:
+            with self.tpgLock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing tpgPort.'):
+                self.tpgPort.close()
+                self.tpgPort = None
+        self.ticInitialized = False
+        self.tpgInitialized = False
+        self.initialized = False
 
     def TICWrite(self, _id) -> None:
         """TIC specific serial write.

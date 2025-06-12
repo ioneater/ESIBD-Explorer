@@ -1,12 +1,12 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
-import time
 from random import choices
+from typing import cast
 
 import numpy as np
 import pyvisa
 from PyQt6.QtCore import QTimer
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -44,6 +44,9 @@ class RSPD3303C(Device):
     def finalizeInit(self) -> None:
         self.shutDownTime = 0
         super().finalizeInit()
+
+    def getChannels(self) -> 'list[VoltageChannel]':
+        return cast('list[VoltageChannel]', super().getChannels())
 
     ADDRESS = 'Address'
     address: str
@@ -137,10 +140,6 @@ class VoltageController(DeviceController):
     port: 'pyvisa.resources.usb.USBInstrument | None'
     controllerParent: RSPD3303C
 
-    def closeCommunication(self) -> None:
-        super().closeCommunication()
-        self.initialized = False
-
     def runInitialization(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
@@ -154,6 +153,25 @@ class VoltageController(DeviceController):
         finally:
             self.initializing = False
 
+    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
+        self.currents = np.array([np.nan] * len(self.controllerParent.getChannels()))
+        self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))
+
+    def readNumbers(self) -> None:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=True))
+            self.currents[i] = float(self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=True))
+
+    def fakeNumbers(self) -> None:
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if channel.enabled and channel.real:
+                if self.controllerParent.isOn() and channel.enabled:
+                    # fake values with noise and 10% channels with offset to simulate defect channel or short
+                    self.values[i] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
+                else:
+                    self.values[i] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
+                self.currents[i] = 50 / self.values[i] if self.values[i] != 0 else 0  # simulate 50 W
+
     def applyValue(self, channel: VoltageChannel) -> None:
         self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
 
@@ -162,43 +180,18 @@ class VoltageController(DeviceController):
         if self.values is None:
             return
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
+            if channel.enabled and channel.real:
                 channel.monitor = self.values[i]
                 channel.current = self.currents[i]
                 channel.power = channel.monitor * channel.current
 
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():
-            if isinstance(channel, VoltageChannel):
-                self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.controllerParent.isOn() else 'OFF'}")
+            self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.controllerParent.isOn() else 'OFF'}")
 
-    def fakeNumbers(self) -> None:
-        for i, channel in enumerate(self.controllerParent.getChannels()):
-            if channel.enabled and channel.real and isinstance(channel, VoltageChannel):
-                if self.controllerParent.isOn() and channel.enabled:
-                    # fake values with noise and 10% channels with offset to simulate defect channel or short
-                    self.values[i] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random()
-                else:
-                    self.values[i] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random()
-                self.currents[i] = 50 / self.values[i] if self.values[i] != 0 else 0  # simulate 50 W
-
-    def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
-        self.currents = np.array([np.nan] * len(self.controllerParent.getChannels()))
-        self.values = np.array([np.nan] * len(self.controllerParent.getChannels()))
-
-    def runAcquisition(self) -> None:
-        while self.acquiring:  # noqa: PLR1702
-            with self.lock.acquire_timeout(1) as lock_acquired:
-                if lock_acquired:
-                    if getTestMode():
-                        self.fakeNumbers()
-                    else:
-                        for i, channel in enumerate(self.controllerParent.getChannels()):
-                            if isinstance(channel, VoltageChannel):
-                                self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=lock_acquired))
-                                self.currents[i] = float(self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=lock_acquired))
-                    self.signalComm.updateValuesSignal.emit()  # signal main thread to update GUI
-            time.sleep(self.controllerParent.interval / 1000)
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        self.initialized = False
 
     def RSWrite(self, message) -> None:
         """RS specific pyvisa write.
