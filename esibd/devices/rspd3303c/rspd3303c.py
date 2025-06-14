@@ -106,10 +106,10 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
-        channel[self.POWER] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
-                                                               indicator=True, attr='power')
-        channel[self.CURRENT] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
-                                                               indicator=True, attr='current')
+        channel[self.POWER] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
+                                                               indicator=True, attr='power', restore=False)
+        channel[self.CURRENT] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
+                                                               indicator=True, attr='current', restore=False)
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=0, maximum=99, attr='id')
         return channel

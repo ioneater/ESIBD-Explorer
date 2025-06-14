@@ -1482,9 +1482,9 @@ class Parameter:  # noqa: PLR0904
                 self.button.setChecked(value)
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if isinstance(self.spin, LabviewSpinBox):
-                self.spin.setValue(int(float(cast('float | int | str', value))))
+                self.spin.setValue(np.nan if isinstance(value, float) and np.isnan(value) else int(float(cast('float | int | str', value))))  # type: ignore  # noqa: PGH003
             elif isinstance(self.spin, (LabviewDoubleSpinBox, LabviewSciSpinBox)):
-                self.spin.setValue(float(cast('float | int | str', value)))
+                self.spin.setValue(float(cast('float | str', value)))
         elif self.parameterType == PARAMETERTYPE.COLOR:
             self.colorButton.setColor(value, finished=True)
         elif self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
@@ -1501,11 +1501,26 @@ class Parameter:  # noqa: PLR0904
                 self.combo.setCurrentIndex(i)
         elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line.setText(str(value))  # input may be of type Path from pathlib -> needs to be converted to str for display in lineEdit
+            if self.indicator and self.tree:
+                self.line.setToolTip(str(value))
+                self.line.setCursorPosition(0)
+                self.tree.scheduleDelayedItemsLayout()  # Otherwise only called if value changed by user
         elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
             self.label.setText(str(value))
             self.label.setToolTip(str(value))
             if not self.indicator:
                 self.changedEvent()  # emit here as it is not emitted by the label
+
+    def setValueWithoutEvents(self, value: 'ParameterType | None') -> None:
+        """Set the parameter value without triggering valueChanged Events.
+
+        In most cases, use parameter.value = value instead.
+
+        :param value: The new value.
+        :type value: ParameterType | None
+        """
+        self.value = value
+        self._valueChanged = False
 
     @property
     def default(self) -> 'ParameterType | None':
@@ -1549,11 +1564,17 @@ class Parameter:  # noqa: PLR0904
             # ! Settings event has to be triggered before main event to make sure internal parameters are updated and available right away
             # ! if you have 100 channels which update at 10 Hz, changedEvent can be called 1000 times per second.
             # ! adding a print statement to the terminal, console plugin, and statusbar at that rate might make the application unresponsive.
-            # ! only uncomment for specific tests. Note that the print statement is always ignored if debug mode is not active.
+            # ! only uncomment for specific tests.
+            # self.print(f'ChangedEvent for {self.fullName}.', flag=PRINT.VERBOSE)  # noqa: ERA001
             for event in self.extraEvents:
+                # extraEvents should be triggered even if value is NaN, e.g. to update relay channels to NaN
                 if event:
                     event()
             if self.event:
+                if isinstance(self.value, float) and np.isnan(self.value):
+                    # do not trigger events after changing value to NaN
+                    self._valueChanged = False
+                    return
                 self.event()
 
     def applyChangedEvent(self) -> None:  # noqa: C901
@@ -1637,8 +1658,7 @@ class Parameter:  # noqa: PLR0904
         elif self.parameterType == PARAMETERTYPE.TEXT:
             self.line = LineEdit(parentParameter=self, tree=self.tree) if self.widget is None else cast('LineEdit', self.widget)
             self.line.setFrame(False)
-            if self.indicator:
-                self.line.setEnabled(False)
+            self.setEnabled(not self.indicator)
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if self.widget is None:
                 if self.parameterType == PARAMETERTYPE.INT:
@@ -1949,7 +1969,7 @@ def parameterDict(name: str = '', value: 'ParameterType | None' = None, default:
     :type attr: str, optional
     :param indicator: Indicators cannot be edited by the user, defaults to False
     :type indicator: bool, optional
-    :param restore: Indicates if the parameter will be restored, defaults to True. Not that temp parameters of channels will never be restored.
+    :param restore: Indicates if the parameter will be restored, defaults to True. Note that temp parameters of channels will never be restored.
     :type restore: bool, optional
     :param instantUpdate: By default, events are triggered as soon as the value changes.
         If set to False, certain events will only be triggered if editing is finished by the *enter* key or if the widget loses focus. Defaults to True
@@ -2898,11 +2918,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             cast('LineEdit', name_parameter.getWidget()).valid_chars = cast('LineEdit', name_parameter.getWidget()).valid_chars.replace('/', '')
         for name, default in self.getSortedDefaultChannel().items():
             # add default value if not found in file. Will be saved to file later.
-            if name in item and name not in self.tempParameters():
+            if name in item and name not in self.tempParameters() and default[Parameter.RESTORE]:
                 self.getParameterByName(name).value = item[name]
             else:
                 self.getParameterByName(name).value = default[self.VALUE]
-                if isinstance(self.channelParent, self.pluginManager.ChannelManager) and name not in self.tempParameters() and not len(item) < 2:  # noqa: PLR2004
+                if isinstance(self.channelParent, self.pluginManager.ChannelManager) and name not in self.tempParameters() and default[Parameter.RESTORE] and not len(item) < 2:  # noqa: PLR2004
                     # len(item) < 2 -> only provided name -> generating default file
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.channelParent.channelsChanged = True
@@ -3183,6 +3203,8 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
         :param indicator: Indicators will be read only, defaults to False
         :type indicator: bool, optional
         """
+        self.NAN = 'NaN'
+        self._is_nan = False
         super().__init__()
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -3203,6 +3225,45 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
         """Overwrite to disable accidental change of values via the mouse wheel."""
         if e:
             e.ignore()
+
+    def valueFromText(self, text: 'str | None') -> int:
+        """Convert text to value.
+
+        :param text: Input text.
+        :type text: str
+        :return: value
+        :rtype: int
+        """
+        if text and not self._is_nan:
+            return int(text)
+        return -1  # returning float np.nan breaks internal handling, still np.nan will be returned by value() if applicable
+
+    def validate(self, input: 'str | None', pos: int) -> tuple[QValidator.State, str, int]:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
+        if self._is_nan:
+            return (QValidator.State.Acceptable, self.NAN, pos)
+        return super().validate(input, pos)
+
+    def textFromValue(self, v: int) -> str:  # pylint: disable = missing-param-doc, missing-type-doc
+        """Make sure nan and inf will be represented by NaN."""
+        if np.isnan(v) or np.isinf(v):
+            return self.NAN
+        return super().textFromValue(v)
+
+    def value(self) -> int:
+        """Return nan instead of trying convert it."""
+        if self._is_nan:
+            return np.nan  # type: ignore  # noqa: PGH003
+        return super().value()
+
+    def setValue(self, val: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
+        """Display nan and inf as text."""
+        lineEdit = self.lineEdit()
+        if (np.isnan(val) or np.isinf(val)) and lineEdit:
+            self._is_nan = True
+            lineEdit.setText(self.NAN)  # needed in rare cases where setting to nan would set to maximum
+        else:
+            self._is_nan = False
+            super().setValue(val)
 
     def stepBy(self, steps: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Handle stepping value depending con caret position."""
@@ -3242,6 +3303,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         :type displayDecimals: int, optional
         """
         self.NAN = 'NaN'
+        self._is_nan = False
         super().__init__()
         self.indicator = indicator
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
@@ -3278,9 +3340,14 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         :return: value
         :rtype: float
         """
-        if text:
+        if text and not self._is_nan:
             return float(text)
         return np.nan
+
+    def validate(self, input: 'str | None', pos: int) -> tuple[QValidator.State, str, int]:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
+        if self._is_nan:
+            return (QValidator.State.Acceptable, self.NAN, pos)
+        return super().validate(input, pos)
 
     def textFromValue(self, v: float) -> str:  # pylint: disable = missing-param-doc, missing-type-doc
         """Make sure nan and inf will be represented by NaN."""
@@ -3290,16 +3357,19 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
 
     def value(self) -> float:
         """Return nan instead of trying convert it."""
-        if self.text() == self.NAN:
+        if self._is_nan:
             return np.nan
         return super().value()
 
     def setValue(self, val: float) -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Display nan and inf as text."""
-        super().setValue(val)
         lineEdit = self.lineEdit()
         if (np.isnan(val) or np.isinf(val)) and lineEdit:
+            self._is_nan = True
             lineEdit.setText(self.NAN)  # needed in rare cases where setting to nan would set to maximum
+        else:
+            self._is_nan = False
+            super().setValue(val)
 
     def wheelEvent(self, e: 'QWheelEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Overwrite to disable accidental change of values via the mouse wheel."""
@@ -3308,7 +3378,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
 
     def stepBy(self, steps: int) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: C901, PLR0912
         """Handle stepping value depending con caret position. This implementation works with negative numbers and of number of digits before the dot."""
-        if self.text() == self.NAN:
+        if self._is_nan:
             return
         lineEdit = self.lineEdit()
         if lineEdit:
@@ -3390,6 +3460,8 @@ class LabviewSciSpinBox(LabviewDoubleSpinBox):
         self.setDecimals(1000)  # need this to allow internal handling of data as floats 1E-20 = 0.0000000000000000001
 
     def validate(self, input: 'str | None', pos: int) -> tuple[QValidator.State, str, int]:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
+        if self._is_nan:
+            return (QValidator.State.Acceptable, self.NAN, pos)
         return self.validator.validate(input, pos)
 
     def fixup(self, str: 'str | None') -> str:  # pylint: disable = missing-param-doc, missing-function-docstring, missing-type-doc  # noqa: A002, D102
@@ -4166,7 +4238,7 @@ class LineEdit(QLineEdit, ParameterWidget):
     """LineEdit with input validation and custom signal onEditingFinished."""
 
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
-    userEditingFinished = pyqtSignal(str)
+    userEditingFinished = pyqtSignal()
 
     def __init__(self, parentParameter: Parameter, tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a LineEdit."""
@@ -4214,7 +4286,7 @@ class LineEdit(QLineEdit, ParameterWidget):
             self._edited = False
             if self.tree:
                 self.tree.scheduleDelayedItemsLayout()
-            self.userEditingFinished.emit(self.text())
+            self.userEditingFinished.emit()
 
     def sizeHint(self) -> QSize:
         """Return reasonable size hint based on content within minimum and maximum limits."""
@@ -5299,6 +5371,8 @@ class DeviceController(QObject):  # noqa: PLR0904
     def fakeNumbers(self) -> None:
         """Write fake channel values in an array that will be used in updateValue."""
         # overwrite to implement function
+        if self.values is None:
+            return
         if isinstance(self.controllerParent, self.pluginManager.Device):
             for i, channel in enumerate(self.controllerParent.getChannels()):
                 if self.controllerParent.inout == INOUT.IN:

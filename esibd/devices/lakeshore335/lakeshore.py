@@ -17,7 +17,7 @@ from esibd.core import (
     getDarkMode,
     parameterDict,
 )
-from esibd.plugins import Device, Plugin
+from esibd.plugins import Device, Plugin, getTestMode
 
 
 def providePlugins() -> 'list[type[Plugin]]':
@@ -28,6 +28,7 @@ def providePlugins() -> 'list[type[Plugin]]':
 class LS335(Device):
     """Device that reads and controls temperature using a LakeShore 335.
 
+    It will read PID values from the device when connecting and allow to change them in advanced mode.
     It allows to switch units between K and °C.
     """
 
@@ -122,12 +123,12 @@ class TemperatureChannel(Channel):
                                         items='A, B', attr='id')
         channel[self.HEATER] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='1, 2', attr='heater')
-        channel[self.KP] = parameterDict(value=500, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=1000, attr='Kp', instantUpdate=False,
-                                        event=self.setPID, advanced=True)
-        channel[self.KI] = parameterDict(value=14, parameterType=PARAMETERTYPE.FLOAT, minimum=1, maximum=1000, attr='Ki', instantUpdate=False,
-                                        event=self.setPID, advanced=True)
-        channel[self.KD] = parameterDict(value=100, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=200, attr='Kd', instantUpdate=False,
-                                        event=self.setPID, advanced=True)
+        channel[self.KP] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=1000, attr='Kp', instantUpdate=False,
+                                        event=self.setPID, advanced=True, restore=False)  # value = 500
+        channel[self.KI] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, minimum=1, maximum=1000, attr='Ki', instantUpdate=False,
+                                        event=self.setPID, advanced=True, restore=False)  # value = 14
+        channel[self.KD] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, minimum=0, maximum=200, attr='Kd', instantUpdate=False,
+                                        event=self.setPID, advanced=True, restore=False)  # value = 100
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -136,9 +137,9 @@ class TemperatureChannel(Channel):
         self.insertDisplayedParameter(self.ACTIVE, before=self.NAME)
         self.displayedParameters.append(self.ID)
         self.displayedParameters.append(self.HEATER)
-        self.displayedParameters.append(self.KP)
-        self.displayedParameters.append(self.KI)
-        self.displayedParameters.append(self.KD)
+        self.insertDisplayedParameter(self.KP, before=self.OPTIMIZE)
+        self.insertDisplayedParameter(self.KI, before=self.OPTIMIZE)
+        self.insertDisplayedParameter(self.KD, before=self.OPTIMIZE)
 
     def initGUI(self, item) -> None:
         super().initGUI(item)
@@ -152,6 +153,7 @@ class TemperatureChannel(Channel):
             active.check.setMinimumWidth(5)
             active.check.setCheckable(True)
         active.value = value
+        self.updateColor()  # update color for new Widget
 
     def setPID(self) -> None:
         """Set PID values."""
@@ -176,15 +178,27 @@ class TemperatureController(DeviceController):
         finally:
             self.initializing = False
 
-    def initComplete(self) -> None:
-        if self.ls335:
+    def initializeValues(self, reset: bool = False) -> None:
+        super().initializeValues(reset)
+        if reset:
             for channel in self.controllerParent.channels:
                 if channel.real:
-                    # update pid values from hardware to make sure the displayed value is meaningful
-                    heater_pid = self.ls335.get_heater_pid(channel.heater)
-                    channel.Kp = heater_pid['gain']
-                    channel.Ki = heater_pid['integral']
-                    channel.Kd = heater_pid['ramp_rate']
+                    # explicitly display NaN to indicate that the real value cannot be known until communication is established.
+                    channel.Kp = np.nan
+                    channel.Ki = np.nan
+                    channel.Kd = np.nan
+
+    def initComplete(self) -> None:
+        for channel in self.controllerParent.channels:
+            if channel.real:
+                # update pid values from hardware to make sure the displayed value is meaningful
+                heater_pid = self.ls335.get_heater_pid(channel.heater) if self.ls335 and not getTestMode() else {'gain': -1, 'integral': -1, 'ramp_rate': -1}
+                Kp = channel.getParameterByName(channel.KP)
+                Kp.setValueWithoutEvents(heater_pid['gain'])
+                Ki = channel.getParameterByName(channel.KI)
+                Ki.setValueWithoutEvents(heater_pid['integral'])
+                Kd = channel.getParameterByName(channel.KD)
+                Kd.setValueWithoutEvents(heater_pid['ramp_rate'])
         super().initComplete()
 
     def readNumbers(self) -> None:
@@ -237,10 +251,14 @@ class TemperatureController(DeviceController):
         :param channel: The channel for which parameters should be set.
         :type channel: TemperatureChannel
         """
-        if self.ls335 and channel.real and channel.channel_active and self.controllerParent.isOn():
-            self.ls335.set_heater_pid(channel.heater, channel.Kp, channel.Ki, channel.Kd)
-        else:
-            self.print('Could not set PID values. Make sure communication is active, channel is active, and heater is on.', flag=PRINT.WARNING)
+        if np.isnan(channel.Kp) or np.isnan(channel.Ki) or np.isnan(channel.Kd):
+            return
+        if self.ls335:
+            if channel.real and channel.channel_active and self.controllerParent.isOn():
+                self.ls335.set_heater_pid(channel.heater, channel.Kp, channel.Ki, channel.Kd)
+                self.print(f'Setting PID values of channel {channel.name} to Kp: {channel.Kp}, Ki: {channel.Ki}, Kd: {channel.Kd}.', flag=PRINT.DEBUG)
+            else:
+                self.print('Could not set PID values. Make sure channel is active, and temperature control is on.', flag=PRINT.WARNING)
 
     def closeCommunication(self) -> None:
         super().closeCommunication()

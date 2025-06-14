@@ -71,8 +71,9 @@ class CustomDevice(Device):
         if not self.testing or self.pluginManager.closing:
             self.messageBox.setWindowTitle('Custom Dialog')
             self.messageBox.setWindowIcon(self.getIcon())
-            self.messageBox.setText(f'This could run your custom code.\nThe value of your custom setting is {self.custom}.\n'
-                                    f'The value of your custom setting is {"on" if self.isOn() else "off"}.')
+            self.messageBox.setText(f'This could run your custom code.\n'
+                                    f'The value of your custom setting is {self.custom}.\n'
+                                    f'The {self.name} is {"on" if self.isOn() else "off"}.')
             self.messageBox.open()  # show non blocking
             self.messageBox.raise_()
 
@@ -175,7 +176,7 @@ class CustomController(DeviceController):
 
     def initializeValues(self, reset: bool = False) -> None:
         # TODO (optional) change definition of self.values
-        pass
+        super().initializeValues(reset=reset)
 
     def startAcquisition(self) -> None:
         if True:  # TODO (optional) add custom condition for acquisition

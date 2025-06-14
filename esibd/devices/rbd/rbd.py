@@ -155,7 +155,7 @@ class CurrentChannel(Channel):
                                         header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
         channel[self.UNSTABLE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
-        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='error', indicator=True, event=self.updateError)
+        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='error', indicator=True)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -172,7 +172,7 @@ class CurrentChannel(Channel):
 
     def initGUI(self, item: dict) -> None:
         super().initGUI(item)
-        self.getParameterByName(self.ERROR).line.max_width = 800
+        self.getParameterByName(self.ERROR).line.max_width = 600
 
     def tempParameters(self) -> list[str]:
         return [*super().tempParameters(), self.CHARGE, self.OUTOFRANGE, self.UNSTABLE, self.ERROR]
@@ -236,18 +236,16 @@ class CurrentChannel(Channel):
         if self.controller and self.controller.acquiring:
             self.controller.updateBiasFlag = True
 
-    def updateError(self) -> None:
-        """Autoscale error display as needed."""
-        if self.tree:
-            self.getParameterByName(self.ERROR).line.updateGeometry()
-            self.tree.scheduleDelayedItemsLayout()
-
 
 class CurrentController(DeviceController):  # noqa: PLR0904
 
     controllerParent: CurrentChannel
 
     def __init__(self, controllerParent: CurrentChannel) -> None:
+        self.outOfRange = False
+        self.unstable = False
+        self.error = ''
+        self.deviceName = ''
         super().__init__(controllerParent=controllerParent)
         self.port = None
         self.updateAverageFlag = False

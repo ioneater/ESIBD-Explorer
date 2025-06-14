@@ -89,6 +89,8 @@ Developer Notes
 - Added type hints and refactored code based on type checking.
 - Reimplemented MultiStateAction labels with Enums to enable type checking.
 - Changed Device.initialized() to Device.initialized.
+- Removed runAcquisition in DeviceControllers where obsolete.
+- Fixed handling of NaN for LabviewSpinBox, LabviewDoubleSpinBox, and LabviewSciSpinBox.
 
 Performance
 ~~~~~~~~~~~
