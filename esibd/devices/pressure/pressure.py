@@ -27,13 +27,13 @@ class Pressure(Device):
     unit = 'mbar'
     iconFile = 'pressure_light.png'
     iconFileDark = 'pressure_dark.png'
+    logY = True
     channels: 'list[PressureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(controllerParent=self)
-        self.logY = True
 
     def finalizeInit(self) -> None:
         super().finalizeInit()

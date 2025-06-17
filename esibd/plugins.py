@@ -39,6 +39,7 @@ from matplotlib.backend_bases import MouseButton, MouseEvent
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.text import Annotation
+from packaging.version import InvalidVersion
 from PyQt6 import QtCore
 from PyQt6.QtCore import QLoggingCategory, QObject, QRectF, QSize, Qt, QTimer, QUrl, pyqtSignal  # , QRect
 from PyQt6.QtGui import QAction, QFont, QIcon, QImage, QTextCursor  # , QPixmap, QScreen, QColor, QKeySequence, QShortcut, QTreeWidget
@@ -830,7 +831,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.canvas.setVisible(False)  # need to get out of the way quickly when changing themes, deletion may take longer
             self.canvas.deleteLater()
             self.navToolBar.deleteLater()
-        self.canvas = FigureCanvas(figure)
+        self.canvas = DebouncedCanvas(figure)
         self.navToolBar = ThemedNavigationToolbar(self.canvas, parentPlugin=self)  # keep reference in order to reset navigation
         if self.titleBar:
             for action in self.navToolBar.actions()[:-1]:  # last action is empty and undocumented
@@ -4741,7 +4742,7 @@ class Browser(Plugin):
                 updateHTML = '(<span style="color: orange">Unreleased Version!</span>)'
             elif onlineVersion > PROGRAM_VERSION:
                 updateHTML = f'(<a href="https://github.com/ioneater/ESIBD-Explorer/releases/latest">Version {onlineVersion.base_version} available!</a>)'
-        except requests.exceptions.ConnectionError:
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, InvalidVersion):
             pass
         self.setHtml(title=f'About {PROGRAM_NAME}.', html=f"""
         <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
@@ -7599,6 +7600,9 @@ class PID(ChannelManager):
     inout = INOUT.NONE
     maxDataPoints = 0  # PID channels do not store data
     iconFile = 'PID.png'
+    useOnOffLogic = True
+    useDisplays = False
+    useMonitors = True
 
     channels: list['PIDChannel']
 
@@ -7819,12 +7823,6 @@ class PID(ChannelManager):
                 device.applyWidget()
 
     channelType = PIDChannel
-
-    def __init__(self, **kwargs) -> None:  # noqa: D107
-        self.useOnOffLogic = True
-        self.useDisplays = False
-        self.useMonitors = True
-        super().__init__(**kwargs)
 
     def afterFinalizeInit(self) -> None:  # noqa: D102
         super().afterFinalizeInit()

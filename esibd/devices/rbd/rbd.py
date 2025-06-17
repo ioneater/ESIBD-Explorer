@@ -31,6 +31,7 @@ class RBD(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'RBD.png'
+    useBackgrounds = True  # record backgrounds for data correction
     channels: 'list[CurrentChannel]'
 
     class StaticDisplay(StaticDisplay):
@@ -87,7 +88,6 @@ class RBD(Device):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = CurrentChannel
-        self.useBackgrounds = True  # record backgrounds for data correction
 
     def initGUI(self) -> None:
         super().initGUI()

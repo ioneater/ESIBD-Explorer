@@ -170,7 +170,7 @@ class GA():
         return self.current_generation
 
 
-    def GAget(self, label, default = 0, index = -1, initial = False):  # provide default in case this parameter is not optimized and index to return custom being, typically 0 for best parent
+    def GAget(self, label, default: float  = 0, index = -1, initial = False):  # provide default in case this parameter is not optimized and index to return custom being, typically 0 for best parent
         if label in self.seed_dict:
             if initial:
                 return self.seeds[self.seed_dict[label]].initial  # return initial parameter
@@ -284,7 +284,7 @@ class GA():
 
 
 
-    def optimize(self, initial=0, _min=0, _max=100, _rate=.2, _range=10, label=''):  # Adds a parameter for optimization. name for access via GA.name
+    def optimize(self, initial: float = 0, _min: float = 0, _max: float = 100, _rate: float = .2, _range: float = 10, label=''):  # Adds a parameter for optimization. name for access via GA.name
         if label in self.seed_dict:  # update existing parameter
             self.seeds[self.seed_dict[label]]=Seed(initial, _min, _max, _rate, _range, label)
         else:  # add new parameter

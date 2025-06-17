@@ -32,6 +32,7 @@ Changed
 - Data files are now only saved while closing if new data has been recorded since starting the program.
 - While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
 - Instead of showing the last valid value after stopping acquisition, NAN is displayed to indicate that the current value is unknown.
+- Increased performance by delaying update of matplotlib figures while resizing.
 
 Fixed
 ~~~~~

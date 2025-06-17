@@ -28,11 +28,11 @@ class MIPS(Device):
     unit = 'V'
     useMonitors = True
     iconFile = 'mips.png'
+    useOnOffLogic = True
     channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = VoltageChannel
 
     def initGUI(self) -> None:

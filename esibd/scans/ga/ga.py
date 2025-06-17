@@ -228,14 +228,14 @@ fig.show()
                     self.print(f'Starting Generation {self.ga.current_generation}:')
                     self.inputChannels[0].recordingData.add(time.time())
                     self.outputChannels[0].recordingData.add(self.ga.best_fitness())
-                    self.outputChannels[1].recordingData.add(self.ga.average_fitness())
+                    self.outputChannels[1].recordingData.add(float(self.ga.average_fitness()))
                     self.stepProcessed = False
                     self.signalComm.scanUpdateSignal.emit(False)  # noqa: FBT003
         self.ga.check_restart(_terminate=True)  # sort population
         self.signalComm.updateValuesSignal.emit(0, False)  # noqa: FBT003
         self.signalComm.scanUpdateSignal.emit(True)  # noqa: FBT003
 
-    def updateValues(self, index=None, initial=False) -> None:
+    def updateValues(self, index, initial=False) -> None:
         """Update all optimized values or restores initial values.
 
         :param index: Index of being in GA population. -1 is current being. 0 is best after sorting. Defaults to None

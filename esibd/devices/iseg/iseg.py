@@ -28,12 +28,12 @@ class ISEG(Device):
     unit = 'V'
     useMonitors = True
     iconFile = 'ISEG.png'
+    useOnOffLogic = True
     channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = VoltageChannel
-        self.useOnOffLogic = True
 
     def initGUI(self) -> None:
         super().initGUI()

@@ -22,13 +22,13 @@ class KEITHLEY(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'keithley.png'
+    useOnOffLogic = True
+    useBackgrounds = True  # record backgrounds for data correction
     channels: 'list[CurrentChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = CurrentChannel
-        self.useBackgrounds = True  # record backgrounds for data correction
 
     def initGUI(self) -> None:
         super().initGUI()

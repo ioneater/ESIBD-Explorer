@@ -27,12 +27,12 @@ class RSPD3303C(Device):
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True
+    useOnOffLogic = True
     iconFile = 'RSPD3303C.png'
     channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = VoltageChannel
         self.shutDownTimer = QTimer(self)
         self.shutDownTimer.timeout.connect(self.updateTimer)
@@ -107,9 +107,9 @@ class VoltageChannel(Channel):
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
         channel[self.POWER] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
-                                                               indicator=True, attr='power', restore=False)
+                                                indicator=True, attr='power', restore=False, header='Power (W)')
         channel[self.CURRENT] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
-                                                               indicator=True, attr='current', restore=False)
+                                                indicator=True, attr='current', restore=False, header='Current (A)')
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=0, maximum=99, attr='id')
         return channel

@@ -39,13 +39,13 @@ class LS335(Device):
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
+    useOnOffLogic = True
 
     controller: 'TemperatureController'
     channels: 'list[TemperatureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = TemperatureChannel
         self.controller = TemperatureController(controllerParent=self)
 
@@ -251,8 +251,6 @@ class TemperatureController(DeviceController):
         :param channel: The channel for which parameters should be set.
         :type channel: TemperatureChannel
         """
-        if np.isnan(channel.Kp) or np.isnan(channel.Ki) or np.isnan(channel.Kd):
-            return
         if self.ls335:
             if channel.real and channel.channel_active and self.controllerParent.isOn():
                 self.ls335.set_heater_pid(channel.heater, channel.Kp, channel.Ki, channel.Kd)

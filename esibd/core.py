@@ -32,14 +32,16 @@ import pyqtgraph.console.exception_widget
 import pyqtgraph.console.repl_widget
 import serial
 from matplotlib.axes import Axes
-from matplotlib.backend_bases import MouseButton, MouseEvent
+from matplotlib.backend_bases import MouseButton, MouseEvent, ResizeEvent
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from matplotlib.text import Annotation
 from matplotlib.widgets import Cursor
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtWidgets, sip
-from PyQt6.QtCore import QObject, QPoint, QPointF, QRect, QSharedMemory, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
+from PyQt6.QtCore import QEvent, QObject, QPoint, QPointF, QRect, QSharedMemory, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QBrush,
@@ -105,10 +107,9 @@ ParameterWidgetType = Union['PushButton', 'ToolButton', 'PushButton', 'ColorButt
                              'CompactComboBox', 'LineEdit', 'LedIndicator', 'LabviewSpinBox', 'LabviewDoubleSpinBox', 'LabviewSciSpinBox']
 
 if TYPE_CHECKING:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+    # from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.lines import Line2D
     from matplotlib.typing import ColorType
-    from PyQt6.QtCore import QEvent
     from PyQt6.QtGui import QCloseEvent, QContextMenuEvent, QPaintEvent, QResizeEvent, QWheelEvent
     from PyQt6.QtWidgets import QGraphicsSceneMouseEvent
 
@@ -3312,6 +3313,20 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
+        # self.lineEdit().installEventFilter(self)
+        # self.lineEdit().textChanged.connect(self._on_text_changed)
+
+    # def _on_text_changed(self, text: str):
+    #     # Reset NaN state before validate is called
+    #     if text != self.NAN:
+    #         self._is_nan = False
+
+    # def eventFilter(self, obj, event):
+    #     if obj == self.lineEdit():
+    #         print(event.type())
+    #         if event.type() in {QEvent.Type.KeyPress, QEvent.Type.InputMethod, QEvent.Type.EnterEditFocus}:
+    #             self._is_nan = False
+    #     return super().eventFilter(obj, event)
 
     def contextMenuEvent(self, e: 'QContextMenuEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Do not use context menu for indicators."""
@@ -4291,6 +4306,64 @@ class LineEdit(QLineEdit, ParameterWidget):
     def sizeHint(self) -> QSize:
         """Return reasonable size hint based on content within minimum and maximum limits."""
         return QSize(min(max(self.minimumWidth(), QFontMetrics(self.font()).horizontalAdvance(self.text() or ' ') + 10), self.max_width), self.height())
+
+
+class DebouncedCanvas(FigureCanvas):
+    """Figure Canvas that defers drawing until manual resize is complete.
+
+    This makes the GUI more responsive.
+    """
+
+    def __init__(self, figure: Figure) -> None:  # noqa: D107
+        super().__init__(figure)
+
+        # Debounce timer
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.setInterval(200)  # Delay in ms
+        self._update_timer.timeout.connect(self._do_update)
+        self._has_drawn = False
+
+    def request_update(self) -> None:
+        """Restart the timer every time this is called."""
+        self._update_timer.start()
+
+    def _do_update(self) -> None:
+        """Execute draw_idle once timer has expired."""
+        self._has_drawn = True
+        self.draw_idle()
+
+    def resizeEvent(self, event) -> None:  # noqa: ANN001, D102
+        # Resize still happens normally
+        if self._in_resize_event:  # Prevent PyQt6 recursion
+            return
+        if self.figure is None:
+            return
+        self._in_resize_event = True
+        try:
+            w = event.size().width() * self.device_pixel_ratio
+            h = event.size().height() * self.device_pixel_ratio
+            dpival = self.figure.dpi
+            winch = w / dpival
+            hinch = h / dpival
+            self.figure.set_size_inches(winch, hinch, forward=False)
+            # pass back into Qt to let it finish
+            QtWidgets.QWidget.resizeEvent(self, event)
+            # emit our resize events
+            ResizeEvent('resize_event', self)._process()  # type: ignore  # noqa: PGH003, SLF001
+            # this will be executed once timer has expired self.draw_idle()
+            self._has_drawn = False
+            self.request_update()
+        finally:
+            self._in_resize_event = False
+
+    def paintEvent(self, event) -> None:  # noqa: ANN001, D102
+        if not self._has_drawn:
+            painter = QPainter(self)
+            painter.fillRect(self.rect(), QColor(colors.bg))  # use global background color while waiting for resize to complete
+            painter.end()
+        else:
+            super().paintEvent(event)
 
 
 class TextEdit(QPlainTextEdit, ParameterWidget):

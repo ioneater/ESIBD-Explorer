@@ -25,13 +25,13 @@ class Temperature(Device):
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
+    useOnOffLogic = True
     iconFile = 'temperature.png'
     channels: 'list[TemperatureChannel]'
     controller: 'TemperatureController'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = TemperatureChannel
         self.controller = TemperatureController(controllerParent=self)
 

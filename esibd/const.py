@@ -259,6 +259,8 @@ def makeWrapper(name: str, docstring: str = '') -> property:
 def dynamicImport(module: str, path: Path | str) -> 'ModuleType | None':
     """Import a module from the given path at runtime.
 
+    This is more general and robust than importing modules relative to plugin path.
+
     :param module: module name
     :type module: str
     :param path: module path

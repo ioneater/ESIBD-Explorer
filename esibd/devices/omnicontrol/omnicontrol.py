@@ -23,13 +23,13 @@ class OMNICONTROL(Device):
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_omni.png'
+    logY = True
     channels: 'list[PressureChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = PressureChannel
         self.controller = PressureController(controllerParent=self)
-        self.logY = True
 
     def getChannels(self) -> 'list[PressureChannel]':
         return cast('list[PressureChannel]', super().getChannels())

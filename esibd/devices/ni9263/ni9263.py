@@ -19,16 +19,13 @@ class NI9263(Device):
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     iconFile = 'NI9263.png'
+    useOnOffLogic = True
     channels: 'list[VoltageChannel]'
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.useOnOffLogic = True
         self.channelType = VoltageChannel
-
-    def initGUI(self) -> None:
-        super().initGUI()
-        self.controller = VoltageController(controllerParent=self)  # after all channels loaded
+        self.controller = VoltageController(controllerParent=self)
 
 
 class VoltageChannel(Channel):
