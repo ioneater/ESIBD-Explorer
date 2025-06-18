@@ -28,6 +28,7 @@ class MassSpec(Scan):
     version = '1.1'
     supportedVersion = '0.8'
     iconFile = 'msScan.png'
+    useInvalidWhileWaiting = True
 
     display: 'MassSpec.Display'
 
@@ -37,7 +38,7 @@ class MassSpec(Scan):
         scan: 'MassSpec'
 
         def initGUI(self) -> None:
-            self.mzCalc = MZCalculator(parentPlugin=self)
+            self.mzCalc = MZCalculator(parentPlugin=self.scan)
             super().initGUI()
             self.addAction(event=lambda: self.copyLineDataClipboard(line=self.ms), toolTip='Data to Clipboard.', icon=self.dataClipboardIcon, before=self.copyAction)
 
@@ -47,6 +48,7 @@ class MassSpec(Scan):
                 self.axes.append(self.fig.add_subplot(111))
                 self.ms = self.axes[0].plot([], [])[0]  # dummy plot
                 self.mzCalc.setAxis(self.axes[0])
+                self.scan.labelAxis = self.axes[0]
             self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
     def __init__(self, **kwargs) -> None:
@@ -88,7 +90,7 @@ class MassSpec(Scan):
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
         self.display.mzCalc.update_mass_to_charge()
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

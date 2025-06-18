@@ -22,6 +22,7 @@ Added
 - Added icons to change log and documentation.
 - Input and output messages from console |console| will now appear in terminal and log file.
 - Added Lakeshore335 plugin.
+- Added advanced option invalidWhileWaiting to Scans to allow to ignore values while signal is stabilizing.
 
 Changed
 ~~~~~~~

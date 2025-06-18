@@ -181,9 +181,9 @@ class VoltageController(DeviceController):
             return
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
-                channel.monitor = self.values[i]
-                channel.current = self.currents[i]
-                channel.power = channel.monitor * channel.current
+                channel.monitor = np.nan if channel.waitToStabilize else self.values[i]
+                channel.current = np.nan if channel.waitToStabilize else self.currents[i]
+                channel.power = np.nan if channel.waitToStabilize else channel.monitor * channel.current
 
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():

@@ -36,7 +36,6 @@ import simple_pid
 from asteval import Interpreter
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import MouseButton, MouseEvent
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.text import Annotation
 from packaging.version import InvalidVersion
@@ -128,7 +127,7 @@ class Plugin(QWidget):  # noqa: PLR0904
     """Actions can be added to the titleBar using :meth:`~esibd.plugins.Plugin.addAction` or :meth:`~esibd.plugins.Plugin.addStateAction`."""
     titleBarLabel: 'QLabel | None'
     """The label used in the titleBar."""
-    canvas: FigureCanvas
+    canvas: DebouncedCanvas
     """The canvas the figure renders into."""
     navToolBar: ThemedNavigationToolbar
     """Provides controls to interact with the figure."""
@@ -166,6 +165,8 @@ class Plugin(QWidget):  # noqa: PLR0904
     """Adds toolbox icon to show advanced plugin options."""
     line: 'Line2D'
     """A line to store matplotlib lines for simple displays."""
+    labelAxis: Axes = None  # type: ignore  # noqa: PGH003
+    """Axis used for plot labels."""
 
     class SignalCommunicate(QObject):  # signals that can be emitted by external threads
         """Bundle pyqtSignals."""
@@ -831,7 +832,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.canvas.setVisible(False)  # need to get out of the way quickly when changing themes, deletion may take longer
             self.canvas.deleteLater()
             self.navToolBar.deleteLater()
-        self.canvas = DebouncedCanvas(figure)
+        self.canvas = DebouncedCanvas(parentPlugin=self, figure=figure)
         self.navToolBar = ThemedNavigationToolbar(self.canvas, parentPlugin=self)  # keep reference in order to reset navigation
         if self.titleBar:
             for action in self.navToolBar.actions()[:-1]:  # last action is empty and undocumented
@@ -840,7 +841,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                 else:
                     self.titleBar.addAction(action)
 
-    def labelPlot(self, ax: Axes, label: str) -> None:
+    def labelPlot(self, label: str) -> None:
         """Add file name labels to plot to trace back which file it is based on.
 
         :param ax: A matplotlib axes.
@@ -848,6 +849,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param label: The plot label.
         :type label: str
         """
+        ax = self.labelAxis or self.axes[0]
         fontsize = 10
         # call after all other plotting operations are completed for scaling to work properly
         if self.labelAnnotation:
@@ -870,19 +872,15 @@ class Plugin(QWidget):  # noqa: PLR0904
                 cast('CursorAxes', ax).cursor.updatePosition()
             ax.figure.canvas.draw_idle()
 
-    def defaultLabelPlot(self, ax: Axes) -> None:
-        """Add file name labels to plot to trace back which file it is based on.
-
-        :param ax: A matplotlib axes.
-        :type ax: matplotlib.axes.Axes
-        """
+    def defaultLabelPlot(self) -> None:
+        """Add file name labels to plot to trace back which file it is based on."""
         if isinstance(self, Scan) and len(self.outputChannels) > 0:
             if self.file:
-                self.labelPlot(ax, f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
+                self.labelPlot(f'{self.outputChannels[self.getOutputIndex()].name} from {self.file.name}')
             else:
-                self.labelPlot(ax, self.outputChannels[self.getOutputIndex()].name)
+                self.labelPlot(self.outputChannels[self.getOutputIndex()].name)
         elif self.file:
-            self.labelPlot(ax, self.file.name)
+            self.labelPlot(self.file.name)
 
     def removeAnnotations(self, ax: Axes) -> None:
         """Remove all annotations from an axes.
@@ -1314,34 +1312,34 @@ class StaticDisplay(Plugin):
         else:
             self.staticPlotWidget.clear()
             self.legend = self.staticPlotWidget.addLegend(labelTextColor=colors.fg)  # before adding plots
-        for output in self.outputChannels:
-            length = min(self.inputChannels[0].getRecordingData().shape[0], output.getRecordingData().shape[0])
+        for outputChannel in self.outputChannels:
+            length = min(self.inputChannels[0].getRecordingData().shape[0], outputChannel.getRecordingData().shape[0])
             time_axis = self.inputChannels[0].getRecordingData()[-length:]
             time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]
-            y = self.parentPlugin.convertDataDisplay((output.getRecordingData() - output.recordingBackground)[:length]
+            y = self.parentPlugin.convertDataDisplay((outputChannel.getRecordingData() - outputChannel.recordingBackground)[:length]
                                            if isinstance(self.parentPlugin, Device) and self.parentPlugin.useBackgrounds and self.parentPlugin.subtractBackgroundActive()
-                                           else output.getRecordingData()[:length])
-            if not output.sourceChannel:
+                                           else outputChannel.getRecordingData()[:length])
+            if not outputChannel.sourceChannel:
                 if self.plotEfficientAction.state:
-                    self.axes[0].plot(time_stamp_axis, y, label=f'{output.name} ({output.unit})')  # type: ignore  # noqa: PGH003
+                    self.axes[0].plot(time_stamp_axis, y, label=f'{outputChannel.name} ({outputChannel.unit})')  # type: ignore  # noqa: PGH003
                 else:
-                    self.staticPlotWidget.plot(time_axis, y, name=f'{output.name} ({output.unit})')  # initialize empty plots
-            elif output.sourceChannel.display:
-                if output.smooth != 0:
-                    # y = uniform_filter1d(y, output.smooth)  # revert to this if nan_policy becomes available https://github.com/scipy/scipy/pull/17393  # noqa: ERA001
-                    y = smooth(y, output.smooth)
+                    self.staticPlotWidget.plot(time_axis, y, name=f'{outputChannel.name} ({outputChannel.unit})')  # initialize empty plots
+            elif outputChannel.sourceChannel.display:
+                if outputChannel.smooth != 0:
+                    # y = uniform_filter1d(y, outputChannel.smooth)  # revert to this if nan_policy becomes available https://github.com/scipy/scipy/pull/17393  # noqa: ERA001
+                    y = smooth(y, outputChannel.smooth)
                 if self.plotEfficientAction.state:
-                    self.axes[0].plot(time_stamp_axis, y, label=f'{output.name} ({output.unit})',  # type: ignore  # noqa: PGH003
-                                      color=output.color, linewidth=output.linewidth / 2, linestyle=output.linestyle)
+                    self.axes[0].plot(time_stamp_axis, y, label=f'{outputChannel.name} ({outputChannel.unit})',  # type: ignore  # noqa: PGH003
+                                      color=outputChannel.color, linewidth=outputChannel.linewidth / 2, linestyle=outputChannel.linestyle)
                 else:
-                    self.staticPlotWidget.plot(time_axis, y, pen=pg.mkPen((output.color), width=output.linewidth,
-                                                                  style=output.getQtLineStyle()), name=f'{output.name} ({output.unit})')
+                    self.staticPlotWidget.plot(time_axis, y, pen=pg.mkPen((outputChannel.color), width=outputChannel.linewidth,
+                                                                  style=outputChannel.getQtLineStyle()), name=f'{outputChannel.name} ({outputChannel.unit})')
         if self.plotEfficientAction.state:
             self.setLabelMargin(self.axes[0], 0.15)
             self.navToolBar.update()  # reset history for zooming and home view
             self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
             if self.file:
-                self.labelPlot(self.axes[0], self.file.name)
+                self.labelPlot(self.file.name)
             legend = self.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
             legend.set_in_layout(False)
         elif update:
@@ -3593,6 +3591,7 @@ class Scan(Plugin):  # noqa: PLR0904
     WAIT = 'Wait'
     AVERAGE = 'Average'
     SCANTIME = 'Scan time'
+    INVALIDWHILEWAITING = 'Invalid while waiting'
     INTERVAL = 'Interval'
     START = 'From'  # keep old names in files to stay backwards compatible
     STOP = 'To'  # keep old names in files to stay backwards compatible
@@ -3609,6 +3608,8 @@ class Scan(Plugin):  # noqa: PLR0904
     useDisplayChannel: bool
     """If True, a combobox will be created to allow to select for which
        channel data should be displayed."""
+    useInvalidWhileWaiting: bool = False
+    """Enable setting to ignore values while stabilizing."""
     measurementsPerStep: int
     """Number of measurements per step based on the average time and acquisition rate."""
     display: 'Scan.Display'  # | None rather ignore here once that check every where
@@ -3623,6 +3624,8 @@ class Scan(Plugin):  # noqa: PLR0904
     """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
     useDisplayParameter = False
     """Use display parameter to control which scan channels are displayed."""
+    invalidWhileWaiting: bool = False
+    """Indicates if channel values should be changed to Nan while waiting for values to stabilize."""
 
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Bundle pyqtSignals."""
@@ -3964,8 +3967,8 @@ class Scan(Plugin):  # noqa: PLR0904
         if self.display and self.displayActive() and self.useDisplayChannel:
             self.loading = True
             self.display.displayComboBox.clear()
-            for output in self.outputChannels:  # use channels form current acquisition or from file.
-                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
+            for outputChannel in self.outputChannels:  # use channels form current acquisition or from file.
+                self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), outputChannel.name)
             self.loading = False
             if not self._dummy_initialization:  # prevent recursion
                 self.updateDisplayDefault()
@@ -4014,14 +4017,22 @@ class Scan(Plugin):  # noqa: PLR0904
         # * alternatively the wait time could be determined proportional to the step.
         # While this would be technically cleaner and more time efficient,
         # the present implementation is easier to understand and should work well as long as the step sizes do not change too often
-        ds[self.WAIT] = parameterDict(value=500, toolTip='Wait time between small steps in ms.', minimum=10, event=self.estimateScanTime,
+        ds[self.WAIT] = parameterDict(value=500, toolTip='Wait time before start of averaging in ms. '
+                                      'This time allows for input value to change and output values to stabilize.'
+                                      , minimum=10, event=self.estimateScanTime,
                                                                         parameterType=PARAMETERTYPE.INT, attr='wait')
-        ds[self.WAITLONG] = parameterDict(value=2000, toolTip=f'Wait time between steps larger than {self.LARGESTEP} in ms.', minimum=10,
+        ds[self.WAITLONG] = parameterDict(value=2000, toolTip=f'Wait time for steps larger than {self.LARGESTEP} in ms.', minimum=10,
                                                                         parameterType=PARAMETERTYPE.INT, attr='waitLong', event=self.estimateScanTime)
         ds[self.LARGESTEP] = parameterDict(value=2, toolTip='Threshold step size to use longer wait time.', event=self.estimateScanTime,
                                                                         parameterType=PARAMETERTYPE.FLOAT, attr='largestep')
-        ds[self.AVERAGE] = parameterDict(value=1000, toolTip='Average time in ms.', parameterType=PARAMETERTYPE.INT, attr='average', event=self.estimateScanTime)
+        ds[self.AVERAGE] = parameterDict(value=1000, toolTip='Time used for averaging in ms.', parameterType=PARAMETERTYPE.INT, attr='average', event=self.estimateScanTime)
         ds[self.SCANTIME] = parameterDict(value='n/a', toolTip='Estimated scan time.', parameterType=PARAMETERTYPE.LABEL, attr='scantime', internal=True, indicator=True)
+        if self.useInvalidWhileWaiting:
+            ds[self.INVALIDWHILEWAITING] = parameterDict(value=False, toolTip='Check to disable device readings during wait period, '
+                                                 'e.g. to avoid incorrect readings due to pickup when changing a voltage. '
+                                                 'The device will only return NaN while waiting to stabilize. '
+                                                 'Note that this is especially useful when running different scans in parallel.'
+                                                 , parameterType=PARAMETERTYPE.BOOL, attr='invalidWhileWaiting', internal=True, advanced=True)
         return ds
 
     def getOutputIndex(self) -> int:
@@ -4208,6 +4219,11 @@ class Scan(Plugin):  # noqa: PLR0904
                       and device and isinstance(device, Device)):
                 self.print('Not enough information to initialize input channel.', PRINT.WARNING)
                 return None
+            if hasattr(self, 'wait') and hasattr(self, 'average') and self.wait + self.average < inputChannel.getDevice().interval:  # noqa: SIM102
+                # If input device does not update fast enough it may be lagging behind and indicate longer steps.
+                # This may cause use of waitLong instead of wait but should not have other side effects.
+                if not self._dummy_initialization:
+                    self.print(f'Input device {inputChannel.getDevice().name} does not update fast enough for given values of wait and average.', PRINT.WARNING)
             if inputChannel.sourceChannel and inputChannel.sourceChannel.inout == INOUT.OUT:  # noqa: SIM102
                 # Output channels only read and have no set option as well as no min max range.
                 # May still make sense if the output channel is a virtual channel only used for calculations.
@@ -4273,6 +4289,9 @@ class Scan(Plugin):  # noqa: PLR0904
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: D102
         if advanced is not None:
             self.advancedAction.state = advanced
+        for setting in self.settingsMgr.settings.values():
+            if setting.advanced:
+                setting.setHidden(not self.advancedAction.state)
         if len(self.channels) > 0 and self.channelTree:
             for i, item in enumerate(self.headerChannel.getSortedDefaultChannel().values()):
                 if item[Parameter.ADVANCED]:
@@ -4530,6 +4549,10 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                     waitLong = True
                 if inputChannel.updateValueSignal:
                     inputChannel.updateValueSignal.emit(step[j])
+            if self.invalidWhileWaiting:
+                for outputChannel in self.outputChannels:
+                    if isinstance(outputChannel, ScanChannel):
+                        outputChannel.signalComm.waitUntilStableSignal.emit(self.waitLong if waitLong else self.wait)
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             self.bufferLagging()
             self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
@@ -6498,7 +6521,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         """
         if not self.initialized():
             return  # already closed
-        if not manual or self.testing or CloseDialog(title='Close all communication?', ok='Close all communication', prompt='Close communication with all devices?').exec():
+        if not manual or self.testing or CloseDialog(title='Close all communication?', ok='Close all communication',
+                                                      prompt='Close communication with all devices and stop all scans?').exec():
             self.print(message)
             self.recording = False
             self.stopScans(closing=closing)

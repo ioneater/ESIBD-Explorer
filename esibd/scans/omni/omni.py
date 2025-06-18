@@ -30,6 +30,7 @@ class Omni(Scan):
     name = 'Omni'
     version = '1.0'
     useDisplayParameter = True
+    useInvalidWhileWaiting = True
     iconFile = 'omni.png'
 
     display: 'Omni.Display'
@@ -65,6 +66,7 @@ class Omni(Scan):
                 self.vertLayout.addWidget(self.xSlider)
                 self.xSlider.valueChanged.connect(self.updateX)
                 self.updateInteractive()
+                self.scan.labelAxis = self.axes[0]
 
         def updateX(self, value) -> None:
             """Update the value of the independent variable based on slider value.
@@ -136,8 +138,8 @@ class Omni(Scan):
             self.display.updateInteractive()
             if self.interactive:
                 self.inputChannels[0].recordingData = DynamicNp()
-                for output in self.outputChannels:
-                    output.recordingData = DynamicNp()
+                for outputChannel in self.outputChannels:
+                    outputChannel.recordingData = DynamicNp()
             return True
         return False
 
@@ -152,11 +154,11 @@ class Omni(Scan):
             if not self.display.lines:
                 self.display.axes[0].clear()
                 self.display.lines = []  # dummy plots
-                for output in self.outputChannels:
-                    if output.sourceChannel:
-                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{output.name} ({output.unit})', color=output.color)[0])
+                for outputChannel in self.outputChannels:
+                    if outputChannel.sourceChannel:
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.unit})', color=outputChannel.color)[0])
                     else:
-                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{output.name} ({output.unit})')[0])
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.unit})')[0])
                 legend = self.display.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
                 legend.set_in_layout(False)
             if not update:
@@ -182,7 +184,7 @@ class Omni(Scan):
             self.display.axes[0].relim()  # adjust to data
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
@@ -196,12 +198,12 @@ to      = max(inputChannels[0].recordingData)
 fig = plt.figure(num='{self.name} plot', constrained_layout=True)
 ax0 = fig.add_subplot(111)
 ax0.set_xlabel(f'{{inputChannels[0].name}} ({{inputChannels[0].unit}})')
-for output in outputChannels:
+for outputChannel in outputChannels:
     if _interactive:
-        mean, bin_edges, _ = binned_statistic(inputChannels[0].recordingData, output.recordingData, bins=bins, range=(int(start), int(to)))
-        ax0.plot((bin_edges[:-1] + bin_edges[1:]) / 2, mean, label=f'{{output.name}} ({{output.unit}})')
+        mean, bin_edges, _ = binned_statistic(inputChannels[0].recordingData, outputChannel.recordingData, bins=bins, range=(int(start), int(to)))
+        ax0.plot((bin_edges[:-1] + bin_edges[1:]) / 2, mean, label=f'{{outputChannel.name}} ({{outputChannel.unit}})')
     else:
-        ax0.plot(inputChannels[0].recordingData, output.recordingData, label=f'{{output.name}} ({{output.unit}})')
+        ax0.plot(inputChannels[0].recordingData, outputChannel.recordingData, label=f'{{outputChannel.name}} ({{outputChannel.unit}})')
 ax0.legend(loc='best', prop={{'size': 7}}, frameon=False)
 fig.show()
         """  # similar to staticDisplay
@@ -210,6 +212,9 @@ fig.show()
         if self.interactive:
             while recording():
                 # changing input is done in main thread using slider. Scan is only recording result.
+                if self.invalidWhileWaiting:
+                    for outputChannel in self.outputChannels:
+                        outputChannel.signalComm.waitUntilStableSignal.emit(self.wait)
                 time.sleep((self.wait + self.average) / 1000)  # if step is larger than threshold use longer wait time
                 self.bufferLagging()
                 self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')

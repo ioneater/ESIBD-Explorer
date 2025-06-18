@@ -104,7 +104,7 @@ class LINE(Plugin):
         self.canvas.draw_idle()
         self.navToolBar.update()  # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
-        self.labelPlot(self.axes[0], self.file.name if self.file else 'Line')
+        self.labelPlot(self.file.name if self.file else 'Line')
 
     def generatePythonPlotCode(self) -> str:
         return f"""import matplotlib as mpl

@@ -44,6 +44,7 @@ class GA(Scan):
     version = '1.0'
     iconFile = 'GA_light.png'
     iconFileDark = 'GA_dark.png'
+    useInvalidWhileWaiting = True
 
     signalComm: 'SignalCommunicate'
     display: 'GA.Display'
@@ -78,6 +79,7 @@ class GA(Scan):
                 self.axes[0].set_xlabel(self.TIME)
                 self.axes[0].set_ylabel('Fitness Value')
                 self.tilt_xlabels(self.axes[0])
+                self.scan.labelAxis = self.axes[0]
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -182,7 +184,7 @@ class GA(Scan):
         if bestData is not None and len(bestData) > 1:
             self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
@@ -216,6 +218,10 @@ fig.show()
                     self.print('outputChannelValues not defined', flag=PRINT.ERROR)
                     return
                 self.signalComm.updateValuesSignal.emit(-1, False)  # noqa: FBT003
+                if self.invalidWhileWaiting:
+                    for outputChannel in self.outputChannels:
+                        if isinstance(outputChannel, ScanChannel):
+                            outputChannel.signalComm.waitUntilStableSignal.emit(self.wait)
                 time.sleep((self.wait + self.average) / 1000)
                 self.bufferLagging()
                 self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')

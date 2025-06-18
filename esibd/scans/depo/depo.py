@@ -84,9 +84,11 @@ class Depo(Scan):
             super().initGUI(item)
             if self.name.endswith(f'_{Depo.CHARGE}') and self.unit == 'pAh':
                 self.isChargeChannel = True
-                self.name = self.name.removesuffix(f'_{Depo.CHARGE}')  # change name before connectSource()!
 
         def connectSource(self, giveFeedback: bool = False) -> None:
+            if self.isChargeChannel:
+                # change name before connectSource() to connect to corresponding channel
+                self.name = self.name.removesuffix(f'_{Depo.CHARGE}')
             super().connectSource(giveFeedback=giveFeedback)
             if self.isChargeChannel:
                 self.unit = 'pAh'
@@ -133,13 +135,13 @@ class Depo(Scan):
                 for i, unit in enumerate(self.scan.getExtraUnits()):
                     self.axes.append(self.fig.add_subplot(rows, 1, 3 + i, sharex=self.axes[0]))
                     self.axes[2 + i].set_ylabel(unit)
-                for output in self.scan.outputChannels:
-                    if output.unit not in {'pA', 'pAh'} and output.unit in self.scan.getExtraUnits():
-                        output.line = self.axes[2 + self.scan.getExtraUnits().index(output.unit)].plot(
-                            [[datetime.now()]], [0], color=output.color, label=output.name)[0]  # type: ignore  # noqa: PGH003
-                        if output.logY:
-                            self.axes[2 + self.scan.getExtraUnits().index(output.unit)].set_yscale('log')
-                        self.axes[2 + self.scan.getExtraUnits().index(output.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=output.logY))
+                for outputChannel in self.scan.outputChannels:
+                    if outputChannel.unit not in {'pA', 'pAh'} and outputChannel.unit in self.scan.getExtraUnits():
+                        outputChannel.line = self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].plot(
+                            [[datetime.now()]], [0], color=outputChannel.color, label=outputChannel.name)[0]  # type: ignore  # noqa: PGH003
+                        if outputChannel.logY:
+                            self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].set_yscale('log')
+                        self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=outputChannel.logY))
                 for i, _ in enumerate(self.scan.getExtraUnits()):
                     legend = self.axes[2 + i].legend(loc='best', prop={'size': 6}, frameon=False)
                     legend.set_in_layout(False)
@@ -164,6 +166,7 @@ class Depo(Scan):
                 self.progressAnnotation = self.axes[1].annotate(text='', xy=(0.02, 0.98), xycoords='axes fraction', fontsize=6, ha='left', va='top',
                                                                 bbox={'boxstyle': 'square, pad=.2', 'fc': plt.rcParams['axes.facecolor'], 'ec': 'none'})
                 self.updateDepoTarget()
+                self.scan.labelAxis = self.axes[0]
 
         def updateDepoTarget(self) -> None:
             """Update the deposition target line in the plot."""
@@ -251,7 +254,7 @@ class Depo(Scan):
         Returns True if initialization successful and scan is ready to start.
         """
         if super().initScan() and self.displayActive() and not self._dummy_initialization:
-            if len([output for output in self.outputChannels if output.unit == 'pA']) > 0:  # at least one current channel
+            if len([outputChannel for outputChannel in self.outputChannels if outputChannel.unit == 'pA']) > 0:  # at least one current channel
                 self.measurementsPerStep = max(int(self.average / self.interval) - 1, 1)
                 self.display.progressAnnotation.set_text('')
                 self.display.updateDepoTarget()  # flip axes if needed
@@ -277,9 +280,9 @@ class Depo(Scan):
         if self.displayActive():
             self.loading = True
             self.display.displayComboBox.clear()
-            for output in self.outputChannels:
-                if output.unit == 'pA':
-                    self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), output.name)
+            for outputChannel in self.outputChannels:
+                if outputChannel.unit == 'pA':
+                    self.display.displayComboBox.insertItem(self.display.displayComboBox.count(), outputChannel.name)
             self.loading = False
             if not self._dummy_initialization:
                 self.updateDisplayDefault()
@@ -350,7 +353,7 @@ class Depo(Scan):
         if self.autoscale:
             self.setLabelMargin(self.display.axes[0], 0.3)
         self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here
@@ -393,11 +396,11 @@ time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # conve
 axes[0].plot(time_stamp_axis, outputChannels[output_index].recordingData, color=MYBLUE)[0]
 axes[1].plot(time_stamp_axis, outputChannels[output_index+1].recordingData, color=MYBLUE)[0]
 
-for output in outputChannels:
-    if output.unit not in ['pA', 'pAh'] and output.unit in getExtraUnits():
-        axes[2+getExtraUnits().index(output.unit)].plot(time_stamp_axis, output.recordingData, label=output.name)[0]
-        if output.logY:
-            axes[2+getExtraUnits().index(output.unit)].set_yscale('log')
+for outputChannel in outputChannels:
+    if outputChannel.unit not in ['pA', 'pAh'] and outputChannel.unit in getExtraUnits():
+        axes[2+getExtraUnits().index(outputChannel.unit)].plot(time_stamp_axis, outputChannel.recordingData, label=outputChannel.name)[0]
+        if outputChannel.logY:
+            axes[2+getExtraUnits().index(outputChannel.unit)].set_yscale('log')
 
 for i, unit in enumerate(getExtraUnits()):
     legend = axes[2+i].legend(loc='best', prop={{'size': 6}}, frameon=False)
@@ -437,13 +440,13 @@ fig.show()
             self.bufferLagging()
             self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
             self.inputChannels[0].recordingData.add(time.time())
-            for output in self.outputChannels:
-                if output.isChargeChannel:
-                    output.recordingData.add(cast('Depo.ChargeChannel', output.sourceChannel).charge)
+            for outputChannel in self.outputChannels:
+                if outputChannel.isChargeChannel:
+                    outputChannel.recordingData.add(cast('Depo.ChargeChannel', outputChannel.sourceChannel).charge)
                 else:
-                    outputValues = output.getValues(subtractBackground=output.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
+                    outputValues = outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
                     if outputValues is not None:
-                        output.recordingData.add(float(np.mean(outputValues)))
+                        outputChannel.recordingData.add(float(np.mean(outputValues)))
             if self.warn and winsound:  # Sound only supported for windows
                 outputData = self.getData(self.getOutputIndex(), INOUT.OUT)
                 outputDataPlus1 = self.getData(self.getOutputIndex() + 1, INOUT.OUT)

@@ -157,7 +157,7 @@ class VoltageController(DeviceController):
             return
         for channel in self.controllerParent.getChannels():
             if channel.enabled and channel.real:
-                channel.monitor = self.values[channel.module][channel.id]
+                channel.monitor = np.nan if channel.waitToStabilize else self.values[channel.module][channel.id]
 
     def toggleOn(self) -> None:
         if self.modules:

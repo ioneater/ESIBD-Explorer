@@ -29,6 +29,7 @@ class Energy(Scan):
     name = 'Energy'
     version = '1.0'
     iconFile = 'energy.png'
+    useInvalidWhileWaiting = True
 
     display: 'Energy.Display'
 
@@ -61,6 +62,7 @@ class Energy(Scan):
                 self.seGrad = self.axes[1].plot([], [], marker='.', linestyle='None', color=self.scan.MYRED)[0]  # dummy plot
                 self.seFit = self.axes[1].plot([], [], color=self.scan.MYRED)[0]  # dummy plot
                 self.axes[-1].cursor = None  # type: ignore  # noqa: PGH003
+                self.scan.labelAxis = self.axes[0]
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -179,7 +181,7 @@ class Energy(Scan):
         if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel and not np.isnan(self.inputChannels[0].value):
             self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, 0)
         self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

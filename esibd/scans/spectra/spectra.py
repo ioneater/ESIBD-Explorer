@@ -80,6 +80,7 @@ class Spectra(Beam):
                 self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
                 if self.axesAspectAction and not self.axesAspectAction.state:
                     self.axes[0].set_aspect('equal', adjustable='box')
+                self.scan.labelAxis = self.axes[0]
 
         def updateTheme(self) -> None:
             if self.averageAction:
@@ -178,9 +179,9 @@ class Spectra(Beam):
         self.display.axes[0].relim()  # adjust to data
         self.setLabelMargin(self.display.axes[0], 0.15)
         self.updateToolBar(update=update)
-        self.defaultLabelPlot(self.display.axes[0])
+        self.defaultLabelPlot()
 
-    def runScan(self, recording) -> None:  # noqa: C901
+    def runScan(self, recording) -> None:  # noqa: C901, PLR0912
         # definition of steps updated to scan along x instead of y axis.
         inputRecordingData0 = self.inputChannels[0].getRecordingData()
         inputRecordingData1 = self.inputChannels[1].getRecordingData()
@@ -195,17 +196,20 @@ class Spectra(Beam):
                     waitLong = True
                 if inputChannel.updateValueSignal:
                     inputChannel.updateValueSignal.emit(step[j])
+            if self.invalidWhileWaiting:
+                for outputChannel in self.outputChannels:
+                    outputChannel.signalComm.waitUntilStableSignal.emit(self.waitLong if waitLong else self.wait)
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             self.bufferLagging()
             self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
-            for output in self.outputChannels:
+            for outputChannel in self.outputChannels:
                 # 2D scan
                 # definition updated to scan along x instead of y axis.
-                outputDevice = output.getDevice()
+                outputDevice = outputChannel.getDevice()
                 if isinstance(outputDevice, Device):
-                    outputValues = output.getValues(subtractBackground=outputDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
-                    if output.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
-                        output.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
+                    outputValues = outputChannel.getValues(subtractBackground=outputDevice.subtractBackgroundActive(), length=self.measurementsPerStep)
+                    if outputChannel.recordingData is not None and inputRecordingData0 is not None and outputValues is not None:
+                        outputChannel.recordingData[i // len(inputRecordingData0), i % len(inputRecordingData0)] = np.mean(outputValues)
             if i == len(steps) - 1 or not recording():  # last step
                 for inputChannel in self.inputChannels:
                     if inputChannel.updateValueSignal:

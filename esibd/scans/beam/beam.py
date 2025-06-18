@@ -39,6 +39,7 @@ class Beam(Scan):
     name = 'Beam'
     version = '1.0'
     iconFile = 'beam.png'
+    useInvalidWhileWaiting = True
 
     display: 'Beam.Display'
 
@@ -76,16 +77,17 @@ class Beam(Scan):
                 if engine:
                     engine.set(rect=(0.05, 0.0, 0.8, 0.9))  # type: ignore # constrained_layout ignores labels on colorbar  # noqa: PGH003
                 self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
-            if not self.axesAspectAction.state:  # use qSet directly in case control is not yet initialized
-                self.axes[0].set_aspect('equal', adjustable='box')
-            self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
-            self.canvas.mpl_connect('button_press_event', self.mouseEvent)
-            self.canvas.mpl_connect('button_release_event', self.mouseEvent)
-            self.cont = None  # type: ignore # noqa: PGH003
-            divider = make_axes_locatable(self.axes[0])
-            self.cax = divider.append_axes('right', size='5%', pad=0.15)
-            self.cbar: Colorbar = None  # type: ignore # noqa: PGH003
-            self.axes[-1].cursor = None  # type: ignore # noqa: PGH003
+                if not self.axesAspectAction.state:  # use qSet directly in case control is not yet initialized
+                    self.axes[0].set_aspect('equal', adjustable='box')
+                self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
+                self.canvas.mpl_connect('button_press_event', self.mouseEvent)
+                self.canvas.mpl_connect('button_release_event', self.mouseEvent)
+                self.cont = None  # type: ignore # noqa: PGH003
+                divider = make_axes_locatable(self.axes[0])
+                self.cax = divider.append_axes('right', size='5%', pad=0.15)
+                self.cbar: Colorbar = None  # type: ignore # noqa: PGH003
+                self.axes[-1].cursor = None  # type: ignore # noqa: PGH003
+                self.scan.labelAxis = self.axes[0]
 
         def runTestParallel(self) -> None:
             if self.initializedDock:
@@ -283,7 +285,7 @@ class Beam(Scan):
             if len(self.outputChannels) > 0 and self.inputChannels[0].sourceChannel and self.inputChannels[1].sourceChannel:
                 self.display.axes[-1].cursor.setPosition(self.inputChannels[0].value, self.inputChannels[1].value)
             self.updateToolBar(update=update)
-            self.defaultLabelPlot(self.display.axes[0])
+            self.defaultLabelPlot()
 
     def pythonPlotCode(self) -> str:
         return f"""# add your custom plot code here

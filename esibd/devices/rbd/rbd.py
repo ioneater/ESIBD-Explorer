@@ -318,7 +318,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
 
     def updateValues(self) -> None:
         if self.values is not None:
-            self.controllerParent.value = self.values[0]
+            self.controllerParent.value = np.nan if self.controllerParent.waitToStabilize else self.values[0]
         self.controllerParent.outOfRange = self.outOfRange
         self.controllerParent.unstable = self.unstable
         if self.controllerParent.error != self.error:

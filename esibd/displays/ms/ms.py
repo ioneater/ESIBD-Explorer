@@ -129,7 +129,7 @@ class MS(Plugin):
         self.navToolBar.update()  # reset history for zooming and home view
         self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
-        self.labelPlot(self.axes[0], '' if self.paperAction and self.paperAction.state else (self.file.name if self.file else self.name))
+        self.labelPlot('' if self.paperAction and self.paperAction.state else (self.file.name if self.file else self.name))
 
     def find_nearest(self, array, value) -> float:
         """Return the nearest value in the given array.

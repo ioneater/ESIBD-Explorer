@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring]  # see class docstrings
 from typing import TYPE_CHECKING
 
+import numpy as np
 from PyQt6.QtWidgets import QMessageBox
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, parameterDict
@@ -208,7 +209,7 @@ class CustomController(DeviceController):
             return
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.real:
-                channel.monitor = self.values[i]
+                channel.monitor = np.nan if channel.waitToStabilize else self.values[i]
 
     def runAcquisition(self) -> None:
         # TODO (optional) overwrite acquisition loop if needed

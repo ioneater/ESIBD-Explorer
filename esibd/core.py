@@ -107,7 +107,6 @@ ParameterWidgetType = Union['PushButton', 'ToolButton', 'PushButton', 'ColorButt
                              'CompactComboBox', 'LineEdit', 'LedIndicator', 'LabviewSpinBox', 'LabviewDoubleSpinBox', 'LabviewSciSpinBox']
 
 if TYPE_CHECKING:
-    # from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.lines import Line2D
     from matplotlib.typing import ColorType
     from PyQt6.QtGui import QCloseEvent, QContextMenuEvent, QPaintEvent, QResizeEvent, QWheelEvent
@@ -2191,6 +2190,16 @@ class RelayChannel:
             return self.sourceChannel.logY
         return self.unit in {'mbar', 'Pa'}
 
+    @property
+    def waitToStabilize(self) -> bool:
+        """SourceChannel.waitToStabilize if available. Default provided."""
+        return self.sourceChannel.waitToStabilize if self.sourceChannel else False
+
+    @waitToStabilize.setter
+    def waitToStabilize(self, waitToStabilize: bool) -> None:
+        if self.sourceChannel:
+            self.sourceChannel.waitToStabilize = waitToStabilize
+
 
 class MetaChannel(RelayChannel):
     """Manage metadata associated with a channel by a :class:`~esibd.plugins.Scan` or :class:`~esibd.plugins.LiveDisplay`.
@@ -2311,6 +2320,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Bundle pyqtSignals."""
 
         updateValueSignal = pyqtSignal(float)
+        waitUntilStableSignal = pyqtSignal(int)
 
     channelParent: 'ChannelManager | Device | Scan'
     """The Device or Scan containing this channel."""
@@ -2340,8 +2350,10 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     useBackgrounds: bool = False
     useMonitors: bool = False
     logY: bool = False
-    controller: 'DeviceController'
     """Indicates if logarithmic controls and scales should be used."""
+    waitToStabilize = False
+    """Indicates if the device is stabilized. Will return NaN if unstable."""
+    controller: 'DeviceController'
 
     def __init__(self, channelParent: 'ChannelManager | Scan', tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a Channel.
@@ -2367,6 +2379,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.rowHeight = QLineEdit().sizeHint().height() - 4
         self.signalComm = self.SignalCommunicate()
         self.signalComm.updateValueSignal.connect(self.updateValueParallel)
+        self.signalComm.waitUntilStableSignal.connect(self.waitUntilStable)
         self.lastAppliedValue = None  # keep track of last value to identify what has changed
         self.parameters = []
         self.displayedParameters = []
@@ -2688,6 +2701,22 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         if toggle and not self.channelParent.loading:  # otherwise only update icon
             self.channelParent.toggleAdvanced()
 
+    def waitUntilStable(self, wait: int) -> None:
+        """Wait for signal to stabilize.
+
+        Will return NaN until stable.
+        Make sure to call from the mainThread.
+
+        :param wait: Wait time in ms.
+        :type wait: int
+        """
+        self.waitToStabilize = True
+        QTimer().singleShot(wait, self.resetUnstable)
+
+    def resetUnstable(self) -> None:
+        """Indicate signal is stable."""
+        self.waitToStabilize = False
+
     def appendValue(self, lenT: int, nan: bool = False) -> None:
         """Append a datapoint to the recorded values.
 
@@ -2997,23 +3026,23 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :type pos: QPoint
         """
         settingsContextMenu = QMenu(self.tree)
-        addParameterToConsoleAction = None
         addChannelToConsoleAction = None
+        addParameterToConsoleAction = None
         if getDebugMode():
-            addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
             addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
+            addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
         # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
         #     NOTE channels do only save current value but not the items -> thus editing items is currently not supported
         if not settingsContextMenu.actions():
             return
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
-            if settingsContextMenuAction is addParameterToConsoleAction:
-                self.pluginManager.Console.addToNamespace('parameter', parameter)
-                self.pluginManager.Console.execute(command='parameter')
             if settingsContextMenuAction is addChannelToConsoleAction:
                 self.pluginManager.Console.addToNamespace('channel', parameter.parameterParent)
                 self.pluginManager.Console.execute(command='channel')
+            if settingsContextMenuAction is addParameterToConsoleAction:
+                self.pluginManager.Console.addToNamespace('parameter', parameter)
+                self.pluginManager.Console.execute(command='parameter')
 
 
 class ScanChannel(RelayChannel, Channel):
@@ -4314,13 +4343,14 @@ class DebouncedCanvas(FigureCanvas):
     This makes the GUI more responsive.
     """
 
-    def __init__(self, figure: Figure) -> None:  # noqa: D107
+    def __init__(self, parentPlugin: 'Plugin', figure: Figure) -> None:  # noqa: D107
+        self.parentPlugin = parentPlugin
         super().__init__(figure)
 
         # Debounce timer
         self._update_timer = QTimer(self)
         self._update_timer.setSingleShot(True)
-        self._update_timer.setInterval(200)  # Delay in ms
+        self._update_timer.setInterval(100)  # Delay in ms
         self._update_timer.timeout.connect(self._do_update)
         self._has_drawn = False
 
@@ -4332,6 +4362,10 @@ class DebouncedCanvas(FigureCanvas):
         """Execute draw_idle once timer has expired."""
         self._has_drawn = True
         self.draw_idle()
+        if hasattr(self.parentPlugin, 'scan') and isinstance(self.parentPlugin.scan, self.parentPlugin.pluginManager.Scan):
+            self.parentPlugin.scan.defaultLabelPlot()
+        else:
+            self.parentPlugin.defaultLabelPlot()
 
     def resizeEvent(self, event) -> None:  # noqa: ANN001, D102
         # Resize still happens normally
@@ -4928,8 +4962,7 @@ class MZCalculator:
             self.ax.annotate(text=f"{self.mass_string(-1, 'lower  ')}\n{self.mass_string(0, 'likely  ')}\n{self.mass_string(+1, 'higher')}\n"
                                     + '\n'.join([f'mz:{mass:10.2f} z:{charge:4}' for mass, charge in zip(self.mz, self.cs, strict=True)]),
                                 xy=(0.02, 0.98), xycoords='axes fraction', fontsize=8, ha='left', va='top')
-        if self.parentPlugin.file:
-            self.parentPlugin.labelPlot(self.ax, self.parentPlugin.file.name)
+        self.parentPlugin.defaultLabelPlot()
 
 
 class ViewBox(pg.ViewBox):
@@ -5485,15 +5518,15 @@ class DeviceController(QObject):  # noqa: PLR0904
                 for channel, value in zip(self.controllerParent.getChannels(), self.values, strict=True):
                     if channel.useMonitors and channel.enabled and channel.real:
                         # Monitors of input devices should be updated even if the channel is not active (value determined by equation).
-                        channel.monitor = value
+                        channel.monitor = np.nan if channel.waitToStabilize else value
                     elif channel.enabled and channel.active and channel.real:
                         # Should only be called for output devices
-                        channel.value = value
+                        channel.value = np.nan if channel.waitToStabilize else value
             elif isinstance(self.controllerParent, Channel):
                 if self.controllerParent.useMonitors:
-                    self.controllerParent.monitor = self.values[0]
+                    self.controllerParent.monitor = np.nan if self.controllerParent.waitToStabilize else self.values[0]
                 else:
-                    self.controllerParent.value = self.values[0]
+                    self.controllerParent.value = np.nan if self.controllerParent.waitToStabilize else self.values[0]
 
     def runAcquisition(self) -> None:
         """Run acquisition loop. Executed in acquisitionThread.
