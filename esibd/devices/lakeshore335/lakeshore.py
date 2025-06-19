@@ -252,6 +252,8 @@ class TemperatureController(DeviceController):
         :type channel: TemperatureChannel
         """
         if self.ls335:
+            if np.isnan([channel.Kp, channel.Ki, channel.Kd]).any():
+                return
             if channel.real and channel.channel_active and self.controllerParent.isOn():
                 self.ls335.set_heater_pid(channel.heater, channel.Kp, channel.Ki, channel.Kd)
                 self.print(f'Setting PID values of channel {channel.name} to Kp: {channel.Kp}, Ki: {channel.Ki}, Kd: {channel.Kd}.', flag=PRINT.DEBUG)

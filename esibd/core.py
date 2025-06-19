@@ -3244,6 +3244,12 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
             self.setReadOnly(True)
             self.preciseValue = 0
 
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Allow to manually rest a value from NaN."""
+        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9:
+            self._is_nan = False
+        super().keyPressEvent(event)
+
     def contextMenuEvent(self, e: 'QContextMenuEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Suppresses context menu for indicators."""
         if e and self.indicator:
@@ -3342,20 +3348,12 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         if indicator:
             self.setReadOnly(True)
             self.preciseValue = 0
-        # self.lineEdit().installEventFilter(self)
-        # self.lineEdit().textChanged.connect(self._on_text_changed)
 
-    # def _on_text_changed(self, text: str):
-    #     # Reset NaN state before validate is called
-    #     if text != self.NAN:
-    #         self._is_nan = False
-
-    # def eventFilter(self, obj, event):
-    #     if obj == self.lineEdit():
-    #         print(event.type())
-    #         if event.type() in {QEvent.Type.KeyPress, QEvent.Type.InputMethod, QEvent.Type.EnterEditFocus}:
-    #             self._is_nan = False
-    #     return super().eventFilter(obj, event)
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Allow to manually rest a value from NaN."""
+        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9:
+            self._is_nan = False
+        super().keyPressEvent(event)
 
     def contextMenuEvent(self, e: 'QContextMenuEvent | None') -> None:  # pylint: disable = missing-param-doc, missing-type-doc
         """Do not use context menu for indicators."""
@@ -5914,7 +5912,7 @@ class MouseInterceptor(QObject):
         :type a0: QObject
         :param a1: The Event.
         :type a1: QEvent
-        :return: Indicates if the event has been handles. Always False as we want to add the ripple effect without altering anything else.
+        :return: Indicates if the event has been handled. Always False as we want to add the ripple effect without altering anything else.
         :rtype: bool
         """
         if not hasattr(self.window, 'pluginManager') or self.window.pluginManager.closing:

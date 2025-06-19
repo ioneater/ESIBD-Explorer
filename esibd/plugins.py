@@ -2977,6 +2977,7 @@ class Device(ChannelManager):  # noqa: PLR0904
     inout: INOUT
     """Flag specifying if this is an input or output device."""
     useBackgrounds = False
+    logY = False
     signalComm: 'SignalCommunicate'
     controller: DeviceController
 
@@ -2993,7 +2994,6 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.inout = INOUT.IN
         else:
             self.inout = INOUT.OUT
-        self.logY = False
         self.file = Path()
         self.documentation = ''  # use __doc__ defined in child classes, sphinx does not initialize and will use the value of documentation defined above
         self.updating = False  # Suppress events while channel equations are evaluated

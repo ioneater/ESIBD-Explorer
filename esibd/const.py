@@ -429,26 +429,35 @@ def validatePath(path: 'Path | None', default: Path) -> 'tuple[Path, bool]':
     return path, False
 
 
-def smooth(array: np.ndarray, smooth: int) -> np.ndarray:
+def smooth(data: np.ndarray, smooth: int) -> np.ndarray:
     """Smooth a 1D array while keeping edges meaningful.
 
     This method is robust if array contains np.nan.
 
-    :param array: Array to be smoothed.
-    :type array: np.ndarray
+    :param data: Array to be smoothed.
+    :type data: np.ndarray
     :param smooth: With of box used for smoothing.
     :type smooth: int
     :return: convolvedArray
     :rtype: np.ndarray
     """
-    if len(array) < smooth:
-        return array
+    if len(data) < smooth:
+        return data
     smooth = int(np.ceil(smooth / 2.) * 2)  # make even
-    padding = int(smooth / 2)
-    win = signal.windows.boxcar(smooth)
-    paddedArray = np.concatenate((array[:padding][::-1], array, array[-padding:][::-1]))  # pad ends
-    convolvedArray = signal.convolve(paddedArray, win, mode='same') / sum(win)
-    return convolvedArray[padding:-padding]
+    window = signal.windows.boxcar(smooth)
+
+    is_valid = np.isfinite(data).astype(float)
+    # Smoothed sum and valid count
+    smoothed = signal.convolve(data, window, mode='same', method='direct')
+    valid_count = signal.convolve(is_valid, window, mode='same', method='direct')
+
+    # Normalize
+    with np.errstate(invalid='ignore', divide='ignore'):
+        convolvedArray = smoothed / valid_count
+
+    # Overwrite result where not enough valid data
+    convolvedArray[valid_count < smooth] = data[valid_count < smooth]
+    return convolvedArray
 
 
 def shorten_text(text: str, max_length: int = 100) -> str:
