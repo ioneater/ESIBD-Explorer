@@ -1655,7 +1655,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
     def initFig(self) -> None:  # noqa: C901, D102, PLR0912, PLR0915
         if not self.waitForCondition(condition=lambda: not self.parentPlugin.plotting, timeoutMessage='init figure.', timeout=1):
             return  # NOTE: using the self.parentPlugin.plotting flag instead of a lock, is more resilient as it works across multiple functions and nested calls
-        self.print(f'initFig. stacking: {self.stackAction.state}', flag=PRINT.DEBUG)
+        self.print('initFig', flag=PRINT.DEBUG)
         self.parentPlugin.plotting = True
         self.clearPlot()
         self.plotWidgetFont = QFont()
@@ -1830,7 +1830,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 self.processEvents()  # update GUI before restoring range
                 self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)  # prevents autoscaling
                 self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
-                self.plot()
+                self.plot(apply=True)
                 self.processEvents()  # update GUI before grabbing
                 self.imageToClipboard(self.plotSplitter.grab())
             except Exception as e:  # noqa: BLE001
@@ -1844,7 +1844,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                     self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)
                     self.processEvents()  # update GUI before restoring range
                     self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
-                self.plot()
+                self.plot(apply=True)
         else:
             self.imageToClipboard(self.plotSplitter.grab())
 
@@ -3997,7 +3997,8 @@ class Scan(Plugin):  # noqa: PLR0904
         self.settingsMgr.saveSettings(file=file, useDefaultFile=useDefaultFile)
 
     def getDefaultSettings(self) -> dict[str, dict]:  # noqa: D102
-        # ATTENTION: Changing Setting names will cause backwards incompatibility unless handled explicitly!
+        # NOTE: Changing Setting names will cause backwards incompatibility unless handled explicitly!
+        # NOTE: Scan settings should not be internal as they will not have scan
 
         # definitions for type hinting
         self.notes: str
@@ -4028,11 +4029,11 @@ class Scan(Plugin):  # noqa: PLR0904
         ds[self.AVERAGE] = parameterDict(value=1000, toolTip='Time used for averaging in ms.', parameterType=PARAMETERTYPE.INT, attr='average', event=self.estimateScanTime)
         ds[self.SCANTIME] = parameterDict(value='n/a', toolTip='Estimated scan time.', parameterType=PARAMETERTYPE.LABEL, attr='scantime', internal=True, indicator=True)
         if self.useInvalidWhileWaiting:
-            ds[self.INVALIDWHILEWAITING] = parameterDict(value=False, toolTip='Check to disable device readings during wait period, '
-                                                 'e.g. to avoid incorrect readings due to pickup when changing a voltage. '
-                                                 'The device will only return NaN while waiting to stabilize. '
+            ds[self.INVALIDWHILEWAITING] = parameterDict(value=False, toolTip='Check to disable device readings during wait period,\n'
+                                                 'e.g. to avoid incorrect readings due to pickup when changing a voltage.\n'
+                                                 'The device will only return NaN while waiting to stabilize.\n'
                                                  'Note that this is especially useful when running different scans in parallel.'
-                                                 , parameterType=PARAMETERTYPE.BOOL, attr='invalidWhileWaiting', internal=True, advanced=True)
+                                                 , parameterType=PARAMETERTYPE.BOOL, attr='invalidWhileWaiting', advanced=True, internal=True)
         return ds
 
     def getOutputIndex(self) -> int:
@@ -6233,9 +6234,10 @@ class Settings(SettingsManager):  # noqa: PLR0904
 class DeviceManager(Plugin):  # noqa: PLR0904
     """Bundle functionality of devices and thus allows to initialize, start, and stop data acquisition from all devices with a single click.
 
-    Ideally, plugins
+    In the Advanced mode it allows to
+    import all channels of all devices from a single file. Ideally, plugins
     that control potentially dangerous hardware like power supplies, cryo
-    coolers, or vacuum valves should add a status icon to the instrument
+    coolers, or vacuum valves should add a status icon to the device
     manager, so that their status is visible at all times and they can be
     shut down quickly, even when the corresponding plugin tab is is not
     selected. Internally, the device manager also serves as a
@@ -6246,9 +6248,10 @@ class DeviceManager(Plugin):  # noqa: PLR0904
 
     documentation = """The device manager, by default located below the live displays, bundles
     functionality of devices and thus allows to initialize, start, and stop
-    data acquisition from all devices with a single click. Ideally, plugins
+    data acquisition from all devices with a single click. In the Advanced mode it allows to
+    import all channels of all devices from a single file. Ideally, plugins
     that control potentially dangerous hardware like power supplies, cryo
-    coolers, or vacuum valves should add a status icon to the instrument
+    coolers, or vacuum valves should add a status icon to the device
     manager, so that their status is visible at all times and they can be
     shut down quickly, even when the corresponding plugin tab is is not
     selected. Internally, the device manager also serves as a

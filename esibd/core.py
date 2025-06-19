@@ -1408,6 +1408,11 @@ class Parameter:  # noqa: PLR0904
         self.parameterType = parameterType or PARAMETERTYPE.LABEL
         self.column = column
         self.print = parameterParent.print
+        if '/' not in name and internal:
+            # make sure that parameters with simple names are not mixed up between devices.
+            # if there is a / this indicates the name is already specific
+            # if they are not external the name may be generic but that is fine as it will be loaded from a specific file instead of the shared registry.
+            name = f'{self.parameterParent.name}/{name}'
         self.fullName = name
         self.name = Path(name).name
         self.toolTip = toolTip
@@ -2392,7 +2397,6 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.values = DynamicNp(max_size=self.channelParent.maxDataPoints)
             self.inout = self.channelParent.inout
             if self.inout != INOUT.NONE and self.useBackgrounds:
-                # array of background history. managed by instrument manager to keep timing synchronous
                 self.backgrounds = DynamicNp(max_size=self.channelParent.maxDataPoints)
 
         # Generate property for direct access of Parameter values.

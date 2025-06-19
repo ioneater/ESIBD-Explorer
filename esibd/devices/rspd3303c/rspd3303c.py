@@ -34,6 +34,7 @@ class RSPD3303C(Device):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = VoltageChannel
+        self.shutDownActive = False
         self.shutDownTimer = QTimer(self)
         self.shutDownTimer.timeout.connect(self.updateTimer)
 
@@ -69,22 +70,25 @@ class RSPD3303C(Device):
             if (self.shutDownTime < 10 or  # notify every minute  # noqa: PLR0916, PLR2004
             (self.shutDownTime < 60 and self.shutDownTime % 10 == 0) or  # notify every 10 minutes  # noqa: PLR2004
             (self.shutDownTime < 600 and self.shutDownTime % 60 == 0) or  # notify every hour  # noqa: PLR2004
-            (self.shutDownTime % 600 == 0)):  # notify every 10 hours
+            (self.shutDownTime % 600 == 0) or
+            not self.shutDownActive):  # notify every 10 hours
                 self.print(f'Will turn off in {self.shutDownTime} minutes.')
             self.shutDownTimer.start(60000)  # 1 min steps steps
+            self.shutDownActive = True
 
     def updateTimer(self) -> None:
         """Update the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.shutDownTime = max(0, self.shutDownTime - 1)
         if self.shutDownTime == 1:
-            self.print('Timer expired. Setting PID off and heater voltages to 0 V.')
+            self.print('Timer expired. Setting PID off and heater voltages to 0 V.', flag=PRINT.WARNING)
             if hasattr(self.pluginManager, 'PID'):
                 self.pluginManager.PID.setOn(on=False)
             for channel in self.channels:
                 channel.value = 0
         if self.shutDownTime == 0:
-            self.print('Timer expired. Turning off.')
+            self.print('Timer expired. Turning off.', flag=PRINT.WARNING)
             self.shutDownTimer.stop()
+            self.shutDownActive = False
             self.setOn(on=False)
 
 

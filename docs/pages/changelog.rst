@@ -23,6 +23,7 @@ Added
 - Input and output messages from console |console| will now appear in terminal and log file.
 - Added Lakeshore335 plugin.
 - Added advanced option invalidWhileWaiting to Scans to allow to ignore values while signal is stabilizing.
+- Added CustomDevice2 as an example of how to create a custom plugin that replaces an internal plugin while using the same files.
 
 Changed
 ~~~~~~~

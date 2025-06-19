@@ -310,6 +310,8 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                 self.setValuesAndUpdate(0, False, False, 'got empty message')  # noqa: FBT003
             else:
                 self.setValuesAndUpdate(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
+            if self.port:
+                self.clearBuffer(self.port)  # make sure messages cannot accumulate at port in case readout rate is slower than sample rate
         self.updateParameters()
 
     def fakeNumbers(self) -> None:
