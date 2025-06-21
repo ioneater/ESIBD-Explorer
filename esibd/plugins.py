@@ -167,6 +167,8 @@ class Plugin(QWidget):  # noqa: PLR0904
     """A line to store matplotlib lines for simple displays."""
     labelAxis: Axes = None  # type: ignore  # noqa: PGH003
     """Axis used for plot labels."""
+    resizing: bool = False
+    """Indicate if the plugin is resizing. May be used to increase performance by suppressing updates while resizing."""
 
     class SignalCommunicate(QObject):  # signals that can be emitted by external threads
         """Bundle pyqtSignals."""
@@ -210,7 +212,6 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
         self.testing_state: bool = False  # indicates if tests are running
         self.mainTester = False  # indicate if this plugin initiated the tests
-
         self.signalComm = self.SignalCommunicate()
         self.signalComm.testCompleteSignal.connect(self.testComplete)
 
@@ -1890,7 +1891,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 timeAxes[device.name] = i_min, i_max, n, timeAxis
         return timeAxes
 
-    def plot(self, apply: bool = False) -> None:  # noqa: C901, PLR0912
+    def plot(self, apply: bool = False) -> None:  # noqa: C901, PLR0911, PLR0912
         """Plot the enabled and initialized channels in the main output plot.
 
         The x axis is either time or a selected channel.
@@ -1906,12 +1907,17 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         if len(self.livePlotWidgets) == 0:
             return
         if (not self.initializedDock or self.parentPlugin.pluginManager.loading
-            or self.pluginManager.Settings.loading or self.parentPlugin.plotting):
+            or self.pluginManager.Settings.loading):
             return  # values not yet available
+        if self.parentPlugin.plotting:
+            return  # previous plot not yet processed
         if isinstance(self.parentPlugin, Device) and self.parentPlugin.time.size < 1:  # no data
             return
+        if self.pluginManager.resizing:
+            self.print('Suspend plotting while resizing.', flag=PRINT.TRACE)
+            return
         if any(livePlotWidget.dragging for livePlotWidget in self.livePlotWidgets):
-            self.print('Suspend plotting while dragging', flag=PRINT.TRACE)
+            self.print('Suspend plotting while dragging.', flag=PRINT.TRACE)
             return
         self.parentPlugin.plotting = True  # protect from recursion
         # flip array to speed up search of most recent data points
@@ -3657,10 +3663,9 @@ class Scan(Plugin):  # noqa: PLR0904
             :param a0: The resize event.
             :type a0: QResizeEvent
             """
-            if a0:
-                super().resizeEvent(a0)  # Ensure default behavior
-                if self.scan.settingsTree:
-                    self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height() - self.scan.settingsTree.sizeHint().height()])
+            super().resizeEvent(a0)  # Ensure default behavior
+            if self.scan.settingsTree:
+                self.setSizes([self.scan.settingsTree.sizeHint().height(), self.height() - self.scan.settingsTree.sizeHint().height()])
 
     class Display(Plugin):
         """Display for base scan. Extend as needed."""
@@ -5439,7 +5444,7 @@ class Console(Plugin):
                 "_=[parameter.getWidget().setStyleSheet('background-color:red;border: 0px;padding: 0px;margin: 0px;') for parameter in channel.parameters]",
                 'PluginManager.showThreads()  # show all active threads',
                 '[plt.figure(num).get_label() for num in plt.get_fignums()]  # show all active matplotlib figures',
-                '# self.closeApplication(restart=True) # restart the application cleanly (uses new code if changed)',
+                '# self.closeApplication(restart=True, confirm=False) # restart the application cleanly (uses new code if changed)',
                 "# Module=dynamicImport('ModuleName', 'C:/path/to/module.py')  # import a python module, e.g. to run generated plot files.",
                 '# PluginManager.test()  # Automated testing of all active plugins. Can take a few minutes.',
             ])
@@ -7576,6 +7581,11 @@ class UCM(ChannelManager):
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: ARG002, D102
         self.pluginManager.Text.setText(f'Import channels from {file} explicitly.', showPlugin=True)
+
+    def moveChannel(self, up: bool) -> None:  # noqa: D102
+        newChannel = cast('UCM.UCMChannel', super().moveChannel(up=up))
+        if newChannel:
+            newChannel.connectSource()
 
     def connectAllSources(self, update: bool = False) -> None:
         """Connect all available source channels.

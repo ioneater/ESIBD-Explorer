@@ -35,6 +35,8 @@ Changed
 - While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
 - Instead of showing the last valid value after stopping acquisition, NAN is displayed to indicate that the current value is unknown.
 - Increased performance by delaying update of matplotlib figures while resizing.
+- Increased performance by suspending plotting in liveDisplays while resizing.
+- Increased performance by suspending update in liveDisplays while resizing.
 - Changed smoothing algorithm to preserve sections with less datapoint than smoothing window.
 
 Fixed
@@ -54,6 +56,7 @@ Fixed
 - Instead of reloading plugins, the application performs a clean restart. This is to avoid memory leaks from incompletely closed plugins.
 - Fixed TIC, ISEG, and Temperature after testing with hardware.
 - Fixed testing of internal displays.
+- Splash screen is only on top of ESIBD Explorer but not on top of all other applications.
 
 Removed
 ~~~~~~~

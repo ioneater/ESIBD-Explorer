@@ -45,7 +45,6 @@ def main() -> bool:
     app.splashScreen = SplashScreen(app=app)
     app.mainWindow = EsibdExplorer(app=app)
     app.mainWindow.show()
-
     app.mouseInterceptor = MouseInterceptor(app.mainWindow)
     app.installEventFilter(app.mouseInterceptor)
 

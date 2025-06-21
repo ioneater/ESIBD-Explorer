@@ -4,7 +4,7 @@ from typing import cast
 
 import numpy as np
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getDarkMode, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -113,8 +113,8 @@ class TemperatureController(DeviceController):
         super().__init__(controllerParent)
         # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
         # If needed, add SDK installation path to PATH
-        # importing modules here makes sure that the module is loaded without errors.
-        # Missing SDK is only raised if users enable this plugin.
+        # Importing modules here makes sure that the module is loaded without errors and
+        # missing SDK is only raised if users enable this plugin.
         from picosdk.functions import assert_pico_ok  # noqa: PLC0415
         from picosdk.usbPT104 import usbPt104  # noqa: PLC0415
         self.usbPt104 = usbPt104
@@ -156,7 +156,9 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        if self.initialized and self.lock:
+        if not getTestMode() and self.initialized and self.lock:
+            # typically we would check for usbPt104 is not None instead of getTestMode,
+            # but here usbPt104 is imported as an object and cannot be reinstantiated and should thus never set to None.
             with self.lock.acquire_timeout(1, timeoutMessage='Cannot acquire lock to close PT-104.'):
                 self.usbPt104.UsbPt104CloseUnit(self.chandle)  # type: ignore  # noqa: PGH003
         self.initialized = False

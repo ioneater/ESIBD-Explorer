@@ -195,16 +195,18 @@ class EsibdExplorer(QMainWindow):
             else:
                 a0.ignore()
 
-    def closeApplication(self, restart: bool = False) -> bool:
+    def closeApplication(self, restart: bool = False, confirm: bool = True) -> bool:
         """Close communication and plugins, restart if applicable.
 
         :param restart: If True, application will restart in a clean new process, defaults to False
         :type restart: bool, optional
+        :param confirm: Indicates if user should confirm in case devices are initialized, defaults to True
+        :type confirm: bool, optional
         :return: Returns True if the application is closing.
         :rtype: bool
         """
         if self.pluginManager.DeviceManager.initialized():
-            if not CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
+            if confirm and not CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
                 return False
             self.pluginManager.DeviceManager.closeCommunication(closing=True)
         if restart:
@@ -291,12 +293,12 @@ class PluginManager:  # noqa: PLR0904
         self.Text: Text
         self.Notes: Notes
         self.DeviceManager: DeviceManager
-        self.ChannelManager, self.Device, self.Scan = self._main_types()
+        self.ChannelManager, self.Device, self.LiveDisplay, self.Scan = self._main_types()
 
-    def _main_types(self) -> tuple[type['ChannelManager'], type['Device'], type['Scan']]:
+    def _main_types(self) -> tuple[type['ChannelManager'], type['Device'], type['LiveDisplay'], type['Scan']]:
         """Lazy import to allow use of isinstance without circular imports."""
-        from esibd.plugins import ChannelManager, Device, Scan  # noqa: PLC0415
-        return ChannelManager, Device, Scan
+        from esibd.plugins import ChannelManager, Device, LiveDisplay, Scan  # noqa: PLC0415
+        return ChannelManager, Device, LiveDisplay, Scan
 
     @property
     def loading(self) -> bool:
@@ -524,6 +526,11 @@ class PluginManager:  # noqa: PLR0904
                     removePlugins.append(plugin)
         for plugin in removePlugins:
             self.plugins.pop(self.plugins.index(plugin))  # avoid any further undefined interaction
+
+    @property
+    def resizing(self) -> bool:
+        """Indicates if any plugin is currently resizing."""
+        return any(plugin.resizing for plugin in self.plugins)
 
     @property
     def testing(self) -> bool:
@@ -2291,20 +2298,6 @@ class MetaChannel(RelayChannel):
         """Provide onDelete for channel API consistency."""
 
 
-class PlotCurveItem(pyqtgraph.PlotCurveItem):
-    """PlotCurveItem that stores a reference to its parent and legend to allow for clean removal of references before deletion."""
-
-    curveParent: 'PlotWidget | PlotItem'
-    curveLegend: pg.LegendItem
-
-
-class PlotDataItem(pyqtgraph.PlotDataItem):
-    """PlotCurveItem that stores a reference to its parent and legend to allow for clean removal of references before deletion."""
-
-    curveParent: 'PlotWidget | PlotItem | ViewBox'
-    curveLegend: pg.LegendItem
-
-
 class Channel(QTreeWidgetItem):  # noqa: PLR0904
     """Represent a virtual or real Parameter and manage all data and metadata related to that Parameter.
 
@@ -4042,6 +4035,33 @@ class DockWidget(QDockWidget):
         self.topLevelChanged.connect(self.on_top_level_changed)
         self.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)  # | QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.setWidget(self.parentPlugin.mainDisplayWidget)
+        self.resizeTimer = QTimer()
+        self.resizeTimer.setSingleShot(True)
+        self.resizeTimer.timeout.connect(self.resetResize)
+        self.resizeTimer.setInterval(100)
+        self._pending_resize_event = None
+
+    def resizeEvent(self, a0: 'QResizeEvent | None') -> None:  # pylint: disable = missing-param-doc
+        """Temporary set resizing flag."""
+        if self.parentPlugin.pluginManager.loading or self.parentPlugin.pluginManager.finalizing:
+            super().resizeEvent(a0)
+            return
+        if not self.resizeTimer.isActive():
+            self.parentPlugin.resizing = True
+            if isinstance(self.parentPlugin, self.parentPlugin.pluginManager.LiveDisplay) and self.parentPlugin.plotSplitter:
+                self.parentPlugin.plotSplitter.setVisible(False)
+
+        self._pending_resize_event = a0  # Store for later
+        self.resizeTimer.start()  # start or restart to delay timeout
+
+    def resetResize(self) -> None:
+        """Reset resizing flag."""
+        if self._pending_resize_event:
+            super().resizeEvent(self._pending_resize_event)
+            self._pending_resize_event = None
+        if isinstance(self.parentPlugin, self.parentPlugin.pluginManager.LiveDisplay) and self.parentPlugin.plotSplitter:
+            self.parentPlugin.plotSplitter.setVisible(True)
+        self.parentPlugin.resizing = False
 
     def on_top_level_changed(self) -> None:
         """Update toolbars after dragging plugins to new location."""
@@ -5003,6 +5023,20 @@ class ViewBox(pg.ViewBox):
             self.userMouseEnabledChanged.emit(x_old if x is None else x, y_old if y is None else y)
 
 
+class PlotCurveItem(pyqtgraph.PlotCurveItem):
+    """PlotCurveItem that stores a reference to its parent and legend to allow for clean removal of references before deletion."""
+
+    curveParent: 'PlotWidget | PlotItem'
+    curveLegend: pg.LegendItem
+
+
+class PlotDataItem(pyqtgraph.PlotDataItem):
+    """PlotCurveItem that stores a reference to its parent and legend to allow for clean removal of references before deletion."""
+
+    curveParent: 'PlotWidget | PlotItem | ViewBox'
+    curveLegend: pg.LegendItem
+
+
 class PlotItem(pg.PlotItem):
     """PlotItem providing xyLabel."""
 
@@ -5273,8 +5307,10 @@ class TimeoutLock:
             finally:
                 if result and not already_acquired:
                     self._lock.release()
-                if self.lockParent.errorCount > self.lockParent.MAX_ERROR_COUNT and isinstance(self.lockParent, DeviceController):
-                    self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
+                if ((self.lockParent.errorCount == self.lockParent.MAX_ERROR_COUNT or self.lockParent.errorCount > 2 * self.lockParent.MAX_ERROR_COUNT) and
+                    isinstance(self.lockParent, DeviceController)):
+                    # only call closeCommunication when equal to MAX_ERROR_COUNT, Otherwise errors during closeCommunication could cause recursion.
+                    self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
                     self.lockParent.closeCommunication()
         if not result and timeoutMessage:
             self.print(timeoutMessage, flag=PRINT.ERROR)
@@ -5380,11 +5416,13 @@ class DeviceController(QObject):  # noqa: PLR0904
         self._errorCount = count
         if self.errorCount != 0:
             QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
-        if self.errorCount > self.MAX_ERROR_COUNT and self.initialized:
-            self.print(f'Closing communication after more than {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.ERROR)  # {e}
+        if (self.errorCount == self.MAX_ERROR_COUNT or self.errorCount > 2 * self.MAX_ERROR_COUNT) and self.initialized:
+            self.print(f'Closing communication after more than {self.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
             self.closeCommunication()
         if isinstance(self.controllerParent, self.pluginManager.Device):
             QTimer.singleShot(0, self.controllerParent.errorCountChanged)
+        elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
+            QTimer.singleShot(0, self.controllerParent.channelParent.errorCountChanged)
 
     def resetErrorCount(self) -> None:
         """Reset error count to 0."""

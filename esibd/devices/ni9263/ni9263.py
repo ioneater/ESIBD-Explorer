@@ -90,4 +90,5 @@ class VoltageController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
+        # nothing to close
         self.initialized = False
