@@ -13,9 +13,9 @@ Added
 - In Debug mode, items from the Tree |tree| can be added to the Console |console|.
 - Added option to liveDisplays to toggle between automatically |scaleX_auto| or manually |scaleX_manual| scaling the x axis.
 - Integrated generating and running python plot code for tests of devices, scans, and displays.
+- Added log level setting to determine level of information in logs.
 - Introduced log level 'Trace' which shows detailed device communication info if implemented by device.
 - Tests now write a log to a dedicated file in the current session path.
-- Added log level setting to determine level of information in logs.
 - Added some pauses during testing if GUI gets too busy.
 - In advanced |advanced| mode of Settings |settings|, the error count for controllers of devices and channels is now shown.
 - Input channels are now shown in the channel list of scans.

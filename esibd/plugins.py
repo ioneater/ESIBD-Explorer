@@ -6142,15 +6142,14 @@ class Settings(SettingsManager):  # noqa: PLR0904
         self.defaultFile = self.configPath / self.confINI
         if not self.pluginManager.loading:
             self.pluginManager.DeviceManager.closeCommunication(message='Stopping communication before changing config path.')
-            splash = SplashScreen()
-            splash.show()
+            self.app.splashScreen.show()
             self.loadSettings(self.defaultFile)
             self.processEvents()
             self.pluginManager.DeviceManager.restoreConfiguration()
             if self.pluginManager.logger.active:
                 self.pluginManager.logger.close()  # release old log file
                 self.pluginManager.logger.open()  # continue logging in new location
-            splash.close()
+            self.app.splashScreen.close()
 
     def updatePluginPath(self) -> None:
         """Restart after changing user plugin path."""

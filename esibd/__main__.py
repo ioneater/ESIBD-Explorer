@@ -9,7 +9,7 @@ import matplotlib.backends.backend_pdf  # pylint: disable = unused-import  # req
 from PyQt6.QtCore import QSharedMemory
 from PyQt6.QtQuick import QQuickWindow, QSGRendererInterface
 
-from esibd.core import PROGRAM_NAME, Application, EsibdExplorer, MouseInterceptor, colors
+from esibd.core import PROGRAM_NAME, Application, EsibdExplorer, MouseInterceptor, SplashScreen, colors
 
 mpl.use('Qt5Agg')
 mpl.rcParams['savefig.format'] = 'pdf'  # make pdf default export format
@@ -41,7 +41,9 @@ def main() -> bool:
     if not app.sharedAppStr.create(512, QSharedMemory.AccessMode.ReadWrite):
         print(f"Can't start more than one instance of {appStr}.")  # noqa: T201
         sys.exit(0)
-    app.mainWindow = EsibdExplorer()
+
+    app.splashScreen = SplashScreen(app=app)
+    app.mainWindow = EsibdExplorer(app=app)
     app.mainWindow.show()
 
     app.mouseInterceptor = MouseInterceptor(app.mainWindow)

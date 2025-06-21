@@ -80,6 +80,9 @@ class VoltageController(DeviceController):
     def runAcquisition(self) -> None:
         pass  # nothing to acquire, no readbacks
 
+    def updateValues(self) -> None:
+        pass  # nothing to update, no read values and no monitors.
+
     def toggleOn(self) -> None:
         for channel in self.controllerParent.getChannels():
             if channel.real:

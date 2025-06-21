@@ -126,10 +126,11 @@ class EsibdExplorer(QMainWindow):
 
     loadPluginsSignal = pyqtSignal()
 
-    def __init__(self) -> None:
+    def __init__(self, app: 'Application') -> None:
         """Set up basic user interface and triggers loading of plugins."""
         super().__init__()
         # switch to GL compatibility mode here to avoid UI glitches later https://stackoverflow.com/questions/77031792/how-to-avoid-white-flash-when-initializing-qwebengineview
+        self.app = app
         dummy = QWebEngineView(parent=self)
         dummy.setHtml('dummy')
         dummy.deleteLater()
@@ -174,7 +175,7 @@ class EsibdExplorer(QMainWindow):
         """Save size and location of main window."""
         qSet.setValue(GEOMETRY, self.saveGeometry())
         self.pluginManager.Settings.raiseDock(showPlugin=True)  # need to be visible to give right dimensions
-        QApplication.processEvents()
+        self.app.processEvents()
         qSet.setValue(SETTINGSWIDTH, self.pluginManager.Settings.mainDisplayWidget.width())  # store width
         qSet.setValue(SETTINGSHEIGHT, self.pluginManager.Settings.mainDisplayWidget.height())  # store height
         qSet.setValue(CONSOLEHEIGHT, self.pluginManager.Console.mainDisplayWidget.height())  # store height
@@ -210,7 +211,7 @@ class EsibdExplorer(QMainWindow):
             self.pluginManager.logger.print('Restarting.', flag=PRINT.EXPLORER)
         self.pluginManager.closePlugins()
         if restart:
-            self.pluginManager.app.sharedAppStr.detach()
+            self.app.sharedAppStr.detach()
             python = sys.executable
             os.execl(python, python, *sys.argv)  # noqa: S606
         return True
@@ -222,6 +223,7 @@ class Application(QApplication):
     sharedAppStr: QSharedMemory
     mainWindow: EsibdExplorer
     mouseInterceptor: 'MouseInterceptor'
+    splashScreen: 'SplashScreen'
 
 
 class PluginManager:  # noqa: PLR0904
@@ -311,8 +313,7 @@ class PluginManager:  # noqa: PLR0904
     def loadPlugins(self) -> None:  # noqa: C901, PLR0915
         """Load all enabled plugins."""
         self.updateTheme()
-        self.splash = SplashScreen()
-        self.splash.show()
+        self.app.splashScreen.show()
 
         self.mainWindow.setUpdatesEnabled(False)
         self.loading = True  # some events should not be triggered until after the UI is completely initialized
@@ -368,7 +369,7 @@ class PluginManager:  # noqa: PLR0904
         self.finalizing = False
         self.toggleTitleBarDelayed(update=True, delay=1000)
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit)  # add delay to make sure application is ready to process updates, but make sure it is done in main thread
-        self.splash.close()  # close as soon as mainWindow is ready
+        self.app.splashScreen.close()  # close as soon as mainWindow is ready
         if getTestMode():
             self.logger.print('Test mode is active!', flag=PRINT.WARNING)
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
@@ -493,7 +494,6 @@ class PluginManager:  # noqa: PLR0904
                 self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                 delattr(self.__class__, plugin.name)  # remove attribute
                 self.plugins.pop(self.plugins.index(plugin))  # avoid any further undefined interaction
-            self.splash.raise_()  # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
 
     def finalizeInit(self) -> None:
         """Finalize initialization after all other plugins have been initialized."""
@@ -800,10 +800,8 @@ class PluginManager:  # noqa: PLR0904
 
     def updateTheme(self) -> None:
         """Update application theme while showing a splash screen if necessary."""
-        splash = None
         if not self.loading:
-            splash = SplashScreen()
-            splash.show()
+            self.app.splashScreen.show()
             self.mainWindow.setUpdatesEnabled(False)
         style = QApplication.style()
         if style:
@@ -856,9 +854,9 @@ class PluginManager:  # noqa: PLR0904
                         plugin.updateTheme()
                     except Exception:  # noqa: BLE001
                         self.logger.print(f'Error while updating plugin {plugin.name} theme: {traceback.format_exc()}')
-            if not (self.loading or self.finalizing) and splash:
+            if not (self.loading or self.finalizing) and self.app.splashScreen:
                 self.mainWindow.setUpdatesEnabled(True)
-                splash.close()
+                self.app.splashScreen.close()
             self.toggleTitleBarDelayed(update=True)
 
     def reconnectSource(self, name: str) -> None:
@@ -3248,9 +3246,9 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # pylint: disable = missing-param-doc
         """Allow to manually rest a value from NaN."""
-        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9:
+        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9 or event.key() == Qt.Key.Key_Minus:
             self._is_nan = False
         super().keyPressEvent(event)
 
@@ -3353,9 +3351,9 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
             self.setReadOnly(True)
             self.preciseValue = 0
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # pylint: disable = missing-param-doc
         """Allow to manually rest a value from NaN."""
-        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9:
+        if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9 or event.key() == Qt.Key.Key_Minus:
             self._is_nan = False
         super().keyPressEvent(event)
 
@@ -5700,27 +5698,21 @@ class DeviceController(QObject):  # noqa: PLR0904
 class SplashScreen(QSplashScreen):
     """Program splash screen that indicates loading."""
 
-    def __init__(self) -> None:
+    def __init__(self, app: 'Application') -> None:
         """Initialize a SplashScreen."""
         super().__init__()
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint | Qt.WindowType.SplashScreen | Qt.WindowType.WindowStaysOnTopHint)
+        self.app = app
         self.lay = QVBoxLayout(self)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        app = cast('Application', QApplication.instance())
-        if app:
-            currentDesktopsCenter = app.mainWindow.geometry().center()
-            self.move(currentDesktopsCenter.x() - 100, currentDesktopsCenter.y() - 100)  # move to center
-            self.labels = []
-            self.index = 3
-            self.label = QLabel()
-            self.label.setMaximumSize(200, 200)
-            self.label.setScaledContents(True)
-            self.lay.addWidget(self.label)
-            self.timer = QTimer()
-            self.timer.timeout.connect(self.animate)
-            self.timer.setInterval(1000)
-            self.timer.start()
-            self.closed = False
+        self.labels = []
+        self.index = 3
+        self.label = QLabel()
+        self.label.setMaximumSize(200, 200)
+        self.label.setScaledContents(True)
+        self.lay.addWidget(self.label)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.animate)
+        self.timer.setInterval(1000)
+        self.closed = False
 
     def animate(self) -> None:
         """Advances to the next frame."""
@@ -5729,7 +5721,15 @@ class SplashScreen(QSplashScreen):
 
     def show(self) -> None:
         """Show the splash screen."""
+        self.setParent(self.app.mainWindow, Qt.WindowType.Window)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        if self.app:
+            currentDesktopsCenter = self.app.mainWindow.geometry().center()
+            self.move(currentDesktopsCenter.x() - 100, currentDesktopsCenter.y() - 100)  # move to center
         super().show()
+        self.timer.start()
+        self.raise_()
         QApplication.processEvents()
 
     def close(self) -> bool:
