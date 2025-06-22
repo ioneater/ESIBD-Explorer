@@ -59,14 +59,17 @@ See comments within the files for more details.
 
 On the online PC:
 
-1. If you need custom requirements, add them to :code:`create_esibd_offline.bat`
-2. Run :code:`create_esibd_offline.bat` to create and export the esibd environment as :code:`esibd.tar.gz`.
+1. Check if the `latest release <https://github.com/ioneater/ESIBD-Explorer/releases/latest>`_ already comes with a precompiled version for your system.
+2. If you need custom requirements, add them to :code:`create_esibd_offline.bat`
+3. Run :code:`create_esibd_offline.bat` to create and export the esibd environment locally as :code:`esibd.tar.gz`.
 
 On the offline PC:
 
-1. Extract the content of :code:`esibd.tar.gz` as a local environment.
-2. Adjust the filepath to the :code:`esibd` folder in :code:`start_esibd_offline.bat`.
-3. Run :code:`start_esibd_offline.bat` to start *ESIBD Explorer*.
+1. Extract the content of :code:`esibd.tar.gz` as :code:`esibd.tar`.
+2. Extract the content of :code:`esibd.tar` as :code:`esibd`.
+3. Adjust the filepath to the :code:`esibd` folder in :code:`start_esibd_offline.bat`.
+4. Run :code:`start_esibd_offline.bat` to start *ESIBD Explorer*.
+
 
 From PyPi (Linux)
 -----------------
@@ -87,7 +90,8 @@ Set the include-system-site-packages to true in esibd/pyvenv.cfg
 .. code-block:: python3
 
    source esibd/bin/activate
-   pip install esibd-explorer --user
+   pip install esibd-explorer
+   sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
    python -m esibd.explorer --disable-gpu
 
 From source (other)

@@ -54,7 +54,8 @@ class MS(Plugin):
         if self.fig:
             self.axes.append(self.fig.add_subplot(111))
             self.mzCalc.setAxis(self.axes[0])  # update axis but reuse picked positions until reset explicitly
-        self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
+        if self.canvas:
+            self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
         self.line = None  # type: ignore  # noqa: PGH003 # self.axes[0].plot([],[])[0]  # dummy plot
 
     def provideDock(self) -> bool:
@@ -126,8 +127,10 @@ class MS(Plugin):
         self.axes[0].relim()
         self.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
         self.setLabelMargin(self.axes[0], 0.15)
-        self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
+        if self.navToolBar:
+            self.navToolBar.update()  # reset history for zooming and home view
+        if self.canvas:
+            self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf').as_posix() if self.file else self.name  # set up save file dialog
         self.mzCalc.update_mass_to_charge()
         self.labelPlot('' if self.paperAction and self.paperAction.state else (self.file.name if self.file else self.name))
 

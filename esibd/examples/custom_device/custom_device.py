@@ -38,12 +38,12 @@ class CustomDevice(Device):
     useDisplays = True
     useOnOffLogic = True
     channels: 'list[CustomChannel]'
-    messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.channelType = CustomChannel
         self.controller = CustomController(controllerParent=self)
+        self.messageBox = QMessageBox(QMessageBox.Icon.Information, 'Custom Dialog', 'Custom Dialog', buttons=QMessageBox.StandardButton.Ok)
         # TODO (optional) initialize any custom variables
 
     def initGUI(self) -> None:
@@ -171,7 +171,7 @@ class CustomController(DeviceController):
             # TODO add custom initialization code here
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
         finally:
             self.initializing = False
 

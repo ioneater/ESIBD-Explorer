@@ -113,7 +113,7 @@ class VoltageController(DeviceController):
                                         bytesize=serial.EIGHTBITS, timeout=2) for COM in self.COMs]
             result = self.MIPSWriteRead(self.COMs[0], 'GDCBV,1\r\n')
         except (ValueError, SerialException) as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception
-            self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish Serial connection to a MIPS at {self.COMs}. Exception: {e}', flag=PRINT.WARNING)
         else:
             if result:
                 self.signalComm.initCompleteSignal.emit()
@@ -140,13 +140,13 @@ class VoltageController(DeviceController):
 
     def fakeNumbers(self) -> None:
         if self.COMs is not None:
-            for i, channel in enumerate(self.controllerParent.getChannels()):
+            for channel in self.controllerParent.getChannels():
                 if channel.enabled and channel.real:
                     if self.controllerParent.isOn() and channel.enabled:
                         # fake values with noise and 10% channels with offset to simulate defect channel or short
-                        self.values[self.COMs.index(channel.com)][i] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random() - .5
+                        self.values[self.COMs.index(channel.com)][channel.id - 1] = channel.value + 5 * choices([0, 1], [.98, .02])[0] + self.rng.random() - .5
                     else:
-                        self.values[self.COMs.index(channel.com)][i] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random() - .5
+                        self.values[self.COMs.index(channel.com)][channel.id - 1] = 0 + 5 * choices([0, 1], [.9, .1])[0] + self.rng.random() - .5
 
     def applyValue(self, channel: VoltageChannel) -> None:
         self.MIPSWriteRead(channel.com, message=f'SDCB,{channel.id},{channel.value if (channel.enabled and self.controllerParent.isOn()) else 0}\r\n')
@@ -157,11 +157,6 @@ class VoltageController(DeviceController):
             for channel in self.controllerParent.getChannels():
                 if channel.enabled and channel.real:
                     channel.monitor = np.nan if channel.waitToStabilize else self.values[self.COMs.index(channel.com)][channel.id - 1]
-
-    def toggleOn(self) -> None:
-        for channel in self.controllerParent.getChannels():
-            if channel.real:
-                self.applyValueFromThread(channel)
 
     def closeCommunication(self) -> None:
         super().closeCommunication()

@@ -21,6 +21,7 @@ from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard
 if TYPE_CHECKING:
     from types import ModuleType
 
+    from esibd.core import Channel
     from esibd.plugins import Plugin, SettingsManager
 
 ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007
@@ -230,10 +231,10 @@ def makeSettingWrapper(name: str, settingsMgr: 'SettingsManager', docstring: str
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
     """
-    def getter(self) -> ParameterType:  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ANN001, ARG001
+    def getter(self: 'Plugin') -> 'ParameterType | None':  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ARG001
         return settingsMgr.settings[name].value
 
-    def setter(self, value: ParameterType) -> None:  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ANN001, ARG001
+    def setter(self: 'Plugin', value: ParameterType) -> None:  # pylint: disable=[unused-argument]  # self will be passed on when used in class  # noqa: ARG001
         settingsMgr.settings[name].value = value
     return property(getter, setter, doc=docstring)
 
@@ -248,10 +249,10 @@ def makeWrapper(name: str, docstring: str = '') -> property:
     :param docstring: The docstring used for the attribute, defaults to None
     :type docstring: str, optional
     """
-    def getter(self) -> ParameterType:  # noqa: ANN001
+    def getter(self: 'Channel') -> 'ParameterType | None':
         return self.getParameterByName(name).value
 
-    def setter(self, value: ParameterType) -> None:  # noqa: ANN001
+    def setter(self: 'Channel', value: ParameterType) -> None:
         self.getParameterByName(name).value = value
     return property(getter, setter, doc=docstring)
 
@@ -338,7 +339,8 @@ def getLogLevel(asString: bool = False) -> int | str:
             return 1
         case 'Verbose':
             return 2
-    return 3  # Trace
+        case _:
+            return 3  # Trace
 
 
 def getDarkMode() -> bool:
@@ -374,7 +376,7 @@ def getDPI() -> int:
     :return: DPI
     :rtype: int
     """
-    return int(qSet.value(f'{GENERAL}/{DPI}', 100))  # need explicit conversion as stored as string
+    return qSet.value(f'{GENERAL}/{DPI}', 100, type=int)
 
 
 def getIconMode() -> str:
@@ -429,17 +431,17 @@ def validatePath(path: 'Path | None', default: Path) -> 'tuple[Path, bool]':
     return path, False
 
 
-def smooth(data: np.ndarray, smooth: int) -> np.ndarray:
+def smooth(data: np.typing.NDArray[np.float32], smooth: int) -> np.typing.NDArray[np.float32]:
     """Smooth a 1D array while keeping edges meaningful.
 
     This method is robust if array contains np.nan.
 
     :param data: Array to be smoothed.
-    :type data: np.ndarray
+    :type data: np.typing.NDArray[np.float32]
     :param smooth: With of box used for smoothing.
     :type smooth: int
     :return: convolvedArray
-    :rtype: np.ndarray
+    :rtype: np.typing.NDArray[np.float32]
     """
     if len(data) < smooth:
         return data
@@ -457,7 +459,7 @@ def smooth(data: np.ndarray, smooth: int) -> np.ndarray:
 
     # Overwrite result where not enough valid data
     convolvedArray[valid_count < smooth] = data[valid_count < smooth]
-    return convolvedArray
+    return convolvedArray.astype(np.float32)
 
 
 def shorten_text(text: str, max_length: int = 100) -> str:

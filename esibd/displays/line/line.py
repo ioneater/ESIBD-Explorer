@@ -101,9 +101,11 @@ class LINE(Plugin):
         self.axes[0].relim()
         self.axes[0].autoscale_view(tight=True, scalex=True, scaley=False)
         self.setLabelMargin(self.axes[0], 0.15)
-        self.canvas.draw_idle()
-        self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
+        if self.canvas:
+            self.canvas.draw_idle()
+            self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf').as_posix() if self.file else self.name  # set up save file dialog
+        if self.navToolBar:
+            self.navToolBar.update()  # reset history for zooming and home view
         self.labelPlot(self.file.name if self.file else 'Line')
 
     def generatePythonPlotCode(self) -> str:

@@ -4,6 +4,8 @@ REM Otherwise, please use the provided standalone executable.
 
 REM Go to location of offline environment
 REM Extract all files from esibd.tar.gz created using create_esibd_offline.bat here
+REM Extract esibd.tar.gz -> esibd.tar
+REM Extract esibd.tar to esibd
 REM Adjust following path as needed
 call cd C:\Users\UserName\Desktop\esibd
 REM Activate the esibd environment

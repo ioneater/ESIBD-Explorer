@@ -170,7 +170,7 @@ class Depo(Scan):
 
         def updateDepoTarget(self) -> None:
             """Update the deposition target line in the plot."""
-            if self.depoChargeTarget is not None:
+            if self.depoChargeTarget is not None and self.canvas:
                 self.depoChargeTarget.set_ydata([self.scan.target])
                 if np.sign(self.scan.target) == 1:
                     self.axes[0].set_ylim(0, 1)
@@ -260,7 +260,7 @@ class Depo(Scan):
                 self.display.updateDepoTarget()  # flip axes if needed
                 return True
             if not self._dummy_initialization:
-                self.print('No initialized current output channel found.', PRINT.WARNING)
+                self.print('No initialized current output channel found.', flag=PRINT.WARNING)
             return False
         return False
 
@@ -293,7 +293,7 @@ class Depo(Scan):
 
     def updateWarnLevel(self) -> None:
         """Update the warning level line in the plot."""
-        if self.displayActive() and self.display.currentWarnLine:
+        if self.displayActive() and self.display.currentWarnLine and self.display.canvas:
             self.display.currentWarnLine.set_ydata([self.warnLevel])
             self.display.canvas.draw_idle()
 

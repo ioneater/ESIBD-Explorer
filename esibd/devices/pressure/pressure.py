@@ -116,7 +116,7 @@ class PressureController(DeviceController):
             TICStatus = self.TICWriteRead(message=902)
             self.print(f'TIC Status: {TICStatus}')  # query status
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.print(f'TIC Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'TIC Error while initializing: {e}', flag=PRINT.ERROR)
         else:
             if not TICStatus:
                 msg = 'TIC did not return status.'
@@ -129,7 +129,7 @@ class PressureController(DeviceController):
             TPGStatus = self.TPGWriteRead(message='TID')
             self.print(f'MaxiGauge Status: {TPGStatus}')  # gauge identification
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.print(f'TPG Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'TPG Error while initializing: {e}', flag=PRINT.ERROR)
         else:
             if not TPGStatus:
                 msg = 'TPG did not return status.'
@@ -147,7 +147,7 @@ class PressureController(DeviceController):
                     try:
                         self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
                     except Exception as e:  # noqa: BLE001
-                        self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
+                        self.print(f'Failed to parse pressure from {msg}: {e}', flag=PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan
                 elif channel.pressure_controller == channel.TPG and self.tpgInitialized:
@@ -157,10 +157,10 @@ class PressureController(DeviceController):
                         if a == '0':
                             self.values[i] = float(pressure)  # set unit to mbar on device
                         else:
-                            self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', PRINT.WARNING)
+                            self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(a)]}.', flag=PRINT.WARNING)
                             self.values[i] = np.nan
                     except Exception as e:  # noqa: BLE001
-                        self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
+                        self.print(f'Failed to parse pressure from {msg}: {e}', flag=PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan
                 else:

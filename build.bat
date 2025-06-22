@@ -1,7 +1,7 @@
 REM Start script for windows
 REM based on https://www.pythonguis.com/tutorials/packaging-pyqt5-pyside2-applications-windows-pyinstaller/
 
-do not run this a script
+do not run this as a script
 run individual blocks manually and only proceed if successful
 exit
 
@@ -23,7 +23,7 @@ update changelog in changelog.rst (ideally update before each commit)
 update change log title with version and release date
 Often, writing the change log inspires some last minute changes!
 Content: start bullet points with capitals and dot at the end
-hyphens will be replaced by bullet points on github
+- hyphens will be replaced by bullet points on github
 
 REM Added 			for new features.
 REM Changed 		for changes in existing functionality.
@@ -39,7 +39,6 @@ REM Testing
 :::::::::::
 make sure all test pass in development environment
 test with all/no plugins enabled
-Ideally start from console after fresh PC reboor for maximal performance (vscode tends to get slower over time)
 
 :::::::::::::::::::::
 REM Environment setup
@@ -59,7 +58,7 @@ call conda update -y -n base -c conda-forge conda
 REM Bump version
 :::::::::::::::::::::::::::
 
-use find and replace to update all version references
+use find and replace to manually update all version references
 ATTENTION: do not find and replace all, as this will also overwrite the versions in the change log!
 REM update version in pyproject.toml
 REM update Product Version in EsibdExplorer.ifp in the General tab
@@ -85,6 +84,7 @@ call rm -r esibd\docs REM works in powershell
 REM -M coverage
 REM update autodoc_mock_imports and correspondingly pyinstaller_hooks
 call sphinx-build docs docs\_build
+call sphinx-build -vvv docs docs\_build REM use this to debug build errors
 REM NOTE disable script blocker to properly test documentation offline
 REM offline version for in app documentation (instrument computers often have no internet access)
 call xcopy /i /y /e docs\_build esibd\docs
@@ -110,8 +110,8 @@ REM PyPI
 ::::::::
 
 call rmdir /q /s dist
-call rm -r dist REM works in powershell
 call rmdir /q /s esibd_explorer.egg-info
+call rm -r dist REM works in powershell
 call rm -r esibd_explorer.egg-info REM works in powershell
 
 python -m build
@@ -122,43 +122,44 @@ REM python -m esibd.explorer  # start gui using module
 twine check dist/*
 REM safer to use normal terminal instead of vscode to avoid issues when pasting token
 twine upload -r testpypi dist/*
+REM https://test.pypi.org/project/esibd-explorer/
 
 REM test on pypitest
 conda create -y -n "estest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
-REM ==0.8.0 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
+REM ==0.8.1 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
 REM python -m esibd.reset  # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
 REM test software using PluginManager.test() in testmode
 REM test software using PluginManager.test() with hardware!
-REM Make sure VSCode or any other instance accessing the environment is not running at the same time while testing
+REM Make sure VSCode or any other instance accessing the environment are not running while testing
 
 REM only upload on real pypi after testing!
 REM safer to use normal terminal instead of vscode to avoid issues when pasting token
 twine upload dist/*
+REM https://pypi.org/project/esibd-explorer/
+
+
+::::::::::::::::::::::::::::
+REM create offline installer
+::::::::::::::::::::::::::::
+NOTE: it may take a few minutes before the new version will be used by pypi, if in doubt specify version in create_esibd_offline.bat
+create_esibd_offline.bat
+unpack and test using start_esibd_offline.bat
 
 :::::::::::::::
 REM pyinstaller
 :::::::::::::::
-
+open CMD in workspace folder
 call rmdir /q /s pyinstaller_build
 call rm -r pyinstaller_build
 call rmdir /q /s pyinstaller_dist
 call rm -r pyinstaller_dist
 REM make sure both folders have been deleted!
-conda create -y -n "esibd-offline" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate esibd-offline
-REM pip install esibd-explorer pyinstaller --upgrade REM might install from local source
-pip install esibd-explorer==0.8.0 pyinstaller
-REM test software
-python -m esibd.explorer
-
-REM create environment for offline installation
-create_esibd_offline.bat
-add start_esibd_offline.bat to zip file 
-
+pip install pyinstaller
 REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
 pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
@@ -181,7 +182,7 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
-REM rename ESIBD_Explorer-setup.exe to ESIBD_Explorer-setup_v0.8.0.exein pyinstaller_build
+REM rename ESIBD_Explorer-setup.exe to ESIBD_Explorer-setup_v0.8.1.exe in pyinstaller_build
 
 REM Test installation from exe before continuing
 
@@ -190,14 +191,17 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Realeasing version v0.8.0"
-git tag -a v0.8.0 -m "Realeasing version v0.8.0"
+git commit -a -m "Realeasing version v0.8.1"
+git tag -a v0.8.1 -m "Realeasing version v0.8.1"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
-REM Title: Version v0.8.0
+REM Title: Version v0.8.1
 REM Copy change log from changelog.rst (remove inline icons if applicable)
-REM attach ESIBD_Explorer-setup_v0.8.0.exe from pyinstaller_build to release
+REM attach ESIBD_Explorer-setup_v0.8.1.exe from pyinstaller_build to release
 REM attach esibd.tar.gz to release
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
+
+
+Consider saving snapshot of workspace independent of git

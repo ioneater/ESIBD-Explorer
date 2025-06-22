@@ -95,9 +95,11 @@ class PDB(Plugin):
         self.set_axes_equal(self.axes[0])
         self.axes[0].set_autoscale_on(True)
         self.axes[0].relim()
-        self.navToolBar.update()  # reset history for zooming and home view
-        self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf') if self.file else self.name  # set up save file dialog
-        self.canvas.draw_idle()
+        if self.navToolBar:
+            self.navToolBar.update()  # reset history for zooming and home view
+        if self.canvas:
+            self.canvas.get_default_filename = lambda: self.file.with_suffix('.pdf').as_posix() if self.file else self.name  # set up save file dialog
+            self.canvas.draw_idle()
 
     def set_axes_equal(self, ax) -> None:
         """Make axes of 3D plot have equal scale so that spheres appear as spheres, cubes as cubes, etc.

@@ -51,18 +51,20 @@ class RBD(Device):
                 try:
                     data = np.loadtxt(file, skiprows=4, delimiter=',', unpack=True)
                 except ValueError as e:
-                    self.print(f'Loading from {file.name} failed: {e}', PRINT.ERROR)
+                    self.print(f'Loading from {file.name} failed: {e}', flag=PRINT.ERROR)
                     return False
                 if data.shape[0] == 0:
-                    self.print(f'No data found in file {file.name}.', PRINT.ERROR)
+                    self.print(f'No data found in file {file.name}.', flag=PRINT.ERROR)
                     return False
                 for dat, header in zip(data, headers, strict=True):
                     self.outputChannels.append(MetaChannel(parentPlugin=self, name=header.strip(),
                                                             recordingData=np.array(dat), recordingBackground=np.zeros(dat.shape[0], dtype=np.float32), unit='pA'))
                 if len(self.outputChannels) > 0:  # might be empty
                     # need to fake time axis as it was not implemented
-                    self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME,
-                                                           recordingData=np.linspace(0, 120000, self.outputChannels[0].getRecordingData().shape[0])))
+                    outputRecordingData0 = self.outputChannels[0].getRecordingData()
+                    if outputRecordingData0 is not None:
+                        self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME,
+                                                           recordingData=np.linspace(0, 120000, outputRecordingData0.shape[0])))
             elif file.name.endswith('.cur.h5'):
                 with h5py.File(file, 'r') as h5file:
                     self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=cast('h5py.Dataset', h5file[self.TIME])[:]))
@@ -440,7 +442,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             _, _, x, unit = parsed.split(',')
             x = float(x)
         except ValueError as e:
-            self.print(f'Error while parsing current; {parsed}, Error: {e}', PRINT.ERROR)
+            self.print(f'Error while parsing current; {parsed}, Error: {e}', flag=PRINT.ERROR)
             self.errorCount += 1
             return self.controllerParent.value  # keep last valid value
         match unit:
@@ -453,7 +455,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
             case 'pA':
                 return x * 1
             case _:
-                self.print(f'Error: No handler for unit {unit} implemented!', PRINT.ERROR)
+                self.print(f'Error: No handler for unit {unit} implemented!', flag=PRINT.ERROR)
                 return self.controllerParent.value  # keep last valid value
 
     def closeCommunication(self) -> None:

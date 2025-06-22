@@ -3,31 +3,39 @@
 Changelog
 ---------
 
-Latest
-======
+.. Latest
+.. ======
+
+.. Removed
+.. ~~~~~~~
+.. - The Pressure plugin has been removed. Use TIC |tic| and MAXIGAUGE |maxigauge| instead.
+
+Version 0.8.1 2025-06-22
+========================
 
 Added
 ~~~~~
 
-- The tree plugin can now filter content based on a search field.
+- The Tree |tree| plugin can now filter content based on a search field.
 - In Debug mode, items from the Tree |tree| can be added to the Console |console|.
 - Added option to liveDisplays to toggle between automatically |scaleX_auto| or manually |scaleX_manual| scaling the x axis.
 - Integrated generating and running python plot code for tests of devices, scans, and displays.
 - Added log level setting to determine level of information in logs.
 - Introduced log level 'Trace' which shows detailed device communication info if implemented by device.
 - Tests now write a log to a dedicated file in the current session path.
-- Added some pauses during testing if GUI gets too busy.
 - In advanced |advanced| mode of Settings |settings|, the error count for controllers of devices and channels is now shown.
 - Input channels are now shown in the channel list of scans.
 - Added icons to change log and documentation.
 - Input and output messages from console |console| will now appear in terminal and log file.
-- Added Lakeshore335 plugin.
+- Added Lakeshore335 |lakeshore335| plugin.
 - Added advanced option invalidWhileWaiting to Scans to allow to ignore values while signal is stabilizing.
-- Added CustomDevice2 as an example of how to create a custom plugin that replaces an internal plugin while using the same files.
+- Added CustomDevice2 |cookie| as an example of how to create a custom plugin that replaces an internal plugin while using the same files.
+- In Debug mode, plugins will be added to console |console| when accessing the about dialog.
 
 Changed
 ~~~~~~~
 - Added confirmation prompt before deleting all device history.
+- Added some pauses during testing if GUI gets too busy.
 - Simplified instructions for offline installation. No conda or python installation needed on offline PC!
 - Disallowed use of / in channel names.
 - In liveDisplays, the mouse enabled mode of subplots is now linked.

@@ -72,7 +72,7 @@ class Beam(Scan):
             if not self.axesAspectAction:
                 return
             super().initFig()
-            if self.fig:
+            if self.fig and self.canvas:
                 engine = self.fig.get_layout_engine()
                 if engine:
                     engine.set(rect=(0.05, 0.0, 0.8, 0.9))  # type: ignore # constrained_layout ignores labels on colorbar  # noqa: PGH003
@@ -128,10 +128,10 @@ class Beam(Scan):
             try:
                 data = np.flip(np.loadtxt(self.file).transpose())
             except ValueError as e:
-                self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
+                self.print(f'Loading from {self.file.name} failed: {e}', flag=PRINT.ERROR)
                 return False
             if data.shape[0] == 0:
-                self.print(f'No data found in file {self.file.name}', PRINT.ERROR)
+                self.print(f'No data found in file {self.file.name}', flag=PRINT.ERROR)
                 return False
             self.addOutputChannel(name='', unit='pA', recordingData=data)
             outputRecordingData0 = self.outputChannels[0].getRecordingData()
@@ -178,7 +178,7 @@ class Beam(Scan):
                 self.scantime = 'n/a'
                 return
         else:
-            self.print('Limits are equal.', PRINT.WARNING)
+            self.print('Limits are equal.', flag=PRINT.WARNING)
             self.scantime = 'n/a'
             return
         seconds = 0  # estimate scan time

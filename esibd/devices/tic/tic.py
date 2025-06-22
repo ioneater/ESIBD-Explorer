@@ -47,7 +47,7 @@ class TICPressureController(PressureController):
             self.print(f'Status: {TICStatus}')  # query status
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
             self.closeCommunication()
-            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
         else:
             if not TICStatus:
                 msg = 'TIC did not return status.'
@@ -64,7 +64,7 @@ class TICPressureController(PressureController):
                     try:
                         self.values[i] = float(re.split(r' |;', msg)[1]) / 100  # parse and convert to mbar = 0.01 Pa
                     except Exception as e:  # noqa: BLE001
-                        self.print(f'Failed to parse pressure from {msg}: {e}', PRINT.ERROR)
+                        self.print(f'Failed to parse pressure from {msg}: {e}', flag=PRINT.ERROR)
                         self.errorCount += 1
                         self.values[i] = np.nan
                 else:

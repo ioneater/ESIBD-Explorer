@@ -115,7 +115,7 @@ class VoltageController(DeviceController):
     def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
         self.modules = self.controllerParent.getModules() or [0]
         self.maxID = max(channel.id if channel.real else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
-        if self.modules and self.maxID:
+        if self.modules is not None and self.maxID is not None:
             self.values = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
 
     def runInitialization(self) -> None:
@@ -124,7 +124,7 @@ class VoltageController(DeviceController):
             self.print(self.ISEGWriteRead(message='*IDN?\r\n'))
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.print(f'Could not establish SCPI connection to {self.controllerParent.ip} on port {int(self.controllerParent.port)}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish SCPI connection to {self.controllerParent.ip} on port {int(self.controllerParent.port)}. Exception: {e}', flag=PRINT.WARNING)
         finally:
             self.initializing = False
 
@@ -160,6 +160,7 @@ class VoltageController(DeviceController):
                 channel.monitor = np.nan if channel.waitToStabilize else self.values[channel.module][channel.id]
 
     def toggleOn(self) -> None:
+        super().toggleOn()
         if self.modules:
             for module in self.modules:
                 self.ISEGWriteRead(message=f":VOLT {'ON' if self.controllerParent.isOn() else 'OFF'},(#{module}@0-{self.maxID})\r\n")

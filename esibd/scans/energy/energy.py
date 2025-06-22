@@ -46,7 +46,7 @@ class Energy(Scan):
 
         def initFig(self) -> None:
             super().initFig()
-            if self.fig:
+            if self.fig and self.canvas:
                 self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
                 self.axes.append(cast('CursorAxes', self.axes[0].twinx()))  # creating twin axis
                 self.canvas.mpl_connect('motion_notify_event', self.mouseEvent)
@@ -80,10 +80,10 @@ class Energy(Scan):
             try:
                 data = np.loadtxt(self.file, skiprows=4, delimiter=',', unpack=True)
             except ValueError as e:
-                self.print(f'Loading from {self.file.name} failed: {e}', PRINT.ERROR)
+                self.print(f'Loading from {self.file.name} failed: {e}', flag=PRINT.ERROR)
                 return False
             if data.shape[0] == 0:
-                self.print(f'No data found in file {self.file.name}.', PRINT.ERROR)
+                self.print(f'No data found in file {self.file.name}.', flag=PRINT.ERROR)
                 return False
             self.inputChannels.append(MetaChannel(parentPlugin=self, name='Voltage', recordingData=data[0], unit='V'))
             for name, dat in zip(headers, data[1:][::2], strict=True):
@@ -165,7 +165,7 @@ class Energy(Scan):
                                                                    xy=(expected_value - fwhm / 1.6, 50), xycoords='data', fontsize=10.0,
                                         textcoords='data', ha='right', va='center', color=self.MYRED)
                                 else:
-                                    self.print('Fitted mean outside data range. Ignore fit.', PRINT.WARNING)
+                                    self.print('Fitted mean outside data range. Ignore fit.', flag=PRINT.WARNING)
                             except (RuntimeError, ValueError) as e:
                                 self.print(f'Fit failed with error: {e}')
                         # ControlCursor has to be initialized last, otherwise axis limits may be affected.

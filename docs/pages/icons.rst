@@ -36,6 +36,8 @@
    :height: 2ex
 .. |help| image:: ../../esibd/media/help_large.png
    :height: 2ex
+.. |cookie| image:: ../../esibd/media/cookie.png
+   :height: 2ex
 
 .. |depo| image:: ../../esibd/scans/depo/depo.png
    :height: 2ex
@@ -46,6 +48,15 @@
    :height: 2ex
 
 .. |pico| image:: ../../esibd/devices/pico/pico_104.png
+   :height: 2ex
+
+.. |tic| image:: ../../esibd/devices/tic/edwards_tic.png
+   :height: 2ex
+
+.. |maxigauge| image:: ../../esibd/devices/maxigauge/pfeiffer_maxi.png
+   :height: 2ex
+
+.. |lakeshore335| image:: ../../esibd/devices/lakeshore335/LS335.png
    :height: 2ex
 
 .. |calculator| image:: ../../esibd/examples/calculator/calculator.png

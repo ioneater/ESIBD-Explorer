@@ -153,7 +153,7 @@ class VoltageController(DeviceController):
                 self.controllerParent.print(self.port.query('*IDN?'))
                 self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
-            self.print(f'Could not establish connection to {self.controllerParent.address}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish connection to {self.controllerParent.address}. Exception: {e}', flag=PRINT.WARNING)
         finally:
             self.initializing = False
 
@@ -177,7 +177,7 @@ class VoltageController(DeviceController):
                 self.currents[i] = 50 / self.values[i] if self.values[i] != 0 else 0  # simulate 50 W
 
     def applyValue(self, channel: VoltageChannel) -> None:
-        self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled else 0}')
+        self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled and self.controllerParent.isOn() else 0}')
 
     def updateValues(self) -> None:
         # Overwriting to also update custom current and power parameters.
@@ -190,6 +190,7 @@ class VoltageController(DeviceController):
                 channel.power = np.nan if channel.waitToStabilize else channel.monitor * channel.current
 
     def toggleOn(self) -> None:
+        super().toggleOn()
         for channel in self.controllerParent.getChannels():
             self.RSWrite(f"OUTPUT CH{channel.id},{'ON' if self.controllerParent.isOn() else 'OFF'}")
 

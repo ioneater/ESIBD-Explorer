@@ -7,9 +7,12 @@ call conda install -y -c conda-forge conda-pack
 call conda create -y -n "esibd-offline" python=3.11
 call conda activate esibd-offline
 call pip install esibd-explorer
+REM typically version does not need to be specified
+REM call pip install esibd-explorer==0.8.1
 call conda activate base
 REM Note: add any additional custom requirements here
 REM call conda install your-requirements
 call conda pack --force -n esibd-offline -o esibd.tar.gz
 REM Make sure files are copied to local drive before unpacking
+call cmd /k REM keep batch open to inspect success
 

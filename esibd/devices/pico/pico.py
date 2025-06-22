@@ -112,7 +112,7 @@ class TemperatureController(DeviceController):
     def __init__(self, controllerParent) -> None:
         super().__init__(controllerParent)
         # Download PicoSDK as described here https://github.com/picotech/picosdk-python-wrappers/tree/master
-        # If needed, add SDK installation path to PATH
+        # If needed, add SDK installation path to PATH (e.g. C:\Program Files\Pico Technology\SDK)
         # Importing modules here makes sure that the module is loaded without errors and
         # missing SDK is only raised if users enable this plugin.
         from picosdk.functions import assert_pico_ok  # noqa: PLC0415
@@ -144,7 +144,7 @@ class TemperatureController(DeviceController):
                     else:
                         self.values[i] = np.nan
                 except ValueError as e:
-                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.print(f'Error while reading temp: {e}', flag=PRINT.ERROR)
                     self.errorCount += 1
                     self.values[i] = np.nan
 

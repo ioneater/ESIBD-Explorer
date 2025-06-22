@@ -44,12 +44,12 @@ class MassSpec(Scan):
 
         def initFig(self) -> None:
             super().initFig()
-            if self.fig:
+            if self.fig and self.canvas:
                 self.axes.append(self.fig.add_subplot(111))
                 self.ms = self.axes[0].plot([], [])[0]  # dummy plot
                 self.mzCalc.setAxis(self.axes[0])
                 self.scan.labelAxis = self.axes[0]
-            self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
+                self.canvas.mpl_connect('button_press_event', self.mzCalc.msOnClick)
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)

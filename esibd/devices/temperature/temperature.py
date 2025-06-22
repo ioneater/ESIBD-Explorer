@@ -150,7 +150,7 @@ class TemperatureController(DeviceController):
             # self.CryoTelWriteRead('SENSOR=DT-670')  # set Sensor if applicable # noqa: ERA001
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # noqa: BLE001
-            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
         finally:
             self.initializing = False
 
@@ -159,12 +159,12 @@ class TemperatureController(DeviceController):
             if channel.enabled and channel.real:
                 value = self.CryoTelWriteRead(message='TC')  # Display Cold-Tip Temperature (same on old and new controller)
                 if not value:
-                    self.print('CryoTel returned empty string. Message: TC', PRINT.TRACE)
+                    self.print('CryoTel returned empty string. Message: TC', flag=PRINT.TRACE)
                     return
                 try:
                     self.values[i] = float(value)
                 except ValueError as e:
-                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.print(f'Error while reading temp: {e}', flag=PRINT.ERROR)
                     self.errorCount += 1
                     self.values[i] = np.nan
 
@@ -195,6 +195,7 @@ class TemperatureController(DeviceController):
         self.CryoTelWriteRead(message=f'TTARGET={channel.value}')  # used to be SET TTARGET=
 
     def toggleOn(self) -> None:
+        super().toggleOn()
         if self.controllerParent.isOn():
             self.CryoTelWriteRead(message='COOLER=POWER')  # 'COOLER=ON' start (used to be 'SET SSTOP=0')
         else:
@@ -216,7 +217,7 @@ class TemperatureController(DeviceController):
         self.CryoTelWriteRead(message=f'PWOUT={channel.power}')
 
     def closeCommunication(self) -> None:
-        self.print('closeCommunication', PRINT.DEBUG)
+        self.print('closeCommunication', flag=PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()
         if self.port:

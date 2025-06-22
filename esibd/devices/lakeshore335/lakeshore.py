@@ -35,7 +35,7 @@ class LS335(Device):
     name = 'LS335'
     version = '1.0'
     supportedVersion = '0.8'
-    iconFile = 'LS335_on.png'
+    iconFile = 'LS335.png'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'K'
     useMonitors = True
@@ -174,7 +174,7 @@ class TemperatureController(DeviceController):
             self.ls335 = Model335(baud_rate=57600, com_port=self.controllerParent.COM)  # may raise AttributeError that can not be excepted
             self.signalComm.initCompleteSignal.emit()
         except (AttributeError, Exception) as e:  # pylint: disable=[broad-except]
-            self.print(f'Error while initializing: {e}', PRINT.ERROR)
+            self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
         finally:
             self.initializing = False
 
@@ -208,7 +208,7 @@ class TemperatureController(DeviceController):
                 try:
                     self.values[i] = float(value)
                 except ValueError as e:
-                    self.print(f'Error while reading temp: {e}', PRINT.ERROR)
+                    self.print(f'Error while reading temp: {e}', flag=PRINT.ERROR)
                     self.errorCount += 1
                     self.values[i] = np.nan
 
@@ -222,6 +222,7 @@ class TemperatureController(DeviceController):
         self.set_control_setpoint(channel)
 
     def toggleOn(self) -> None:
+        super().toggleOn()
         for channel in self.controllerParent.channels:
             if self.ls335:
                 if channel.channel_active and self.controllerParent.isOn():

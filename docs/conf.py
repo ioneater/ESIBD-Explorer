@@ -20,7 +20,7 @@ sphinx = True  # used for conditional doc strings (direct HTML vs. rst)
 project = 'ESIBD Explorer'
 project_copyright = '2025, Tim Esser'
 author = 'Tim Esser'
-release = '0.8.0'
+release = '0.8.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -39,7 +39,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 numfig = True
 
-autodoc_mock_imports = ['PyQt6', 'pyqtgraph', 'PyQt5', 'PySide2', 'matplotlib', 'serial', 'mpl_toolkits', 'pywin32', 'picosdk',
+autodoc_mock_imports = ['PyQt6', 'pyqtgraph', 'PyQt5', 'PySide2', 'matplotlib', 'serial', 'mpl_toolkits', 'pywin32', 'picosdk', 'scipy'
                         'picosdk.usbPT104', 'picosdk.functions', 'pfeiffer_vacuum_protocol', 'nidaqmx', 'pyvisa', 'lakeshore']
 
 # -- Options for HTML output -------------------------------------------------

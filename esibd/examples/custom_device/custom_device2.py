@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from esibd.core import PRINT
 from esibd.examples import CustomDevice
 
 if TYPE_CHECKING:
@@ -40,6 +41,8 @@ class CustomDevice2(CustomDevice):
         super().initGUI()
         # a base UI is provided by parent class, it can be extended like this if required
         self.customAction2 = self.addAction(event=self.customActionEvent2, toolTip='Custom tooltip for additional action.', icon=self.makeIcon('cookies.png'))
+        if hasattr(self.pluginManager, CustomDevice.name):
+            self.print(f'Deactivate {CustomDevice.name}. It should not be active at the same time as {self.name}!', flag=PRINT.WARNING)
 
     def customActionEvent2(self) -> None:
         """Implement additional functionality."""

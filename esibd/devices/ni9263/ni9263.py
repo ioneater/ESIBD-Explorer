@@ -66,7 +66,7 @@ class VoltageController(DeviceController):
             self.signalComm.initCompleteSignal.emit()
         except Exception as e:  # pylint: disable=[broad-except]  # socket does not throw more specific exception  # noqa: BLE001
             self.closeCommunication()
-            self.print(f'Could not establish connection at {self.controllerParent.channels[0].address}. Exception: {e}', PRINT.WARNING)
+            self.print(f'Could not establish connection at {self.controllerParent.channels[0].address}. Exception: {e}', flag=PRINT.WARNING)
         finally:
             self.initializing = False
 
@@ -75,7 +75,9 @@ class VoltageController(DeviceController):
             if lock_acquired:
                 with nidaqmx.Task() as task:
                     task.ao_channels.add_ao_voltage_chan(channel.address)
-                    task.write(channel.value if (channel.enabled and self.controllerParent.isOn()) else 0)
+                    value = channel.value if (channel.enabled and self.controllerParent.isOn()) else 0
+                    task.write(value)
+                    self.print(f'Setting {channel.name} at {channel.address} to {value} V', flag=PRINT.TRACE)
 
     def runAcquisition(self) -> None:
         pass  # nothing to acquire, no readbacks
@@ -84,6 +86,7 @@ class VoltageController(DeviceController):
         pass  # nothing to update, no read values and no monitors.
 
     def toggleOn(self) -> None:
+        super().toggleOn()
         for channel in self.controllerParent.getChannels():
             if channel.real:
                 self.applyValueFromThread(channel)

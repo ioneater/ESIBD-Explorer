@@ -32,7 +32,7 @@ import pyqtgraph.console.exception_widget
 import pyqtgraph.console.repl_widget
 import serial
 from matplotlib.axes import Axes
-from matplotlib.backend_bases import MouseButton, MouseEvent, ResizeEvent
+from matplotlib.backend_bases import Event, MouseButton, MouseEvent, ResizeEvent
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -280,6 +280,7 @@ class PluginManager:  # noqa: PLR0904
         self._loading = 0
         self.finalizing = False
         self.closing = False
+        # Note: always instantiate QMessageBox and other QWidgets in __init__ and not on class level to prevent initialization before QApplication
         self.qm = QMessageBox(QMessageBox.Icon.Information, 'Warning!', 'v!', buttons=QMessageBox.StandardButton.Ok)
 
         # definitions for type hinting
@@ -324,7 +325,7 @@ class PluginManager:  # noqa: PLR0904
         # self.mainWindow.configPath not yet be available -> use directly from qSet
         self.pluginFile = getValidConfigPath() / 'plugins.ini'
         self.plugins: 'list[Plugin]' = []
-        self.pluginNames = []
+        self.pluginNames: list[str] = []
         self.firstControl = None
         self.firstDisplay = None
 
@@ -496,10 +497,11 @@ class PluginManager:  # noqa: PLR0904
                 self.logger.print(f'Could not load GUI of plugin {plugin.name} {plugin.version}: {traceback.format_exc()}', flag=PRINT.ERROR)
                 delattr(self.__class__, plugin.name)  # remove attribute
                 self.plugins.pop(self.plugins.index(plugin))  # avoid any further undefined interaction
+            self.app.splashScreen.raise_()  # some operations (likely tabifyDockWidget) will cause the main window to get on top of the splash screen
 
     def finalizeInit(self) -> None:
         """Finalize initialization after all other plugins have been initialized."""
-        removePlugins = []
+        removePlugins: 'list[Plugin]' = []
         for plugin in self.plugins:
             QApplication.processEvents()
             if plugin.initializedDock:
@@ -514,7 +516,7 @@ class PluginManager:  # noqa: PLR0904
 
     def afterFinalizeInit(self) -> None:
         """Finalize initialization after all other plugins have been initialized."""
-        removePlugins = []
+        removePlugins: 'list[Plugin]' = []
         for plugin in self.plugins:
             QApplication.processEvents()
             if plugin.initializedDock:
@@ -720,15 +722,15 @@ class PluginManager:  # noqa: PLR0904
         self.Console.toggleVisible()
         QApplication.processEvents()
 
-        width = qSet.value(SETTINGSWIDTH, self.Settings.mainDisplayWidget.width())
+        width = qSet.value(SETTINGSWIDTH, self.Settings.mainDisplayWidget.width(), type=int)
         if width is not None:
             self.Settings.mainDisplayWidget.setMinimumWidth(width)
             self.Settings.mainDisplayWidget.setMaximumWidth(width)
-        height = qSet.value(SETTINGSHEIGHT, self.Settings.mainDisplayWidget.height())
+        height = qSet.value(SETTINGSHEIGHT, self.Settings.mainDisplayWidget.height(), type=int)
         if height is not None:
             self.Settings.mainDisplayWidget.setMinimumHeight(height)
             self.Settings.mainDisplayWidget.setMaximumHeight(height)
-        height = qSet.value(CONSOLEHEIGHT, self.Console.mainDisplayWidget.height())
+        height = qSet.value(CONSOLEHEIGHT, self.Console.mainDisplayWidget.height(), type=int)
         if height is not None and self.Settings.showConsoleAction and self.Settings.showConsoleAction.state:
             self.Console.mainDisplayWidget.setMinimumHeight(height)
             self.Console.mainDisplayWidget.setMaximumHeight(height)
@@ -1184,7 +1186,8 @@ class DynamicNp:
     """A numpy.array that dynamically increases its size in increments to prevent frequent memory allocation while growing."""
 
     # based on https://stackoverflow.com/questions/7133885/fastest-way-to-grow-a-numpy-numeric-array
-    def __init__(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None, dtype: type = np.float32) -> None:
+    def __init__(self, initialData: 'np.typing.NDArray[np.float64 | np.float32] | None' = None,
+                  max_size: 'int | None' = None, dtype: type = np.float32) -> None:
         """Initialize DynamicNp.
 
         :param initialData: Initial data, defaults to None
@@ -1197,7 +1200,7 @@ class DynamicNp:
         self.dtype = dtype
         self.init(initialData, max_size)
 
-    def init(self, initialData: 'np.ndarray | None' = None, max_size: 'int | None' = None) -> None:
+    def init(self, initialData: 'np.typing.NDArray[np.float64 | np.float32] | None' = None, max_size: 'int | None' = None) -> None:
         """Initialize DynamicNp. This is also used if data is cropped or padded.
 
         :param initialData: Initial data, defaults to None
@@ -1205,8 +1208,9 @@ class DynamicNp:
         :param max_size: Initial maximal size. Will extend dynamically as needed. Defaults to None
         :type max_size: int, optional
         """
-        self.data = np.zeros((2000,), dtype=self.dtype) if initialData is None or initialData.shape[0] == 0 else initialData
-        self.capacity = self.data.shape[0]
+        self.data: np.typing.NDArray[np.float64 | np.float32] = (np.zeros((2000,), dtype=self.dtype)
+                                                                                                    if initialData is None or initialData.shape[0] == 0 else initialData)
+        self.capacity: int = self.data.shape[0]
         self.size = 0 if initialData is None else initialData.shape[0]
         self.max_size = max_size
 
@@ -1241,7 +1245,8 @@ class DynamicNp:
         self.data[self.size] = x
         self.size += 1
 
-    def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1) -> np.ndarray:
+    def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None,
+             n: int = 1) -> np.typing.NDArray[np.float64 | np.float32]:  # np.ndarray[Any, np.dtype[np.float32]] | np.ndarray[Any, np.dtype[np.float64]]
         """Return actual values.
 
         :param length: will return last 'length' values.
@@ -1505,7 +1510,7 @@ class Parameter:  # noqa: PLR0904
                 if i == -1 and self.parameterType is PARAMETERTYPE.FLOATCOMBO:
                     i = self.combo.findText(str(int(float(cast('str | float', value)))))  # try to find int version if float version not found. e.g. 1 instead of 1.0
             if i == -1:
-                self.print(f'Value {value} not found for {self.fullName}. Defaulting to {self.combo.itemText(0)}.', PRINT.WARNING)
+                self.print(f'Value {value} not found for {self.fullName}. Defaulting to {self.combo.itemText(0)}.', flag=PRINT.WARNING)
                 self.combo.setCurrentIndex(0)
             else:
                 self.combo.setCurrentIndex(i)
@@ -1644,7 +1649,7 @@ class Parameter:  # noqa: PLR0904
             if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
                 i = self.combo.findText(str(self.default))
                 if i == -1:  # add default entry in case it has been deleted
-                    self.print(f'Adding Default value {self.default} for {self.fullName}.', PRINT.WARNING)
+                    self.print(f'Adding Default value {self.default} for {self.fullName}.', flag=PRINT.WARNING)
                     self.addItem(str(cast('str | float', self.default)))
             self.value = self.default
 
@@ -1786,7 +1791,7 @@ class Parameter:  # noqa: PLR0904
             elif self.parameterType in {PARAMETERTYPE.LABEL, PARAMETERTYPE.PATH}:
                 self.label.setFont(font)
 
-    def getWidget(self) -> ParameterWidgetType | None:
+    def getWidget(self) -> 'ParameterWidgetType | None':
         """Return the widget used to display the Parameter value in the user interface."""
         widget = None
         if self.parameterType in {PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO}:
@@ -1842,7 +1847,7 @@ class Parameter:  # noqa: PLR0904
         if len(self.items) > 1:
             self.combo.removeItem(self.combo.currentIndex())
         else:
-            self.print('List cannot be empty.', PRINT.WARNING)
+            self.print('List cannot be empty.', flag=PRINT.WARNING)
 
     def editCurrentItem(self, value: str) -> None:
         """Edits currently selected item of a combobox.
@@ -1868,7 +1873,7 @@ class Parameter:  # noqa: PLR0904
             try:
                 int(value)
             except ValueError:
-                self.print(f'{value} is not an integer!', PRINT.ERROR)
+                self.print(f'{value} is not an integer!', flag=PRINT.ERROR)
                 return False
             else:
                 return True
@@ -1876,7 +1881,7 @@ class Parameter:  # noqa: PLR0904
             try:
                 float(value)
             except ValueError:
-                self.print(f'{value} is not a float!', PRINT.ERROR)
+                self.print(f'{value} is not a float!', flag=PRINT.ERROR)
                 return False
             else:
                 return True
@@ -1890,7 +1895,7 @@ class Parameter:  # noqa: PLR0904
         :return: True if value equals self.value.
         :rtype: bool
         """
-        equals = False
+        equals: bool = False
         if self.parameterType == PARAMETERTYPE.BOOL:
             equals = self.value == value if isinstance(value, (bool, np.bool_)) else self.value == (value in {'True', 'true'})  # accepts strings (from ini file or qSet) and bools
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.INTCOMBO}:
@@ -2632,7 +2637,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """
         parameter = next((parameter for parameter in self.parameters if parameter.name.strip().lower() == name.strip().lower()), None)
         if not parameter:
-            self.print(f'Could not find Parameter {name}.', PRINT.DEBUG)
+            self.print(f'Could not find Parameter {name}.', flag=PRINT.DEBUG)
         return parameter  # type: ignore  # noqa: PGH003 Rather ignore None warning once here than deal with it for every function call.
 
     def asDict(self, includeTempParameters: bool = False, formatValue: bool = False) -> dict[str, ParameterType]:
@@ -2734,7 +2739,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         if self.useBackgrounds:
             self.backgrounds.add(x=self.background, lenT=lenT)
 
-    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1, subtractBackground: bool = False) -> np.ndarray:  # pylint: disable = unused-argument  # use consistent arguments for all versions of getValues
+    def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1,
+                   subtractBackground: bool = False) -> np.typing.NDArray[np.float64 | np.float32]:  # pylint: disable = unused-argument  # use consistent arguments for all versions of getValues
         """Return plain Numpy array of values.
 
         Note that background subtraction only affects what is displayed, the raw signal and background curves are always retained.
@@ -2750,7 +2756,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :param subtractBackground: Indicates if the background should be subtracted, defaults to False
         :type subtractBackground: bool, optional
         :return: The array of values.
-        :rtype: np.ndarray
+        :rtype: np.ndarray[Any, np.dtype[np.float32]]
         """
         if self.useBackgrounds and subtractBackground:
             return (self.values.get(length=length, index_min=index_min, index_max=index_max, n=n) -
@@ -2843,7 +2849,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 self.rowHeight = normalHeight * 2
             case 'larger':
                 self.rowHeight = normalHeight * 4
-            case 'huge':
+            case _:  # 'huge'
                 self.rowHeight = normalHeight * 6
         for parameter in self.parameters:
             parameter.setHeight(self.rowHeight)
@@ -3872,6 +3878,8 @@ class MultiStateAction(Action):
     Values are restored using QSettings if name is provided.
     """
 
+    _state: int
+
     def __init__(self, parentPlugin: 'Plugin', states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913, PLR0917
                  attr: str = '', restore: bool = True, defaultState: int = 0) -> None:
         """Initialize a MultiStateAction.
@@ -3905,6 +3913,7 @@ class MultiStateAction(Action):
         if event:
             self.triggered.connect(lambda: (self.rollState(), event()))
         if restore and self.fullName:
+            # use explicit int conversion instead of type=int in qSet.value for backward compatibility
             self._state = min(int(qSet.value(self.fullName, defaultState)), len(states) - 1)
         else:
             self._state = 0  # init
@@ -3927,7 +3936,8 @@ class MultiStateAction(Action):
 
     def rollState(self) -> None:
         """Roll to next state."""
-        self._state = np.mod(self._state + 1, len(self.states))
+        # state should be int but np.mod returns np.int64 which is causing issues with QSettings
+        self._state = int(np.mod(self._state + 1, len(self.states), dtype=int))
         self.updateIcon()
 
     @property
@@ -3990,7 +4000,7 @@ class CompactComboBox(QComboBox, ParameterWidget):
         # and set QComboBox.view() to accommodate this
         # which makes items show full width under Windows
         view = self.view()
-        if view:
+        if view and self.count() > 0:
             fm = self.fontMetrics()
             maxWidth = max(fm.size(Qt.TextFlag.TextSingleLine, self.itemText(i)).width() for i in range(self.count())) + 50  # account for scrollbar and margins
             if maxWidth:
@@ -4832,6 +4842,8 @@ class ThemedNavigationToolbar(NavigationToolbar2QT):
                     icon = self.parentPlugin.makeCoreIcon('qt4_editor_options_large_dark.png' if dark else 'qt4_editor_options_large.png')
                 case 'Save':
                     icon = self.parentPlugin.makeCoreIcon('filesave_large_dark.png' if dark else 'filesave_large.png')
+                case _:
+                    pass
             if icon:
                 a.setIcon(icon)
                 a.fileName = icon.fileName
@@ -4911,18 +4923,18 @@ class MZCalculator:
         self.ax = ax
         self.canvas = ax.figure.canvas
 
-    def msOnClick(self, event: 'MouseEvent') -> None:
+    def msOnClick(self, event: 'Event') -> None:
         """Add a new m/z value for Ctrl+left mouse click.
 
         Clears all data and labels for Ctrl+right mouse click.
 
         :param event: The click event.
-        :type event: MouseEvent
+        :type event: Event
         """
-        if event.button == MouseButton.RIGHT:
+        if event.button == MouseButton.RIGHT:  # type: ignore  # noqa: PGH003
             self.clear()
-        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata and event.ydata:
-            self.addMZ(event.xdata, event.ydata)
+        elif event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata and event.ydata:  # type: ignore  # noqa: PGH003
+            self.addMZ(event.xdata, event.ydata)  # type: ignore  # noqa: PGH003
 
     def addMZ(self, x: float, y: float) -> None:
         """Add a single m/z value and evaluates the likely mass.
@@ -4976,7 +4988,7 @@ class MZCalculator:
         """Update labels indicating mass and mass-to-charge values."""
         for ann in [child for child in self.ax.get_children() if isinstance(child, Annotation)]:  # [self.seAnnArrow, self.seAnnFile, self.seAnnFWHM]:
             ann.remove()
-        if len(self.mz) > 1 and self.cs:
+        if len(self.mz) > 1 and self.cs is not None:
             for x, y, charge in zip(self.mz, self.intensity, self.cs, strict=True):
                 self.ax.annotate(text=f'{charge}', xy=(x, y), xycoords='data', ha='center')
             self.ax.annotate(text=f"{self.mass_string(-1, 'lower  ')}\n{self.mass_string(0, 'likely  ')}\n{self.mass_string(+1, 'higher')}\n"
@@ -5463,7 +5475,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         """Faking successful initialization in test mode. Called instead of runInitialization."""
         # initialization time cannot be predicted, do not slow down tests time.sleep(2)
         self.signalComm.initCompleteSignal.emit()
-        self.print('Faking values for testing!', PRINT.DEBUG)
+        self.print('Faking values for testing!', flag=PRINT.DEBUG)
         self.initializing = False
 
     def initializeValues(self, reset: bool = False) -> None:
@@ -5482,18 +5494,18 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     def startAcquisition(self) -> None:
         """Start data acquisition from physical device."""
-        self.print('startAcquisition', PRINT.DEBUG)
+        self.print('startAcquisition', flag=PRINT.DEBUG)
         if not self.initialized:
-            self.print('Cannot start acquisition. Not initialized', PRINT.DEBUG)
+            self.print('Cannot start acquisition. Not initialized', flag=PRINT.DEBUG)
             return
         if self.acquisitionThread and self.acquisitionThread.is_alive():
-            self.controllerParent.print('Wait for data reading thread to complete before restarting acquisition.', PRINT.DEBUG)
+            self.controllerParent.print('Wait for data reading thread to complete before restarting acquisition.', flag=PRINT.DEBUG)
             self.acquiring = False
             self.acquisitionThread.join(timeout=5)
             if self.acquisitionThread.is_alive():
-                self.print('Data reading thread did not complete. Reset connection manually.', PRINT.ERROR)
+                self.print('Data reading thread did not complete. Reset connection manually.', flag=PRINT.ERROR)
                 return
-            self.controllerParent.print('Data reading thread did complete.', PRINT.DEBUG)
+            self.controllerParent.print('Data reading thread did complete.', flag=PRINT.DEBUG)
         self.acquisitionThread = Thread(target=self.runAcquisition, name=f'{self.controllerParent.name} acquisitionThread')
         self.acquisitionThread.daemon = True
         self.acquiring = True  # terminate old thread before starting new one
@@ -5599,11 +5611,12 @@ class DeviceController(QObject):  # noqa: PLR0904
 
     def toggleOn(self) -> None:
         """Toggles device on or off."""
+        self.print('toggleOn', flag=PRINT.DEBUG)
         # Implement device specific
 
     def stopAcquisition(self) -> bool:
         """Terminate acquisition but leaves communication initialized."""
-        self.print('stopAcquisition', PRINT.DEBUG)
+        self.print('stopAcquisition', flag=PRINT.DEBUG)
         if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.recording:
             # stop recording if controller is stopping acquisition
             # continue if only a channel controller is stopping acquisition
@@ -5614,7 +5627,7 @@ class DeviceController(QObject):  # noqa: PLR0904
                 not any(channel.controller.initialized or not channel.active for channel in self.controllerParent.channelParent.channels
                          if channel.controller and channel is not self.controllerParent)):
             # only stop recording if none of the channel controllers is initialized
-            self.controllerParent.channelParent.print('Stopping recording as last initialized channel is closing Communication.', PRINT.DEBUG)
+            self.controllerParent.channelParent.print('Stopping recording as last initialized channel is closing Communication.', flag=PRINT.DEBUG)
             self.controllerParent.channelParent.recording = False
         if self.acquisitionThread:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
@@ -5640,7 +5653,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         2. closing your custom hardware communication
         3. self.initialized = False
         """
-        self.print('closeCommunication controller', PRINT.DEBUG)
+        self.print('closeCommunication controller', flag=PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()  # only call if not already called by device
         # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
