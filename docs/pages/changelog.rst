@@ -3,19 +3,18 @@
 Changelog
 ---------
 
-.. Latest
-.. ======
+Latest
+======
 
-.. Removed
-.. ~~~~~~~
-.. - The Pressure plugin has been removed. Use TIC |tic| and MAXIGAUGE |maxigauge| instead.
+Removed
+~~~~~~~
+- The Pressure plugin has been removed. Use TIC |tic| and MAXIGAUGE |maxigauge| instead.
 
 Version 0.8.1 2025-06-22
 ========================
 
 Added
 ~~~~~
-
 - The Tree |tree| plugin can now filter content based on a search field.
 - In Debug mode, items from the Tree |tree| can be added to the Console |console|.
 - Added option to liveDisplays to toggle between automatically |scaleX_auto| or manually |scaleX_manual| scaling the x axis.
@@ -42,14 +41,10 @@ Changed
 - Data files are now only saved while closing if new data has been recorded since starting the program.
 - While testing, images are written to files instead of clipboard for later inspection and to not spam the clipboard.
 - Instead of showing the last valid value after stopping acquisition, NAN is displayed to indicate that the current value is unknown.
-- Increased performance by delaying update of matplotlib figures while resizing.
-- Increased performance by suspending plotting in liveDisplays while resizing.
-- Increased performance by suspending update in liveDisplays while resizing.
 - Changed smoothing algorithm to preserve sections with less datapoint than smoothing window.
 
 Fixed
 ~~~~~
-
 - Fixed error when canceling loading a file from DeviceManager.
 - Changing channel limits will now also update referencing channels (e.g. in UCM or PID).
 - Fixed liveDisplay copyClipboard function.
@@ -111,6 +106,9 @@ Performance
 ~~~~~~~~~~~
 - Improved GUI responsiveness handling: Data is still appended but plots are skipped if needed.
 - Scans and devices will pause if the GUI gets too busy. Scans will wait for previous scan step to be processed if necessary.
+- Increased performance by delaying update of matplotlib figures while resizing.
+- Increased performance by suspending plotting in liveDisplays while resizing.
+- Increased performance by suspending update in liveDisplays while resizing.
 
 
 Version 0.7.3 2025-03-24

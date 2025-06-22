@@ -154,8 +154,8 @@ REM pyinstaller
 :::::::::::::::
 open CMD in workspace folder
 call rmdir /q /s pyinstaller_build
-call rm -r pyinstaller_build
 call rmdir /q /s pyinstaller_dist
+call rm -r pyinstaller_build
 call rm -r pyinstaller_dist
 REM make sure both folders have been deleted!
 conda activate esibd-offline
@@ -182,7 +182,7 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
-REM rename ESIBD_Explorer-setup.exe to ESIBD_Explorer-setup_v0.8.1.exe in pyinstaller_build
+REM rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v0.8.1.exe in pyinstaller_build
 
 REM Test installation from exe before continuing
 
@@ -195,12 +195,14 @@ git commit -a -m "Realeasing version v0.8.1"
 git tag -a v0.8.1 -m "Realeasing version v0.8.1"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
+check read the docs build on https://app.readthedocs.org/projects/esibd-explorer/
+
 REM create release on github with changelog based on commits and following sections (have to be signed in!)
 REM select tag
 REM Title: Version v0.8.1
 REM Copy change log from changelog.rst (remove inline icons if applicable)
-REM attach ESIBD_Explorer-setup_v0.8.1.exe from pyinstaller_build to release
-REM attach esibd.tar.gz to release
+REM attach ESIBD-Explorer-setup_v0.8.1.exe from pyinstaller_build to release
+REM attach ESIBD-Explorer-portable_v0.8.1.tar.gz to release (rename outside of repository to prevent uploading)
 REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
 
 
