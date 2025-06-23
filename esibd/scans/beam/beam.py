@@ -322,7 +322,7 @@ ax.set_ylabel(f'{{inputChannels[1].name}} ({{inputChannels[1].unit}})')
 
 if _interpolate:
     rbf = interpolate.Rbf(x.ravel(), y.ravel(), outputChannels[output_index].recordingData.ravel())
-    xi, yi = getMeshgrid(2)  # interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
+    xi, yi = getMeshgrid(2)  # adjust here to get more smoothing: interpolation coordinates, scaling of 1 much faster than 2 and seems to be sufficient
     zi = rbf(xi, yi)
     cont = ax.contourf(xi, yi, zi, levels=100, cmap='afmhot')  # contour with interpolation
 else:

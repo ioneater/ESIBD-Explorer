@@ -358,7 +358,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         """Set the range. Typically autorange is sufficient."""
         rangeWidget = cast('CompactComboBox', self.controllerParent.getParameterByName(self.controllerParent.RANGE).getWidget())
         if rangeWidget:
-            self.RBDWriteRead(message=f'R{rangeWidget.currentIndex()}')  # set range
+            self.RBDWriteRead(message=f'R{rangeWidget.currentIndex()}', already_acquired=True)  # set range
         self.updateRangeFlag = False
 
     def setAverage(self) -> None:
@@ -367,12 +367,12 @@ class CurrentController(DeviceController):  # noqa: PLR0904
         if averageWidget:
             average_filter = averageWidget.currentIndex()
             average_filter = 2**average_filter if average_filter > 0 else 0
-            self.RBDWriteRead(message=f'F0{average_filter:02}')  # set filter
+            self.RBDWriteRead(message=f'F0{average_filter:02}', already_acquired=True)  # set filter
         self.updateAverageFlag = False
 
     def setBias(self) -> None:
         """Set the bias voltage on or off."""
-        self.RBDWriteRead(message=f'B{int(self.controllerParent.bias)}')  # set bias, convert from bool to int
+        self.RBDWriteRead(message=f'B{int(self.controllerParent.bias)}', already_acquired=True)  # set bias, convert from bool to int
         self.updateBiasFlag = False
 
     def setGrounding(self) -> None:

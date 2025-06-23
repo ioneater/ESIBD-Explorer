@@ -3,8 +3,24 @@
 Changelog
 ---------
 
-Latest
-======
+.. Latest
+.. ======
+
+Version 0.8.2 2025-06-23
+========================
+
+Added
+~~~~~
+- Added highlighting to easier see which devices are turned on.
+- Lakeshore |lakeshore335| is only showing PID controls for active channels. If the channel is only used for reading a temperature PID controls can be ignored.
+
+
+Fixed
+~~~~~
+- PID |pid| reacts instantly when setpoint changed.
+- Fixed some settings that were not set correctly on new PCs.
+- Fixed setting of range and average for RBD |rbd|.
+- Fixed file used when exporting scan plots.
 
 Removed
 ~~~~~~~

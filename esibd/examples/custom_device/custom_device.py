@@ -110,8 +110,7 @@ class CustomChannel(Channel):
     def initGUI(self, item) -> None:
         super().initGUI(item)
         # TODO (optional) make any final modifications after channels have been initialized.
-        channelId = self.getParameterByName(self.ID)
-        self.print(repr(channelId.getWidget()), flag=PRINT.MESSAGE)
+        self.getParameterByName(self.ID)
 
     def getDefaultChannel(self) -> dict[str, dict]:
 

@@ -206,7 +206,7 @@ class EsibdExplorer(QMainWindow):
         :rtype: bool
         """
         if self.pluginManager.DeviceManager.initialized():
-            if confirm and not CloseDialog(prompt='Acquisition is still running. Do you really want to close?').exec():
+            if confirm and not CloseDialog(prompt='Acquisition is still running. Do you really want to close?', ok='Stop communication and scans and close').exec():
                 return False
             self.pluginManager.DeviceManager.closeCommunication(closing=True)
         if restart:
@@ -2535,7 +2535,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                                                parameterType=(PARAMETERTYPE.EXP if isinstance(self.channelParent, self.pluginManager.ChannelManager)
                                                               and self.channelParent.logY else PARAMETERTYPE.FLOAT),
                                                advanced=False, header='Unit', attr='value',
-                                               event=lambda: self.pluginManager.DeviceManager.globalUpdate(inout=self.inout) if self.inout == INOUT.IN else None,
+                                               event=self.valueChanged,
                                                indicator=self.inout == INOUT.OUT)
         channel[self.EQUATION] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='equation',
                                     event=self.equationChanged)
@@ -2684,6 +2684,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.toggleBackgroundVisible()
         self.updateColor()
         if not self.channelParent.loading:
+            self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+
+    def valueChanged(self) -> None:
+        """Update after value has changed."""
+        if self.inout == INOUT.IN:
             self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def equationChanged(self) -> None:
@@ -4165,17 +4170,30 @@ class TreeWidget(QTreeWidget):
                 total_items += top_item.childCount()  # Add the count of its children
         return total_items
 
-    def totalHeight(self) -> int:
-        """Total height of all items."""
+    def totalHeight(self, limit: int = 0) -> int:
+        """Total height of all items.
+
+        :param limit: Limit the number of items considered, defaults to 0
+        :type limit: int, optional
+        :return: _description_
+        :rtype: int
+        """
         header = self.header()
+        count = 0
         if header:
             total_height = header.height()
             for i in range(self.topLevelItemCount()):
                 top_item = self.topLevelItem(i)
                 if top_item:
                     total_height += self.visualItemRect(top_item).height()
+                    count += 1
+                    if limit > 0 and count == limit:
+                        return total_height
                     for j in range(top_item.childCount()):
                         total_height += self.visualItemRect(top_item.child(j)).height()
+                        count += 1
+                        if limit > 0 and count == limit:
+                            return total_height
             return total_height
         return 0
 
@@ -4194,10 +4212,8 @@ class TreeWidget(QTreeWidget):
         return header.height() + self.totalItems() * item_height + 10 if header else 200
 
     def tree_height_hint_minimal(self) -> int:
-        """Calculate the minimal height, corresponding to 4 items."""
-        item_height = self.visualItemRect(self.topLevelItem(0)).height() if self.topLevelItemCount() > 0 else 12
-        header = self.header()
-        return header.height() + min(self.totalItems(), 4) * item_height + 10 if header else 200
+        """Calculate the minimal height, corresponding to up to 6 items."""
+        return self.totalHeight(limit=6)
 
     def count_child_items(self, item: QTreeWidgetItem) -> int:
         """Count the number of child items of a QTreeWidgetItem.

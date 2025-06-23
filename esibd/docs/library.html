@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Library Reference &mdash; ESIBD Explorer 0.8.1 documentation</title>
+  <title>Library Reference &mdash; ESIBD Explorer 0.8.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec16d22d"></script>
+      <script src="_static/documentation_options.js?v=dbee5847"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -79,7 +79,6 @@
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#custom-device">Custom device</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#iseg">ISEG</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#rbd">RBD</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#pressure">Pressure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#tic">TIC</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#maxigauge">MAXIGAUGE</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#temperature">Temperature</a></li>
@@ -240,6 +239,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.subtractBackgroundChanged"><code class="docutils literal notranslate"><span class="pre">Device.subtractBackgroundChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Device.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.unit"><code class="docutils literal notranslate"><span class="pre">Device.unit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.updateTheme"><code class="docutils literal notranslate"><span class="pre">Device.updateTheme()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.updateValues"><code class="docutils literal notranslate"><span class="pre">Device.updateValues()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.useBackgrounds"><code class="docutils literal notranslate"><span class="pre">Device.useBackgrounds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.Device.version"><code class="docutils literal notranslate"><span class="pre">Device.version</span></code></a></li>
@@ -337,6 +337,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.optional"><code class="docutils literal notranslate"><span class="pre">PID.optional</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.pluginType"><code class="docutils literal notranslate"><span class="pre">PID.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.reconnectSource"><code class="docutils literal notranslate"><span class="pre">PID.reconnectSource()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.updateTheme"><code class="docutils literal notranslate"><span class="pre">PID.updateTheme()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.useDisplays"><code class="docutils literal notranslate"><span class="pre">PID.useDisplays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.useMonitors"><code class="docutils literal notranslate"><span class="pre">PID.useMonitors</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.plugins.PID.useOnOffLogic"><code class="docutils literal notranslate"><span class="pre">PID.useOnOffLogic</span></code></a></li>
@@ -655,6 +656,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.updateMin"><code class="docutils literal notranslate"><span class="pre">Channel.updateMin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.updateValueParallel"><code class="docutils literal notranslate"><span class="pre">Channel.updateValueParallel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.updateWarningState"><code class="docutils literal notranslate"><span class="pre">Channel.updateWarningState()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.valueChanged"><code class="docutils literal notranslate"><span class="pre">Channel.valueChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.values"><code class="docutils literal notranslate"><span class="pre">Channel.values</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.waitToStabilize"><code class="docutils literal notranslate"><span class="pre">Channel.waitToStabilize</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.core.Channel.waitUntilStable"><code class="docutils literal notranslate"><span class="pre">Channel.waitUntilStable()</span></code></a></li>
@@ -1080,8 +1082,12 @@
 <li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.bg"><code class="docutils literal notranslate"><span class="pre">Colors.bg</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.bgAlt1"><code class="docutils literal notranslate"><span class="pre">Colors.bgAlt1</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.bgAlt2"><code class="docutils literal notranslate"><span class="pre">Colors.bgAlt2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.blue"><code class="docutils literal notranslate"><span class="pre">Colors.blue</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.fg"><code class="docutils literal notranslate"><span class="pre">Colors.fg</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.green"><code class="docutils literal notranslate"><span class="pre">Colors.green</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.highlight"><code class="docutils literal notranslate"><span class="pre">Colors.highlight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.red"><code class="docutils literal notranslate"><span class="pre">Colors.red</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#esibd.const.Colors.yellow"><code class="docutils literal notranslate"><span class="pre">Colors.yellow</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.INOUT"><code class="docutils literal notranslate"><span class="pre">INOUT</span></code></a><ul>
@@ -1145,6 +1151,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.infoDict"><code class="docutils literal notranslate"><span class="pre">infoDict()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeSettingWrapper"><code class="docutils literal notranslate"><span class="pre">makeSettingWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#esibd.const.mix_hex_colors"><code class="docutils literal notranslate"><span class="pre">mix_hex_colors()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.plotting"><code class="docutils literal notranslate"><span class="pre">plotting()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#esibd.const.pluginSupported"><code class="docutils literal notranslate"><span class="pre">pluginSupported()</span></code></a></li>
@@ -1159,75 +1166,81 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="pages/changelog.html">Changelog</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-1-2025-06-22">Version 0.8.1 2025-06-22</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-2-2025-06-23">Version 0.8.2 2025-06-23</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#added">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#changed">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#fixed">Fixed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#removed">Removed</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-1-2025-06-22">Version 0.8.1 2025-06-22</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id1">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#changed">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id2">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id3">Removed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#developer-notes">Developer Notes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#performance">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-3-2025-03-24">Version 0.7.3 2025-03-24</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id1">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id2">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id3">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id4">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id4">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id5">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id6">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id7">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-2-2025-03-02">Version 0.7.2 2025-03-02</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id5">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id6">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id7">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id8">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id8">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id9">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id10">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id11">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-1-2025-02-08">Version 0.7.1 2025-02-08</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id9">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id10">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id11">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id12">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id13">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id14">Fixed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-0-2025-01-19">Version 0.7.0 2025-01-19</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id12">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id13">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id15">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id16">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#deprecated">Deprecated</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id14">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id15">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id17">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id18">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-18-2024-06-10">Version 0.6.18 2024-06-10</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id16">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id17">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id18">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id19">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id19">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id20">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id21">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id22">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-17-2024-03-18">Version 0.6.17 2024-03-18</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id20">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id21">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id22">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id23">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id24">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id25">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-16-2023-12-17">Version 0.6.16 2023-12-17</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id23">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id24">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id25">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id26">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id26">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id27">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id28">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id29">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-14-2023-11-07">Version 0.6.14 2023-11-07</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6">Version 0.6</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id27">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id28">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id30">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id31">Changed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-5">Version 0.5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-4">Version 0.4</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id29">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id30">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id31">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id32">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id32">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id33">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id34">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id35">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-1-2022-03-08">Version 0.1 2022-03-08</a></li>
@@ -2355,6 +2368,15 @@ Extend to add recoding logic for devices.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.Device.updateTheme">
+<span class="sig-name descname"><span class="pre">updateTheme</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.plugins.Device.updateTheme" title="Link to this definition"></a></dt>
+<dd><p>Change between dark and light themes.</p>
+<p>Most controls should update automatically as the color pallet is changed.
+Only update the remaining controls using style sheets.
+Extend to adjust colors to app theme.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="esibd.plugins.Device.updateValues">
 <span class="sig-name descname"><span class="pre">updateValues</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.plugins.Device.updateValues" title="Link to this definition"></a></dt>
 <dd><p>Update channel values based on equations.</p>
@@ -3172,6 +3194,12 @@ Item needs parent for all graphics operations.</p>
 <dd><p>Update the setpoint in the pid controller based on the channel value.</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.PID.PIDChannel.valueChanged">
+<span class="sig-name descname"><span class="pre">valueChanged</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.plugins.PID.PIDChannel.valueChanged" title="Link to this definition"></a></dt>
+<dd><p>Update PID when setpoint changed.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py method">
@@ -3295,6 +3323,15 @@ If the channel has been deleted, the reconnection attempt will fail and and the 
 <dd class="field-odd"><p><strong>name</strong> (<em>str</em>) – Name of the channel to reconnect.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.plugins.PID.updateTheme">
+<span class="sig-name descname"><span class="pre">updateTheme</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.plugins.PID.updateTheme" title="Link to this definition"></a></dt>
+<dd><p>Change between dark and light themes.</p>
+<p>Most controls should update automatically as the color pallet is changed.
+Only update the remaining controls using style sheets.
+Extend to adjust colors to app theme.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -6360,6 +6397,12 @@ Item needs parent for all graphics operations.</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="esibd.core.Channel.valueChanged">
+<span class="sig-name descname"><span class="pre">valueChanged</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.core.Channel.valueChanged" title="Link to this definition"></a></dt>
+<dd><p>Update after value has changed.</p>
+</dd></dl>
+
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.core.Channel.values">
 <span class="sig-name descname"><span class="pre">values</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#esibd.core.DynamicNp" title="esibd.core.DynamicNp"><span class="pre">DynamicNp</span></a></em><a class="headerlink" href="#esibd.core.Channel.values" title="Link to this definition"></a></dt>
@@ -6719,7 +6762,7 @@ Keep following order to make sure acquisition is stopped before communication is
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="esibd.core.DeviceController.rng">
-<span class="sig-name descname"><span class="pre">rng</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">Generator(PCG64)</span> <span class="pre">at</span> <span class="pre">0x2322907D700</span></em><a class="headerlink" href="#esibd.core.DeviceController.rng" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">rng</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">Generator(PCG64)</span> <span class="pre">at</span> <span class="pre">0x250AEF757E0</span></em><a class="headerlink" href="#esibd.core.DeviceController.rng" title="Link to this definition"></a></dt>
 <dd><p>Random number generator.</p>
 </dd></dl>
 
@@ -7320,7 +7363,7 @@ Use <a class="reference internal" href="#esibd.plugins.Plugin.print" title="esib
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.Logger.print">
-<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.8.1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#esibd.const.PRINT" title="esibd.const.PRINT"><span class="pre">PRINT</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">print</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ESIBD</span> <span class="pre">Explorer</span> <span class="pre">0.8.2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#esibd.const.PRINT" title="esibd.const.PRINT"><span class="pre">PRINT</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">PRINT.MESSAGE</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.core.Logger.print" title="Link to this definition"></a></dt>
 <dd><p>Augments messages and redirects to log file, statusbar, and console.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -9008,8 +9051,19 @@ If it is set to False, it will not block the thread if the lock is already acqui
 
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.TreeWidget.totalHeight">
-<span class="sig-name descname"><span class="pre">totalHeight</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#esibd.core.TreeWidget.totalHeight" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">totalHeight</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#esibd.core.TreeWidget.totalHeight" title="Link to this definition"></a></dt>
 <dd><p>Total height of all items.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>limit</strong> (<em>int</em><em>, </em><em>optional</em>) – Limit the number of items considered, defaults to 0</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>_description_</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -9027,7 +9081,7 @@ If it is set to False, it will not block the thread if the lock is already acqui
 <dl class="py method">
 <dt class="sig sig-object py" id="esibd.core.TreeWidget.tree_height_hint_minimal">
 <span class="sig-name descname"><span class="pre">tree_height_hint_minimal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#esibd.core.TreeWidget.tree_height_hint_minimal" title="Link to this definition"></a></dt>
-<dd><p>Calculate the minimal height, corresponding to 4 items.</p>
+<dd><p>Calculate the minimal height, corresponding to up to 6 items.</p>
 </dd></dl>
 
 </dd></dl>
@@ -9155,15 +9209,39 @@ If set to False, certain events will only be triggered if editing is finished by
 </dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="esibd.const.Colors.blue">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">blue</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.blue" title="Link to this definition"></a></dt>
+<dd><p>ESIBD blue.</p>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="esibd.const.Colors.fg">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">fg</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.fg" title="Link to this definition"></a></dt>
 <dd><p>Foreground color.</p>
 </dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="esibd.const.Colors.green">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">green</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.green" title="Link to this definition"></a></dt>
+<dd><p>ESIBD green.</p>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="esibd.const.Colors.highlight">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">highlight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.highlight" title="Link to this definition"></a></dt>
 <dd><p>Highlight color.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="esibd.const.Colors.red">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">red</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.red" title="Link to this definition"></a></dt>
+<dd><p>ESIBD red.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="esibd.const.Colors.yellow">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">yellow</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#esibd.const.Colors.yellow" title="Link to this definition"></a></dt>
+<dd><p>ESIBD yellow.</p>
 </dd></dl>
 
 </dd></dl>
@@ -9626,6 +9704,24 @@ If set to False, certain events will only be triggered if editing is finished by
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="esibd.const.mix_hex_colors">
+<span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">mix_hex_colors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">color1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ratio</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#esibd.const.mix_hex_colors" title="Link to this definition"></a></dt>
+<dd><p>Mix two hex colors by ratio.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>color1</strong> – First color, e.g. “#FF0000”</p></li>
+<li><p><strong>color2</strong> – Second color, e.g. “#0000FF”</p></li>
+<li><p><strong>ratio</strong> – 0.0 (all color1) to 1.0 (all color2)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Mixed hex color as string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="esibd.const.openInDefaultApplication">
 <span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">openInDefaultApplication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#esibd.const.openInDefaultApplication" title="Link to this definition"></a></dt>
 <dd><p>Open file in system default application for file type.</p>
@@ -9762,7 +9858,7 @@ This is intended for Scans, but might be used elsewhere.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="esibd.const.validatePath">
-<span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">validatePath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Path</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#esibd.const.validatePath" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">esibd.const.</span></span><span class="sig-name descname"><span class="pre">validatePath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Path</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#esibd.const.validatePath" title="Link to this definition"></a></dt>
 <dd><p>Return a valid path. If the path does not exist, falling back to default.</p>
 <p>If default does not exist it will be created.</p>
 <dl class="field-list simple">

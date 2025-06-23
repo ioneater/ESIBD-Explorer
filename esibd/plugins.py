@@ -3598,6 +3598,13 @@ class Device(ChannelManager):  # noqa: PLR0904
         """Overwrite if you want to change units dynamically."""
         return self.unit
 
+    def updateTheme(self) -> None:  # noqa: D102
+        super().updateTheme()
+        if self.useOnOffLogic and self.pluginManager.DeviceManager.titleBar:
+            onToolButton = self.pluginManager.DeviceManager.titleBar.widgetForAction(self.onAction)
+            if onToolButton:
+                onToolButton.setStyleSheet(f"""QToolButton:checked{{background-color:{mix_hex_colors(colors.green, colors.bg, ratio=.7)};}}""")
+
 
 class Scan(Plugin):  # noqa: PLR0904
     """Record any number of outputChannels as a function of any number of inputs.
@@ -3882,11 +3889,12 @@ class Scan(Plugin):  # noqa: PLR0904
         self.dummyInitialization()
 
     def finalizeInit(self) -> None:  # noqa: D102
-        super().finalizeInit()
-        self.statusAction = self.pluginManager.DeviceManager.addAction(event=self.statusActionEvent,
-                                                toolTip=f'{self.name} is running. Go to {self.name}.', icon=self.getIcon(),
-                                                before=self.pluginManager.DeviceManager.aboutAction)
+        self.statusAction = self.pluginManager.DeviceManager.addStateAction(event=self.statusActionEvent,
+                                                toolTipFalse=f'{self.name} is running. Go to {self.name}.', iconFalse=self.getIcon(),
+                                                before=self.pluginManager.DeviceManager.aboutAction, restore=False, defaultState=True)
+        self.statusAction.state = True
         self.statusAction.setVisible(False)
+        super().finalizeInit()
 
     def statusActionEvent(self) -> None:
         """Show scan and corresponding display."""
@@ -4133,6 +4141,7 @@ class Scan(Plugin):  # noqa: PLR0904
         """Expand all items and hide unused category."""
         if self.channelTree:
             self.channelTree.expandAllItems()
+            self.channelTree.setMinimumHeight(self.channelTree.tree_height_hint_minimal())  # enough to show two input and two output channels
         if self.inputChannelGroupItem and self.inputChannelGroupItem.childCount() == 0:
             self.inputChannelGroupItem.setHidden(True)
 
@@ -4463,7 +4472,7 @@ class MetaChannel():
         else:
             return False
 
-with h5py.File('{self.file.as_posix() if self.file else ''}','r') as h5file:
+with h5py.File('{self.pluginManager.Explorer.activeFileFullPath.as_posix() if self.pluginManager.Explorer.activeFileFullPath else ''}','r') as h5file:
     group = h5file['{self.name}']
 
     input_group = group['Input Channels']
@@ -4662,6 +4671,10 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         super().updateTheme()
         if self.displayActive() and self.display:
             self.display.updateTheme()
+        if self.pluginManager.DeviceManager.titleBar:
+            statusToolButton = self.pluginManager.DeviceManager.titleBar.widgetForAction(self.statusAction)
+            if statusToolButton:
+                statusToolButton.setStyleSheet(f"""QToolButton:checked{{background-color:{mix_hex_colors(colors.yellow, colors.bg, ratio=.7)};}}""")
 
 
 class Browser(Plugin):
@@ -6149,7 +6162,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
         # access using getTestMode()
         ds[f'{GENERAL}/{DARKMODE}'] = parameterDict(value=True, toolTip='Use dark mode.', internal=True, event=self.pluginManager.updateTheme,
                                                                 parameterType=PARAMETERTYPE.BOOL)
-        ds[f'{GENERAL}/{CLIPBOARDTHEME}'] = parameterDict(value=True, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
+        ds[f'{GENERAL}/{CLIPBOARDTHEME}'] = parameterDict(value=False, toolTip='Use current theme when copying graphs to clipboard. Disable to always use light theme.',
                                                                 internal=True, parameterType=PARAMETERTYPE.BOOL)
         ds[f'{GENERAL}/{ICONMODE}'] = parameterDict(value='Icons', toolTip='Chose if icons, labels, or both should be used in tabs.',
                                                                    event=lambda: self.pluginManager.toggleTitleBarDelayed(update=False),
@@ -6179,7 +6192,8 @@ class Settings(SettingsManager):  # noqa: PLR0904
 
     def loadSettings(self, file: 'Path | None' = None, useDefaultFile: bool = False) -> None:  # noqa: D102
         if self.pluginManager.DeviceManager.initialized():
-            if CloseDialog(title='Stop communication?', ok='Stop communication', prompt='Communication is still running. Stop communication before loading settings!').exec():
+            if CloseDialog(title='Stop communication?', ok='Stop communication and load settings',
+                           prompt='Communication is still running. Stop communication before loading settings!').exec():
                 self.pluginManager.DeviceManager.closeCommunication()
             else:
                 return
@@ -6208,7 +6222,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
 
     def updatePluginPath(self) -> None:
         """Restart after changing user plugin path."""
-        if CloseDialog(title='Restart now', ok='Restart now.', prompt='Plugins will be updated on next restart.').exec():
+        if CloseDialog(title='Restart now', ok='Restart now', prompt='Plugins will be updated on next restart.').exec():
             self.pluginManager.mainWindow.closeApplication(restart=True)
 
     def incrementMeasurementNumber(self) -> None:
@@ -6387,7 +6401,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     def loadConfiguration(self) -> None:
         """Load configuration of all devices from a single file."""
         if self.initialized():
-            if CloseDialog(title='Stop communication?', ok='Stop communication',
+            if CloseDialog(title='Stop communication?', ok='Stop communication and load all configurations',
                             prompt='Communication is still running. Stop communication before loading all configurations!').exec():
                 self.closeCommunication()
             else:
@@ -6434,6 +6448,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.testControl(scan.recordingAction, value=False)
                 # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
                 self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'stopping {scan.name} scan.', timeout=30)
+                self.pluginManager.Explorer.activeFileFullPath = scan.file
                 scan.testPythonPlotCode(closePopup=True)
             self.bufferLagging()
         self.testControl(self.closeCommunicationAction, value=True)
@@ -7798,6 +7813,12 @@ class PID(ChannelManager):
                     self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}. Attempt reconnecting.', flag=PRINT.DEBUG)
                     self.connectSource(giveFeedback=True)
 
+        def valueChanged(self) -> None:
+            """Update PID when setpoint changed."""
+            super().valueChanged()
+            self.updateSetpoint()
+            self.stepPID()
+
         def monitorChanged(self) -> None:
             """Disable internal monitor event."""
 
@@ -7847,7 +7868,6 @@ class PID(ChannelManager):
             channel.pop(Channel.REAL)
             channel.pop(Channel.COLOR)
             channel[self.VALUE][Parameter.HEADER] = 'Setpoint   '  # channels can have different types of parameters and units
-            channel[self.VALUE][Parameter.EVENT] = self.updateSetpoint
             channel[self.UNIT] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
             channel[self.OUTPUT] = parameterDict(value='Output', parameterType=PARAMETERTYPE.TEXT, attr='output', event=self.connectSource,
                                                  toolTip='Output channel', header='Controlled')
@@ -7966,3 +7986,10 @@ class PID(ChannelManager):
             if name in {channel.input, channel.output}:
                 self.print(f'Source channel {channel.output} or {channel.input} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
                 channel.connectSource(giveFeedback=True)
+
+    def updateTheme(self) -> None:  # noqa: D102
+        super().updateTheme()
+        if self.pluginManager.DeviceManager.titleBar:
+            onToolButton = self.pluginManager.DeviceManager.titleBar.widgetForAction(self.onAction)
+            if onToolButton:
+                onToolButton.setStyleSheet(f"""QToolButton:checked{{background-color:{mix_hex_colors(colors.green, colors.bg, ratio=.7)};}}""")

@@ -49,15 +49,13 @@
 
 .. |pico| image:: ../../esibd/devices/pico/pico_104.png
    :height: 2ex
-
+.. |rbd| image:: ../../esibd/devices/rbd/RBD.png
+   :height: 2ex
 .. |tic| image:: ../../esibd/devices/tic/edwards_tic.png
    :height: 2ex
-
 .. |maxigauge| image:: ../../esibd/devices/maxigauge/pfeiffer_maxi.png
    :height: 2ex
-
 .. |lakeshore335| image:: ../../esibd/devices/lakeshore335/LS335.png
    :height: 2ex
-
 .. |calculator| image:: ../../esibd/examples/calculator/calculator.png
    :height: 2ex

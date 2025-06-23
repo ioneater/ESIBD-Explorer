@@ -118,7 +118,7 @@ class TemperatureChannel(Channel):
         channel[self.VALUE][Parameter.HEADER] = 'Set Temp (K)'  # overwrite existing parameter to change header
         channel[self.VALUE][Parameter.INSTANTUPDATE] = False
         channel[self.ACTIVE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, attr='channel_active', toolTip='Activate PID control.',
-                                              event=lambda: self.channelParent.controller.toggleOnFromThread(parallel=True))
+                                              event=self.channel_active_changed)
         channel[self.ID] = parameterDict(value='A', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='A, B', attr='id')
         channel[self.HEATER] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
@@ -154,6 +154,14 @@ class TemperatureChannel(Channel):
             active.check.setCheckable(True)
         active.value = value
         self.updateColor()  # update color for new Widget
+        self.channel_active_changed()
+
+    def channel_active_changed(self) -> None:
+        """Turn heater on or off. Only show PID controls if heater is running."""
+        self.channelParent.controller.toggleOnFromThread(parallel=True)
+        self.getParameterByName(self.KP).setVisible(self.channel_active)
+        self.getParameterByName(self.KI).setVisible(self.channel_active)
+        self.getParameterByName(self.KD).setVisible(self.channel_active)
 
     def setPID(self) -> None:
         """Set PID values."""

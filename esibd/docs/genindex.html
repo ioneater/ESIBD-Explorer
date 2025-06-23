@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; ESIBD Explorer 0.8.1 documentation</title>
+  <title>Index &mdash; ESIBD Explorer 0.8.2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=ec16d22d"></script>
+      <script src="_static/documentation_options.js?v=dbee5847"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -76,7 +76,6 @@
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#custom-device">Custom device</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#iseg">ISEG</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#rbd">RBD</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#pressure">Pressure</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#tic">TIC</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#maxigauge">MAXIGAUGE</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/users-guide.html#temperature">Temperature</a></li>
@@ -237,6 +236,7 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.subtractBackgroundChanged"><code class="docutils literal notranslate"><span class="pre">Device.subtractBackgroundChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.toggleRecording"><code class="docutils literal notranslate"><span class="pre">Device.toggleRecording()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.unit"><code class="docutils literal notranslate"><span class="pre">Device.unit</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.updateTheme"><code class="docutils literal notranslate"><span class="pre">Device.updateTheme()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.updateValues"><code class="docutils literal notranslate"><span class="pre">Device.updateValues()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.useBackgrounds"><code class="docutils literal notranslate"><span class="pre">Device.useBackgrounds</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.Device.version"><code class="docutils literal notranslate"><span class="pre">Device.version</span></code></a></li>
@@ -334,6 +334,7 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.optional"><code class="docutils literal notranslate"><span class="pre">PID.optional</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.pluginType"><code class="docutils literal notranslate"><span class="pre">PID.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.reconnectSource"><code class="docutils literal notranslate"><span class="pre">PID.reconnectSource()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.updateTheme"><code class="docutils literal notranslate"><span class="pre">PID.updateTheme()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.useDisplays"><code class="docutils literal notranslate"><span class="pre">PID.useDisplays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.useMonitors"><code class="docutils literal notranslate"><span class="pre">PID.useMonitors</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.plugins.PID.useOnOffLogic"><code class="docutils literal notranslate"><span class="pre">PID.useOnOffLogic</span></code></a></li>
@@ -652,6 +653,7 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.updateMin"><code class="docutils literal notranslate"><span class="pre">Channel.updateMin()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.updateValueParallel"><code class="docutils literal notranslate"><span class="pre">Channel.updateValueParallel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.updateWarningState"><code class="docutils literal notranslate"><span class="pre">Channel.updateWarningState()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.valueChanged"><code class="docutils literal notranslate"><span class="pre">Channel.valueChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.values"><code class="docutils literal notranslate"><span class="pre">Channel.values</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.waitToStabilize"><code class="docutils literal notranslate"><span class="pre">Channel.waitToStabilize</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.core.Channel.waitUntilStable"><code class="docutils literal notranslate"><span class="pre">Channel.waitUntilStable()</span></code></a></li>
@@ -1077,8 +1079,12 @@
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.bg"><code class="docutils literal notranslate"><span class="pre">Colors.bg</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.bgAlt1"><code class="docutils literal notranslate"><span class="pre">Colors.bgAlt1</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.bgAlt2"><code class="docutils literal notranslate"><span class="pre">Colors.bgAlt2</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.blue"><code class="docutils literal notranslate"><span class="pre">Colors.blue</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.fg"><code class="docutils literal notranslate"><span class="pre">Colors.fg</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.green"><code class="docutils literal notranslate"><span class="pre">Colors.green</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.highlight"><code class="docutils literal notranslate"><span class="pre">Colors.highlight</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.red"><code class="docutils literal notranslate"><span class="pre">Colors.red</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="library.html#esibd.const.Colors.yellow"><code class="docutils literal notranslate"><span class="pre">Colors.yellow</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.INOUT"><code class="docutils literal notranslate"><span class="pre">INOUT</span></code></a><ul>
@@ -1142,6 +1148,7 @@
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.infoDict"><code class="docutils literal notranslate"><span class="pre">infoDict()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.makeSettingWrapper"><code class="docutils literal notranslate"><span class="pre">makeSettingWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.mix_hex_colors"><code class="docutils literal notranslate"><span class="pre">mix_hex_colors()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.plotting"><code class="docutils literal notranslate"><span class="pre">plotting()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="library.html#esibd.const.pluginSupported"><code class="docutils literal notranslate"><span class="pre">pluginSupported()</span></code></a></li>
@@ -1156,75 +1163,81 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="pages/changelog.html">Changelog</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-1-2025-06-22">Version 0.8.1 2025-06-22</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-2-2025-06-23">Version 0.8.2 2025-06-23</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#added">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#changed">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#fixed">Fixed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#removed">Removed</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-8-1-2025-06-22">Version 0.8.1 2025-06-22</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id1">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#changed">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id2">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id3">Removed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#developer-notes">Developer Notes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#performance">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-3-2025-03-24">Version 0.7.3 2025-03-24</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id1">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id2">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id3">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id4">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id4">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id5">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id6">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id7">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-2-2025-03-02">Version 0.7.2 2025-03-02</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id5">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id6">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id7">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id8">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id8">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id9">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id10">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id11">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-1-2025-02-08">Version 0.7.1 2025-02-08</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id9">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id10">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id11">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id12">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id13">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id14">Fixed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-7-0-2025-01-19">Version 0.7.0 2025-01-19</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id12">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id13">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id15">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id16">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#deprecated">Deprecated</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id14">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id15">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id17">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id18">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-18-2024-06-10">Version 0.6.18 2024-06-10</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id16">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id17">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id18">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id19">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id19">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id20">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id21">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id22">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-17-2024-03-18">Version 0.6.17 2024-03-18</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id20">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id21">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id22">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id23">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id24">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id25">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-16-2023-12-17">Version 0.6.16 2023-12-17</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id23">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id24">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id25">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id26">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id26">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id27">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id28">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id29">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6-14-2023-11-07">Version 0.6.14 2023-11-07</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-6">Version 0.6</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id27">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id28">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id30">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id31">Changed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-5">Version 0.5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-4">Version 0.4</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id29">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id30">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id31">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id32">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id32">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id33">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id34">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pages/changelog.html#id35">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pages/changelog.html#version-0-1-2022-03-08">Version 0.1 2022-03-08</a></li>
@@ -1282,6 +1295,7 @@
  | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
+ | <a href="#Y"><strong>Y</strong></a>
  
 </div>
 <h2 id="A">A</h2>
@@ -1421,10 +1435,12 @@
 </li>
       <li><a href="library.html#esibd.const.Colors.bgAlt2">bgAlt2 (esibd.const.Colors property)</a>
 </li>
-      <li><a href="library.html#esibd.const.PARAMETERTYPE.BOOL">BOOL (esibd.const.PARAMETERTYPE attribute)</a>
+      <li><a href="library.html#esibd.const.Colors.blue">blue (esibd.const.Colors property)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.const.PARAMETERTYPE.BOOL">BOOL (esibd.const.PARAMETERTYPE attribute)</a>
+</li>
       <li><a href="library.html#esibd.const.INOUT.BOTH">BOTH (esibd.const.INOUT attribute)</a>
 </li>
       <li><a href="library.html#esibd.plugins.ChannelManager.bufferLagging">bufferLagging() (esibd.plugins.ChannelManager method)</a>
@@ -2093,6 +2109,8 @@
 </li>
       <li><a href="library.html#esibd.core.TreeWidget.grabItems">grabItems() (esibd.core.TreeWidget method)</a>
 </li>
+      <li><a href="library.html#esibd.const.Colors.green">green (esibd.const.Colors property)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -2503,6 +2521,8 @@
       </ul></li>
       <li><a href="library.html#esibd.plugins.ChannelManager.minTime">minTime() (esibd.plugins.ChannelManager method)</a>
 </li>
+      <li><a href="library.html#esibd.const.mix_hex_colors">mix_hex_colors() (in module esibd.const)</a>
+</li>
       <li><a href="library.html#esibd.plugins.ChannelManager.modifyChannel">modifyChannel() (esibd.plugins.ChannelManager method)</a>
 </li>
   </ul></td>
@@ -2860,6 +2880,8 @@
         <li><a href="library.html#esibd.plugins.Scan.recording">(esibd.plugins.Scan property)</a>
 </li>
       </ul></li>
+      <li><a href="library.html#esibd.const.Colors.red">red (esibd.const.Colors property)</a>
+</li>
       <li><a href="library.html#esibd.core.RelayChannel">RelayChannel (class in esibd.core)</a>
 </li>
       <li><a href="library.html#esibd.plugins.UCM.UCMChannel.relayMonitorEvent">relayMonitorEvent() (esibd.plugins.UCM.UCMChannel method)</a>
@@ -3500,10 +3522,10 @@
 </li>
       <li><a href="library.html#esibd.plugins.LiveDisplay.updateStackedViews">updateStackedViews() (esibd.plugins.LiveDisplay method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.plugins.DeviceManager.updateStaticPlot">updateStaticPlot() (esibd.plugins.DeviceManager method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="library.html#esibd.core.NumberBar.updateTheme">updateTheme() (esibd.core.NumberBar method)</a>
 
       <ul>
@@ -3513,7 +3535,11 @@
 </li>
         <li><a href="library.html#esibd.plugins.ChannelManager.updateTheme">(esibd.plugins.ChannelManager method)</a>
 </li>
+        <li><a href="library.html#esibd.plugins.Device.updateTheme">(esibd.plugins.Device method)</a>
+</li>
         <li><a href="library.html#esibd.plugins.LiveDisplay.updateTheme">(esibd.plugins.LiveDisplay method)</a>
+</li>
+        <li><a href="library.html#esibd.plugins.PID.updateTheme">(esibd.plugins.PID method)</a>
 </li>
         <li><a href="library.html#esibd.plugins.Plugin.updateTheme">(esibd.plugins.Plugin method)</a>
 </li>
@@ -3610,6 +3636,12 @@
         <li><a href="library.html#esibd.core.LabviewSpinBox.value">(esibd.core.LabviewSpinBox method)</a>
 </li>
       </ul></li>
+      <li><a href="library.html#esibd.core.Channel.valueChanged">valueChanged() (esibd.core.Channel method)</a>
+
+      <ul>
+        <li><a href="library.html#esibd.plugins.PID.PIDChannel.valueChanged">(esibd.plugins.PID.PIDChannel method)</a>
+</li>
+      </ul></li>
       <li><a href="library.html#esibd.core.LabviewDoubleSpinBox.valueFromText">valueFromText() (esibd.core.LabviewDoubleSpinBox method)</a>
 
       <ul>
@@ -3618,10 +3650,10 @@
       </ul></li>
       <li><a href="library.html#esibd.core.Channel.values">values (esibd.core.Channel attribute)</a>
 </li>
-      <li><a href="library.html#esibd.const.PRINT.VERBOSE">VERBOSE (esibd.const.PRINT attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.const.PRINT.VERBOSE">VERBOSE (esibd.const.PRINT attribute)</a>
+</li>
       <li><a href="library.html#esibd.plugins.ChannelManager.version">version (esibd.plugins.ChannelManager attribute)</a>
 
       <ul>
@@ -3685,6 +3717,14 @@
 </li>
       </ul></li>
       <li><a href="library.html#esibd.core.Logger.writeToLogAndTerminal">writeToLogAndTerminal() (esibd.core.Logger method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Y">Y</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="library.html#esibd.const.Colors.yellow">yellow (esibd.const.Colors property)</a>
 </li>
   </ul></td>
 </tr></table>

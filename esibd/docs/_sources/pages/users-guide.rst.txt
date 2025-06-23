@@ -183,11 +183,6 @@ RBD
 .. automodule:: esibd.devices.rbd.rbd.RBD
    :noindex:
 
-Pressure
-~~~~~~~~
-.. automodule:: esibd.devices.pressure.pressure.Pressure
-   :noindex:
-
 TIC
 ~~~
 .. automodule:: esibd.devices.tic.tic.TIC

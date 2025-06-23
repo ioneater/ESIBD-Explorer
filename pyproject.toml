@@ -1,7 +1,7 @@
 [project]
 name = "esibd-explorer"  # package name can include hyphens, module names should be lower case without hyphens.
 requires-python = ">=3.11"
-version = "0.8.1"
+version = "0.8.2"
 description = "A comprehensive data acquisition and analysis tool for Electrospray Ion-Beam Deposition experiments and beyond."
 license-files = ["LICENSE"]
 readme = "README.rst"

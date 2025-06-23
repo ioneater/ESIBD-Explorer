@@ -288,7 +288,8 @@ class Depo(Scan):
                 self.updateDisplayDefault()
 
     def updateDisplayChannel(self) -> None:
-        self.display.initFig()  # need to reinitialize as displayed channels are changing
+        if self.displayActive():
+            self.display.initFig()  # need to reinitialize as displayed channels are changing
         super().updateDisplayChannel()
 
     def updateWarnLevel(self) -> None:

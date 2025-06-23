@@ -105,6 +105,26 @@ class Colors:
         """Highlight color."""
         return '#8ab4f7'
 
+    @property
+    def green(self) -> str:
+        """ESIBD green."""
+        return '#a9d18e'
+
+    @property
+    def blue(self) -> str:
+        """ESIBD blue."""
+        return '#8faadc'
+
+    @property
+    def red(self) -> str:
+        """ESIBD red."""
+        return '#f4b183'
+
+    @property
+    def yellow(self) -> str:
+        """ESIBD yellow."""
+        return '#ffd966'
+
 
 colors = Colors()
 
@@ -118,6 +138,21 @@ def rgb_to_hex(rgba: tuple[float, float, float, float]) -> str:
     :rtype: str
     """
     return f'#{int(rgba[0] * 255):02x}{int(rgba[1] * 255):02x}{int(rgba[2] * 255):02x}'
+
+
+def mix_hex_colors(color1: str, color2: str, ratio: float) -> str:
+    """Mix two hex colors by ratio.
+
+    :param color1: First color, e.g. "#FF0000"
+    :param color2: Second color, e.g. "#0000FF"
+    :param ratio: 0.0 (all color1) to 1.0 (all color2)
+    :return: Mixed hex color as string
+    """
+    c1 = [int(color1[i:i + 2], 16) for i in (1, 3, 5)]
+    c2 = [int(color2[i:i + 2], 16) for i in (1, 3, 5)]
+
+    mixed = [round(c1[i] * (1 - ratio) + c2[i] * ratio) for i in range(3)]
+    return f'#{mixed[0]:02X}{mixed[1]:02X}{mixed[2]:02X}'
 
 
 class INOUT(Enum):
@@ -408,7 +443,7 @@ def infoDict(name: str) -> dict[str, str]:
     return {PROGRAM: PROGRAM_NAME, VERSION: str(PROGRAM_VERSION), PLUGIN: name, TIMESTAMP: datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 
-def validatePath(path: 'Path | None', default: Path) -> 'tuple[Path, bool]':
+def validatePath(path: 'Path | str | None', default: Path) -> 'tuple[Path, bool]':
     """Return a valid path. If the path does not exist, falling back to default.
 
     If default does not exist it will be created.
@@ -420,6 +455,8 @@ def validatePath(path: 'Path | None', default: Path) -> 'tuple[Path, bool]':
     :return: Validated path and indication if path has changed during validation.
     :rtype: pathlib.Path, bool
     """
+    if path and isinstance(path, str):
+        path = Path(path)
     if not path or not path.exists():
         default = Path(default)
         if path == default:
