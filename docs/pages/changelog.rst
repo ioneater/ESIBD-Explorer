@@ -3,8 +3,13 @@
 Changelog
 ---------
 
-.. Latest
-.. ======
+Latest
+======
+
+Changed
+~~~~~~~
+- Defined scaling of channels more gradually.
+
 
 Version 0.8.2 2025-06-23
 ========================

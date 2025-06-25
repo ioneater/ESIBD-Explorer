@@ -2851,11 +2851,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             case 'normal':
                 self.rowHeight = normalHeight
             case 'large':
-                self.rowHeight = normalHeight * 2
+                self.rowHeight = normalHeight * 1.5
             case 'larger':
-                self.rowHeight = normalHeight * 4
+                self.rowHeight = normalHeight * 2
             case _:  # 'huge'
-                self.rowHeight = normalHeight * 6
+                self.rowHeight = normalHeight * 4
         for parameter in self.parameters:
             parameter.setHeight(self.rowHeight)
         if not self.loading and self.tree:
@@ -2863,7 +2863,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
 
     def sizeHint(self, column) -> QSize:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: ANN001, ARG002
         """Provide a custom size hint based on the item's content."""
-        return QSize(100, self.rowHeight)  # Width is not relevant
+        return QSize(100, int(self.rowHeight))  # Width is not relevant
 
     def realChanged(self) -> None:
         """Extend as needed. Already linked to real checkbox."""

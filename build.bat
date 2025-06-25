@@ -200,13 +200,13 @@ git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 check read the docs build on https://app.readthedocs.org/projects/esibd-explorer/
 
-REM create release on github with changelog based on commits and following sections (have to be signed in!)
-REM select tag
-REM Title: Version v0.8.2
-REM Copy change log from changelog.rst (remove inline icons if applicable)
-REM attach ESIBD-Explorer-setup_v0.8.2.exe from pyinstaller_build to release
-REM attach ESIBD-Explorer-portable_v0.8.2.tar.gz to release (rename outside of repository to prevent uploading)
-REM Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
+create release on github with changelog based on commits and following sections (have to be signed in!)
+select tag
+Title: Version v0.8.2
+Copy change log from changelog.rst (remove inline icons if applicable)
+attach ESIBD-Explorer-setup_v0.8.2.exe from pyinstaller_build to release
+attach esibd.tar.gz to release (do not rename or the final folder will have a different name as well)
+Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
 
 
 Consider saving snapshot of workspace independent of git
