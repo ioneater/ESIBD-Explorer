@@ -1609,7 +1609,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         self.displayTimeComboBox = RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=self.displayTimeChanged, minimum=.2, maximum=3600,
                                                         toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
-        self.autoScaleAction = self.addStateAction(event=lambda: (self.updateMouseEnabled(x=self.autoScaleAction.state, y=None), self.autoRangeY(not self.autoScaleAction.state)),
+        self.autoScaleAction = self.addStateAction(event=self.autoScaleChanged,
                                                     toolTipFalse='Scale x manually.', iconFalse=self.makeCoreIcon('scaleX_manual.png'),
                                                    toolTipTrue='Scale x automatically.', iconTrue=self.makeCoreIcon('scaleX_auto.png'), restore=False, defaultState=False)
 
@@ -1827,6 +1827,12 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             for livePlotWidget in self.livePlotWidgets:
                 if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                     livePlotWidget.enableAutoRange(x=False, y=True)
+
+    def autoScaleChanged(self) -> None:
+        """Toggle between manual and automatic x scaling and scales y if needed."""
+        self.updateMouseEnabled(x=self.autoScaleAction.state, y=None)
+        self.autoRangeY(not self.autoScaleAction.state)
+        self.plot(apply=True)
 
     def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: D102
         return self.parentPlugin.getIcon(desaturate=desaturate)
@@ -2100,7 +2106,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     class SignalCommunicate(Plugin.SignalCommunicate):  # signals that can be emitted by external threads
         """Bundle pyqtSignals."""
 
-        plotSignal = pyqtSignal()
+        plotSignal = pyqtSignal(bool)
         """Signal that triggers plotting of history."""
 
     StaticDisplay = StaticDisplay
@@ -2842,6 +2848,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             if self.dataThread.is_alive():
                 self.print('Data recording thread did not complete. Reset connection manually.', flag=PRINT.ERROR)
                 return
+        if self.liveDisplayActive():
+            self.liveDisplay.autoScaleAction.state = False
         self.clearPlot()  # update legend in case channels have changed
         self.intervalChanged()  # update tolerance
         self.recording = True
@@ -2883,7 +2891,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         :type recording: Callable
         """
         while recording():
-            self.signalComm.plotSignal.emit()
+            self.signalComm.plotSignal.emit(False)  # noqa: FBT003
             time.sleep(self.interval / 1000)  # in seconds  # wait at end to avoid emitting signal after recording set to False
             self.bufferLagging()
 
@@ -3506,7 +3514,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                     self.print('Skipping plotting in appendData.', flag=PRINT.VERBOSE)
                     self.measureInterval(reset=False)  # do not reset but keep track of unresponsiveness
                 else:
-                    self.signalComm.plotSignal.emit()
+                    self.signalComm.plotSignal.emit(False)  # noqa: FBT003
             else:
                 self.measureInterval()
 

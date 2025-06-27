@@ -10,6 +10,9 @@ Changed
 ~~~~~~~
 - Defined scaling of channels more gradually.
 
+Fixed
+~~~~~
+- Made sure that liveDisplays are updated after dragging even if devices are not recording.
 
 Version 0.8.2 2025-06-23
 ========================

@@ -1,5 +1,7 @@
 .. include:: icons.rst
 
+.. _`sec:UsersGuide`:
+
 User's Guide
 ============
 

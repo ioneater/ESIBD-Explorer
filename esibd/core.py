@@ -5019,6 +5019,7 @@ class ViewBox(pg.ViewBox):
     userMouseEnabledChanged = pyqtSignal(bool, bool)
     axis_leftright: pg.AxisItem
     dummyAx: pg.AxisItem
+    plotItem: 'PlotItem'
 
     def __init__(self, *args, **kwargs) -> None:  # noqa: D107
         super().__init__(*args, **kwargs)
@@ -5036,6 +5037,7 @@ class ViewBox(pg.ViewBox):
 
     def resetDragging(self) -> None:  # noqa: D102  # pylint: disable = missing-function-docstring
         self.dragging = False
+        self.plotItem.parentPlot()
 
     def setMouseEnabled(self, x: 'bool | None' = None, y: 'bool | None' = None) -> None:
         """Call user event if values have changed.
@@ -5096,6 +5098,7 @@ class PlotItem(pg.PlotItem):
         """
         if not viewBox:
             viewBox = ViewBox()
+        viewBox.plotItem = self
         super().__init__(viewBox=viewBox, **kwargs)
         self.parentPlugin = parentPlugin
         self.tickWidth = tickWidth
@@ -5181,7 +5184,7 @@ class PlotItem(pg.PlotItem):
         """
         viewBox = self.getViewBox()
         if self.parentPlugin and viewBox and viewBox.mouseEnabled()[0]:
-            self.parentPlugin.parentPlugin.signalComm.plotSignal.emit()
+            self.parentPlugin.parentPlugin.signalComm.plotSignal.emit(True)  # noqa: FBT003
 
     @property
     def dragging(self) -> bool:  # pylint: disable = missing-function-docstring
