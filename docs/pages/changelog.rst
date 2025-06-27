@@ -9,6 +9,7 @@ Latest
 Changed
 ~~~~~~~
 - Defined scaling of channels more gradually.
+- Preview of hdf5 files in the Tree |tree| plugin now also previews the content of datasets as a tooltip.
 
 Fixed
 ~~~~~

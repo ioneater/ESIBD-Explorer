@@ -2769,6 +2769,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     if name in channel.tempParameters():
                         continue
                     parameter = channel.getParameterByName(name)
+                    if not parameter.restore:
+                        continue
                     if name in item and not parameter.equals(item[name]):
                         if parameter.indicator and ignoreIndicators:
                             continue
@@ -5195,6 +5197,47 @@ class Tree(Plugin):
             elif isinstance(item, h5py.Dataset):
                 dataset_widget = QTreeWidgetItem(tree, [name])
                 dataset_widget.setIcon(0, QIcon(self.ICON_DATASET))
+                dataset_widget.setToolTip(0, self.get_hdf5_preview(item))
+
+    def get_hdf5_preview(self, dataset: h5py.Dataset, max_elements: int = 10) -> str:
+        """Return a short string preview of an HDF5 dataset.
+
+        :param dataset: h5py.Dataset object
+        :param max_elements: Max number of elements to preview
+        :return: String preview
+        """
+        try:
+            shape = dataset.shape
+            dtype = dataset.dtype
+
+            # Scalar
+            if shape == ():
+                value = dataset[()]
+                return f'{value} ({dtype})'
+
+            # Strings
+            if dtype.kind in {'S', 'O', 'U'}:
+                preview = dataset[:max_elements]
+                preview = [s.decode('utf-8', errors='replace') for s in preview] if dtype.kind == 'S' else [str(s) for s in preview]
+                preview_str = ', '.join(str(s) for s in preview)
+                if shape[0] > max_elements:
+                    preview_str += ', ...'
+                return f'[{preview_str}] ({dtype}, shape={shape})'
+
+            # Multidimensional arrays
+            preview_shape = list(shape)
+            preview_shape[0] = min(preview_shape[0], max_elements)
+
+            slicing = tuple(slice(0, s) for s in preview_shape)
+            data = dataset[slicing]
+
+            # Use numpy formatting
+            data_preview = np.array2string(data, threshold=max_elements, edgeitems=2, max_line_width=60)
+
+        except Exception as e:  # noqa: BLE001
+            return f'<Error reading data: {e}>'
+        else:
+            return f'{data_preview} ({dtype}, shape={shape})'
 
     def pyShow(self, class_obj: Any, tree: 'QTreeWidget | QTreeWidgetItem', expansionLevel: int) -> None:  # noqa: ANN401
         """Populate tree based on contents of a python class.
