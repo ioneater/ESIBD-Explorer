@@ -21,7 +21,8 @@ class LINE(Plugin):
     """
 
     documentation = """The Line plugin allows to display simple 2D data. It is made to work
-    with simple xy text files with a three line header."""
+    with simple xy text files with a three line header.
+    """
 
     name = 'Line'
     version = '1.0'

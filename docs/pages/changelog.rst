@@ -22,7 +22,7 @@ Added
 ~~~~~
 - Added highlighting to easier see which devices are turned on.
 - Lakeshore |lakeshore335| is only showing PID controls for active channels. If the channel is only used for reading a temperature PID controls can be ignored.
-
+- CustomPlugin now demonstrates how to interact with and even extend other plugins including internal plugins.
 
 Fixed
 ~~~~~

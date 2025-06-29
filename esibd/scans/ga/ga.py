@@ -38,7 +38,8 @@ class GA(Scan):
     selected output channel. The output channel can be virtual and contain an
     equation that references many other channels. At the end of the optimization the changed
     parameters will be shown in the plugin. The initial parameters can
-    always be restored in case the optimization fails."""
+    always be restored in case the optimization fails.
+    """
 
     name = 'GA'
     version = '1.0'

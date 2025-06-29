@@ -802,7 +802,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.print(f'Run Tree.inspect({name}) to get more info.')
         documentation = ((self.documentation or self.__doc__) or '').replace('\n', '<br>')
         self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
-            <p>{documentation}<br></p>
+            <p>{documentation}</p>
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
             Supported version: {self.supportedVersion}<br></p>"""
             # add programmer info in testmode, otherwise only show user info
@@ -1538,7 +1538,8 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
     the graphs are updated less frequently and select a smaller but
     consistent subset of data points for a smooth visualization. While
     PyQtGraph provides its own algorithms for down sampling data (accessible
-    via the context menu), they tend to cause a flicker when updating data."""
+    via the context menu), they tend to cause a flicker when updating data.
+    """
 
     pluginType = PLUGINTYPE.LIVEDISPLAY
     useAdvancedOptions = True
@@ -4164,11 +4165,11 @@ class Scan(Plugin):  # noqa: PLR0904
             return
         inputRecordingData0 = self.inputChannels[0].getRecordingData()
         if len(self.inputChannels) == 1 and inputRecordingData0 is not None:  # 1D scan
-            recordingData = np.zeros(len(inputRecordingData0))  # cant reuse same array for all outputChannels as they would refer to same instance.
+            recordingData = np.zeros(len(inputRecordingData0), dtype=np.float32)  # cant reuse same array for all outputChannels as they would refer to same instance.
         elif len(self.inputChannels) == 2 and inputRecordingData0 is not None and self.inputChannels[1].getRecordingData() is not None:  # noqa: PLR2004
             # 2D scan, higher dimensions not jet supported
             lengths = [len(data) if data is not None else 0 for inputChannel in self.inputChannels for data in [inputChannel.getRecordingData()]]
-            recordingData = np.zeros(np.prod(lengths)).reshape(*lengths).transpose()
+            recordingData = np.zeros(np.prod(lengths), dtype=np.float32).reshape(*lengths).transpose()
             # note np.zeros works better than np.full(len, np.nan) as some plots give unexpected results when given np.nan
         if self.DISPLAY in self.getDefaultSettings():
             for name in self.settingsMgr.settings[self.DISPLAY].items:
@@ -5076,7 +5077,8 @@ class Tree(Plugin):
 
     documentation = """The Tree plugin gives an overview of the content of .py, .hdf5, and
     .h5 files. This includes configuration or scan files and even python source code.
-    It can also help inspect any object using Tree.inspect() or give an overview of icons using Tree.iconOverview() from the Console."""
+    It can also help inspect any object using Tree.inspect() or give an overview of icons using Tree.iconOverview() from the Console.
+    """
 
     name = 'Tree'
     version = '1.0'
@@ -5509,7 +5511,8 @@ class Console(Plugin):
     with a developer for debugging. All features implemented in the user
     interface and more can be accessed directly from this console. Use at
     your own Risk! You can select some commonly used examples directly from
-    the combo box to get started."""
+    the combo box to get started.
+    """
 
     pluginType = PLUGINTYPE.CONSOLE
     name = 'Console'
@@ -6382,7 +6385,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     selected. Internally, the device manager also serves as a
     central interface to all data channels, independent of the devices they
     belong to, making it easy to setup collection of any output
-    signals as a function of any input signals."""
+    signals as a function of any input signals.
+    """
 
     name = 'DeviceManager'
     version = '1.0'
@@ -6887,7 +6891,8 @@ class Explorer(Plugin):  # noqa: PLR0904
     components, it allows you to quickly find the corresponding manuals and
     order numbers. In combination with the Notes plugin, you can add comments to
     each component that will be displayed automatically as soon as you
-    enter the corresponding folder."""
+    enter the corresponding folder.
+    """
 
     name = 'Explorer'
     version = '1.0'
@@ -7459,7 +7464,8 @@ class UCM(ChannelManager):
     documentation = """Unified Channel Manager (UCM) allows to specify a custom list of channels from all devices.
     This allows to have the most relevant controls and information in one place.
     All logic remains within the corresponding device plugins. This is just an interface!
-    To get started, simply add channels and name them after existing channels from other devices."""
+    To get started, simply add channels and name them after existing channels from other devices.
+    """
 
     name = 'UCM'
     version = '1.0'

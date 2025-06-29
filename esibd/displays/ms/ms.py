@@ -29,7 +29,8 @@ class MS(Plugin):
     quick estimate of charge state and mass, based on minimizing the standard
     deviation of the mass as a function of possible charge states. The
     detailed results are shown in the graph, and help to evaluate the
-    quality of the estimate. Use Ctrl + right mouse click to reset."""
+    quality of the estimate. Use Ctrl + right mouse click to reset.
+    """
 
     name = 'MS'
     version = '1.0'
@@ -165,7 +166,7 @@ class MS(Plugin):
         y_sub = y[x_min_i:x_max_i]
         return (y - np.min(y)) / np.max(y_sub - np.min(y_sub)) * 100
 
-    def smooth(self, y, box_pts) -> np.ndarray:
+    def smooth(self, y: np.ndarray, box_pts: int) -> np.ndarray:
         """Smooths a 1D array.
 
         :param y: Array to be smoothed.

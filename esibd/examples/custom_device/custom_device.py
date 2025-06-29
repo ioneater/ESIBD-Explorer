@@ -25,7 +25,8 @@ class CustomDevice(Device):
     """
 
     documentation = """The minimal code in examples/custom_device/custom_device.py is an example of how to integrate a custom device.
-     Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
+     Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details.
+     """
 
     name = 'CustomDevice'
     version = '1.0'
