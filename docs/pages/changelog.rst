@@ -30,6 +30,7 @@ Fixed
 - Fixed some settings that were not set correctly on new PCs.
 - Fixed setting of range and average for RBD |rbd|.
 - Fixed file used when exporting scan plots.
+- Preserving new lines from documentation on the about dialog.
 
 Removed
 ~~~~~~~

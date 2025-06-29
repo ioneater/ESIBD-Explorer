@@ -19,12 +19,12 @@ def providePlugins() -> 'list[type[Plugin]]':
 
 
 class CustomDevice(Device):
-    """The minimal code in *examples/CustomDevice.py* is an example of how to integrate a custom device.
+    """The minimal code in *examples/custom_device/custom_device.py* is an example of how to integrate a custom device.
 
     Usually only a fraction of the methods shown here need to be implemented. Look at the other examples and :ref:`sec:plugin_system` for more details.
     """
 
-    documentation = """The minimal code in examples/CustomDevice.py is an example of how to integrate a custom device.
+    documentation = """The minimal code in examples/custom_device/custom_device.py is an example of how to integrate a custom device.
      Usually only a fraction of the methods shown here need to be implemented. Look at the other examples for more details."""
 
     name = 'CustomDevice'

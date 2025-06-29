@@ -800,8 +800,9 @@ class Plugin(QWidget):  # noqa: PLR0904
             elif isinstance(self, Scan.Display):
                 name = f'{self.scan.name}.display'
             self.print(f'Run Tree.inspect({name}) to get more info.')
+        documentation = ((self.documentation or self.__doc__) or '').replace('\n', '<br>')
         self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
-            <p>{self.documentation or self.__doc__}<br></p>
+            <p>{documentation}<br></p>
             <p>Supported files: {', '.join(self.getSupportedFiles())}<br>
             Supported version: {self.supportedVersion}<br></p>"""
             # add programmer info in testmode, otherwise only show user info
@@ -4226,6 +4227,11 @@ class Scan(Plugin):  # noqa: PLR0904
                     if not self._dummy_initialization:
                         self.print(f'{outputChannel.name} is not recording.', flag=PRINT.WARNING)
                     sourceInitialized = False
+            if outputChannel.sourceChannel and outputChannel.sourceChannel.inout == INOUT.IN:  # noqa: SIM102
+                # Input channels only write and only have a read option for monitors.
+                # May still make sense if the output channel is a virtual channel only used for calculations.
+                if not self._dummy_initialization:
+                    self.print(f'Using input channel {name} as output channel.', flag=PRINT.WARNING)
         if recordingData is not None:
             outputChannel.recordingData = recordingData  # type: ignore  # noqa: PGH003
         if recordingBackground is not None:
