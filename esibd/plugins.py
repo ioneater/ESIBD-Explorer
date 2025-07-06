@@ -6164,6 +6164,14 @@ class Settings(SettingsManager):  # noqa: PLR0904
         delattr(self, 'floatAction')
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
+        self.filterLineEdit = QLineEdit()
+        self.filterLineEdit.setMaximumWidth(100)
+        self.filterLineEdit.setMinimumWidth(50)
+        self.filterLineEdit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.filterLineEdit.textChanged.connect(self.toggleAdvanced)
+        self.filterLineEdit.setPlaceholderText('Search')
+        if self.titleBar:
+            self.titleBar.insertWidget(self.aboutAction, self.filterLineEdit)
         self.toggleAdvanced(advanced=False)
 
     def init(self) -> None:
@@ -6183,9 +6191,16 @@ class Settings(SettingsManager):  # noqa: PLR0904
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: ARG002, D102
         self.loadSettingsAction.setVisible(self.advancedAction.state)
         self.saveSettingsAction.setVisible(self.advancedAction.state)
+        search_filter = self.filterLineEdit.text()
         for setting in self.settings.values():
-            if setting.advanced:
+            if search_filter:
+                if search_filter.lower() not in setting.name.lower():
+                    setting.setHidden(True)
+                    continue
+            elif setting.advanced:
                 setting.setHidden(not self.advancedAction.state)
+            else:
+                setting.setHidden(False)  # unhide previously hidden settings
 
     def loadData(self, file: Path, showPlugin: bool = False) -> None:  # noqa: ARG002, D102
         return  # nothing to do, content will be handled by Text plugin

@@ -69,12 +69,14 @@ class Beam(Scan):
             self.initFig()  # axis aspect may have changed
 
         def interpolationChanged(self) -> None:
+            """Call when interpolation has changed."""
             if self.scan.finished:
                 self.scan.plot(update=False, done=True)
             else:
                 self.print('Interpolation will update when scan has finished.')
 
         def axesAspectChanged(self) -> None:
+            """Call when axes aspect ratio has changed."""
             self.initFig()
             self.scan.plot(update=False, done=self.scan.finished)
 
