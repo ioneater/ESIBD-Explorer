@@ -340,6 +340,7 @@ class PluginManager:  # noqa: PLR0904
         self.loadPluginsFromPath(esibdPath / 'devices')
         self.loadPluginsFromPath(esibdPath / 'scans')
         self.loadPluginsFromPath(esibdPath / 'displays')
+        self.loadPluginsFromPath(esibdPath / 'controls')
         self.loadPluginsFromPath(getValidPluginPath())
 
         obsoletePluginNames = [name for name in self.confParser if name != Parameter.DEFAULT.upper() and name != INFO and name not in self.pluginNames]
@@ -1859,7 +1860,7 @@ class Parameter:  # noqa: PLR0904
             self.combo.setItemText(self.combo.currentIndex(), str(value))
             self.changedEvent()  # is not triggered by setItemText
 
-    def validateComboInput(self, value: str) -> bool:
+    def validateComboInput(self, value: str) -> bool:  # noqa: PLR0911
         """Validate input for comboboxes.
 
         :param value: The new value to be validated.
@@ -1876,6 +1877,9 @@ class Parameter:  # noqa: PLR0904
                 self.print(f'{value} is not an integer!', flag=PRINT.ERROR)
                 return False
             else:
+                if self.min is not None and self.max is not None:
+                    self.print(f'{value} is not in allowed range from {self.min} to {self.max}!', flag=PRINT.ERROR)
+                    return self.min < int(value) < self.max
                 return True
         elif self.parameterType == PARAMETERTYPE.FLOATCOMBO:
             try:
@@ -1884,6 +1888,9 @@ class Parameter:  # noqa: PLR0904
                 self.print(f'{value} is not a float!', flag=PRINT.ERROR)
                 return False
             else:
+                if self.min is not None and self.max is not None:
+                    self.print(f'{value} is not in allowed range from {self.min} to {self.max}!', flag=PRINT.ERROR)
+                    return self.min < float(value) < self.max
                 return True
         return False
 
@@ -3591,10 +3598,10 @@ class ControlCursor(Cursor):
         self.setPosition(*self.getPosition())
 
 
-class RestoreFloatComboBox(QComboBox):
+class RestoreNumberComboBox(QComboBox):
     """ComboBox that allows to restore its value upon restart using an internal :class:`~esibd.core.Setting`."""
 
-    def __init__(self, parentPlugin: 'Plugin', default: str, items: str, attr: str, **kwargs) -> None:
+    def __init__(self, parentPlugin: 'Plugin', default: str, items: str, attr: str, use_float: bool = True, **kwargs) -> None:
         """Initialize a RestoreFloatComboBox.
 
         :param parentPlugin: Parent plugin.
@@ -3612,10 +3619,27 @@ class RestoreFloatComboBox(QComboBox):
         self.attr = attr
         self.fullName = f'{self.parentPlugin.name}/{self.attr}'
         self.parentPlugin.pluginManager.Settings.loading = True
-        self.setting = Setting(parameterParent=self.parentPlugin.pluginManager.Settings, name=self.fullName, parameterType=PARAMETERTYPE.FLOATCOMBO,
+        self.setting = Setting(parameterParent=self.parentPlugin.pluginManager.Settings, name=self.fullName,
+                                parameterType=PARAMETERTYPE.FLOATCOMBO if use_float else PARAMETERTYPE.INTCOMBO,
                                value=qSet.value(self.fullName, default), default=default,
                                 items=items, widget=self, internal=True, **kwargs)
         self.parentPlugin.pluginManager.Settings.loading = False
+
+
+class RestoreIntComboBox(RestoreNumberComboBox):
+    """ComboBox that allows to restore its value upon restart using an internal :class:`~esibd.core.Setting`."""
+
+    def __init__(self, **kwargs) -> None:
+        """Specify use of int."""
+        super().__init__(**kwargs, use_float=False)
+
+
+class RestoreFloatComboBox(RestoreNumberComboBox):
+    """ComboBox that allows to restore its value upon restart using an internal :class:`~esibd.core.Setting`."""
+
+    def __init__(self, **kwargs) -> None:
+        """Specify use of float."""
+        super().__init__(**kwargs, use_float=True)
 
 
 class Label(QLabel, ParameterWidget):
@@ -5473,9 +5497,9 @@ class DeviceController(QObject):  # noqa: PLR0904
         """Return the corresponding device, even if controllerParent is a Channel."""
         if isinstance(self.controllerParent, self.pluginManager.Device):
             return self.controllerParent
-        elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
+        if isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
             return self.controllerParent.channelParent
-        return None # type: ignore
+        return None  # type: ignore  # noqa: PGH003
 
     def initializeCommunication(self) -> None:
         """Start the :meth:`~esibd.core.DeviceController.initThread`."""

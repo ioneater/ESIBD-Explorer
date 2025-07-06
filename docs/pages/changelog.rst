@@ -9,6 +9,7 @@ Latest
 Added
 ~~~~~
 - There is now a search field in Settings |settings|.
+- Added a new minimal Webcam |webcam| plugin.
 
 Changed
 ~~~~~~~
