@@ -53,6 +53,8 @@
    :height: 2ex
 .. |rbd| image:: ../../esibd/devices/rbd/RBD.png
    :height: 2ex
+.. |keithley| image:: ../../esibd/devices/keithley/keithley.png
+   :height: 2ex
 .. |tic| image:: ../../esibd/devices/tic/edwards_tic.png
    :height: 2ex
 .. |maxigauge| image:: ../../esibd/devices/maxigauge/pfeiffer_maxi.png

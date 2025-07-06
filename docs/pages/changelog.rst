@@ -15,11 +15,12 @@ Changed
 - Defined scaling of channels more gradually.
 - Preview of hdf5 files in the Tree |tree| plugin now also previews the content of datasets as a tooltip.
 - In Beam |beam| scan the color scale will be inverted for negative scans.
-- Depo |depo| is now able to show all current and charge traces.
+- Depo |depo| is now able to display all current and charge traces.
 
 Fixed
 ~~~~~
 - Made sure that liveDisplays are updated after dragging even if devices are not recording.
+- Ensured devices like |keithley| where each channel has a controller turn on properly if started from on button without initializing communication first.
 
 Version 0.8.2 2025-06-23
 ========================

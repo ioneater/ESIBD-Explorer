@@ -5450,10 +5450,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         if (self.errorCount == self.MAX_ERROR_COUNT or self.errorCount > 2 * self.MAX_ERROR_COUNT) and self.initialized:
             self.print(f'Closing communication after more than {self.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
             self.closeCommunication()
-        if isinstance(self.controllerParent, self.pluginManager.Device):
-            QTimer.singleShot(0, self.controllerParent.errorCountChanged)
-        elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
-            QTimer.singleShot(0, self.controllerParent.channelParent.errorCountChanged)
+        QTimer.singleShot(0, self.getDevice().errorCountChanged)
 
     def resetErrorCount(self) -> None:
         """Reset error count to 0."""
@@ -5471,6 +5468,14 @@ class DeviceController(QObject):  # noqa: PLR0904
         """
         controller_name = f'{shorten_text(self.controllerParent.name + " controller", max_length=25):25s}' if isinstance(self.controllerParent, Channel) else 'Controller'
         self.controllerParent.print(f'{controller_name}: {message}', flag=flag)
+
+    def getDevice(self) -> 'Device':
+        """Return the corresponding device, even if controllerParent is a Channel."""
+        if isinstance(self.controllerParent, self.pluginManager.Device):
+            return self.controllerParent
+        elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
+            return self.controllerParent.channelParent
+        return None # type: ignore
 
     def initializeCommunication(self) -> None:
         """Start the :meth:`~esibd.core.DeviceController.initThread`."""
@@ -5535,8 +5540,8 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.initializeValues()
         self.initialized = True
         self.startAcquisition()
-        if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.isOn():
-            self.controllerParent.updateValues(apply=True)  # apply values before turning on or off
+        if self.getDevice().isOn():
+            self.getDevice().updateValues(apply=True)  # apply values before turning on or off
             self.toggleOnFromThread()
 
     def readNumbers(self) -> None:
@@ -5608,10 +5613,7 @@ class DeviceController(QObject):  # noqa: PLR0904
                     self.fakeNumbers() if getTestMode() else self.readNumbers()
                     self.signalComm.updateValuesSignal.emit()
             # release lock before waiting!
-            if isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
-                time.sleep(self.controllerParent.channelParent.interval / 1000)
-            elif isinstance(self.controllerParent, self.pluginManager.Device):
-                time.sleep(self.controllerParent.interval / 1000)
+            time.sleep(self.getDevice().interval / 1000)
 
     def toggleOnFromThread(self, parallel: bool = True) -> None:
         """Toggles device on or off (tread safe).
@@ -5636,18 +5638,17 @@ class DeviceController(QObject):  # noqa: PLR0904
     def stopAcquisition(self) -> bool:
         """Terminate acquisition but leaves communication initialized."""
         self.print('stopAcquisition', flag=PRINT.DEBUG)
-        if isinstance(self.controllerParent, self.pluginManager.Device) and self.controllerParent.recording:
+        if isinstance(self.controllerParent, self.pluginManager.Device) and self.getDevice().recording:
             # stop recording if controller is stopping acquisition
             # continue if only a channel controller is stopping acquisition
-            self.controllerParent.recording = False
-        elif (isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device) and
-              self.controllerParent.channelParent.recording and
+            self.getDevice().recording = False
+        elif (isinstance(self.controllerParent, Channel) and self.getDevice().recording and
               # test if controllerParent is the last initialized channel -> it will be stopped, so recording should end.
-                not any(channel.controller.initialized or not channel.active for channel in self.controllerParent.channelParent.channels
+                not any(channel.controller.initialized or not channel.active for channel in self.getDevice().channels
                          if channel.controller and channel is not self.controllerParent)):
             # only stop recording if none of the channel controllers is initialized
-            self.controllerParent.channelParent.print('Stopping recording as last initialized channel is closing Communication.', flag=PRINT.DEBUG)
-            self.controllerParent.channelParent.recording = False
+            self.getDevice().print('Stopping recording as last initialized channel is closing communication.', flag=PRINT.DEBUG)
+            self.getDevice().recording = False
         if self.acquisitionThread:
             with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to stop acquisition.'):
                 # use lock in runAcquisition to make sure acquiring flag is not changed before last call completed
@@ -5655,10 +5656,7 @@ class DeviceController(QObject):  # noqa: PLR0904
                 self.acquiring = False
             self.initializeValues(reset=True)  # set values and monitors to None to indicate that acquisition has stopped and current value is unknown
             self.updateValues()  # update new values in GUI
-            if isinstance(self.controllerParent, self.pluginManager.Device):
-                self.controllerParent.updateValues()
-            elif isinstance(self.controllerParent, Channel) and isinstance(self.controllerParent.channelParent, self.pluginManager.Device):
-                self.controllerParent.channelParent.updateValues()
+            self.getDevice().updateValues()
             return True
         return False
 
