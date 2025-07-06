@@ -131,7 +131,7 @@ REM test on pypitest
 conda create -y -n "estest" python=3.11 REM make sure no other environments (including VSCode) are active during this step
 conda activate estest
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ esibd-explorer
-REM ==0.8.2 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
+REM ==0.8.3 NOTE latest will be used if no version specified  # extra-index-url specifies pypi dependencies that are not present on testpypi
 REM python -m esibd.reset  # clear registry settings to emulate fresh install
 python -m esibd.explorer
 REM activate all plugins for testing!
@@ -185,7 +185,7 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
 
-REM rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v0.8.2.exe in pyinstaller_build
+REM rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v0.8.3.exe in pyinstaller_build
 
 REM Test installation from exe before continuing
 
@@ -194,17 +194,17 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Realeasing version v0.8.2"
-git tag -a v0.8.2 -m "Realeasing version v0.8.2"
+git commit -a -m "Realeasing version v0.8.3"
+git tag -a v0.8.3 -m "Realeasing version v0.8.3"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 check read the docs build on https://app.readthedocs.org/projects/esibd-explorer/
 
 create release on github with changelog based on commits and following sections (have to be signed in!)
 select tag
-Title: Version v0.8.2
+Title: Version v0.8.3
 Copy change log from changelog.rst (remove inline icons if applicable)
-attach ESIBD-Explorer-setup_v0.8.2.exe from pyinstaller_build to release
+attach ESIBD-Explorer-setup_v0.8.3.exe from pyinstaller_build to release
 attach esibd.tar.gz to release (do not rename or the final folder will have a different name as well)
 Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
 

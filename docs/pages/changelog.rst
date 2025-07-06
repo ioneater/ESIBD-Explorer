@@ -6,11 +6,16 @@ Changelog
 Latest
 ======
 
+Added
+~~~~~
+- There is now a search field in Settings |settings|.
+
 Changed
 ~~~~~~~
 - Defined scaling of channels more gradually.
 - Preview of hdf5 files in the Tree |tree| plugin now also previews the content of datasets as a tooltip.
-- In Beam scan the color scale will be inverted for negative scans.
+- In Beam |beam| scan the color scale will be inverted for negative scans.
+- Depo |depo| is now able to show all current and charge traces.
 
 Fixed
 ~~~~~

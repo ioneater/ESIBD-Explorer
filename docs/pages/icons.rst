@@ -43,6 +43,8 @@
    :height: 2ex
 .. |omni| image:: ../../esibd/scans/omni/omni.png
    :height: 2ex
+.. |beam| image:: ../../esibd/scans/beam/beam.png
+   :height: 2ex
 
 .. |LINE| image:: ../../esibd/displays/line/line.png
    :height: 2ex
