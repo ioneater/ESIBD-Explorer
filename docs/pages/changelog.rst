@@ -10,6 +10,7 @@ Changed
 ~~~~~~~
 - Defined scaling of channels more gradually.
 - Preview of hdf5 files in the Tree |tree| plugin now also previews the content of datasets as a tooltip.
+- In Beam scan the color scale will be inverted for negative scans.
 
 Fixed
 ~~~~~

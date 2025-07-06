@@ -4644,12 +4644,15 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                     else:  # e.g. a virtual output channel that is not recording
                         outputChannelValues = outputChannel.value
                     if outputChannelValues is not None and outputChannel.recordingData is not None and isinstance(outputChannel, ScanChannel):
-                        if len(self.inputChannels) == 1:  # 1D scan
-                            outputChannel.recordingData[i] = np.mean(outputChannelValues)
-                        else:  # 2D scan, higher dimensions not jet supported
-                            inputRecordingData1 = self.inputChannels[1].getRecordingData()
-                            if inputRecordingData1 is not None:
-                                outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = np.mean(outputChannelValues)
+                        if not np.isnan(np.mean(outputChannelValues)):
+                            if len(self.inputChannels) == 1:  # 1D scan
+                                outputChannel.recordingData[i] = np.mean(outputChannelValues)
+                            else:  # 2D scan, higher dimensions not jet supported
+                                inputRecordingData1 = self.inputChannels[1].getRecordingData()
+                                if inputRecordingData1 is not None:
+                                    outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = np.mean(outputChannelValues)
+                        else:
+                            self.print('Ignoring nan value', flag=PRINT.DEBUG)
             if i == len(steps) - 1 or not recording():  # last step
                 for inputChannel in self.inputChannels:
                     if inputChannel.updateValueSignal:
