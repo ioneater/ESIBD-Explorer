@@ -610,6 +610,7 @@ class PluginManager:  # noqa: PLR0904
         tree.setColumnWidth(2, 50)
         tree.setColumnWidth(3, 50)
         tree.setColumnWidth(4, 50)
+        tree.setSortingEnabled(True)
         header = tree.header()
         if header:
             header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -635,6 +636,8 @@ class PluginManager:  # noqa: PLR0904
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
                 self.addPluginTreeWidgetItem(tree=tree, item=item, name=name)
+        tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)  # name
+        tree.sortByColumn(2, Qt.SortOrder.DescendingOrder)  # non optional, enabled, disabled
 
         dlg.setLayout(lay)
         if dlg.exec():
@@ -675,16 +678,26 @@ class PluginManager:  # noqa: PLR0904
             checkbox = CheckBox()
             checkbox.setChecked(item[self.ENABLED] == 'True')
             tree.setItemWidget(pluginTreeWidget, 2, checkbox)
+            pluginTreeWidget.setText(2, item[self.ENABLED])
+        else:
+            pluginTreeWidget.setText(2, 'z Not Optional')
+        pluginTreeWidget.setForeground(2, QColor(0, 0, 0, 0))  # make sorting text transparent
         versionLabel = QLabel()
         versionLabel.setText(item[self.VERSION])
         tree.setItemWidget(pluginTreeWidget, 3, versionLabel)
+        pluginTreeWidget.setText(3, item[self.VERSION])  # needed for sorting
+        pluginTreeWidget.setForeground(3, QColor(0, 0, 0, 0))  # make sorting text transparent
         supportedVersionLabel = QLabel()
         supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
         supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
         tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
+        pluginTreeWidget.setText(4, item[self.SUPPORTEDVERSION])
+        pluginTreeWidget.setForeground(4, QColor(0, 0, 0, 0))  # make sorting text transparent
         typeLabel = QLabel()
         typeLabel.setText(item[self.PLUGIN_TYPE])
         tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
+        pluginTreeWidget.setText(5, item[self.PLUGIN_TYPE])
+        pluginTreeWidget.setForeground(5, QColor(0, 0, 0, 0))  # make sorting text transparent
         previewFileTypesLabel = QLabel()
         previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
         previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])

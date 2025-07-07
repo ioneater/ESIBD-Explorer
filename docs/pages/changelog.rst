@@ -10,6 +10,7 @@ Added
 ~~~~~
 - There is now a search field in Settings |settings|.
 - Added a new minimal Webcam |webcam| plugin.
+- Plugins in the plugin dialog are now sorted by name and enabled state and user can change sorting.
 
 Changed
 ~~~~~~~
