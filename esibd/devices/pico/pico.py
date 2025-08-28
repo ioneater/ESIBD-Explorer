@@ -103,6 +103,11 @@ class TemperatureChannel(Channel):
         self.displayedParameters.append(self.DATATYPE)
         self.displayedParameters.append(self.NOOFWIRES)
 
+    def realChanged(self) -> None:
+        self.getParameterByName(self.CHANNEL).setVisible(self.real)
+        self.getParameterByName(self.DATATYPE).setVisible(self.real)
+        self.getParameterByName(self.NOOFWIRES).setVisible(self.real)
+
 
 class TemperatureController(DeviceController):
 

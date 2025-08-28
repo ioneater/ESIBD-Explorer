@@ -4254,7 +4254,7 @@ class Scan(Plugin):  # noqa: PLR0904
         """Add a time channel to save the time of each step in the scan.
 
         :return: The time channel
-        :rtype: ScanChannel
+        :rtype: MetaChannel
         """
         timeChannel = MetaChannel(parentPlugin=self, name=self.TIME, recordingData=DynamicNp(dtype=np.float64))
         timeChannel.inout = INOUT.IN

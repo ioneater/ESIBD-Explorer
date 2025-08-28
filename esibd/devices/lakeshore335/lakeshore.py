@@ -272,7 +272,8 @@ class TemperatureController(DeviceController):
     def closeCommunication(self) -> None:
         super().closeCommunication()
         if self.ls335:
-            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
-                self.ls335.disconnect_usb()
-                self.ls335 = None
+            if self.ls335.device_serial:
+                with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock before closing port.'):
+                    self.ls335.disconnect_usb()
+            self.ls335 = None
         self.initialized = False
