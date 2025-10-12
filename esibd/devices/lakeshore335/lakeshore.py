@@ -5,6 +5,7 @@ from typing import cast
 
 import numpy as np
 from lakeshore import Model335
+from lakeshore.generic_instrument import InstrumentException
 
 from esibd.core import (
     PARAMETERTYPE,
@@ -200,13 +201,16 @@ class TemperatureController(DeviceController):
         for channel in self.controllerParent.channels:
             if channel.real:
                 # update pid values from hardware to make sure the displayed value is meaningful
-                heater_pid = self.ls335.get_heater_pid(channel.heater) if self.ls335 and not getTestMode() else {'gain': -1, 'integral': -1, 'ramp_rate': -1}
-                Kp = channel.getParameterByName(channel.KP)
-                Kp.setValueWithoutEvents(heater_pid['gain'])
-                Ki = channel.getParameterByName(channel.KI)
-                Ki.setValueWithoutEvents(heater_pid['integral'])
-                Kd = channel.getParameterByName(channel.KD)
-                Kd.setValueWithoutEvents(heater_pid['ramp_rate'])
+                try:
+                    heater_pid = self.ls335.get_heater_pid(channel.heater) if self.ls335 and not getTestMode() else {'gain': -1, 'integral': -1, 'ramp_rate': -1}
+                    Kp = channel.getParameterByName(channel.KP)
+                    Kp.setValueWithoutEvents(heater_pid['gain'])
+                    Ki = channel.getParameterByName(channel.KI)
+                    Ki.setValueWithoutEvents(heater_pid['integral'])
+                    Kd = channel.getParameterByName(channel.KD)
+                    Kd.setValueWithoutEvents(heater_pid['ramp_rate'])
+                except InstrumentException as e:
+                    self.print(f'Error while initializing channel {channel.name}: {e}\nTry to restart.', flag=PRINT.ERROR)
         super().initComplete()
 
     def readNumbers(self) -> None:

@@ -604,6 +604,7 @@ class PluginManager:  # noqa: PLR0904
         lay = QGridLayout()
         lay.setContentsMargins(0, 0, 0, 0)
         tree = TreeWidget()
+        tree.setItemDelegate(TransparentTextDelegate(tree))
         tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
         tree.setColumnCount(8)
         tree.setRootIsDecorated(False)
@@ -6035,3 +6036,24 @@ class MouseInterceptor(QObject):
             elif a1.button() == Qt.MouseButton.RightButton:
                 QTimer.singleShot(200, lambda: self.rippleEffectSignal.emit(local_pos.x(), local_pos.y(), QColor(255, 50, 50)))
         return False
+
+
+class TransparentTextDelegate(QtWidgets.QStyledItemDelegate):
+    """Delegate that ensures transparent text stays transparent even if QWidgetItem gets selected."""
+
+    def paint(self, painter, option, index):  # noqa: ANN001, ANN201, D102 # pylint: disable = missing-param-doc, missing-function-docstring
+        # Get the color of the text
+        color = index.data(Qt.ItemDataRole.ForegroundRole)
+        if isinstance(color, QBrush):
+            qcolor = color.color()
+        elif isinstance(color, QColor):
+            qcolor = color
+        else:
+            qcolor = None
+
+        # If text is fully transparent, skip drawing text
+        if qcolor is not None and qcolor.alpha() == 0:
+            # ignore paint event so transparent text used for sorting does not become visible
+            pass
+        else:
+            super().paint(painter, option, index)

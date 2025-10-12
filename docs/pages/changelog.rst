@@ -25,6 +25,7 @@ Fixed
 - Made sure that liveDisplays are updated after dragging even if devices are not recording.
 - Ensured devices like |keithley| where each channel has a controller turn on properly if started from on button without initializing communication first.
 - Added validation for closing Lakeshore |lakeshore335|.
+- Hidden internal text visible when selecting plugins in Plugin dialog |pluginDialog|.
 
 Version 0.8.2 2025-06-23
 ========================
