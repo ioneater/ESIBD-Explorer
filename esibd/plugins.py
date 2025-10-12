@@ -2097,6 +2097,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     optional = False
     useAdvancedOptions = True
     recordingAction: 'StateAction | None'
+    MAX_ERROR_COUNT = 25
 
     signalComm: 'SignalCommunicate'
     logY: 'bool | None' = None
@@ -3113,7 +3114,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         defaultSettings[f'{self.name}/Lagging'] = parameterDict(value=0, internal=True, indicator=True, advanced=True, restore=False,
         toolTip='Shows for how many seconds the device has not been able to achieve the desired interval.\n'
                 'After 10 seconds the number of displayed data points will be reduced.\n'
-                'After 60 seconds the communication will be stopped to keep the application responsive.',
+                'After 60 seconds the communication will be closed to keep the application responsive.',
                                                                 parameterType=PARAMETERTYPE.INT, minimum=0, attr='lagging_seconds')
         defaultSettings[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, parameterType=PARAMETERTYPE.INT, minimum=5, maximum=500, event=self.estimateStorage,
                                                           toolTip='Maximum amount of storage used to store history in MB. Updated on next restart to prevent accidental data loss!',
@@ -3124,8 +3125,8 @@ class Device(ChannelManager):  # noqa: PLR0904
         defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
                                           parameterType=PARAMETERTYPE.BOOL, attr='log')
         defaultSettings[f'{self.name}/Error count'] = parameterDict(value='0', toolTip='Communication errors within last 10 minutes.\n'
-                                                                   'Communication will be stopped if this reaches 10 per device or 10 per channel.\n'
-                                                                   'Will be reset after 10 minutes without errors or on initialization.',
+                                                                f'Communication will be closed if this reaches {self.MAX_ERROR_COUNT} per device or per channel.\n'
+                                                                'Will be reset after 10 minutes without errors or on initialization.',
                                           parameterType=PARAMETERTYPE.LABEL, attr='errorCountStr', internal=True, indicator=True, advanced=True, restore=False,
                                           event=self.errorCountChanged)
         return defaultSettings
@@ -3153,7 +3154,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         super().runTestParallel()
 
     def bufferLagging(self, wait: int = 5) -> bool:  # noqa: D102
-        # buffer lagging can be used as a temporary fix but if the underlying issue is not solved the errorcount will increase and communication will be stopped.
+        # buffer lagging can be used as a temporary fix but if the underlying issue is not solved the errorcount will increase and communication will be closed.
         if super().bufferLagging(wait):
             if self.controller:
                 self.controller.errorCount += 1

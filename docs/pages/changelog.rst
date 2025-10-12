@@ -26,6 +26,7 @@ Fixed
 - Ensured devices like |keithley| where each channel has a controller turn on properly if started from on button without initializing communication first.
 - Added validation for closing Lakeshore |lakeshore335|.
 - Hidden internal text visible when selecting plugins in Plugin dialog |pluginDialog|.
+- Fixed displayed number of maximal errors for devices in the settings tooltip.
 
 Version 0.8.2 2025-06-23
 ========================

@@ -5441,7 +5441,7 @@ class DeviceController(QObject):  # noqa: PLR0904
     """Indicates if communications is being initialized."""
     rng = np.random.default_rng()
     """Random number generator."""
-    MAX_ERROR_COUNT = 25
+    MAX_ERROR_COUNT: int
     """Close communication if exceeded."""
 
     def __init__(self, controllerParent: 'Device | Channel') -> None:
@@ -5456,6 +5456,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.values: np.ndarray = None  # type: ignore # ignore on purpose  | None  # noqa: PGH003
         self.controllerParent = controllerParent
         self.pluginManager = controllerParent.pluginManager
+        self.MAX_ERROR_COUNT = self.getDevice().MAX_ERROR_COUNT
         self.lock = TimeoutLock(lockParent=self)  # init here so each instance gets its own lock
         self.port = None
         self.signalComm = self.SignalCommunicate()

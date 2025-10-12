@@ -1,6 +1,7 @@
 # pylint: disable=[missing-module-docstring] # only single class in module
 # install lakeshore drivers from here if not automatically installed via windows updates: https://www.lakeshore.com/resources/software/drivers
 
+import time
 from typing import cast
 
 import numpy as np
@@ -181,6 +182,7 @@ class TemperatureController(DeviceController):
     def runInitialization(self) -> None:
         try:
             self.ls335 = Model335(baud_rate=57600, com_port=self.controllerParent.COM)  # may raise AttributeError that can not be excepted
+            time.sleep(500)  # TODO test if initialization gets more stable with this delay
             self.signalComm.initCompleteSignal.emit()
         except (AttributeError, Exception) as e:  # pylint: disable=[broad-except]
             self.print(f'Error while initializing: {e}', flag=PRINT.ERROR)
