@@ -3246,8 +3246,10 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.controller.initializeCommunication()
         elif self.channels[0].controller is not None:
             for channel in self.channels:
-                if channel.enabled and channel.controller:
-                    channel.controller.initializeCommunication()
+                if channel.controller:
+                    channel.controller.errorCount = 0
+                    if channel.enabled:
+                        channel.controller.initializeCommunication()
         super().initializeCommunication()
         if initialRecording:
             self.startRecording()

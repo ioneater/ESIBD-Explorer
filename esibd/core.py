@@ -5487,7 +5487,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         if self.errorCount != 0:
             QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
         if (self.errorCount == self.MAX_ERROR_COUNT or self.errorCount > 2 * self.MAX_ERROR_COUNT) and self.initialized:
-            self.print(f'Closing communication after more than {self.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
+            self.print(f'Closing communication after {self.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
             self.closeCommunication()
         QTimer.singleShot(0, self.getDevice().errorCountChanged)
 
