@@ -143,12 +143,13 @@ class VoltageController(DeviceController):
 
     port: 'pyvisa.resources.usb.USBInstrument | None'
     controllerParent: RSPD3303C
+    rm: 'pyvisa.ResourceManager'
 
     def runInitialization(self) -> None:
         try:
-            rm = pyvisa.ResourceManager()
-            # name = rm.list_resources()  # noqa: ERA001
-            self.port = rm.open_resource(self.controllerParent.address, open_timeout=500)  # type: ignore  # noqa: PGH003
+            self.rm = pyvisa.ResourceManager()
+            # name = self.rm.list_resources()  # noqa: ERA001
+            self.port = self.rm.open_resource(self.controllerParent.address, open_timeout=500)  # type: ignore  # noqa: PGH003
             if self.port:
                 self.controllerParent.print(self.port.query('*IDN?'))
                 self.signalComm.initCompleteSignal.emit()
@@ -196,6 +197,7 @@ class VoltageController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
+        self.rm.close()
         self.initialized = False
 
     def RSWrite(self, message) -> None:

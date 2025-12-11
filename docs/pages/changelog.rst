@@ -11,6 +11,7 @@ Added
 - There is now a search field in Settings |settings|.
 - Added a new minimal Webcam |webcam| plugin.
 - Plugins in the plugin dialog are now sorted by name and enabled state and user can change sorting.
+- Added wake mode in advanced |advanced| mode of Settings |settings| to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
 
 Changed
 ~~~~~~~

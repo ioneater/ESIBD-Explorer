@@ -26,6 +26,7 @@ dependencies = [
 	'picosdk',
 	'opencv-python',
 	'openpyxl',  # ==3.1.2
+	'pyautogui',
 	'PyOpenGL',  # ==3.1.7
 	'pyperclip',  # ==1.8.2
     'pyqt6==6.6',

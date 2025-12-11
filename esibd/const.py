@@ -43,6 +43,7 @@ DARKMODE = 'Dark mode'
 CLIPBOARDTHEME = 'Clipboard theme'
 DPI = 'DPI'
 TESTMODE = 'Test mode'
+WAKEMODE = 'Wake mode'
 ICONMODE = 'Icon mode'
 GEOMETRY = 'GEOMETRY'
 SETTINGSWIDTH = 'SettingsWidth'
@@ -430,6 +431,15 @@ def getTestMode() -> bool:
     :rtype: bool
     """
     return qSet.value(f'{GENERAL}/{TESTMODE}', defaultValue=False, type=bool)
+
+
+def getWakeMode() -> bool:
+    """Get the wake mode from :ref:`sec:settings`.
+
+    :return: Wake mode
+    :rtype: bool
+    """
+    return qSet.value(f'{GENERAL}/{WAKEMODE}', defaultValue=False, type=bool)
 
 
 def infoDict(name: str) -> dict[str, str]:

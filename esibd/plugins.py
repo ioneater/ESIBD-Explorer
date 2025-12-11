@@ -29,6 +29,7 @@ import h5py
 import keyboard as kb
 import matplotlib.pyplot as plt
 import numpy as np
+import pyautogui
 import pyperclip
 import pyqtgraph as pg
 import requests
@@ -6252,6 +6253,8 @@ class Settings(SettingsManager):  # noqa: PLR0904
         ds[f'{GENERAL}/{TESTMODE}'] = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
                                     event=lambda: self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized
                                     , internal=True, advanced=True)
+        ds[f'{GENERAL}/{WAKEMODE}'] = parameterDict(value=False, toolTip='Will prevent screen lock by simulating a keyboard action every 5 min', parameterType=PARAMETERTYPE.BOOL,
+                                    event=self.pluginManager.DeviceManager.wake, internal=True, advanced=True)
         ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality like sending\nChannels, Parameters, and Settings to the Console.',
                                                                    internal=True, parameterType=PARAMETERTYPE.BOOL, advanced=True)
         ds[f'{GENERAL}/{LOGLEVEL}'] = parameterDict(value='Basic', toolTip='Determine level of detail in log.',
@@ -6423,6 +6426,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
 
         storeSignal = pyqtSignal()
         """Signal that triggers storage of device data."""
+        wakeSignal = pyqtSignal()
+        """Signal that triggers keyboard action to prevent screen lock."""
         closeCommunicationSignal = pyqtSignal()
         """Signal that triggers stop communication."""
 
@@ -6433,6 +6438,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.dataThread = None
         self._recording = False
         self.signalComm.storeSignal.connect(self.store)
+        self.signalComm.wakeSignal.connect(self.wake)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
 
     def initGUI(self) -> None:  # noqa: D102
@@ -6465,10 +6471,14 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.titleBarLabel.deleteLater()
             self.titleBarLabel = None
         self.toggleTitleBarDelayed()  # Label not needed for DeviceManager
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.store)
-        self.timer.setInterval(3600000)  # every 1 hour
-        self.timer.start()
+        self.storeTimer = QTimer()
+        self.storeTimer.timeout.connect(self.store)
+        self.storeTimer.setInterval(3600000)  # every 1 hour
+        self.storeTimer.start()
+        self.wakeTimer = QTimer()
+        self.wakeTimer.timeout.connect(self.wake)
+        self.wakeTimer.setInterval(5000)  # 300000 every 5 minutes
+        self.wakeTimer.start()
 
     def afterFinalizeInit(self) -> None:  # noqa: D102
         super().afterFinalizeInit()
@@ -6768,6 +6778,12 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             if device.recording:  # will be exported when program closes even if not recording, this is just for the regular exports while the program is running
                 Thread(target=device.exportOutputData, kwargs={'useDefaultFile': True}, name=f'{device.name} exportOutputDataThread').start()
 
+    def wake(self) -> None:
+        """Trigger keyboard action to prevent screen lock."""
+        if getWakeMode():
+            pyautogui.press('volumedown')
+            pyautogui.press('volumeup')
+
     @synchronized()
     def toggleRecording(self) -> None:
         """Toggle recording of data."""
@@ -6784,7 +6800,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
 
     def close(self) -> bool:  # noqa: D102
         response = super().close()
-        self.timer.stop()
+        self.storeTimer.stop()
+        self.wakeTimer.stop()
         return response
 
 
