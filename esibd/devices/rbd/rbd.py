@@ -305,11 +305,11 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                 return
             parsed = self.parse_message_for_sample(msg)
             if any(sym in parsed for sym in ['<', '>']):
-                self.setValuesAndUpdate(0, True, False, parsed)  # noqa: FBT003
+                self.setValuesAndUpdate(np.nan, True, False, parsed)  # noqa: FBT003
             elif '*' in parsed:
-                self.setValuesAndUpdate(0, False, True, parsed)  # noqa: FBT003
+                self.setValuesAndUpdate(np.nan, False, True, parsed)  # noqa: FBT003
             elif not parsed:
-                self.setValuesAndUpdate(0, False, False, 'got empty message')  # noqa: FBT003
+                self.setValuesAndUpdate(np.nan, False, False, 'got empty message')  # noqa: FBT003
             else:
                 self.setValuesAndUpdate(self.readingToNum(parsed), False, False, '')  # noqa: FBT003
             if self.port:
@@ -467,6 +467,7 @@ class CurrentController(DeviceController):  # noqa: PLR0904
                 self.port.close()
                 self.port = None
         self.initialized = False
+        self.closing = False
 
     def RBDWrite(self, message) -> None:
         """RBD specific serial write.

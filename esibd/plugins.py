@@ -102,6 +102,7 @@ class Plugin(QWidget):  # noqa: PLR0904
     UTF8 = 'utf-8'
     MAX_ERROR_COUNT = 10
     FILTER_INI_H5 = 'INI or H5 File (*.ini *.h5)'
+    FILTER_LOG = 'LOG File (*.log)'
     pluginType: PLUGINTYPE = PLUGINTYPE.INTERNAL  # overwrite in child class mandatory
     """The type defines the location of the plugin in the user interface and allows to run
        operations on a group of plugins with the same type using :meth:`~esibd.core.PluginManager.getPluginsByType`."""
@@ -1580,8 +1581,9 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             self.exportAction = self.addAction(event=lambda: cast('Device', self.parentPlugin).exportOutputData(useDefaultFile=False),
                                                 toolTip=f'Save visible {self.parentPlugin.name} data to current session.',  # pylint: disable=unnecessary-lambda
                                                     icon=self.makeCoreIcon('database-export.png'))
-            self.addAction(event=self.parentPlugin.closeCommunication, toolTip=f'Close {self.parentPlugin.name} communication.', icon=self.makeCoreIcon('stop.png'))
-            self.addAction(event=self.parentPlugin.initializeCommunication, toolTip=f'Initialize {self.parentPlugin.name} communication.',
+            self.closeCommunicationAction = self.addAction(event=self.parentPlugin.closeCommunication, toolTip=f'Close {self.parentPlugin.name} communication.',
+                                                           icon=self.makeCoreIcon('stop.png'))
+            self.initAction = self.addAction(event=self.parentPlugin.initializeCommunication, toolTip=f'Initialize {self.parentPlugin.name} communication.',
                             icon=self.makeCoreIcon('rocket-fly.png'))
         self.recordingAction = self.addStateAction(event=lambda: self.parentPlugin.toggleRecording(manual=True),
                                                    toolTipFalse=f'Start {self.parentPlugin.name} data acquisition.', iconFalse=self.makeCoreIcon('play.png'),
@@ -2356,13 +2358,15 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """Return all channels that have data history."""
         return [channel for channel in self.channels if channel.getValues().shape[0] != 0]
 
-    def addChannel(self, item: dict[str, Any], index: 'int | None' = None) -> None:
+    def addChannel(self, item: dict[str, Any], index: 'int | None' = None) -> Channel:
         """Map dictionary to :class:`~esibd.core.Channel`.
 
         :param item: Dictionary containing channel details.
         :type item: dict
         :param index: Index where channel should be inserted, defaults to None
         :type index: int, optional
+        :return: The newly created channel
+        :rtype: esibd.core.Channel
         """
         channel = self.channelType(channelParent=self, tree=self.tree)
         if index is None:
@@ -2372,6 +2376,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.channels.insert(index, channel)
             self.tree.insertTopLevelItem(index, channel)  # has to be added before populating
         channel.initGUI(item)
+        return channel
 
     def modifyChannel(self) -> Channel | None:
         """Return selected channel. Note, channels can only be selected in advanced mode.
@@ -6477,7 +6482,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.storeTimer.start()
         self.wakeTimer = QTimer()
         self.wakeTimer.timeout.connect(self.wake)
-        self.wakeTimer.setInterval(5000)  # 300000 every 5 minutes
+        self.wakeTimer.setInterval(300000)  # every 5 minutes
         self.wakeTimer.start()
 
     def afterFinalizeInit(self) -> None:  # noqa: D102
@@ -6781,6 +6786,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     def wake(self) -> None:
         """Trigger keyboard action to prevent screen lock."""
         if getWakeMode():
+            self.print('Keeping screen unlocked.', flag=PRINT.DEBUG)
             pyautogui.press('volumedown')
             pyautogui.press('volumeup')
 

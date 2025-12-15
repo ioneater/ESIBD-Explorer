@@ -183,6 +183,7 @@ class CurrentController(DeviceController):
                 self.port.close()
                 self.port = None
         self.initialized = False
+        self.closing = False
 
     def KeithleyWrite(self, message: str) -> None:
         """KEITHLEY specific pyvisa write.

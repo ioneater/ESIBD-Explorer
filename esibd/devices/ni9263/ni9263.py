@@ -95,3 +95,4 @@ class VoltageController(DeviceController):
         super().closeCommunication()
         # nothing to close
         self.initialized = False
+        self.closing = False

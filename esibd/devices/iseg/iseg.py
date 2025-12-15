@@ -169,6 +169,7 @@ class VoltageController(DeviceController):
         super().closeCommunication()
         self.socket = None
         self.initialized = False
+        self.closing = False
 
     def ISEGWriteRead(self, message: str, already_acquired: bool = False) -> str:
         """ISEG specific serial write and read.

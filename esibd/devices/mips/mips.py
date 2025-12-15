@@ -167,6 +167,7 @@ class VoltageController(DeviceController):
                         port.close()
                         self.ports[i] = None  # type: ignore  # noqa: PGH003
         self.initialized = False
+        self.closing = False
 
     def MIPSWrite(self, COM, message) -> None:
         """MIPS specific serial write.

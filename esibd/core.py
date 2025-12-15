@@ -1230,9 +1230,9 @@ class DynamicNp:
         self.max_size = max_size
 
     def add(self, x: float, lenT: 'int | None' = None) -> None:
-        """Add the new data point and adjusts the data array as required.
+        """Add the new data point and adjust the data array as required.
 
-        :param x: Datapoint to be added
+        :param x: Datapoint or array to be added
         :type x: float
         :param lenT: length of corresponding time array, defaults to None
         :type lenT: int, optional
@@ -1257,8 +1257,12 @@ class DynamicNp:
             self.size = a[1::2].shape[0] + b.shape[0]  # only thin out older half, take every second item (starting with the second one to avoid keeping the first for every!)
             self.data[:self.size] = np.hstack([a[1::2], b], dtype=self.dtype)  # recombine
             # remove old data as new data is coming in. while this implementation is simpler it limits the length of stored history
+        # if isinstance(x, float):
         self.data[self.size] = x
         self.size += 1
+        # elif isinstance(x, np.ndarray):
+        #     self.data[self.size:self.size+x.shape[0]] = x
+        #     self.size += x.shape[0]
 
     def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None,
              n: int = 1) -> np.typing.NDArray[np.float64 | np.float32]:  # np.ndarray[Any, np.dtype[np.float32]] | np.ndarray[Any, np.dtype[np.float64]]
@@ -1301,6 +1305,7 @@ class Parameter:  # noqa: PLR0904
 
     # general keys
     NAME = 'Name'
+    UNIT = 'Unit'
     ATTR = 'Attribute'
     ADVANCED = 'Advanced'
     HEADER = 'Header'
@@ -2888,16 +2893,17 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
 
     def realChanged(self) -> None:
         """Extend as needed. Already linked to real checkbox."""
-        enabledWidget = self.getParameterByName(self.ENABLED).getWidget()
-        if enabledWidget:
-            enabledWidget.setVisible(self.real)
-            self.toggleBackgroundVisible()
-            if self.useMonitors:
-                monitorWidget = self.getParameterByName(self.MONITOR).getWidget()
-                if monitorWidget:
-                    monitorWidget.setVisible(self.real)
-            if not self.channelParent.loading:
-                self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+        if self.ENABLED in self.displayedParameters:
+            enabledWidget = self.getParameterByName(self.ENABLED).getWidget()
+            if enabledWidget:
+                enabledWidget.setVisible(self.real)
+                self.toggleBackgroundVisible()
+                if self.useMonitors:
+                    monitorWidget = self.getParameterByName(self.MONITOR).getWidget()
+                    if monitorWidget:
+                        monitorWidget.setVisible(self.real)
+                if not self.channelParent.loading:
+                    self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
 
     def enabledChanged(self) -> None:
         """Extend as needed. Already linked to enabled checkbox."""
@@ -5380,7 +5386,8 @@ class TimeoutLock:
                     isinstance(self.lockParent, DeviceController)):
                     # only call closeCommunication when equal to MAX_ERROR_COUNT, Otherwise errors during closeCommunication could cause recursion.
                     self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
-                    self.lockParent.closeCommunication()
+                    if not self.lockParent.closing:  # avoid recursion if lock cannot be acquired while closing
+                        self.lockParent.closeCommunication()
         if not result and timeoutMessage:
             self.print(timeoutMessage, flag=PRINT.ERROR)
 
@@ -5439,6 +5446,8 @@ class DeviceController(QObject):  # noqa: PLR0904
     """Indicates if communications has been initialized successfully and not yet terminated."""
     initializing: bool = False
     """Indicates if communications is being initialized."""
+    closing: bool = False
+    """Indicates if communications is being closed."""
     rng = np.random.default_rng()
     """Random number generator."""
     MAX_ERROR_COUNT: int
@@ -5709,10 +5718,12 @@ class DeviceController(QObject):  # noqa: PLR0904
         2. closing your custom hardware communication
         3. self.initialized = False
         """
+        self.closing = True
         self.print('closeCommunication controller', flag=PRINT.DEBUG)
         if self.acquiring:
             self.stopAcquisition()  # only call if not already called by device
         # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
+        # self.closing = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
 
     def serialWrite(self, port: serial.Serial, message: str, encoding: str = 'utf-8') -> None:
         """Write a string to a serial port. Takes care of decoding messages to bytes and catches common exceptions.

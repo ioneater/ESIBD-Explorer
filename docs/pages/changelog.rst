@@ -30,6 +30,10 @@ Fixed
 - Fixed displayed number of maximal errors for devices in the settings tooltip.
 - Resetting error count of virtual channels when reinitializing communication.
 
+Developer Notes
+~~~~~~~~~~~~~~~
+- Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.
+
 Version 0.8.2 2025-06-23
 ========================
 

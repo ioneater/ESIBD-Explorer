@@ -218,6 +218,7 @@ class TemperatureController(DeviceController):
 
     def closeCommunication(self) -> None:
         self.print('closeCommunication', flag=PRINT.DEBUG)
+        self.closing = True
         if self.acquiring:
             self.stopAcquisition()
         if self.port:
@@ -225,6 +226,7 @@ class TemperatureController(DeviceController):
                 self.port.close()
                 self.port = None
         self.initialized = False
+        self.closing = False
 
     def CryoTelWriteRead(self, message: str) -> str:
         """CryoTel specific serial write and read.

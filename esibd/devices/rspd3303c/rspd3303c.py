@@ -143,7 +143,7 @@ class VoltageController(DeviceController):
 
     port: 'pyvisa.resources.usb.USBInstrument | None'
     controllerParent: RSPD3303C
-    rm: 'pyvisa.ResourceManager'
+    rm: 'pyvisa.ResourceManager | None' = None
 
     def runInitialization(self) -> None:
         try:
@@ -197,8 +197,10 @@ class VoltageController(DeviceController):
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
-        self.rm.close()
+        if self.rm:
+            self.rm.close()
         self.initialized = False
+        self.closing = False
 
     def RSWrite(self, message) -> None:
         """RS specific pyvisa write.

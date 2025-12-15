@@ -283,3 +283,4 @@ class TemperatureController(DeviceController):
                     self.ls335.disconnect_usb()
             self.ls335 = None
         self.initialized = False
+        self.closing = False

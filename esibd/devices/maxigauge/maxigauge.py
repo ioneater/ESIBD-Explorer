@@ -133,6 +133,7 @@ class PressureController(DeviceController):
                     self.port.close()
                     self.port = None
         self.initialized = False
+        self.closing = False
 
     def TPGWrite(self, message: str) -> None:
         """TPG specific serial write.
