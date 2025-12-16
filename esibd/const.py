@@ -1,6 +1,7 @@
 """Defines constants used throughout the package."""
 
 import importlib.util
+import re
 import subprocess  # noqa: S404
 import sys
 import traceback
@@ -21,7 +22,7 @@ from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from esibd.core import Channel
+    from esibd.core import Channel, Parameter
     from esibd.plugins import Plugin, SettingsManager
 
 ParameterType = Union[str, Path, int, float, QColor, bool]  # str | Path | int | float | QColor | bool not compatible with sphinx # noqa: UP007
@@ -69,6 +70,8 @@ FILE_LOG = '.log'
 
 # other
 UTF8 = 'utf-8'
+ANSI = 'ANSI'
+valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+,~!@#$%&/]*$'
 
 qSet = QSettings(COMPANY_NAME, PROGRAM_NAME)
 
@@ -477,6 +480,28 @@ def validatePath(path: 'Path | str | None', default: Path) -> 'tuple[Path, bool]
         default.mkdir(parents=True, exist_ok=True)
         return default, True
     return path, False
+
+
+def validateText(printParent: 'Plugin | Parameter', valid_chars: str, text: str) -> str:
+    """Validate the text and remove invalid characters.
+
+    :param printParent: A parent that provides access to the internal print function.
+    :type printParent: Plugin | Parameter
+    :param valid_chars: A regular expression containing valid characters
+    :type valid_chars: str
+    :param text: The text to be validated.
+    :type text: str
+    :return: validated text
+    :rtype: str
+    """
+    # Remove any character that doesn't match the valid_chars regex
+    if not re.match(valid_chars, text):
+        # Filter the text, keeping only valid characters
+        valid_text = ''.join([character for character in text if re.match(valid_chars, character)])
+        _ = [printParent.print(f'Removing invalid character {character} from {text}',
+                                         flag=PRINT.WARNING) for character in text if not re.match(valid_chars, character)]
+        return valid_text
+    return text
 
 
 def smooth(data: np.typing.NDArray[np.float32], smooth: int) -> np.typing.NDArray[np.float32]:

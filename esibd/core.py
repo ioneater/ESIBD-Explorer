@@ -1257,12 +1257,8 @@ class DynamicNp:
             self.size = a[1::2].shape[0] + b.shape[0]  # only thin out older half, take every second item (starting with the second one to avoid keeping the first for every!)
             self.data[:self.size] = np.hstack([a[1::2], b], dtype=self.dtype)  # recombine
             # remove old data as new data is coming in. while this implementation is simpler it limits the length of stored history
-        # if isinstance(x, float):
         self.data[self.size] = x
         self.size += 1
-        # elif isinstance(x, np.ndarray):
-        #     self.data[self.size:self.size+x.shape[0]] = x
-        #     self.size += x.shape[0]
 
     def get(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None,
              n: int = 1) -> np.typing.NDArray[np.float64 | np.float32]:  # np.ndarray[Any, np.dtype[np.float32]] | np.ndarray[Any, np.dtype[np.float64]]
@@ -1938,11 +1934,13 @@ class Parameter:  # noqa: PLR0904
             equals = self.value == value
         return equals
 
-    def formatValue(self, value: 'ParameterType | None' = None) -> str:
+    def formatValue(self, value: 'ParameterType | None' = None, escapePercent: bool = False) -> str:
         """Format value as a string, depending on Parameter type.
 
         :param value: A value to be formatted using the Parameter formatting, defaults to None and uses self.value
         :type value: ParameterType, optional
+        :param escapePercent: % has to be escaped by %% for use with configparser.
+        :type escapePercent: bool
         :return: Formatted value as text.
         :rtype: str
         """
@@ -1955,7 +1953,7 @@ class Parameter:  # noqa: PLR0904
             if self.parameterType == PARAMETERTYPE.EXP:
                 return f'{float(cast("float", value)):.{self.displayDecimals}e}'
             return f'{float(cast("str | float", value)):.{self.displayDecimals}f}'
-        return str(value)
+        return str(value).replace('%', '%%') if escapePercent else str(value)
 
     def initContextMenu(self, pos: QPoint) -> None:
         """Initialize the context menu of the parent at the location of the Parameter.
@@ -2666,20 +2664,22 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.print(f'Could not find Parameter {name}.', flag=PRINT.DEBUG)
         return parameter  # type: ignore  # noqa: PGH003 Rather ignore None warning once here than deal with it for every function call.
 
-    def asDict(self, includeTempParameters: bool = False, formatValue: bool = False) -> dict[str, ParameterType]:
+    def asDict(self, includeTempParameters: bool = False, formatValue: bool = False, escapePercent: bool = False) -> dict[str, ParameterType]:
         """Return a dictionary containing all Channel Parameters and their values.
 
         :param includeTempParameters: If True, dict will contain temporary Parameters, Defaults to False
         :type includeTempParameters: bool, optional
         :param formatValue: Indicates if the value should be formatted as a string, Defaults to False
         :type formatValue: bool, optional
+        :param escapePercent: % has to be escaped by %% for use with configparser.
+        :type escapePercent: bool
         :return: The channel as dictionary.
         :rtype: dict[str, ParameterType]
         """
         channel_dict = {}
         for parameter in self.parameters:
             if includeTempParameters or parameter.name not in self.tempParameters():
-                channel_dict[parameter.name] = parameter.formatValue() if formatValue else parameter.value
+                channel_dict[parameter.name] = parameter.formatValue(escapePercent=escapePercent) if formatValue else parameter.value
         return channel_dict
 
     def updateValueParallel(self, value: float) -> None:  # used to update from external threads
@@ -4380,7 +4380,7 @@ class LineEdit(QLineEdit, ParameterWidget):
         self._edited = False
         self.parentParameter = parentParameter
         # Regular expression to allow only letters (both upper and lower case), digits, and spaces + mathematical symbols and brackets for equations
-        self.valid_chars = r'^[a-zA-Z0-9\s\-_\(\)\[\]\{\}\.*;:" \'<>^?=\+,~!@#$%&/]*$'
+        self.valid_chars = valid_chars
         # ! remove the forward slash from all parameters like name that may affect data structure in hdf5 files
         # NOTE: \\/ slashes may cause names to be interpreted as paths but are needed in equations -> not allowed, add / to valid_chars only for equations
         self.tree = tree
@@ -4407,12 +4407,9 @@ class LineEdit(QLineEdit, ParameterWidget):
         """Validate the text and remove invalid characters."""
         current_text = self.text()
         # Remove any character that doesn't match the valid_chars regex
-        if not re.match(self.valid_chars, current_text):
-            # Filter the text, keeping only valid characters
-            filtered_text = ''.join([char for char in current_text if re.match(self.valid_chars, char)])
-            _ = [self.parentParameter.print(f'Removing invalid character {char} from {current_text}',
-                                             flag=PRINT.WARNING) for char in current_text if not re.match(self.valid_chars, char)]
-            self.setText(filtered_text)  # Update the QLineEdit with valid characters only
+        valid_text = validateText(printParent=self.parentParameter, valid_chars=self.valid_chars, text=current_text)
+        if valid_text != current_text:
+            self.setText(valid_text)
 
     def onEditingFinished(self) -> None:
         """Process new value and update tree if applicable after editing was finished by Enter or loosing focus."""

@@ -20,6 +20,7 @@ Changed
 - In Beam |beam| scan the color scale will be inverted for negative scans.
 - Depo |depo| is now able to display all current and charge traces.
 - PICO |pico| now hides data channel, data type and number of wires for virtual channels.
+- RBD |rbd| now uses np.nan instead of 0 if there was an error parsing the current.
 
 Fixed
 ~~~~~

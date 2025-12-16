@@ -85,6 +85,8 @@ if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
 
+pyautogui.FAILSAFE = False
+
 
 class Plugin(QWidget):  # noqa: PLR0904
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
@@ -1201,6 +1203,20 @@ class Plugin(QWidget):  # noqa: PLR0904
                     attr.disconnect()
                     # Some signals might already be disconnected or have no slots connected
 
+    def getQtPen(self, channel: Channel | MetaChannel) -> QPen:
+        """Create a pen used for QT plots. Use custom definition for dashed lines that allows to see dashes in the legend.
+
+        :param channel: _description_
+        :type channel: Channel
+        :return: _description_
+        :rtype: QPen
+        """
+        if channel.getQtLineStyle() == Qt.PenStyle.DashLine:
+            pen = pg.mkPen((channel.color), width=channel.linewidth, style=Qt.PenStyle.CustomDashLine)
+            pen.setDashPattern([2, 2])
+            return pen
+        return pg.mkPen((channel.color), width=channel.linewidth, style=channel.getQtLineStyle())
+
 
 class StaticDisplay(Plugin):
     """Display :class:`~esibd.plugins.Device` data from file."""
@@ -1377,8 +1393,7 @@ class StaticDisplay(Plugin):
                     self.axes[0].plot(time_stamp_axis, y, label=f'{outputChannel.name} ({outputChannel.unit})',  # type: ignore  # noqa: PGH003
                                       color=outputChannel.color, linewidth=outputChannel.linewidth / 2, linestyle=outputChannel.linestyle)
                 else:
-                    self.staticPlotWidget.plot(time_axis, y, pen=pg.mkPen((outputChannel.color), width=outputChannel.linewidth,
-                                                                  style=outputChannel.getQtLineStyle()), name=f'{outputChannel.name} ({outputChannel.unit})')
+                    self.staticPlotWidget.plot(time_axis, y, pen=self.getQtPen(outputChannel), name=f'{outputChannel.name} ({outputChannel.unit})')
         if self.plotEfficientAction.state:
             self.setLabelMargin(self.axes[0], 0.15)
             if self.navToolBar:
@@ -2055,11 +2070,11 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                         if not channel.plotCurve:
                             # only create new plotCurve if it is actually going to be used
                             if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
-                                channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=pg.mkPen((channel.color), width=channel.linewidth,
-                                                        style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
+                                channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=self.getQtPen(channel),
+                                                                                             name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
                             else:  # ViewBox
-                                channel.plotCurve = cast('PlotDataItem', PlotDataItem(pen=pg.mkPen((channel.color), width=channel.linewidth,
-                                                        style=channel.getQtLineStyle()), name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
+                                channel.plotCurve = cast('PlotDataItem', PlotDataItem(pen=self.getQtPen(channel),
+                                                                                      name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
                                 channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
                                 livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
                                 legend = cast('PlotWidget | PlotItem', self.livePlotWidgets[0]).legend
@@ -2522,7 +2537,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 confParser = configparser.ConfigParser()
                 confParser[INFO] = infoDict(self.name)
                 for i, channel in enumerate(self.channels):
-                    confParser.read_dict({f'{self.CHANNEL}_{i:03d}': channel.asDict(includeTempParameters=True, formatValue=True)})
+                    confParser.read_dict({f'{self.CHANNEL}_{i:03d}': channel.asDict(includeTempParameters=True, formatValue=True, escapePercent=True)})
                 with file.open('w', encoding=self.UTF8) as configFile:
                     confParser.write(configFile)
             else:  # h5
@@ -3224,7 +3239,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         Default implementation works when using :class:`~esibd.core.DeviceController`.
         """
         if not self.controller:
-            if not self.channels[0].controller:
+            if not len(self.channels) > 0 or not self.channels[0].controller:
                 return False
             # strictly return True if any device has an initialized controller
             # ignore virtual channels
@@ -3238,7 +3253,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         Default implementation works when using :class:`~esibd.core.DeviceController`.
         """
         if not self.controller:
-            if not self.channels[0].controller:
+            if not len(self.channels) > 0 or not self.channels[0].controller:
                 return False
             # return True if any device has an initialized controller or is not active and thus plotable even if not initialized
             return any(channel.controller.initialized or not channel.active for channel in self.channels if channel.controller)
