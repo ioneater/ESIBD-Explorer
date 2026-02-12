@@ -387,7 +387,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             QTimer.singleShot(0, self.pluginManager.logger.closeTestLogFile)  # prevent conflict between synchronized testComplete and populateTree
         self.testing = False
 
-    MAX_LAG_TOLERANCE = 10
+    MAX_LAG_TOLERANCE = 10  # in seconds
 
     def bufferLagging(self, wait: int = 5) -> bool:
         """Wait for excess events to be processed.
@@ -791,19 +791,18 @@ class Plugin(QWidget):  # noqa: PLR0904
 
     def about(self) -> None:
         """Display the about dialog of the plugin using the :ref:`sec:browser`."""
-        if getDebugMode():
-            name = self.name
-            if isinstance(self, LiveDisplay):
-                name = f'{self.parentPlugin.name}.liveDisplay'
-            elif isinstance(self, StaticDisplay):
-                name = f'{self.parentPlugin.name}.staticDisplay'
-            elif 'Channel Plot' in self.name:
-                name = f'{self.parentPlugin.name}.channelPlot'
-            elif self.pluginType == PLUGINTYPE.DISPLAY and hasattr(self, 'parentPlugin'):
-                name = f'{self.parentPlugin.name}.display'
-            elif isinstance(self, Scan.Display):
-                name = f'{self.scan.name}.display'
-            self.print(f'Run Tree.inspect({name}) to get more info.')
+        name = self.name
+        if isinstance(self, LiveDisplay):
+            name = f'{self.parentPlugin.name}.liveDisplay'
+        elif isinstance(self, StaticDisplay):
+            name = f'{self.parentPlugin.name}.staticDisplay'
+        elif 'Channel Plot' in self.name:
+            name = f'{self.parentPlugin.name}.channelPlot'
+        elif self.pluginType == PLUGINTYPE.DISPLAY and hasattr(self, 'parentPlugin'):
+            name = f'{self.parentPlugin.name}.display'
+        elif isinstance(self, Scan.Display):
+            name = f'{self.scan.name}.display'
+        self.print(f'Run Tree.inspect({name}) to get more info.')
         documentation = ((self.documentation or self.__doc__) or '').replace('\n', '<br>')
         self.pluginManager.Browser.setAbout(self, f'About {self.name}', f"""
             <p>{documentation}</p>
@@ -5838,8 +5837,7 @@ class SettingsManager(Plugin):
         setToDefaultAction = None
         makeDefaultAction = None
         addSettingToConsoleAction = None
-        if getDebugMode():
-            addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
+        addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
         if not setting.indicator:
             if setting.parameterType == PARAMETERTYPE.PATH:
                 openPathAction = settingsContextMenu.addAction(self.OPENPATH)
@@ -6271,11 +6269,11 @@ class Settings(SettingsManager):  # noqa: PLR0904
                                                                 internal=True, parameterType=PARAMETERTYPE.COMBO, items='Icons, Labels, Both', fixedItems=True)
         # advanced general settings at bottom of list
         ds[f'{GENERAL}/{TESTMODE}'] = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
-                                    event=lambda: self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized
+                                    event=lambda: self.testModeChanged()  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized  # noqa: PLW0108
                                     , internal=True, advanced=True)
         ds[f'{GENERAL}/{WAKEMODE}'] = parameterDict(value=False, toolTip='Will prevent screen lock by simulating a keyboard action every 5 min', parameterType=PARAMETERTYPE.BOOL,
                                     event=self.pluginManager.DeviceManager.wake, internal=True, advanced=True)
-        ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality like sending\nChannels, Parameters, and Settings to the Console.',
+        ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality for debugging.',
                                                                    internal=True, parameterType=PARAMETERTYPE.BOOL, advanced=True)
         ds[f'{GENERAL}/{LOGLEVEL}'] = parameterDict(value='Basic', toolTip='Determine level of detail in log.',
                                                                    internal=True, parameterType=PARAMETERTYPE.COMBO, advanced=True,
@@ -6360,8 +6358,10 @@ class Settings(SettingsManager):  # noqa: PLR0904
     def testModeChanged(self) -> None:
         """Close communication so it can be reinitialized with new test mode state."""
         if getTestMode():
-            self.print('Test mode is active!', flag=PRINT.WARNING)
+            self.print('Test mode is active! Simulating Data!', flag=PRINT.WARNING)
         self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)
+        self.pluginManager.DeviceManager.clearPlot()
+        self.pluginManager.DeviceManager.plot()  # replot to update test mode warning label
 
     def getFullSessionPath(self) -> Path:
         """Return full session path inside data path."""
@@ -6673,6 +6673,11 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         """Clear plots for all plugins."""
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             plugin.clearPlot()
+
+    def plot(self) -> None:
+        """Clear plots for all plugins."""
+        for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
+            plugin.plot()
 
     def livePlot(self, apply: bool = False) -> None:
         """Update plots for all active liveDisplays.
@@ -7847,7 +7852,7 @@ class PID(ChannelManager):
         DERIVATIVE = 'Derivative'   # if you're getting close to where you want to be, slow down
         SAMPLETIME = 'Sampletime'
 
-        def connectSource(self, giveFeedback: bool = False) -> None:  # noqa: PLR0912
+        def connectSource(self, giveFeedback: bool = False) -> None:  # noqa: C901, PLR0912
             """Connect the source and inputChannels.
 
             :param giveFeedback: Report on success of connection, defaults to False
@@ -7864,6 +7869,9 @@ class PID(ChannelManager):
                 self.getValues = self.sourceChannel.getValues
             else:
                 self.getValues = lambda *_, **__: None
+            if not hasattr(self.inputChannel, 'min') or not hasattr(self.inputChannel, 'max'):
+                self.print(f'Source channel {self.input} cannot be used as input channel. Input channel needs to have min max limits defined.', flag=PRINT.ERROR)
+                self.inputChannel = None
             if giveFeedback:
                 if self.sourceChannel:
                     self.print(f'Source channel {self.output} successfully reconnected.', flag=PRINT.DEBUG)
@@ -7929,10 +7937,11 @@ class PID(ChannelManager):
                                             if sourceDevice.subtractBackgroundActive() else sourceChannelValue)
                         if self.active and self.channelParent.isOn() and inputDevice.isOn() and not np.isnan(sourceChannelValue):
                             response = self.pid(sourceChannelValue)
+                            self.print(f'PID in {sourceChannelValue}, PID out {response}, PID components {self.pid.components}', flag=PRINT.VERBOSE)
                             if response is not None:
                                 self.inputChannel.value = response
                 except RuntimeError as e:
-                    self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}. Attempt reconnecting.', flag=PRINT.DEBUG)
+                    self.print(f'Resetting. Source channel {self.output} or {self.input} may have been lost: {e}. Attempt reconnecting.', flag=PRINT.VERBOSE)
                     self.connectSource(giveFeedback=True)
 
         def valueChanged(self) -> None:

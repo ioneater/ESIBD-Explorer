@@ -63,6 +63,8 @@
    :height: 2ex
 .. |calculator| image:: ../../esibd/examples/calculator/calculator.png
    :height: 2ex
+.. |omnicontrol| image:: ../../esibd/devices/omnicontrol/pfeiffer_omni.png
+   :height: 2ex
 
 .. |webcam| image:: ../../esibd/controls/webcam/webcam.png
    :height: 2ex

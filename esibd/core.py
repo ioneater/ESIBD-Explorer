@@ -375,7 +375,7 @@ class PluginManager:  # noqa: PLR0904
         QTimer.singleShot(0, self.signalComm.finalizeSignal.emit)  # add delay to make sure application is ready to process updates, but make sure it is done in main thread
         self.app.splashScreen.close()  # close as soon as mainWindow is ready
         if getTestMode():
-            self.logger.print('Test mode is active!', flag=PRINT.WARNING)
+            self.logger.print('Test mode is active! Simulating Data!', flag=PRINT.WARNING)
         self.logger.print('Ready.', flag=PRINT.EXPLORER)
 
     def loadPluginsFromPath(self, path: 'Path | None') -> None:
@@ -3061,9 +3061,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         settingsContextMenu = QMenu(self.tree)
         addChannelToConsoleAction = None
         addParameterToConsoleAction = None
-        if getDebugMode():
-            addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
-            addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
+        addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
+        addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
         # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
         #     NOTE channels do only save current value but not the items -> thus editing items is currently not supported
         if not settingsContextMenu.actions():
@@ -5156,6 +5155,13 @@ class PlotItem(pg.PlotItem):
             self.xyLabel = LabelItem(anchor=(1, 1))
             self.xyLabel.setParentItem(self.getViewBox())
             self.xyLabel.setColor(colors.fg)
+        if getTestMode():
+            self.testModeLabel = LabelItem(justify='center', size='24pt')
+            self.testModeLabel.setParentItem(self.getViewBox())
+            self.testModeLabel.anchor((0.5, 0.5), (0.5, 0.5))
+            self.testModeLabel.setPos(0, 0)
+            self.testModeLabel.setColor(colors.fg + '80')
+            self.testModeLabel.setText('<span style="font-size: 18pt; font-weight: bold; color: rgba(255,255,255,120);">Test Mode Active! Simulating Data!</span>')
 
     def init(self) -> None:
         """Init plotItem formatting and events."""

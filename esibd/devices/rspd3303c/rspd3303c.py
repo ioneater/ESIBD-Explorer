@@ -164,8 +164,15 @@ class VoltageController(DeviceController):
 
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=True))
-            self.currents[i] = float(self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=True))
+            if channel.enabled and channel.active and channel.real:
+                try:
+                    self.values[i] = float(self.RSQuery(f'MEAS:VOLT? CH{channel.id}', already_acquired=True))
+                    self.currents[i] = float(self.RSQuery(f'MEAS:CURR? CH{channel.id}', already_acquired=True))
+                except ValueError as e:
+                    self.print(f'Error while reading values: {e}', flag=PRINT.ERROR)
+                    self.errorCount += 1
+                    self.values[i] = np.nan
+                    self.currents[i] = np.nan
 
     def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
@@ -178,7 +185,11 @@ class VoltageController(DeviceController):
                 self.currents[i] = 50 / self.values[i] if self.values[i] != 0 else 0  # simulate 50 W
 
     def applyValue(self, channel: VoltageChannel) -> None:
-        self.RSWrite(f'CH{channel.id}:VOLT {channel.value if channel.enabled and self.controllerParent.isOn() else 0}')
+        if channel.enabled:
+            # ignore channels that are disabled
+            # prevents edge case where a disabled channel with the same channel ID overwrites an enabled channel
+            # requires users to make sure channels are set to 0 (safe state) before disabling them.
+            self.RSWrite(f'CH{channel.id}:VOLT {channel.value if self.controllerParent.isOn() else 0}')
 
     def updateValues(self) -> None:
         # Overwriting to also update custom current and power parameters.

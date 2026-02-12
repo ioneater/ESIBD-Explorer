@@ -105,7 +105,7 @@ class PressureController(DeviceController):
                         if status == '0':
                             self.values[i] = float(pressure)  # set unit to mbar on device
                         else:
-                            self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', flag=PRINT.WARNING)
+                            self.print(f'Could not read pressure for {channel.name}: {self.PRESSURE_READING_STATUS[int(status)]}.', flag=PRINT.DEBUG)
                             self.values[i] = np.nan
                     except Exception as e:  # noqa: BLE001
                         self.print(f'Failed to parse pressure from {msg}: {e}', flag=PRINT.ERROR)

@@ -12,6 +12,8 @@ Added
 - Added a new minimal Webcam |webcam| plugin.
 - Plugins in the plugin dialog are now sorted by name and enabled state and user can change sorting.
 - Added wake mode in advanced |advanced| mode of Settings |settings| to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
+- Omnicontrol |omnicontrol| plugin overhaul: Can now also control Pfeiffer turbo pumps.
+- In Test Mode there will be warning labels to make sure users are aware of simulated data.
 
 Changed
 ~~~~~~~
@@ -21,6 +23,9 @@ Changed
 - Depo |depo| is now able to display all current and charge traces.
 - PICO |pico| now hides data channel, data type and number of wires for virtual channels.
 - RBD |rbd| now uses np.nan instead of 0 if there was an error parsing the current.
+- Made dashes shorter so they are easier to find in pyqtgraph legend.
+- Allowed use of % as unit.
+- Sending Settings, Channels, and Parameters to the console is not always enabled and not just in Debug Mode.
 
 Fixed
 ~~~~~
@@ -34,6 +39,7 @@ Fixed
 Developer Notes
 ~~~~~~~~~~~~~~~
 - Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.
+- Omnicontrol |omnicontrol|: Removed dependence on pfeiffer-vacuum-protocol package.
 
 Version 0.8.2 2025-06-23
 ========================

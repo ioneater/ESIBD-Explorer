@@ -154,10 +154,10 @@ class CurrentChannel(Channel):
         channel[self.BIAS] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                         toolTip='Apply internal bias.', attr='bias', event=self.updateBias)
         channel[self.OUTOFRANGE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
-                                        header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange')
+                                        header='OoR', toolTip='Indicates if signal is out of range.', attr='outOfRange', restore=False)
         channel[self.UNSTABLE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
-                                        header='U', toolTip='Indicates if signal is unstable.', attr='unstable')
-        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='error', indicator=True)
+                                        header='U', toolTip='Indicates if signal is unstable.', attr='unstable', restore=False)
+        channel[self.ERROR] = parameterDict(value='', parameterType=PARAMETERTYPE.TEXT, advanced=False, attr='error', indicator=True, restore=False)
         return channel
 
     def setDisplayedParameters(self) -> None:
