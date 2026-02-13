@@ -155,67 +155,101 @@ class OmniChannel(Channel):
         self.hideParameters()
 
     def hideParameters(self) -> None:
-        self.getParameterByName(self.PumpStatn).setVisible(self.omniType == self.OMNITYPESTATE.TMP.value)
-        self.getParameterByName(self.Standby).setVisible(self.real and self.omniType == self.OMNITYPESTATE.TMP.value)
-        self.getParameterByName(self.DrvPower).setVisible(self.real and self.omniType == self.OMNITYPESTATE.TMP.value)
-        self.getParameterByName(self.TempPump).setVisible(self.real and self.omniType == self.OMNITYPESTATE.TMP.value)
+        """Hide parameters based in channel type and presence of hardware."""
+        self.getParameterByName(self.PumpStatn).setVisible(self.isPump)
+        self.getParameterByName(self.Standby).setVisible(self.real and self.isPump)
+        self.getParameterByName(self.DrvPower).setVisible(self.real and self.isPump)
+        self.getParameterByName(self.TempPump).setVisible(self.real and self.isPump)
 
     def omniTypeChanged(self) -> None:
+        """Update GUI chen changing between sensor and pump channels."""
         self.hideParameters()
         omniIconPushButton = cast('QPushButton', self.getParameterByName(self.OMNIICON).getWidget())
-        omniIconPushButton.setIcon(self.channelParent.makeIcon('sensor.png' if self.omniType == self.OMNITYPESTATE.PRESSURE.value else 'turbo.png'))
+        omniIconPushButton.setIcon(self.channelParent.makeIcon('turbo.png' if self.isPump else 'sensor.png'))
         self.getParameterByName(self.OMNIICON).toolTip = self.omniType
         oldValue = self.value
         value = self.getParameterByName(self.VALUE)
-        value.parameterType = PARAMETERTYPE.EXP if self.omniType == self.OMNITYPESTATE.PRESSURE.value else PARAMETERTYPE.INT
+        value.parameterType = PARAMETERTYPE.INT if self.isPump else PARAMETERTYPE.EXP
         value.applyWidget()
         self.scalingChanged()
         self.updateColor()
         self.value = oldValue
-        self.logY = self.omniType == self.OMNITYPESTATE.PRESSURE.value
+        self.logY = not self.isPump
 
     @property
     def unit(self) -> str:
         """The unit depending on device type."""
-        return 'mBar' if self.omniType == self.OMNITYPESTATE.PRESSURE.value else 'Hz'
+        return 'Hz' if self.isPump else 'mbar'
+
+    @property
+    def isPump(self) -> bool:
+        """Check if this channel represents a pump or a Sensor."""
+        return self.omniType == self.OMNITYPESTATE.TMP.value
 
     def checkPumpChannel(self) -> bool:
-        isPump = self.omniType == self.OMNITYPESTATE.TMP.value
-        if not isPump:
-            self.print(f'{self.name} is not a Turbo Pump.')
-        return isPump
+        """Check and notify if this is not a Pump."""
+        if not self.isPump:
+            self.print(f'{self.name} is not a {self.OMNITYPESTATE.TMP.value}.')
+        return self.isPump
+
+    def checkSensorChannel(self) -> bool:
+        """Check and notify if this is not a Sensor."""
+        if self.isPump:
+            self.print(f'{self.name} is not a {self.OMNITYPESTATE.PRESSURE.value}.')
+        return not self.isPump
+
+    def getPressure(self) -> None:
+        """Get pressure from gauge in mbar."""
+        if not self.checkSensorChannel():
+            return
+        self.channelParent.controller.getPressure(addr=self.id)
 
     def setPumpStatn(self) -> None:
+        """Set the pump station state of the turbo pump, i.e. ON or OFF."""
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.setPumpStatn(addr=self.id, on=self.pumpStatn)
 
     def setStandby(self) -> None:
+        """Set the standby state of the turbo pump."""
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.setStandby(addr=self.id, on=self.standby)
 
     def getStandby(self) -> None:
+        """Get the standby state of the turbo pump."""
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.getStandby(addr=self.id)
 
     def getStdbySVal(self) -> None:
+        """Get the standby speed value of the turbo pump."""
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.getStdbySVal(addr=self.id)
 
     def setStdbySVal(self, value: float) -> None:
+        """Set the standby speed value of the turbo pump.
+
+        :param value: New standby speed. Between 20 and 80 %.
+        :type value: float
+        """
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.setStdbySVal(addr=self.id, value=value)
 
     def acknError(self) -> None:
+        """Acknowledge Error."""
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.acknError(addr=self.id)
 
     def setRS485Adr(self, newAddr: int) -> None:
+        """Set the RS485 address of the device.
+
+        :param newAddr: New address. Needs to be unique when using multiple pumps.
+        :type newAddr: int
+        """
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.setRS485Adr(addr=self.id, newAddr=newAddr)
@@ -246,11 +280,7 @@ class OmniController(DeviceController):  # noqa: PLR0904
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 try:
-                    if channel.omniType == channel.OMNITYPESTATE.PRESSURE.value:
-                        pressure = self.getPressure(addr=channel.id, already_acquired=True)
-                        self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
-                        self.values[i] = np.nan if pressure == 0 else pressure
-                    else:
+                    if channel.isPump:
                         speed = self.getActualSpd(addr=channel.id, already_acquired=True)
                         self.pumpStatn[i] = self.getPumpStatn(addr=channel.id, already_acquired=True)
                         self.standby[i] = self.getStandby(addr=channel.id, already_acquired=True)
@@ -258,8 +288,14 @@ class OmniController(DeviceController):  # noqa: PLR0904
                         self.tempPump[i] = self.getTempPump(addr=channel.id, already_acquired=True)
                         self.errorCode[i] = self.getErrorCode(addr=channel.id, already_acquired=True)
                         self.values[i] = speed
+                    else:
+                        pressure = self.getPressure(addr=channel.id, already_acquired=True)
+                        self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
+                        self.values[i] = np.nan if pressure == 0 else pressure
                 except ValueError as e:
-                    self.print(f"Error while reading {'pressure' if channel.omniType == channel.OMNITYPESTATE.PRESSURE.value else 'speed'} {e}")
+                    self.print(f"""Error while reading {'pump speed or other parameter' if channel.isPump else 'sensor pressure'}"""
+                               """ from channel {channel.name} at address {channel.id}.\nMake sure you are using the correct chanel address and device type.\n"""
+                               f"""Error message: {e}""")
                     self.errorCount += 1
                     self.values[i] = np.nan
                     self.drvPower[i] = np.nan
@@ -274,22 +310,22 @@ class OmniController(DeviceController):  # noqa: PLR0904
     def fakeNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                if channel.omniType == channel.OMNITYPESTATE.PRESSURE.value:
-                    self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
-                else:
+                if channel.isPump:
                     self.values[i] = (0 if np.isnan(self.values[i]) else  # simulate acceleration and deceleration and allow for small fluctuation
-                    max(0, min(1500, (self.values[i] + (25 if channel.pumpStatn and (channel.value < (1000 if channel.standby else 1500)) else - 25) * self.controllerParent.interval / 1000))) +
-                    self.rng.uniform(-5, 5))
+                    max(0, min(1500, (self.values[i] + (25 if channel.pumpStatn and (channel.value < (1000 if channel.standby else 1500)) else - 25) *
+                                      self.controllerParent.interval / 1000))) + self.rng.uniform(-5, 5))
                     self.pumpStatn[i] = channel.pumpStatn
                     self.standby[i] = channel.standby
                     self.drvPower[i] = self.values[i] / 30
                     self.tempPump[i] = 25 + self.values[i] / 60
                     self.errorCode[i] = '000000'
+                else:
+                    self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
 
     def updateValues(self) -> None:
         super().updateValues()
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if channel.enabled and channel.real and channel.omniType == channel.OMNITYPESTATE.TMP.value:
+            if channel.enabled and channel.real and channel.isPump:
                 channel.pumpStatn = self.pumpStatn[i]
                 channel.standby = self.standby[i]
                 channel.drvPower = self.drvPower[i]
@@ -310,50 +346,98 @@ class OmniController(DeviceController):  # noqa: PLR0904
         self.initialized = False
         self.closing = False
 
-    def getPressure(self, addr: int, already_acquired=False) -> float:
-        """Get pressure from gauge in mBar."""
+    def getPressure(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
+        """Get pressure from gauge in mbar.
+
+        :param addr: Device address.
+        :type addr: int
+        :param already_acquired: Indicate if a lock has already been acquired, True inside readNumbers, defaults to False
+        :type already_acquired: bool, optional
+        :return: Pressure reading in mbar.
+        :rtype: float
+        """
         response = self.OmniWriteRead(addr=addr, param_num=740, already_acquired=already_acquired)
         mantissa = int(response[:4])
         exponent = int(response[4:])
         return float(mantissa * 10 ** (exponent - 26)) * 1000
 
-    def getActualSpd(self, addr: int, already_acquired=False) -> int:
+    def getActualSpd(self, addr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+        """Get the actual speed of the turbo pump."""
         return int(self.OmniWriteRead(addr=addr, param_num=309, already_acquired=already_acquired))
 
-    def getDrvPower(self, addr: int, already_acquired=False) -> int:
+    def getDrvPower(self, addr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+        """Get the drive power of the turbo pump."""
         return int(self.OmniWriteRead(addr=addr, param_num=316, already_acquired=already_acquired))
 
-    def getPumpStatn(self, addr: int, already_acquired=False) -> bool:
+    def getPumpStatn(self, addr: int, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
+        """Get the pump station state of the turbo pump, i.e. ON or OFF."""
         return self.OmniWriteRead(addr=addr, param_num=10, already_acquired=already_acquired) == '111111'
 
-    def setPumpStatn(self, addr: int, on: bool, already_acquired=False) -> bool:
+    def setPumpStatn(self, addr: int, on: bool, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
+        """Set the pump station state of the turbo pump, i.e. ON or OFF.
+
+        :param on: New pump station state.
+        :type on: bool
+        :return: New pump station state as confirmation.
+        :rtype: bool
+        """
         return self.OmniWriteRead(addr=addr, param_num=10, value=111111 if on else 0, already_acquired=already_acquired) == '111111'
 
-    def getTempPump(self, addr: int, already_acquired=False) -> int:  # 384 TempRotor, 346 TempMotor, 330 TempPmpBot
+    def getTempPump(self, addr: int, already_acquired=False) -> int:  # 384 TempRotor, 346 TempMotor, 330 TempPmpBot  # pylint: disable = missing-param-doc
+        """Get the temperature of the turbo pump."""
         return int(self.OmniWriteRead(addr=addr, param_num=330, already_acquired=already_acquired))
 
-    def getStandby(self, addr: int, already_acquired=False) -> bool:
+    def getStandby(self, addr: int, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
+        """Get the standby state of the turbo pump."""
         return self.OmniWriteRead(addr=addr, param_num=2, already_acquired=already_acquired) == '111111'
 
-    def setStandby(self, addr: int, on: bool, already_acquired=False) -> bool:
+    def setStandby(self, addr: int, on: bool, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
+        """Set the standby state of the turbo pump.
+
+        :param on: New standby state.
+        :type on: bool
+        :return: New standby state as confirmation.
+        :rtype: bool
+        """
         return self.OmniWriteRead(addr=addr, param_num=2, value=111111 if on else 0, already_acquired=already_acquired) == '111111'
 
-    def getErrorCode(self, addr: int, already_acquired=False) -> str:
+    def getErrorCode(self, addr: int, already_acquired=False) -> str:  # pylint: disable = missing-param-doc
+        """Get the error code of the turbo pump."""
         return self.OmniWriteRead(addr=addr, param_num=303, already_acquired=already_acquired)
 
-    def getStdbySVal(self, addr: int, already_acquired=False) -> float:
+    def getStdbySVal(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
+        """Get the standby speed value of the turbo pump."""
         return float(self.OmniWriteRead(addr=addr, param_num=717, already_acquired=already_acquired)) / 100
 
-    def setStdbySVal(self, addr: int, value: float, already_acquired=False) -> float:
+    def setStdbySVal(self, addr: int, value: float, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
+        """Set the standby speed value of the turbo pump.
+
+        :param addr: Device address
+        :type addr: int
+        :param value: New standby speed. Between 20 and 80 %.
+        :type value: float
+        :return: New speed as confirmation.
+        :rtype: float
+        """
         if value < 20 or value > 100:  # noqa: PLR2004
             self.print(f'Standby speed value {value} invalid. Value needs to be between 20 and 100.')
             return self.getStdbySVal(addr=addr)
         return float(self.OmniWriteRead(addr=addr, param_num=717, value=value * 100, already_acquired=already_acquired)) / 100
 
-    def setRS485Adr(self, addr: int, newAddr: int, already_acquired=False) -> int:
+    def setRS485Adr(self, addr: int, newAddr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+        """Set the RS485 address of the device.
+
+        :param addr: Current address, usually 1 for turbo pumps.
+        :type addr: int
+        :param newAddr: New address. Needs to be unique when using multiple pumps.
+        :type newAddr: int
+        :return: New address for confirmation.
+        :rtype: int
+        """
         return int(self.OmniWriteRead(addr=addr, param_num=797, value=newAddr, already_acquired=already_acquired))
 
-    def acknError(self, addr: int, already_acquired=False) -> None:
+    def acknError(self, addr: int, already_acquired=False) -> None:  # pylint: disable = missing-param-doc
+        """Acknowledge Error."""
         self.OmniWriteRead(addr=addr, param_num=9, value=1, already_acquired=already_acquired)
 
     def makeOmniMessage(self, addr: int, param_num: int, value=None) -> str:
@@ -378,16 +462,22 @@ class OmniController(DeviceController):  # noqa: PLR0904
         return message
 
     def parseOmniResponse(self, message: str) -> str:
+        """Parse a message into its address, action, parameter number, and data.
 
+        :param message: Message to be parsed.
+        :type message: str
+        :return: data
+        :rtype: str
+        """
         # Evaluate the checksum
         if int(message[-3:]) != (sum(ord(x) for x in message[:-3]) % 256):
             self.print(f'Invalid checksum in response {message}.', flag=PRINT.WARNING)
 
         addr = int(message[:3])
-        rw = int(message[3:4])
+        action = int(message[3:4])
         param_num = int(message[5:8])
         data = message[10:-3]
-        self.print(f'Parsed response {message}: addr {addr}, rw {rw}, param_num {param_num}, data {data}.', flag=PRINT.TRACE)
+        self.print(f'Parsed response {message}: addr {addr}, action {action}, param_num {param_num}, data {data}.', flag=PRINT.TRACE)
         return data
 
     def OmniWrite(self, message: str) -> None:

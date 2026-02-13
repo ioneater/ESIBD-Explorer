@@ -35,6 +35,7 @@ Fixed
 - Hidden internal text visible when selecting plugins in Plugin dialog |pluginDialog|.
 - Fixed displayed number of maximal errors for devices in the settings tooltip.
 - Resetting error count of virtual channels when reinitializing communication.
+- Fixed estimation of required storage to keep device restore files within the specified maximum storage.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

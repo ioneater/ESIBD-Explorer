@@ -5116,6 +5116,7 @@ class PlotItem(pg.PlotItem):
     enableAutoRange: Callable  # dynamically created -> needs explicit type hint
     disableAutoRange: Callable  # dynamically created -> needs explicit type hint
     xyLabel: 'LabelItem'
+    testModeLabel: 'LabelItem'
     setRange: Callable
     viewRange: Callable
     setXRange: Callable

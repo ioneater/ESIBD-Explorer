@@ -3137,8 +3137,8 @@ class Device(ChannelManager):  # noqa: PLR0904
                 'After 60 seconds the communication will be closed to keep the application responsive.',
                                                                 parameterType=PARAMETERTYPE.INT, minimum=0, attr='lagging_seconds')
         defaultSettings[f'{self.name}/{self.MAXSTORAGE}'] = parameterDict(value=50, parameterType=PARAMETERTYPE.INT, minimum=5, maximum=500, event=self.estimateStorage,
-                                                          toolTip='Maximum amount of storage used to store history in MB. Updated on next restart to prevent accidental data loss!',
-                                                            attr='maxStorage')
+                                                        toolTip='Maximum amount of storage used to store history in MB. Effective on next restart to prevent accidental data loss!',
+                                                        attr='maxStorage')
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, parameterType=PARAMETERTYPE.INT, attr='maxDataPoints',
         toolTip='Maximum number of data points saved per channel, based on max storage.\n'
         'If this is reached, older data will be thinned to allow to keep longer history.')
@@ -3321,13 +3321,13 @@ class Device(ChannelManager):  # noqa: PLR0904
     def estimateStorage(self) -> None:
         """Estimates storage space required to save maximal history depending on sample rate, number of channels, and backgrounds."""
         numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
-        self.maxDataPoints = int((self.maxStorage * 1024**2 - 8) / (4 * numChannelsBackgrounds))  # including time channel
+        self.maxDataPoints = int((self.maxStorage * 1024**2) / (4 * numChannelsBackgrounds + 8))  # including +8 for time channel
         totalDays = self.interval / 1000 * self.maxDataPoints / 3600 / 24
         widget = self.pluginManager.Settings.settings[f'{self.name}/{self.MAXDATAPOINTS}'].getWidget()
         if widget:
             widget.setToolTip(
             f'Using an interval of {self.interval} ms and maximum storage of {self.maxStorage:d} MB allows for\n'
-            f'a history of {totalDays:.2f} days or {self.maxDataPoints} data points for {len(self.channels)} channels.\n'
+            f'a history of {totalDays:.2f} days or {self.maxDataPoints} data points for {len(self.channels)} data channels and one time channel.\n'
             'After this time, data thinning will allow to retain even older data, but at lower resolution.')
 
     def applyValues(self, apply: bool = False) -> None:
