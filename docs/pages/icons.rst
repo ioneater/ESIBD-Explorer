@@ -65,6 +65,8 @@
    :height: 2ex
 .. |omnicontrol| image:: ../../esibd/devices/omnicontrol/pfeiffer_omni.png
    :height: 2ex
+.. |rspd3303c| image:: ../../esibd/devices/rspd3303c/RSPD3303C.png
+   :height: 2ex
 
 .. |webcam| image:: ../../esibd/controls/webcam/webcam.png
    :height: 2ex

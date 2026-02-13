@@ -27,6 +27,7 @@ Changed
 - Allowed use of % as unit.
 - Sending Settings, Channels, and Parameters to the console is not always enabled and not just in Debug Mode.
 - Prevented dragging cursors in scans while scan is running.
+- RSPD3303C |rspd3303c|: Improved shutdown timer messages.
 
 Fixed
 ~~~~~
