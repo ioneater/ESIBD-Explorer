@@ -3829,6 +3829,9 @@ class Scan(Plugin):  # noqa: PLR0904
                 return
             self.mouseMoving = True
             if event.button == MouseButton.LEFT and kb.is_pressed('ctrl') and event.xdata is not None:  # type: ignore  # noqa: PGH003
+                if not self.scan.finished:  # as long as scan is running it should define values and curser positions without user interference
+                    self.print('Cannot move cursors while scan is running.', flag=PRINT.WARNING)
+                    return
                 for i, inputChannel in enumerate(self.scan.inputChannels):
                     if inputChannel.sourceChannel:
                         if i == 0:

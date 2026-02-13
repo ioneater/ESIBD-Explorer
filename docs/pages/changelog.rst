@@ -26,6 +26,7 @@ Changed
 - Made dashes shorter so they are easier to find in pyqtgraph legend.
 - Allowed use of % as unit.
 - Sending Settings, Channels, and Parameters to the console is not always enabled and not just in Debug Mode.
+- Prevented dragging cursors in scans while scan is running.
 
 Fixed
 ~~~~~
