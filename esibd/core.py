@@ -252,6 +252,7 @@ class PluginManager:  # noqa: PLR0904
     OPTIONAL = 'OPTIONAL'
     PLUGIN_TYPE = 'PLUGINTYPE'
     DEPENDENCYPATH = 'dependencyPath'
+    SOURCECODEPATH = 'sourceCodePath'
     ICONFILE = 'iconFile'
     ICONFILEDARK = 'iconFileDark'
 
@@ -335,7 +336,8 @@ class PluginManager:  # noqa: PLR0904
         self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.provide_plugins  # pylint: disable = import-outside-toplevel  # avoid circular import  # noqa: PLC0415
-        self.loadPluginsFromModule(Module=esibd.provide_plugins, dependencyPath=internalMediaPath)
+        self.loadPluginsFromModule(Module=esibd.provide_plugins, dependencyPath=internalMediaPath,
+                                   sourceCodePath=Path(esibd.provide_plugins.__file__.replace('provide_plugins', 'plugins')))
         self.loadPluginsFromPath(esibdPath / 'examples')
         self.loadPluginsFromPath(esibdPath / 'devices')
         self.loadPluginsFromPath(esibdPath / 'scans')
@@ -400,18 +402,20 @@ class PluginManager:  # noqa: PLR0904
                     else:
                         if hasattr(Module, 'providePlugins'):
                             if Module and type(Module.providePlugins()) is list:
-                                self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent)
+                                self.loadPluginsFromModule(Module=Module, dependencyPath=file.parent, sourceCodePath=file)
                             else:
                                 self.logger.print(f'Could not load module {file.stem}. Make sure providePlugins returns list of valid plugins.', flag=PRINT.ERROR)
                         # silently ignore dependencies which do not define providePlugins
 
-    def loadPluginsFromModule(self, Module: 'ModuleType', dependencyPath: Path) -> None:
+    def loadPluginsFromModule(self, Module: 'ModuleType', dependencyPath: Path, sourceCodePath: Path) -> None:
         """Load plugins from a module.
 
         :param Module: A module providing one or multiple plugins.
         :type Module: ModuleType
         :param dependencyPath: The path where dependencies like icons are stored, defaults to None
         :type dependencyPath: pathlib.Path, optional
+        :param sourceCodePath: Path to the plugin source code.
+        :type sourceCodePath: Path
         """
         for Plugin in Module.providePlugins():
             # requires loading all dependencies, no matter if plugin is used or not
@@ -420,24 +424,25 @@ class PluginManager:  # noqa: PLR0904
             self.pluginNames.append(Plugin.name)
             if Plugin.name not in self.confParser:  # add plugin to confParser
                 self.confParser.read_dict({Plugin.name: {self.ENABLED: not Plugin.optional, self.VERSION: Plugin.version, self.SUPPORTEDVERSION: Plugin.supportedVersion,
-                                                self.DEPENDENCYPATH: dependencyPath, self.ICONFILE: Plugin.iconFile, self.ICONFILEDARK: Plugin.iconFileDark,
-                                                self.PLUGIN_TYPE: str(Plugin.pluginType.value), self.PREVIEWFILETYPES: '',
+                                                self.DEPENDENCYPATH: dependencyPath, self.SOURCECODEPATH: sourceCodePath, self.ICONFILE: Plugin.iconFile,
+                                                self.ICONFILEDARK: Plugin.iconFileDark, self.PLUGIN_TYPE: str(Plugin.pluginType.value), self.PREVIEWFILETYPES: '',
                                                 self.DESCRIPTION: Plugin.documentation or Plugin.__doc__, self.OPTIONAL: str(Plugin.optional)}})
             else:  # update
                 self.confParser[Plugin.name][self.VERSION] = Plugin.version
                 self.confParser[Plugin.name][self.SUPPORTEDVERSION] = Plugin.supportedVersion
                 self.confParser[Plugin.name][self.DEPENDENCYPATH] = dependencyPath.as_posix()
+                self.confParser[Plugin.name][self.SOURCECODEPATH] = sourceCodePath.as_posix()
                 self.confParser[Plugin.name][self.ICONFILE] = Plugin.iconFile
                 self.confParser[Plugin.name][self.ICONFILEDARK] = Plugin.iconFileDark
                 self.confParser[Plugin.name][self.PLUGIN_TYPE] = str(Plugin.pluginType.value)
                 self.confParser[Plugin.name][self.DESCRIPTION] = Plugin.documentation or Plugin.__doc__
                 self.confParser[Plugin.name][self.OPTIONAL] = str(Plugin.optional)
             if self.confParser[Plugin.name][self.ENABLED] == 'True':
-                plugin = self.loadPlugin(Plugin, dependencyPath=dependencyPath)
+                plugin = self.loadPlugin(Plugin, dependencyPath=dependencyPath, sourceCodePath=sourceCodePath)
                 if plugin:
                     self.confParser[Plugin.name][self.PREVIEWFILETYPES] = ', '.join(plugin.getSupportedFiles())  # requires instance
 
-    def loadPlugin(self, Plugin: 'type[Plugin]', dependencyPath: Path = internalMediaPath) -> 'Plugin | None':
+    def loadPlugin(self, Plugin: 'type[Plugin]', dependencyPath: Path, sourceCodePath: Path) -> 'Plugin | None':
         """Load a single plugin.
 
         Plugins must have a static name and pluginType.
@@ -448,6 +453,8 @@ class PluginManager:  # noqa: PLR0904
         :type Plugin: Plugin
         :param dependencyPath: The path where dependencies like icons are stored, defaults to None
         :type dependencyPath: pathlib.Path, optional
+        :param sourceCodePath: Path to the plugin source code.
+        :type sourceCodePath: Path
         :return: Instance of the plugin.
         :rtype: class:`~esibd.plugins.Plugin`
         """
@@ -462,7 +469,7 @@ class PluginManager:  # noqa: PLR0904
             self.logger.print(f'Ignoring duplicate plugin {Plugin.name}.', flag=PRINT.WARNING)
         else:
             try:
-                plugin = Plugin(pluginManager=self, dependencyPath=dependencyPath)
+                plugin = Plugin(pluginManager=self, dependencyPath=dependencyPath, sourceCodePath=sourceCodePath)
                 setattr(self.__class__, plugin.name, plugin)  # use attributes to access for communication between plugins
             except Exception:  # pylint: disable = broad-except  # we have no control about the exception a plugin can possibly throw  # noqa: BLE001
                 # No unpredictable exception in a single plugin should break the whole application
@@ -943,7 +950,7 @@ class Logger(QObject):
     """
 
     printFromThreadSignal = pyqtSignal(str, str, PRINT)
-    MAX_ERROR_COUNT = 10
+    maxErrorCount = 10
 
     def __init__(self, pluginManager: PluginManager) -> None:
         """Initialize a logger.
@@ -3059,8 +3066,6 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :type pos: QPoint
         """
         settingsContextMenu = QMenu(self.tree)
-        addChannelToConsoleAction = None
-        addParameterToConsoleAction = None
         addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
         addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
         # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
@@ -5386,9 +5391,9 @@ class TimeoutLock:
             finally:
                 if result and not already_acquired:
                     self._lock.release()
-                if ((self.lockParent.errorCount == self.lockParent.MAX_ERROR_COUNT or self.lockParent.errorCount > 2 * self.lockParent.MAX_ERROR_COUNT) and
+                if ((self.lockParent.errorCount == self.lockParent.maxErrorCount or self.lockParent.errorCount > 2 * self.lockParent.maxErrorCount) and
                     isinstance(self.lockParent, DeviceController)):
-                    # only call closeCommunication when equal to MAX_ERROR_COUNT, Otherwise errors during closeCommunication could cause recursion.
+                    # only call closeCommunication when equal to maxErrorCount, Otherwise errors during closeCommunication could cause recursion.
                     self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
                     if not self.lockParent.closing:  # avoid recursion if lock cannot be acquired while closing
                         self.lockParent.closeCommunication()
@@ -5454,7 +5459,7 @@ class DeviceController(QObject):  # noqa: PLR0904
     """Indicates if communications is being closed."""
     rng = np.random.default_rng()
     """Random number generator."""
-    MAX_ERROR_COUNT: int
+    maxErrorCount: int
     """Close communication if exceeded."""
 
     def __init__(self, controllerParent: 'Device | Channel') -> None:
@@ -5469,7 +5474,7 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.values: np.ndarray = None  # type: ignore # ignore on purpose  | None  # noqa: PGH003
         self.controllerParent = controllerParent
         self.pluginManager = controllerParent.pluginManager
-        self.MAX_ERROR_COUNT = self.getDevice().MAX_ERROR_COUNT
+        self.maxErrorCount = self.getDevice().maxErrorCount
         self.lock = TimeoutLock(lockParent=self)  # init here so each instance gets its own lock
         self.port = None
         self.signalComm = self.SignalCommunicate()
@@ -5480,7 +5485,6 @@ class DeviceController(QObject):  # noqa: PLR0904
         self.errorCountTimer = QTimer()
         self.errorCountTimer.timeout.connect(self.resetErrorCount)
         self.errorCountTimer.setSingleShot(True)
-        self.errorCountTimer.setInterval(600000)  # 10 min i.e. 600000 msec
 
     @property
     def name(self) -> str:
@@ -5495,11 +5499,12 @@ class DeviceController(QObject):  # noqa: PLR0904
     @errorCount.setter
     def errorCount(self, count: int) -> None:
         if count > self._errorCount and count % 5 == 0:
-            self.print(f'Error count is {count}. Communication will be closed after {self.MAX_ERROR_COUNT} consecutive errors.', flag=PRINT.WARNING)
+            self.print(f'Error count is {count}. Communication will be closed after {self.maxErrorCount} consecutive errors.', flag=PRINT.WARNING)
         self._errorCount = count
         if self.errorCount != 0:
+            self.errorCountTimer.setInterval(self.controllerParent.pluginManager.Settings.errorResetTime * 60000)  # e.g. 10 min = 600000 msec
             QTimer.singleShot(0, self.errorCountTimer.start)  # will reset after interval unless another error happens before and restarts the timer
-        if (self.errorCount == self.MAX_ERROR_COUNT or self.errorCount > 2 * self.MAX_ERROR_COUNT) and self.initialized:
+        if (self.errorCount == self.maxErrorCount or self.errorCount > 2 * self.maxErrorCount) and self.initialized:
             self.print(f'Closing communication after {self.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
             self.closeCommunication()
         QTimer.singleShot(0, self.getDevice().errorCountChanged)
@@ -5507,6 +5512,8 @@ class DeviceController(QObject):  # noqa: PLR0904
     def resetErrorCount(self) -> None:
         """Reset error count to 0."""
         self.errorCount = 0
+        if isinstance(self.controllerParent, self.pluginManager.Device):
+            self.controllerParent.errorCount = 0
 
     def print(self, message: str, flag: PRINT = PRINT.MESSAGE) -> None:
         """Send a message to stdout, the statusbar, the Console, and if enabled to the logfile.

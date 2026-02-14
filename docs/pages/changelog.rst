@@ -14,6 +14,7 @@ Added
 - Added wake mode in advanced |advanced| mode of Settings |settings| to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
 - Omnicontrol |omnicontrol| plugin overhaul: Can now also control Pfeiffer turbo pumps.
 - In Test Mode there will be warning labels to make sure users are aware of simulated data.
+- The plugin source code file path is now shown in the plugin about dialog.
 
 Changed
 ~~~~~~~
@@ -28,6 +29,8 @@ Changed
 - Sending Settings, Channels, and Parameters to the console is not always enabled and not just in Debug Mode.
 - Prevented dragging cursors in scans while scan is running.
 - RSPD3303C |rspd3303c|: Improved shutdown timer messages.
+- Made "Error reset time", " Max lag tolerance", and "Lag wait time" accessible in the General section of Settings |settings| in advanced |advanced| mode. See tooltips for documentation.
+- Made "max error count" accessible in the Device settings in advanced |advanced| mode. See tooltip for documentation.
 
 Fixed
 ~~~~~

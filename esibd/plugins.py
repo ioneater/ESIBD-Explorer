@@ -102,7 +102,7 @@ class Plugin(QWidget):  # noqa: PLR0904
     EXPORT = 'Export'
     TIME = 'Time'
     UTF8 = 'utf-8'
-    MAX_ERROR_COUNT = 10
+    maxErrorCount = 10
     FILTER_INI_H5 = 'INI or H5 File (*.ini *.h5)'
     FILTER_LOG = 'LOG File (*.log)'
     pluginType: PLUGINTYPE = PLUGINTYPE.INTERNAL  # overwrite in child class mandatory
@@ -127,15 +127,18 @@ class Plugin(QWidget):  # noqa: PLR0904
        state that they are incompatible with this plugin. This can be used to
        prompt developers to update and test their plugins before
        distributing them for a more recent program version."""
-    dependencyPath = Path()  # will be set when plugin is loaded. dependencies can be in the same folder as the plugin file or sub folders therein
+    dependencyPath = Path()  # will be set when plugin is loaded.
+    sourceCodePath = Path()  # will be set when plugin is loaded.
     titleBar: 'QToolBar | None'
     """Actions can be added to the titleBar using :meth:`~esibd.plugins.Plugin.addAction` or :meth:`~esibd.plugins.Plugin.addStateAction`."""
     titleBarLabel: 'QLabel | None'
     """The label used in the titleBar."""
     dependencyPath: Path
-    """Path to the plugin file defining the plugin. Can be used to locate
-       corresponding dependencies like external scripts or media which are
+    """Path to the plugin dependency files. Typically this is the same or relative to the plugin source code path.
+       Can be used to locate dependencies like external scripts or media which are
        stored next to the plugin file or in sub folders relative to its location."""
+    sourceCodePath: Path
+    """Path to the plugin source code file."""
     pluginManager: PluginManager
     """A reference to the central :class:`~esibd.core.PluginManager`."""
     parentPlugin: 'Plugin'
@@ -176,13 +179,15 @@ class Plugin(QWidget):  # noqa: PLR0904
 
         testCompleteSignal = pyqtSignal()
 
-    def __init__(self, pluginManager: PluginManager, dependencyPath: 'Path | None' = None) -> None:
+    def __init__(self, pluginManager: PluginManager, dependencyPath: Path, sourceCodePath: Path) -> None:
         """Initialize a Plugin.
 
         :param pluginManager: The central PluginManager, defaults to None
         :type pluginManager: PluginManager, optional
-        :param dependencyPath: Path to dependencies, defaults to None
-        :type dependencyPath: Path | None, optional
+        :param dependencyPath: Path to dependencies.
+        :type dependencyPath: Path
+        :param sourceCodePath: Path to the plugin source code.
+        :type sourceCodePath: Path
         """
         super().__init__()
         self.app = cast('Application', QApplication.instance())
@@ -207,8 +212,8 @@ class Plugin(QWidget):  # noqa: PLR0904
         self.copyAction = None
         self.initializedGUI = False
         self.initializedDock = False  # visible in GUI, some plugins will only appear when needed to display specific content
-        if dependencyPath:
-            self.dependencyPath = dependencyPath
+        self.dependencyPath = dependencyPath
+        self.sourceCodePath = sourceCodePath
         self.dataClipboardIcon = self.makeCoreIcon('clipboard-paste-document-text.png')
         self.imageClipboardIcon = self.makeCoreIcon('clipboard-paste-image.png')
         self.testing_state: bool = False  # indicates if tests are running
@@ -387,9 +392,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             QTimer.singleShot(0, self.pluginManager.logger.closeTestLogFile)  # prevent conflict between synchronized testComplete and populateTree
         self.testing = False
 
-    MAX_LAG_TOLERANCE = 10  # in seconds
-
-    def bufferLagging(self, wait: int = 5) -> bool:
+    def bufferLagging(self, wait: 'int | None' = None) -> bool:
         """Wait for excess events to be processed.
 
         Only call from parallel thread, e.g. during testing or scanning!
@@ -397,6 +400,8 @@ class Plugin(QWidget):  # noqa: PLR0904
         :param wait: Indicates how long the thread should wait to allow lag to recover, defaults to 5
         :type wait: int
         """
+        if wait is None:
+            wait = self.pluginManager.Settings.lagWaitTime
         if current_thread() is main_thread():
             self.print('Never call bufferLagging from main thread!', flag=PRINT.ERROR)
         max_lagging_seconds = 0
@@ -405,12 +410,14 @@ class Plugin(QWidget):  # noqa: PLR0904
             if device.lagging_seconds > max_lagging_seconds:
                 max_lagging_seconds = device.lagging_seconds
                 max_lagging_device = device
-        if max_lagging_seconds > self.MAX_LAG_TOLERANCE:
+        if max_lagging_seconds > self.pluginManager.Settings.maxLagTolerance:
             if max_lagging_device:
-                self.print(f'Maximum lag of {max_lagging_seconds} s ({max_lagging_device.name}) is larger than tolerated lag of {self.MAX_LAG_TOLERANCE} s. Pausing for {wait} s.',
+                self.print(f'Maximum lag of {max_lagging_seconds} s ({max_lagging_device.name}) is larger than'
+                           f' tolerated lag of {self.pluginManager.Settings.maxLagTolerance} s. Pausing for {wait} s.',
                         flag=PRINT.DEBUG)
             else:
-                self.print(f'Maximum lag of {max_lagging_seconds} s is larger than tolerated lag of {self.MAX_LAG_TOLERANCE} s. Pausing for {wait} s.', flag=PRINT.DEBUG)
+                self.print(f'Maximum lag of {max_lagging_seconds} s is larger than tolerated lag'
+                           f' of {self.pluginManager.Settings.maxLagTolerance} s. Pausing for {wait} s.', flag=PRINT.DEBUG)
             time.sleep(wait)
             return True
         return False
@@ -811,7 +818,8 @@ class Plugin(QWidget):  # noqa: PLR0904
             # add programmer info in testmode, otherwise only show user info
             f"""<p>Plugin type: {self.pluginType.value}<br>
             Optional: {self.optional}<br>
-            Dependency path: {self.dependencyPath.resolve()}<br></p>"""
+            Dependency path: {self.dependencyPath.resolve()}<br>
+            Source code file: {self.sourceCodePath.resolve()}<br></p>"""
             + self.getToolBarActionsHTML(),
             )
 
@@ -2114,7 +2122,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     optional = False
     useAdvancedOptions = True
     recordingAction: 'StateAction | None'
-    MAX_ERROR_COUNT = 25
+    maxErrorCount = 25  # Note, will be replaced by setting for devices
 
     signalComm: 'SignalCommunicate'
     logY: 'bool | None' = None
@@ -2163,8 +2171,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         pluginType = PLUGINTYPE.DISPLAY
         parentPlugin: 'ChannelManager'
 
-        def __init__(self, parentPlugin: 'ChannelManager', pluginManager: PluginManager, dependencyPath: 'Path | None' = None) -> None:  # noqa: D107
-            super().__init__(pluginManager, dependencyPath)
+        def __init__(self, parentPlugin: 'ChannelManager', pluginManager: PluginManager, dependencyPath: Path, sourceCodePath: Path) -> None:  # noqa: D107
+            super().__init__(pluginManager, dependencyPath=dependencyPath, sourceCodePath=sourceCodePath)
             self.parentPlugin = parentPlugin
             self.name = f'{parentPlugin.name} Channel Plot'
 
@@ -2310,8 +2318,10 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 self.testControl(self.onAction, value=False)  # leave in save state after testing
         super().runTestParallel()
 
-    def bufferLagging(self, wait: int = 5) -> bool:  # noqa: D102
+    def bufferLagging(self, wait: 'int | None' = None) -> bool:  # noqa: D102
         # treat wait time as lag free time and subtract corresponding time from self.lagging
+        if wait is None:
+            wait = self.pluginManager.Settings.lagWaitTime
         if super().bufferLagging(wait) and not self.pluginManager.closing:
             self.lagging = int(max(0, self.lagging - wait / self.interval * 1000))
             return True
@@ -2851,7 +2861,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """
         if visible:
             if not self.channelPlot or not self.channelPlot.initializedDock:
-                self.channelPlot = self.ChannelPlot(parentPlugin=self, pluginManager=self.pluginManager, dependencyPath=self.dependencyPath)
+                self.channelPlot = self.ChannelPlot(parentPlugin=self, pluginManager=self.pluginManager, dependencyPath=self.dependencyPath, sourceCodePath=self.sourceCodePath)
                 self.channelPlot.provideDock()
         elif self.channelPlot is not None and self.channelPlot.initializedDock:
             self.channelPlot.closeGUI()
@@ -3058,6 +3068,8 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     MAXSTORAGE = 'Max storage'
     MAXDATAPOINTS = 'Max data points'
+    ERRORCOUNT = 'Error count'
+    MAXERRORCOUNT = 'Max error count'
     LOGGING = 'Logging'
     unit: str = 'unit'
     """Unit used in user interface."""
@@ -3112,6 +3124,7 @@ class Device(ChannelManager):  # noqa: PLR0904
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
         self.errorCountChanged()
+        self.updateErrorCountToolTip()
 
     def getDefaultSettings(self) -> dict[str, dict]:  # noqa: D102
 
@@ -3122,6 +3135,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.maxDataPoints: int
         self.attr: bool
         self.log: bool
+        self.maxErrorCount: int
         self.errorCountStr: str
 
         defaultSettings = super().getDefaultSettings()
@@ -3142,11 +3156,15 @@ class Device(ChannelManager):  # noqa: PLR0904
         defaultSettings[f'{self.name}/{self.MAXDATAPOINTS}'] = parameterDict(value=500000, indicator=True, parameterType=PARAMETERTYPE.INT, attr='maxDataPoints',
         toolTip='Maximum number of data points saved per channel, based on max storage.\n'
         'If this is reached, older data will be thinned to allow to keep longer history.')
-        defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False, toolTip='Show warnings in console. Only use when debugging to keep console uncluttered.',
+        defaultSettings[f'{self.name}/{self.LOGGING}'] = parameterDict(value=False,
+                                                                       toolTip="""Show additional warnings in console. Only use when debugging to keep console uncluttered.\n"""
+                                                                       """consider using Log level logic instead.""",
                                           parameterType=PARAMETERTYPE.BOOL, attr='log')
-        defaultSettings[f'{self.name}/Error count'] = parameterDict(value='0', toolTip='Communication errors within last 10 minutes.\n'
-                                                                f'Communication will be closed if this reaches {self.MAX_ERROR_COUNT} per device or per channel.\n'
-                                                                'Will be reset after 10 minutes without errors or on initialization.',
+        defaultSettings[f'{self.name}/{self.MAXERRORCOUNT}'] = parameterDict(value=25,
+                                                                             toolTip='Communication will be closed after this many accumulated errors to keep the GUI responsive.',
+                                          parameterType=PARAMETERTYPE.INT, minimum=10, maximum=1000000, attr='maxErrorCount', internal=True, advanced=True,
+                                          event=self.updateErrorCountToolTip)
+        defaultSettings[f'{self.name}/{self.ERRORCOUNT}'] = parameterDict(value='0', toolTip='',  # tooltip will be updated by maxErrorCountChanged
                                           parameterType=PARAMETERTYPE.LABEL, attr='errorCountStr', internal=True, indicator=True, advanced=True, restore=False,
                                           event=self.errorCountChanged)
         return defaultSettings
@@ -3173,7 +3191,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                 self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
-    def bufferLagging(self, wait: int = 5) -> bool:  # noqa: D102
+    def bufferLagging(self, wait: 'int | None' = None) -> bool:  # noqa: D102
         # buffer lagging can be used as a temporary fix but if the underlying issue is not solved the errorcount will increase and communication will be closed.
         if super().bufferLagging(wait):
             if self.controller:
@@ -3195,6 +3213,13 @@ class Device(ChannelManager):  # noqa: PLR0904
         if self.liveDisplayActive() and self.liveDisplay and self.subtractBackgroundAction:
             self.liveDisplay.subtractBackgroundAction.state = self.subtractBackgroundAction.state
         self.plot(apply=True)
+
+    def updateErrorCountToolTip(self) -> None:
+        """Update the tooltip of the error count setting."""
+        self.pluginManager.Settings.settings[f'{self.name}/{self.ERRORCOUNT}'].setToolTip(0, (
+        f"""Communication errors within last {self.pluginManager.Settings.errorResetTime} minutes.\n"""
+        f"""Communication will be closed if this reaches {self.maxErrorCount} per device or per channel.\n"""
+        f"""Will be reset after {self.pluginManager.Settings.errorResetTime} minutes without errors or on initialization."""))
 
     def errorCountChanged(self) -> None:
         """Start a timer to reset error count if no further errors occur."""
@@ -4105,6 +4130,7 @@ class Scan(Plugin):  # noqa: PLR0904
         self.largestep: float
         self.average: int
         self.scantime: str
+        self.invalidWhileWaiting: bool
 
         ds = {}
         ds[self.NOTES] = parameterDict(value='', toolTip='Add specific notes to current scan. Will be reset after scan is saved.', parameterType=PARAMETERTYPE.TEXT,
@@ -5839,8 +5865,6 @@ class SettingsManager(Plugin):
         copyClipboardAction = None
         setToDefaultAction = None
         makeDefaultAction = None
-        addSettingToConsoleAction = None
-        addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
         if not setting.indicator:
             if setting.parameterType == PARAMETERTYPE.PATH:
                 openPathAction = settingsContextMenu.addAction(self.OPENPATH)
@@ -5859,6 +5883,7 @@ class SettingsManager(Plugin):
                     makeDefaultAction = settingsContextMenu.addAction('Make Default')
             if not settingsContextMenu.actions():
                 return
+        addSettingToConsoleAction = settingsContextMenu.addAction(self.ADDSETTOCONSOLE)
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addSettingToConsoleAction:
@@ -6247,6 +6272,9 @@ class Settings(SettingsManager):  # noqa: PLR0904
         self.showVideoRecorders: bool
         self.showMouseClicks: bool
         self.sessionPath: str
+        self.maxLagTolerance: int
+        self.lagWaitTime: int
+        self.errorResetTime: int
 
         ds = {}
         ds[f'{GENERAL}/{DATAPATH}'] = parameterDict(value=defaultDataPath,
@@ -6274,6 +6302,15 @@ class Settings(SettingsManager):  # noqa: PLR0904
         ds[f'{GENERAL}/{TESTMODE}'] = parameterDict(value=True, toolTip='Devices will fake communication in Testmode!', parameterType=PARAMETERTYPE.BOOL,
                                     event=lambda: self.testModeChanged()  # pylint: disable=unnecessary-lambda  # needed to delay execution until initialized  # noqa: PLW0108
                                     , internal=True, advanced=True)
+        ds[f'{GENERAL}/{MAXLAGTOLERANCE}'] = parameterDict(value=10, minimum=1, maximum=60, internal=True, advanced=True, parameterType=PARAMETERTYPE.INT, attr='maxLagTolerance',
+                toolTip='If the application is lagging for this many seconds communication will be pause\nto restore responsiveness and the error count will be incremented.')
+        ds[f'{GENERAL}/{LAGWAITTIME}'] = parameterDict(value=5, minimum=1, maximum=60, internal=True, advanced=True, parameterType=PARAMETERTYPE.INT, attr='lagWaitTime',
+                toolTip='If the application is lagging communication will be paused for this many seconds to restore responsiveness.')
+        ds[f'{GENERAL}/{ERRORRESETTIME}'] = parameterDict(value=10, minimum=1, maximum=60,
+                                                            toolTip="""Errors will be reset if no additional error occurs during this many minutes.\n"""
+                                    """To restore stability, communication will be stopped when too many errors occur and the user interface may have become unresponsive.\n"""
+                                    """Reduce this if your want to tolerate more errors before communication gets stopped.""",
+                                                          parameterType=PARAMETERTYPE.INT, internal=True, advanced=True, attr='errorResetTime', event=self.resetTimeChanged)
         ds[f'{GENERAL}/{WAKEMODE}'] = parameterDict(value=False, toolTip='Will prevent screen lock by simulating a keyboard action every 5 min', parameterType=PARAMETERTYPE.BOOL,
                                     event=self.pluginManager.DeviceManager.wake, internal=True, advanced=True)
         ds[f'{GENERAL}/{DEBUG}'] = parameterDict(value=False, toolTip='Enables additional functionality for debugging.',
@@ -6365,6 +6402,12 @@ class Settings(SettingsManager):  # noqa: PLR0904
         self.pluginManager.DeviceManager.closeCommunication(manual=False, closing=False)
         self.pluginManager.DeviceManager.clearPlot()
         self.pluginManager.DeviceManager.plot()  # replot to update test mode warning label
+
+    def resetTimeChanged(self) -> None:
+        """Update all tooltips that mention the error reset time."""
+        for device in self.pluginManager.DeviceManager.getDevices():
+            if isinstance(device, Device):
+                device.updateErrorCountToolTip()
 
     def getFullSessionPath(self) -> Path:
         """Return full session path inside data path."""

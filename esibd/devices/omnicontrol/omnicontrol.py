@@ -169,7 +169,8 @@ class OmniChannel(Channel):
         self.getParameterByName(self.OMNIICON).toolTip = self.omniType
         oldValue = self.value
         value = self.getParameterByName(self.VALUE)
-        value.parameterType = PARAMETERTYPE.INT if self.isPump else PARAMETERTYPE.EXP
+        value.parameterType = PARAMETERTYPE.FLOAT if self.isPump else PARAMETERTYPE.EXP
+        value.displayDecimals = 0  # Note: integers cannot be represented as nan, thus using float with 0 decimals
         value.applyWidget()
         self.scalingChanged()
         self.updateColor()
