@@ -16,7 +16,7 @@ def providePlugins() -> 'list[type[Plugin]]':
 
 
 class Webcam(Plugin):
-    """Allows display the stream from a webcam.
+    """Allows to display the stream from a webcam.
 
     More advanced use cases where the frames are part of measurement data have to be implemented separately.
     """

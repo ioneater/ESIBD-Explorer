@@ -2312,7 +2312,7 @@ class MetaChannel(RelayChannel):
                 self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=INOUT.IN)
         else:
             self.sourceChannel = self.parentPlugin.pluginManager.DeviceManager.getChannelByName(self.name, inout=self.inout)
-        if self.sourceChannel:
+        if self.sourceChannel and hasattr(self.sourceChannel, Parameter.VALUE.lower()):
             self.initialValue = self.sourceChannel.value
             self.unit = self.sourceChannel.unit
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
@@ -4601,6 +4601,9 @@ class IconStatusBar(QStatusBar):
         self.icon_warning = Icon(internalMediaPath / 'unicode_warning.png')
         self.icon_error = Icon(internalMediaPath / 'unicode_error.png')
         self.icon_info = Icon(internalMediaPath / 'unicode_info.png')
+        self.icon_debug = Icon(internalMediaPath / 'unicode_bug.png')
+        self.icon_verbose = Icon(internalMediaPath / 'icon_V.png')
+        self.icon_trace = Icon(internalMediaPath / 'icon_T.png')
         self.icon_explorer = Icon(PROGRAM_ICON)
         self.setIcon(self.icon_explorer)
 
@@ -4631,6 +4634,12 @@ class IconStatusBar(QStatusBar):
                 self.setIcon(self.icon_error)
             case PRINT.EXPLORER:
                 self.setIcon(self.icon_explorer)
+            case PRINT.DEBUG:
+                self.setIcon(self.icon_debug)
+            case PRINT.VERBOSE:
+                self.setIcon(self.icon_verbose)
+            case PRINT.TRACE:
+                self.setIcon(self.icon_trace)
             case _:
                 self.setIcon(self.icon_info)
 
@@ -5166,8 +5175,9 @@ class PlotItem(pg.PlotItem):
             self.testModeLabel.setParentItem(self.getViewBox())
             self.testModeLabel.anchor((0.5, 0.5), (0.5, 0.5))
             self.testModeLabel.setPos(0, 0)
-            self.testModeLabel.setColor(colors.fg + '80')
-            self.testModeLabel.setText('<span style="font-size: 18pt; font-weight: bold; color: rgba(255,255,255,120);">Test Mode Active! Simulating Data!</span>')
+            color = QColor(colors.fg)
+            self.testModeLabel.setText(
+                f"<span style='font-size: 18pt; font-weight: bold; color: rgba({color.red},{color.green},{color.blue},120);'>Test Mode Active! Simulating Data!</span>")
 
     def init(self) -> None:
         """Init plotItem formatting and events."""

@@ -86,6 +86,7 @@ call rm -r docs\_build REM works in powershell
 call rm -r esibd\docs REM works in powershell
 REM -M coverage
 REM update autodoc_mock_imports and correspondingly pyinstaller_hooks
+REM use conda activate esibd if esibd is not already the active environment.
 call sphinx-build docs docs\_build
 call sphinx-build -vvv docs docs\_build REM use this to debug build errors
 REM NOTE disable script blocker to properly test documentation offline

@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, TypeVar, Union, cast
 
 import h5py
 import numpy as np
-from PyQt6.QtCore import QSettings
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QColor, QIcon, QPixmap, QPainter, QFont
 from scipy import signal
 
 from esibd.config import *  # pylint: disable = wildcard-import, unused-wildcard-import  # noqa: F403
@@ -147,7 +147,6 @@ def rgb_to_hex(rgba: tuple[float, float, float, float]) -> str:
     """
     return f'#{int(rgba[0] * 255):02x}{int(rgba[1] * 255):02x}{int(rgba[2] * 255):02x}'
 
-
 def mix_hex_colors(color1: str, color2: str, ratio: float) -> str:
     """Mix two hex colors by ratio.
 
@@ -161,7 +160,6 @@ def mix_hex_colors(color1: str, color2: str, ratio: float) -> str:
 
     mixed = [round(c1[i] * (1 - ratio) + c2[i] * ratio) for i in range(3)]
     return f'#{mixed[0]:02X}{mixed[1]:02X}{mixed[2]:02X}'
-
 
 class INOUT(Enum):
     """Specify if a function affects only input, only output, or all Channels."""

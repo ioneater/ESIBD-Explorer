@@ -22,7 +22,7 @@ class RBD(Device):
 
     The channels show the accumulated charge over time,
     which is proportional to the number of deposited ions. It can also
-    reveal on which elements ions are lost.
+    reveal on which ion optics ions are lost.
     """
 
     name = 'RBD'

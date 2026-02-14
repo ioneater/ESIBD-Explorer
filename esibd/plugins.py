@@ -1991,10 +1991,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         if isinstance(self.parentPlugin, Device) and self.parentPlugin.time.size < 1:  # no data
             return
         if self.pluginManager.resizing:
-            self.print('Suspend plotting while resizing.', flag=PRINT.TRACE)
+            self.print('Suspend plotting while resizing.', flag=PRINT.VERBOSE)
             return
         if any(livePlotWidget.dragging for livePlotWidget in self.livePlotWidgets):
-            self.print('Suspend plotting while dragging.', flag=PRINT.TRACE)
+            self.print('Suspend plotting while dragging.', flag=PRINT.VERBOSE)
             return
         self.parentPlugin.plotting = True  # protect from recursion
         # flip array to speed up search of most recent data points
@@ -2226,6 +2226,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         self.hasRecorded = False  # only save data if new data has been recorded
         self.channelPlot = None
         self.recordingAction = None
+        self.channelPlotAction = None
         self.confINI = f'{self.name}.ini'  # not a file extension, but complete filename to save and restore configurations
         self.confh5 = f'_{self.name.lower()}.h5'
         self.previewFileTypes = [self.confINI, self.confh5]
@@ -2468,7 +2469,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
             oldValues = selectedChannel.values.get()
-            oldValue = selectedChannel.value
+            oldValue = selectedChannel.value if hasattr(selectedChannel, Parameter.VALUE.lower()) else None
             oldBackgrounds = None
             oldBackground = None
             if selectedChannel.useBackgrounds:
@@ -2481,7 +2482,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             newChannel = self.getChannelByName(selectedChannel.name)
             if len(oldValues) > 0 and newChannel:
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
-                newChannel.value = oldValue
+                if oldValue is not None:
+                    newChannel.value = oldValue
                 if newChannel.useBackgrounds and oldBackground and oldBackgrounds:
                     newChannel.backgrounds = oldBackgrounds
                     newChannel.background = oldBackground
@@ -3796,8 +3798,8 @@ class Scan(Plugin):  # noqa: PLR0904
             self.scan = scan
             self.name = f'{self.scan.name} Display'
             self.plot = self.scan.plot
-            self.dependencyPath = self.scan.dependencyPath
-            super().__init__(**kwargs)
+            # self.dependencyPath = self.scan.dependencyPath
+            super().__init__(**kwargs, dependencyPath=self.scan.dependencyPath, sourceCodePath=self.scan.sourceCodePath)
 
         def initGUI(self) -> None:  # noqa: D102
             super().initGUI()
@@ -3937,7 +3939,8 @@ class Scan(Plugin):  # noqa: PLR0904
         self.treeSplitter.setCollapsible(1, False)  # noqa: FBT003
         self.addContentWidget(self.treeSplitter)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, tree=self.settingsTree, name=f'{self.name} Settings',
-                                        defaultFile=self.pluginManager.Settings.configPath / self.configINI)
+                                        defaultFile=self.pluginManager.Settings.configPath / self.configINI,
+                                        dependencyPath=self.pluginManager.Settings.dependencyPath, sourceCodePath=self.pluginManager.Settings.sourceCodePath)
         self.settingsMgr.addDefaultSettings(plugin=self)
         self.settingsMgr.init()
         self.settingsMgr.tree.expandAllItems()
@@ -7915,7 +7918,7 @@ class PID(ChannelManager):
                 self.getValues = self.sourceChannel.getValues
             else:
                 self.getValues = lambda *_, **__: None
-            if not hasattr(self.inputChannel, 'min') or not hasattr(self.inputChannel, 'max'):
+            if self.inputChannel and (not hasattr(self.inputChannel, 'min') or not hasattr(self.inputChannel, 'max')):
                 self.print(f'Source channel {self.input} cannot be used as input channel. Input channel needs to have min max limits defined.', flag=PRINT.ERROR)
                 self.inputChannel = None
             if giveFeedback:
@@ -7981,9 +7984,13 @@ class PID(ChannelManager):
                         else:
                             self.monitor = (sourceChannelValue - self.sourceChannel.background
                                             if sourceDevice.subtractBackgroundActive() else sourceChannelValue)
-                        if self.active and self.channelParent.isOn() and inputDevice.isOn() and not np.isnan(sourceChannelValue):
-                            response = self.pid(sourceChannelValue)
-                            self.print(f'PID in {sourceChannelValue}, PID out {response}, PID components {self.pid.components}', flag=PRINT.VERBOSE)
+                        if self.active and self.channelParent.isOn() and inputDevice.isOn():
+                            if np.isnan(sourceChannelValue):
+                                self.print(f'Channel {self.name} got undefined input NaN. Setting {self.inputChannel.name} to 0', flag=PRINT.WARNING)
+                                response = 0  # could be replaced with a device specific safe value if needed. So far PID is only used for heaters where 0 V is safe.
+                            else:
+                                response = self.pid(sourceChannelValue)
+                            self.print(f'Channel {self.name}, PID in {sourceChannelValue}, PID out {response}, PID components {self.pid.components}', flag=PRINT.VERBOSE)
                             if response is not None:
                                 self.inputChannel.value = response
                 except RuntimeError as e:
