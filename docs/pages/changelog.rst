@@ -13,7 +13,7 @@ Added
 - Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and user can change sorting.
 - Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
 - |omnicontrol| :ref:`sec:omnicontrol` plugin overhaul: Can now also control Pfeiffer turbo pumps.
-- In Test Mode there will be warning labels to make sure users are aware of simulated data.
+- In Test Mode there are now warning labels to make sure users are aware of simulated data.
 - The plugin source code file path is now shown in the plugin about dialog.
 
 Changed
@@ -42,6 +42,7 @@ Fixed
 - Fixed displayed number of maximal errors for devices in the settings tooltip.
 - Resetting error count of virtual channels when reinitializing communication.
 - Fixed estimation of required storage to keep device restore files within the specified maximum storage.
+- Fixed crash due to inconsistent channel values and channel background. Instead showing warning and restoring consistency.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

@@ -2797,8 +2797,16 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         :rtype: np.ndarray[Any, np.dtype[np.float32]]
         """
         if self.useBackgrounds and subtractBackground:
-            return (self.values.get(length=length, index_min=index_min, index_max=index_max, n=n) -
-                    self.backgrounds.get(length=length, index_min=index_min, index_max=index_max, n=n))
+            values = self.values.get(length=length, index_min=index_min, index_max=index_max, n=n)
+            backgrounds = self.backgrounds.get(length=length, index_min=index_min, index_max=index_max, n=n)
+            if values.shape[0] == backgrounds.shape[0]:
+                return (values - backgrounds)
+            if isinstance(self.channelParent, self.pluginManager.Device):
+                self.print(f'Channel {self.name}: Values and backgrounds have inconsistent size. Using values only. Will be repaired after next recording.'
+                           f' Otherwise check for corrupt restore file {Path(self.pluginManager.Settings.configPath) / self.channelParent.confh5.strip("_")}.\n'
+                           'Delete restore file to regenerate it (all history will be lost!) or repair it manually.', flag=PRINT.WARNING)
+            else:
+                self.print('Channel {self.name}: Values and backgrounds have inconsistent size. Using values only. Will be repaired after next recording.', flag=PRINT.WARNING)
         return self.values.get(length=length, index_min=index_min, index_max=index_max, n=n)
 
     def clearHistory(self) -> None:  # overwrite as needed, e.g. when keeping history of more than one parameter
