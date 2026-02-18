@@ -3798,7 +3798,6 @@ class Scan(Plugin):  # noqa: PLR0904
             self.scan = scan
             self.name = f'{self.scan.name} Display'
             self.plot = self.scan.plot
-            # self.dependencyPath = self.scan.dependencyPath
             super().__init__(**kwargs, dependencyPath=self.scan.dependencyPath, sourceCodePath=self.scan.sourceCodePath)
 
         def initGUI(self) -> None:  # noqa: D102
@@ -7618,7 +7617,7 @@ class UCM(ChannelManager):
                 self.getParameterByName(self.MONITOR).setVisible(False)  # monitor not needed
             else:
                 self.sourceChannel = sources[0]
-                devicePushButton.setIcon(self.sourceChannel.getDevice().getIcon())
+                devicePushButton.setIcon(self.sourceChannel.getIcon())
                 devicePushButton.setToolTip(f'Source: {self.sourceChannel.channelParent.name}')
                 self.notes = f'Source: {self.sourceChannel.channelParent.name}.{self.sourceChannel.name}'
                 if len(sources) > 1:
@@ -7964,7 +7963,7 @@ class PID(ChannelManager):
             else:
                 selectedChannel = channels[0]
                 notes = f'{selectedChannel.getDevice().name}.{selectedChannel.name}'
-                devicePushButton.setIcon(selectedChannel.getDevice().getIcon())
+                devicePushButton.setIcon(selectedChannel.getIcon())
                 devicePushButton.setToolTip(f'Source: {selectedChannel.getDevice().name}')
                 if len(channels) > 1:
                     self.print(f'More than one channel named {name}. Using {selectedChannel.getDevice().name}.{selectedChannel.name}.'

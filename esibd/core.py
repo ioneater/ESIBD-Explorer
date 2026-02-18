@@ -2836,6 +2836,16 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Get the device. Overwrite for more specific cases like relay channels where the channel parent is not the device."""
         return self.channelParent
 
+    def getIcon(self, desaturate: bool = False) -> 'Icon':
+        """Get the channel Icon. This is typically identical with the corresponding device Icon, but some devices may have chanel specific Icons.
+
+        :param desaturate: Indicates if color should be removed from icon, defaults to False
+        :type desaturate: bool, optional
+        :return: Icon
+        :rtype: :class:`~esibd.core.Icon`
+        """
+        return self.getDevice().getIcon(desaturate=desaturate)
+
     def getQtLineStyle(self) -> Qt.PenStyle:
         """Get Qt.PenStyle matching matplotlib linestyle."""
         match self.linestyle:
@@ -3197,7 +3207,7 @@ class ScanChannel(RelayChannel, Channel):
         if self.sourceChannel:
             self.initialValue = self.sourceChannel.value
             self.updateValueSignal = self.sourceChannel.signalComm.updateValueSignal
-            devicePushButton.setIcon(self.sourceChannel.getDevice().getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
+            devicePushButton.setIcon(self.sourceChannel.getIcon(desaturate=(not self.sourceChannel.acquiring and not self.sourceChannel.getDevice().recording)))
             devicePushButton.setToolTip(f'Source: {self.sourceChannel.getDevice().name}')
             if self.sourceChannel.useMonitors and self.sourceChannel.real:
                 self.getParameterByName(self.VALUE).parameterType = self.sourceChannel.getParameterByName(self.MONITOR).parameterType

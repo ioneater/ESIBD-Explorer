@@ -6,7 +6,7 @@ import numpy as np
 import serial
 from PyQt6.QtWidgets import QPushButton
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, ToolButton, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Icon, Parameter, ToolButton, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -165,7 +165,7 @@ class OmniChannel(Channel):
         """Update GUI chen changing between sensor and pump channels."""
         self.hideParameters()
         omniIconPushButton = cast('QPushButton', self.getParameterByName(self.OMNIICON).getWidget())
-        omniIconPushButton.setIcon(self.channelParent.makeIcon('turbo.png' if self.isPump else 'sensor.png'))
+        omniIconPushButton.setIcon(self.getIcon())
         self.getParameterByName(self.OMNIICON).toolTip = self.omniType
         oldValue = self.value
         value = self.getParameterByName(self.VALUE)
@@ -176,6 +176,10 @@ class OmniChannel(Channel):
         self.updateColor()
         self.value = oldValue
         self.logY = not self.isPump
+
+    def getIcon(self) -> Icon:
+        """Return Icon depending on the channel type."""
+        return self.channelParent.makeIcon('turbo.png' if self.isPump else 'sensor.png')
 
     @property
     def unit(self) -> str:

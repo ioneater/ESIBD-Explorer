@@ -56,6 +56,10 @@ class LS335(Device):
         self.unitAction = self.addStateAction(event=self.changeUnit, toolTipFalse='Change to °C', iconFalse=self.makeIcon('tempC_dark.png'),
                                                toolTipTrue='Change to K', iconTrue=self.makeIcon('tempK_dark.png'), attr='displayC')
 
+    def afterFinalizeInit(self) -> None:
+        super().afterFinalizeInit()
+        self.onAction.setVisible(False)
+
     def getChannels(self) -> 'list[TemperatureChannel]':
         return cast('list[TemperatureChannel]', super().getChannels())
 

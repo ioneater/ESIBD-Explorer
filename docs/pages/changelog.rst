@@ -32,6 +32,7 @@ Changed
 - Made "Error reset time", " Max lag tolerance", and "Lag wait time" accessible in the General section of |settings| :ref:`sec:settings` in |advanced| advanced mode. See tooltips for documentation.
 - Made "max error count" accessible in the Device settings in |advanced| advanced mode. See tooltip for documentation.
 - Plugins are now linked to their documentation in the changelog. Using plugin icons in documentation.
+- Using channel specific icons for linked channels.
 
 Fixed
 ~~~~~
