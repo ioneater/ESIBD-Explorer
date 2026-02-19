@@ -334,7 +334,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                     pass  # ignore labels as they are always indicators and not connected to events
                 else:
                     self.print(f'No test implemented for class {type(control)}')
-                if current_thread() is not main_thread():  # self.pluginManager.Settings.showMouseClicks and
+                if current_thread() is not main_thread():
                     if isinstance(widget, QAction):
                         widget = cast('QToolButton', widget)
                     main_center = widget.mapTo(self.pluginManager.mainWindow, widget.rect().center())
@@ -343,7 +343,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                     time.sleep(.1)
         # Sleep after releasing lock!
         # Use minimal required delays to make sure event can be processed before triggering next one.
-        # Ideally acquire lock to process event and make sure next one is triggered one lock is released, instead of using delay.
+        # Ideally acquire lock to process event and make sure next one is triggered once lock is released, instead of using delay.
         time.sleep(max(delay, 0.5) if self.pluginManager.Settings.showVideoRecorders else delay)
 
     def testPythonPlotCode(self, closePopup: bool = False) -> None:
@@ -2557,9 +2557,12 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     group = self.requireGroup(h5file, self.name)
                     for parameter in self.channels[0].asDict(includeTempParameters=True):
                         if parameter in group:
-                            self.print(f'Ignoring duplicate parameter {parameter}', flag=PRINT.WARNING)
+                            self.print(f'Ignoring duplicate parameter {parameter}.', flag=PRINT.WARNING)
                             continue
-                        parameterType = self.channels[0].getParameterByName(parameter).parameterType
+                        default = self.channelType(channelParent=self, tree=None)
+                        # Using default channel data type. If the plugin uses multiple channel specific data types it has to make sure
+                        # that saving and restoring works for all of them using the data type of the default channel.
+                        parameterType = default.getParameterByName(parameter).parameterType
                         data = [channel.getParameterByName(parameter).value for channel in self.channels]
                         dtype = None
                         if parameterType == PARAMETERTYPE.INT:
@@ -2571,7 +2574,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                         elif parameterType == PARAMETERTYPE.COLOR:
                             data = [channel.getParameterByName(parameter).value for channel in self.channels]
                             dtype = 'S7'
-                        else:  # parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.TEXT, PARAMETERTYPE.LABEL]:
+                        else:  # parameterType in [PARAMETERTYPE.EXP, PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.TEXT, PARAMETERTYPE.LABEL]:
                             dtype = f'S{len(max([str(string) for string in data], key=len))}'  # use length of longest string as fixed length is required
                         group.create_dataset(name=parameter, data=np.asarray(data, dtype=dtype))  # do not save as attributes. very very memory intensive!
         if not self.pluginManager.loading:
@@ -6611,7 +6614,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.pluginManager.Explorer.activeFileFullPath = scan.file
                 scan.testPythonPlotCode(closePopup=True)
             self.bufferLagging()
-        self.testControl(self.closeCommunicationAction, value=True)
+        self.testControl(self.closeCommunicationAction, value=True)#
         super().runTestParallel()
 
     @property

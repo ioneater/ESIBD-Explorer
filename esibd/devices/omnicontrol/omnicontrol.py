@@ -316,7 +316,7 @@ class OmniController(DeviceController):  # noqa: PLR0904
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
                 if channel.isPump:
-                    self.values[i] = (0 if np.isnan(self.values[i]) else  # simulate acceleration and deceleration and allow for small fluctuation
+                    self.values[i] = int(0 if np.isnan(self.values[i]) else  # simulate acceleration and deceleration and allow for small fluctuation
                     max(0, min(1500, (self.values[i] + (25 if channel.pumpStatn and (channel.value < (1000 if channel.standby else 1500)) else - 25) *
                                       self.controllerParent.interval / 1000))) + self.rng.uniform(-5, 5))
                     self.pumpStatn[i] = channel.pumpStatn
