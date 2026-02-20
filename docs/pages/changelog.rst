@@ -50,6 +50,7 @@ Developer Notes
 ~~~~~~~~~~~~~~~
 - Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.
 - |omnicontrol| :ref:`sec:omnicontrol`: Removed dependence on pfeiffer-vacuum-protocol package.
+- Added testing loading entire configuration to the DeviceManager tests.
 
 Version 0.8.2 2025-06-23
 ========================

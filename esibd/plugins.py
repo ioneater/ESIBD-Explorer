@@ -307,7 +307,7 @@ class Plugin(QWidget):  # noqa: PLR0904
                 if isinstance(control, (CheckBox | ToolButton)):
                     control.signalComm.setValueFromThreadSignal.emit(value)
                 if isinstance(control, QAction):
-                    if type(control) is Action:  # ignore StateAction and MultiStateAction
+                    if type(control) is Action:
                         control.signalComm.setValueFromThreadSignal.emit(value)
                     elif type(control) is StateAction:
                         control.state = value
@@ -6501,6 +6501,10 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         """Signal that triggers keyboard action to prevent screen lock."""
         closeCommunicationSignal = pyqtSignal()
         """Signal that triggers stop communication."""
+        exportOutputDataSignal = pyqtSignal(Path)
+        """Signal that triggers export of configuration."""
+        loadConfigurationSignal = pyqtSignal(Path)
+        """Signal that triggers loading of configuration."""
 
     def __init__(self, **kwargs) -> None:
         """Initialize a DeviceManager."""
@@ -6511,6 +6515,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.signalComm.storeSignal.connect(self.store)
         self.signalComm.wakeSignal.connect(self.wake)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
+        self.signalComm.exportOutputDataSignal.connect(self.exportOutputDataKwargs)
+        self.signalComm.loadConfigurationSignal.connect(self.loadConfiguration)
 
     def initGUI(self) -> None:  # noqa: D102
         super().initGUI()
@@ -6561,18 +6567,24 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: ARG002, D102
         self.importAction.setVisible(self.advancedAction.state)
 
-    def loadConfiguration(self) -> None:
-        """Load configuration of all devices from a single file."""
+    def loadConfiguration(self, file: 'Path | None' = None) -> None:
+        """Load configuration of all devices from a single file.
+
+        :param file: File to load from. Should only be passed as argument for automated testing, defaults to None
+        :type file: Path | None, optional
+        """
         if self.initialized():
             if CloseDialog(title='Stop communication?', ok='Stop communication and load all configurations',
                             prompt='Communication is still running. Stop communication before loading all configurations!').exec():
                 self.closeCommunication()
             else:
                 return
-        file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
+        if file is None:
+            file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
                     directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
         if file != Path():
             first = True
+            self.loading = True
             for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
                 load = False
                 with h5py.File(name=file, mode='r', track_order=True) as h5file:
@@ -6581,10 +6593,10 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 if load:
                     plugin.loadConfiguration(file=file, append=not first)
                     first = False
+            self.loading = False
 
     def runTestParallel(self) -> None:  # noqa: D102
         self.testControl(self.recordingAction, value=True, delay=5)  # even in test mode initialization time of up to 2 seconds is simulated
-        self.testControl(self.exportAction, value=True)
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
             if not self.testing:
                 break
@@ -6614,7 +6626,18 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.pluginManager.Explorer.activeFileFullPath = scan.file
                 scan.testPythonPlotCode(closePopup=True)
             self.bufferLagging()
-        self.testControl(self.closeCommunicationAction, value=True)#
+        self.testControl(self.closeCommunicationAction, value=True)
+        file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
+        self.print(f'Test export OutputData to {file.as_posix()}')
+        # self.testControl(self.exportAction, value=True, delay=5)
+        self.signalComm.exportOutputDataSignal.emit(file)
+        self.print(f'Test loading configuration from {file.as_posix()}')
+        time.sleep(5)  # wait for export
+        self.signalComm.loadConfigurationSignal.emit(file)
+        if self.waitForCondition(condition=lambda: not self.loading,
+                          timeoutMessage=f'Loading configuration from {file.as_posix()}', timeout=30):
+            self.print(f'Finished test loading configuration from {file.as_posix()}')
+
         super().runTestParallel()
 
     @property
@@ -6787,6 +6810,15 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.waitForCondition(condition=lambda scans=scans: all(scan.finished for scan in scans),
                                        timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
 
+    def exportOutputDataKwargs(self, file: 'Path | None' = None):
+        """Export output data for all active LiveDisplays.
+
+        This version is compatible with pyqtSignal (no keyword argument) and @synchronized() (works only with keyword arguments).
+        :param file: The file to which the data should be added, defaults to None
+        :type file: Path | None, optional
+        """
+        self.exportOutputData(file=file)
+
     @synchronized()
     def exportOutputData(self, file: 'Path | None' = None) -> None:
         """Export output data for all active LiveDisplays.
@@ -6794,8 +6826,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         :param file: The file to which the data should be added, defaults to None
         :type file: Path | None, optional
         """
-        self.pluginManager.Settings.incrementMeasurementNumber()
         if not file:
+            self.pluginManager.Settings.incrementMeasurementNumber()
             file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
         with h5py.File(name=file, mode=('a'), track_order=True) as h5File:
             self.hdfUpdateVersion(h5File)
