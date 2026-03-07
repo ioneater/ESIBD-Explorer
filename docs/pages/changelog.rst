@@ -54,6 +54,7 @@ Developer Notes
 - Added IntelliSense support for dynamically imported dependencies (e.g. for |ga| :ref:`sec:ga`).
 - Introduced ChannelManager.defaultChannel which is initialized in the main_thread and can be used as a reference e.g. for saving data from a parallel thread.
 - DeviceManager is no longer waiting for scans that did not initialize successfully in automated testing.
+- Added extraContextActions for parameters and used it to add acknowledge error, set standby speed, and change address options to corresponding parameters in |omnicontrol| :ref:`sec:omnicontrol.
 
 Version 0.8.2 2025-06-23
 ========================

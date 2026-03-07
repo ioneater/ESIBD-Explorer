@@ -2562,10 +2562,9 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                         if parameter in group:
                             self.print(f'Ignoring duplicate parameter {parameter}.', flag=PRINT.WARNING)
                             continue
-                        # default = self.channelType(channelParent=self, tree=None)# needs to run in main_thread as it creates QWidgets!
+                        parameterType = self.defaultChannel.getParameterByName(parameter).parameterType
                         # Using default channel data type. If the plugin uses multiple channel specific data types it has to make sure
                         # that saving and restoring works for all of them using the data type of the default channel.
-                        parameterType = self.defaultChannel.getParameterByName(parameter).parameterType
                         data = [channel.getParameterByName(parameter).value for channel in self.channels]
                         dtype = None
                         if parameterType == PARAMETERTYPE.INT:
@@ -2676,7 +2675,6 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     items = [{} for _ in range(len(names))]
                     for i, name in enumerate(datasetToStrList(cast('h5py.Dataset', names))):
                         items[i][Parameter.NAME] = name
-                    # default = self.channelType(channelParent=self, tree=None)
                     for name, parameter in self.defaultChannel.getSortedDefaultChannel().items():
                         values = None
                         if parameter[Parameter.PARAMETER_TYPE] in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT}:
@@ -2802,7 +2800,6 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """
         changeLog = []
         changed = True
-        # default = self.channelType(channelParent=self, tree=None)
         for item in items:
             channel = self.getChannelByName(cast('str', item[Parameter.NAME]))
             if channel:
@@ -4631,7 +4628,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         # only reads data from gui but does not modify it -> can run in parallel thread
         self.settingsMgr.saveSettings(file=file)  # save settings
         self.saveData(file=file)  # save data to same file
-        self.pluginManager.DeviceManager.exportConfiguration(file=file)#  # save corresponding device settings in measurement file
+        self.pluginManager.DeviceManager.exportConfiguration(file=file)  # save corresponding device settings in measurement file
         self.pluginManager.Settings.saveSettings(file=file)
         self.signalComm.saveScanCompleteSignal.emit()
         self.print(f'Saved {file.name}')

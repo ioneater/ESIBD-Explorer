@@ -6,7 +6,7 @@ import numpy as np
 import serial
 from PyQt6.QtWidgets import QPushButton
 
-from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Icon, Parameter, ToolButton, parameterDict
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, ContextAction, DeviceController, Icon, Parameter, ToolButton, getTestMode, parameterDict
 from esibd.plugins import Device, Plugin
 
 
@@ -53,7 +53,7 @@ class OMNICONTROL(Device):
         return defaultSettings
 
 
-class OmniChannel(Channel):
+class OmniChannel(Channel):  # noqa: PLR0904
     """UI for pressure with integrated functionality."""
 
     channelParent: OMNICONTROL
@@ -177,6 +177,9 @@ class OmniChannel(Channel):
         self.updateColor()
         self.value = oldValue
         self.logY = not self.isPump
+        self.getParameterByName(self.ERRORLED).extraContextActions = [ContextAction(text='Acknowledge Error', event=self.acknError)] if self.isPump else []
+        self.getParameterByName(self.ID).extraContextActions = [ContextAction(text='Set address via Console', event=self.setRS485AdrConsole)] if self.isPump else []
+        self.getParameterByName(self.Standby).extraContextActions = [ContextAction(text='Set Standby Speed via Console', event=self.setStdbySValConsole)] if self.isPump else []
 
     def getIcon(self) -> Icon:
         """Return Icon depending on the channel type."""
@@ -228,11 +231,11 @@ class OmniChannel(Channel):
             return
         self.channelParent.controller.getStandby(addr=self.id)
 
-    def getStdbySVal(self) -> None:
+    def getStdbySVal(self) -> float:
         """Get the standby speed value of the turbo pump."""
         if not self.checkPumpChannel():
-            return
-        self.channelParent.controller.getStdbySVal(addr=self.id)
+            return np.nan
+        return self.channelParent.controller.getStdbySVal(addr=self.id)
 
     def setStdbySVal(self, value: float) -> None:
         """Set the standby speed value of the turbo pump.
@@ -243,6 +246,12 @@ class OmniChannel(Channel):
         if not self.checkPumpChannel():
             return
         self.channelParent.controller.setStdbySVal(addr=self.id, value=value)
+
+    def setStdbySValConsole(self) -> None:
+        """Allow user to set Standby Speed via console."""
+        self.pluginManager.Console.addToNamespace('channel', self)
+        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.mainConsole.input.setText('channel.setStdbySVal(value=-->newValue<--)  # Enter value between 20 and 80 %.')
 
     def acknError(self) -> None:
         """Acknowledge Error."""
@@ -258,7 +267,15 @@ class OmniChannel(Channel):
         """
         if not self.checkPumpChannel():
             return
-        self.channelParent.controller.setRS485Adr(addr=self.id, newAddr=newAddr)
+        response = self.channelParent.controller.setRS485Adr(addr=self.id, newAddr=newAddr)
+        if response == newAddr:
+            self.id = newAddr
+
+    def setRS485AdrConsole(self) -> None:
+        """Allow user to set RS485 Address via console."""
+        self.pluginManager.Console.addToNamespace('channel', self)
+        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.mainConsole.input.setText('channel.setRS485Adr(newAddr=-->newAddr<--)  # Enter new address.')
 
 
 class OmniController(DeviceController):  # noqa: PLR0904
@@ -425,7 +442,13 @@ class OmniController(DeviceController):  # noqa: PLR0904
 
     def getStdbySVal(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
         """Get the standby speed value of the turbo pump."""
-        return float(self.OmniWriteRead(addr=addr, param_num=717, already_acquired=already_acquired)) / 100
+        if getTestMode():
+            return 66
+        response = self.OmniWriteRead(addr=addr, param_num=717, already_acquired=already_acquired)
+        if response:
+            return float(response) / 100
+        self.print(f'Got empty response while reading StdbySVal on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
     def setStdbySVal(self, addr: int, value: float, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
         """Set the standby speed value of the turbo pump.
@@ -440,9 +463,15 @@ class OmniController(DeviceController):  # noqa: PLR0904
         if value < 20 or value > 100:  # noqa: PLR2004
             self.print(f'Standby speed value {value} invalid. Value needs to be between 20 and 100.')
             return self.getStdbySVal(addr=addr)
-        return float(self.OmniWriteRead(addr=addr, param_num=717, value=value * 100, already_acquired=already_acquired)) / 100
+        if getTestMode():
+            return 66
+        response = self.OmniWriteRead(addr=addr, param_num=717, value=value * 100, already_acquired=already_acquired)
+        if response:
+            return float(response) / 100
+        self.print(f'Got empty response while setting StdbySVal on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
-    def setRS485Adr(self, addr: int, newAddr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+    def setRS485Adr(self, addr: int, newAddr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
         """Set the RS485 address of the device.
 
         :param addr: Current address, usually 1 for turbo pumps.
@@ -452,7 +481,13 @@ class OmniController(DeviceController):  # noqa: PLR0904
         :return: New address for confirmation.
         :rtype: int
         """
-        return int(self.OmniWriteRead(addr=addr, param_num=797, value=newAddr, already_acquired=already_acquired))
+        if getTestMode():
+            return newAddr
+        response = self.OmniWriteRead(addr=addr, param_num=797, value=newAddr, already_acquired=already_acquired)
+        if response:
+            return int(response)
+        self.print(f'Got empty response while setting RS485Adr on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
     def acknError(self, addr: int, already_acquired=False) -> None:  # pylint: disable = missing-param-doc
         """Acknowledge Error."""

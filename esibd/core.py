@@ -1389,6 +1389,8 @@ class Parameter:  # noqa: PLR0904
     """Widget used to display the value of the parameter. None if parameter is part of a channel. Defined if it is part of a Setting."""
     extraEvents: list[Callable]
     """Used to add internal events on top of the user assigned ones."""
+    extraContextActions: list['ContextAction']
+    """List of extra actions for the parameter context menu."""
 
     def __init__(self, name: str, parameterParent: 'SettingsManager | Channel', default: 'ParameterType | None' = None,  # noqa: PLR0913, PLR0917
                   parameterType: 'PARAMETERTYPE | None' = None,
@@ -1456,6 +1458,7 @@ class Parameter:  # noqa: PLR0904
         self.itemWidget = itemWidget
         self.widget = widget
         self.extraEvents = []
+        self.extraContextActions = []
         self._valueChanged = False
         self.event = event
         self.internal = internal
@@ -3086,6 +3089,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         settingsContextMenu = QMenu(self.tree)
         addChannelToConsoleAction = settingsContextMenu.addAction(self.ADDCHANTOCONSOLE)
         addParameterToConsoleAction = settingsContextMenu.addAction(self.ADDPARTOCONSOLE)
+        for contextAction in parameter.extraContextActions:
+            contextAction.action = settingsContextMenu.addAction(contextAction.text)
         # if parameter.parameterType in [PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.FLOATCOMBO]:
         #     NOTE channels do only save current value but not the items -> thus editing items is currently not supported
         if not settingsContextMenu.actions():
@@ -3095,9 +3100,14 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             if settingsContextMenuAction is addChannelToConsoleAction:
                 self.pluginManager.Console.addToNamespace('channel', parameter.parameterParent)
                 self.pluginManager.Console.execute(command='channel')
-            if settingsContextMenuAction is addParameterToConsoleAction:
+            elif settingsContextMenuAction is addParameterToConsoleAction:
                 self.pluginManager.Console.addToNamespace('parameter', parameter)
                 self.pluginManager.Console.execute(command='parameter')
+            else:
+                for contextAction in parameter.extraContextActions:
+                    if settingsContextMenuAction is contextAction.action:
+                        contextAction.event()
+                        break
 
 
 class ScanChannel(RelayChannel, Channel):
@@ -3776,6 +3786,15 @@ class Icon(QIcon):
         else:
             super().__init__(pixmap)
         self.fileName = file  # remember for later access
+
+
+@dataclass
+class ContextAction:
+    """An action that can be added to a context menu."""
+
+    text: str
+    event: Callable
+    action: 'QAction | None' = None
 
 
 class Action(QAction):
