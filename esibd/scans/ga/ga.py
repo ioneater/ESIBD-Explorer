@@ -10,13 +10,15 @@ from esibd.plugins import Scan
 if TYPE_CHECKING:
     from esibd.plugins import Plugin
 
+    from .ga_standalone import GA
+
 
 def providePlugins() -> 'list[type[Plugin]]':
     """Return list of provided plugins. Indicates that this module provides plugins."""
-    return [GA]
+    return [GAScan]
 
 
-class GA(Scan):
+class GAScan(Scan):
     r"""Allows to integrate an independently developed genetic algorithm (GA) for automated optimization of signals\ :cite:`esser_cryogenic_2019`.
 
     Multiple input channels can be selected to be included in the optimization. Make sure to choose safe
@@ -48,9 +50,10 @@ class GA(Scan):
     useInvalidWhileWaiting = True
 
     signalComm: 'SignalCommunicate'
-    display: 'GA.Display'
-    inputChannels: list['GA.MetaChannel']
-    outputChannels: list['GA.ScanChannel | GA.MetaChannel']
+    display: 'GAScan.Display'
+    inputChannels: list['GAScan.MetaChannel']
+    outputChannels: list['GAScan.ScanChannel | GAScan.MetaChannel']
+    ga: 'GA'
 
     class SignalCommunicate(Scan.SignalCommunicate):
         """Bundle pyqtSignals."""
@@ -67,7 +70,7 @@ class GA(Scan):
     class Display(Scan.Display):
         """Display for GA scan."""
 
-        scan: 'GA'
+        scan: 'GAScan'
 
         def initFig(self) -> None:
             super().initFig()

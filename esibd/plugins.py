@@ -1635,7 +1635,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='groupMode')
         self.displayTimeComboBox = RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
                                                         event=self.displayTimeChanged, minimum=.2, maximum=3600,
-                                                        toolTip=f'Length of displayed {self.parentPlugin.name} history in min. When -1, all history is shown.')
+                                                        toolTip=f'Length of displayed {self.parentPlugin.name} history in min.\nWhen -1, all history is shown.')
         self.autoScaleAction = self.addStateAction(event=self.autoScaleChanged,
                                                     toolTipFalse='Scale x manually.', iconFalse=self.makeCoreIcon('scaleX_manual.png'),
                                                    toolTipTrue='Scale x automatically.', iconTrue=self.makeCoreIcon('scaleX_auto.png'), restore=False, defaultState=False)
@@ -2151,6 +2151,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     """List of :class:`channels<esibd.core.Channel>`."""
     channelType = Channel
     """Type of :class:`~esibd.core.Channel` used by the device. Overwrite by appropriate type in derived classes."""
+    defaultChannel: Channel
+    """The default channel is an instance of channelType that is only used for reference when loading and saving the channel configuration."""
     staticDisplay: StaticDisplay  # | None ignore intentionally
     """Internal plugin to display data from file."""
     liveDisplay: LiveDisplay  # | None ignore intentionally
@@ -2260,6 +2262,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.toggleLiveDisplayAction = self.addStateAction(toolTipFalse=f'Show {self.name} live display.', iconFalse=self.makeCoreIcon('system-monitor.png'),
                                               toolTipTrue=f'Hide {self.name} live display.', iconTrue=self.makeCoreIcon('system-monitor--minus.png'),
                                               attr='showLiveDisplay', event=lambda: self.toggleLiveDisplay(visible=None), defaultState=True)
+        self.defaultChannel = self.channelType(channelParent=self, tree=None)  # needs to run in main_thread as it creates QWidgets!
         self.tree = TreeWidget()
         self.addContentWidget(self.tree)
         self.loadConfiguration(useDefaultFile=True)
@@ -2555,14 +2558,14 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 with h5py.File(file, 'a', track_order=True) as h5file:
                     self.hdfUpdateVersion(h5file)
                     group = self.requireGroup(h5file, self.name)
-                    for parameter in self.channels[0].asDict(includeTempParameters=True):
+                    for parameter in self.defaultChannel.asDict(includeTempParameters=True):
                         if parameter in group:
                             self.print(f'Ignoring duplicate parameter {parameter}.', flag=PRINT.WARNING)
                             continue
-                        default = self.channelType(channelParent=self, tree=None)
+                        # default = self.channelType(channelParent=self, tree=None)# needs to run in main_thread as it creates QWidgets!
                         # Using default channel data type. If the plugin uses multiple channel specific data types it has to make sure
                         # that saving and restoring works for all of them using the data type of the default channel.
-                        parameterType = default.getParameterByName(parameter).parameterType
+                        parameterType = self.defaultChannel.getParameterByName(parameter).parameterType
                         data = [channel.getParameterByName(parameter).value for channel in self.channels]
                         dtype = None
                         if parameterType == PARAMETERTYPE.INT:
@@ -2590,7 +2593,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         self.deleteChannelAction.setVisible(self.advancedAction.state)
         self.moveChannelUpAction.setVisible(self.advancedAction.state)
         self.moveChannelDownAction.setVisible(self.advancedAction.state)
-        for i, item in enumerate(self.channels[0].getSortedDefaultChannel().values()):
+        for i, item in enumerate(self.defaultChannel.getSortedDefaultChannel().values()):
             if item[Parameter.ADVANCED]:
                 self.tree.setColumnHidden(i, not self.advancedAction.state)
         for channel in self.channels:
@@ -2673,8 +2676,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     items = [{} for _ in range(len(names))]
                     for i, name in enumerate(datasetToStrList(cast('h5py.Dataset', names))):
                         items[i][Parameter.NAME] = name
-                    default = self.channelType(channelParent=self, tree=None)
-                    for name, parameter in default.getSortedDefaultChannel().items():
+                    # default = self.channelType(channelParent=self, tree=None)
+                    for name, parameter in self.defaultChannel.getSortedDefaultChannel().items():
                         values = None
                         if parameter[Parameter.PARAMETER_TYPE] in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT}:
                             values = cast('h5py.Dataset', group[name])
@@ -2687,7 +2690,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     self.updateChannelConfig(items, file, append=append)
 
             self.tree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
-                                        for name, parameterDict in self.channels[0].getSortedDefaultChannel().items()])
+                                        for name, parameterDict in self.defaultChannel.getSortedDefaultChannel().items()])
             header = self.tree.header()
             if header:
                 header.setStretchLastSection(False)
@@ -2799,11 +2802,11 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """
         changeLog = []
         changed = True
-        default = self.channelType(channelParent=self, tree=None)
+        # default = self.channelType(channelParent=self, tree=None)
         for item in items:
             channel = self.getChannelByName(cast('str', item[Parameter.NAME]))
             if channel:
-                for name in default.getSortedDefaultChannel():
+                for name in self.defaultChannel.getSortedDefaultChannel():
                     if name in channel.tempParameters():
                         continue
                     parameter = channel.getParameterByName(name)
@@ -3230,7 +3233,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         """Start a timer to reset error count if no further errors occur."""
         if self.controller:
             self.errorCountStr = f'{self.errorCount}, controller: {self.controller.errorCount}'
-        elif self.channels[0].controller:
+        elif self.defaultChannel.controller:
             self.errorCountStr = f'{self.errorCount}, channel controllers: ' + ', '.join([repr(channel.controller.errorCount) for channel in self.channels if channel.controller])
         else:
             self.errorCountStr = ''  # Device does not use device controllers. Not recommended!
@@ -3243,7 +3246,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.appendData(nan=True)  # prevent interpolation to old data
         if self.controller:
             self.controller.startAcquisition()
-        elif self.channels[0].controller is not None:
+        elif self.defaultChannel.controller is not None:
             for channel in self.channels:
                 if channel.enabled and channel.controller:
                     channel.controller.startAcquisition()
@@ -3268,7 +3271,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         Default implementation works when using :class:`~esibd.core.DeviceController`.
         """
         if not self.controller:
-            if not len(self.channels) > 0 or not self.channels[0].controller:
+            if not len(self.channels) > 0 or not self.defaultChannel.controller:
                 return False
             # strictly return True if any device has an initialized controller
             # ignore virtual channels
@@ -3282,7 +3285,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         Default implementation works when using :class:`~esibd.core.DeviceController`.
         """
         if not self.controller:
-            if not len(self.channels) > 0 or not self.channels[0].controller:
+            if not len(self.channels) > 0 or not self.defaultChannel.controller:
                 return False
             # return True if any device has an initialized controller or is not active and thus plotable even if not initialized
             return any(channel.controller.initialized or not channel.active for channel in self.channels if channel.controller)
@@ -3294,7 +3297,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.appendData(nan=True)  # prevent interpolation to old data
         if self.controller:
             self.controller.initializeCommunication()
-        elif self.channels[0].controller is not None:
+        elif self.defaultChannel.controller is not None:
             for channel in self.channels:
                 if channel.controller:
                     channel.controller.errorCount = 0
@@ -4628,7 +4631,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         # only reads data from gui but does not modify it -> can run in parallel thread
         self.settingsMgr.saveSettings(file=file)  # save settings
         self.saveData(file=file)  # save data to same file
-        self.pluginManager.DeviceManager.exportConfiguration(file=file)  # save corresponding device settings in measurement file
+        self.pluginManager.DeviceManager.exportConfiguration(file=file)#  # save corresponding device settings in measurement file
         self.pluginManager.Settings.saveSettings(file=file)
         self.signalComm.saveScanCompleteSignal.emit()
         self.print(f'Saved {file.name}')
@@ -6616,20 +6619,24 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.print(f'Starting scan {scan.name}.')
             scan.raiseDock(showPlugin=True)
             self.testControl(scan.recordingAction, value=True)
-            if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction') and scan.recording,
+            time.sleep(1)
+            if not scan.finished:
+                if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction') and scan.recording,
                                      timeoutMessage=f'display of {scan.name} scan.', timeout=10):
-                time.sleep(5)  # scan for 5 seconds
-                self.print(f'Stopping scan {scan.name}.')
-                self.testControl(scan.recordingAction, value=False)
-                # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
-                self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'stopping {scan.name} scan.', timeout=30)
-                self.pluginManager.Explorer.activeFileFullPath = scan.file
-                scan.testPythonPlotCode(closePopup=True)
+                    time.sleep(5)  # scan for 5 seconds
+                    self.print(f'Stopping scan {scan.name}.')
+                    self.testControl(scan.recordingAction, value=False)
+                    # wait for scan to finish and save file before starting next one to avoid scans finishing at the same time
+                    self.waitForCondition(condition=lambda scan=scan: scan.finished, timeoutMessage=f'stopping {scan.name} scan.', timeout=30)
+                    self.pluginManager.Explorer.activeFileFullPath = scan.file
+                    scan.testPythonPlotCode(closePopup=True)
+            else:
+                # not scan.finished is needed to skip further test if scan did not start (e.g. due to no initialized output channels)
+                self.print(f'Scan did not start. Skip testing scan {scan.name}.', flag=PRINT.WARNING)
             self.bufferLagging()
         self.testControl(self.closeCommunicationAction, value=True)
         file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
         self.print(f'Test export OutputData to {file.as_posix()}')
-        # self.testControl(self.exportAction, value=True, delay=5)
         self.signalComm.exportOutputDataSignal.emit(file)
         self.print(f'Test loading configuration from {file.as_posix()}')
         time.sleep(5)  # wait for export
@@ -6810,7 +6817,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.waitForCondition(condition=lambda scans=scans: all(scan.finished for scan in scans),
                                        timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
 
-    def exportOutputDataKwargs(self, file: 'Path | None' = None):
+    def exportOutputDataKwargs(self, file: 'Path | None' = None) -> None:
         """Export output data for all active LiveDisplays.
 
         This version is compatible with pyqtSignal (no keyword argument) and @synchronized() (works only with keyword arguments).
@@ -6889,7 +6896,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     def wake(self) -> None:
         """Trigger keyboard action to prevent screen lock."""
         if getWakeMode():
-            self.print('Keeping screen unlocked.', flag=PRINT.DEBUG)
+            self.print('Keeping screen unlocked.', flag=PRINT.VERBOSE)
             pyautogui.press('volumedown')
             pyautogui.press('volumeup')
 
@@ -7668,10 +7675,10 @@ class UCM(ChannelManager):
                     value.max = cast('float | None', self.sourceChannel.getParameterByName(self.MAX).value)
                 value.applyWidget()
                 device = self.sourceChannel.getDevice()
-                if isinstance(device, ChannelManager):
-                    self.unit = device.unit
-                elif hasattr(self.sourceChannel, self.UNIT.lower()):
+                if hasattr(self.sourceChannel, self.UNIT.lower()):
                     self.unit = self.sourceChannel.unit
+                elif isinstance(device, ChannelManager):
+                    self.unit = device.unit
                 else:
                     self.unit = ''
                 if self.sourceChannel.useMonitors:

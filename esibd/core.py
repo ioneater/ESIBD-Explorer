@@ -2743,7 +2743,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         """Wait for signal to stabilize.
 
         Will return NaN until stable.
-        Make sure to call from the mainThread.
+        Make sure to call from the main_thread.
 
         :param wait: Wait time in ms.
         :type wait: int
@@ -2837,7 +2837,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         return self.channelParent
 
     def getIcon(self, desaturate: bool = False) -> 'Icon':
-        """Get the channel Icon. This is typically identical with the corresponding device Icon, but some devices may have chanel specific Icons.
+        """Get the channel Icon. This is typically identical with the corresponding device Icon, but some devices may have channel specific Icons.
 
         :param desaturate: Indicates if color should be removed from icon, defaults to False
         :type desaturate: bool, optional

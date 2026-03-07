@@ -19,7 +19,8 @@ class OMNICONTROL(Device):
     """Reads pressure values and controls turbo pumps from Pfeiffer.
 
     Can be used with and without Omnicontrol hardware.
-    Access to frequently uses pump parameters is provided by the controller and convenience methods of the channel.
+    Frequently used pump parameters can be controlled through the GUI.
+    Access to less frequently uses pump parameters is provided by the controller and convenience methods of the channel (e.g. acknError, setRS485Adr, setStdbySVal).
     Additional parameters can be added following the same pattern if needed.
     """
 
@@ -299,8 +300,8 @@ class OmniController(DeviceController):  # noqa: PLR0904
                         self.values[i] = np.nan if pressure == 0 else pressure
                 except ValueError as e:
                     self.print(f"""Error while reading {'pump speed or other parameter' if channel.isPump else 'sensor pressure'}"""
-                               """ from channel {channel.name} at address {channel.id}.\nMake sure you are using the correct chanel address and device type.\n"""
-                               f"""Error message: {e}""")
+                               f""" from channel {channel.name} at address {channel.id}.\nMake sure you are using the correct channel address and device type."""
+                               f""" Error message: {e}""", flag=PRINT.WARNING)
                     self.errorCount += 1
                     self.values[i] = np.nan
                     self.drvPower[i] = np.nan
@@ -339,7 +340,7 @@ class OmniController(DeviceController):  # noqa: PLR0904
                     channel.notes = 'No Error'
                     channel.errorLED = False
                 else:
-                    channel.notes = self.errorCode[i]
+                    channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
                     channel.errorLED = True
 
     def closeCommunication(self) -> None:
@@ -366,13 +367,21 @@ class OmniController(DeviceController):  # noqa: PLR0904
         exponent = int(response[4:])
         return float(mantissa * 10 ** (exponent - 26)) * 1000
 
-    def getActualSpd(self, addr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+    def getActualSpd(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
         """Get the actual speed of the turbo pump."""
-        return int(self.OmniWriteRead(addr=addr, param_num=309, already_acquired=already_acquired))
+        response = self.OmniWriteRead(addr=addr, param_num=309, already_acquired=already_acquired)
+        if response:
+            return int(response)
+        self.print(f'Got empty response while reading ActualSpd on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
-    def getDrvPower(self, addr: int, already_acquired=False) -> int:  # pylint: disable = missing-param-doc
+    def getDrvPower(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
         """Get the drive power of the turbo pump."""
-        return int(self.OmniWriteRead(addr=addr, param_num=316, already_acquired=already_acquired))
+        response = self.OmniWriteRead(addr=addr, param_num=316, already_acquired=already_acquired)
+        if response:
+            return int(response)
+        self.print(f'Got empty response while reading DrvPower on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
     def getPumpStatn(self, addr: int, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
         """Get the pump station state of the turbo pump, i.e. ON or OFF."""
@@ -388,9 +397,13 @@ class OmniController(DeviceController):  # noqa: PLR0904
         """
         return self.OmniWriteRead(addr=addr, param_num=10, value=111111 if on else 0, already_acquired=already_acquired) == '111111'
 
-    def getTempPump(self, addr: int, already_acquired=False) -> int:  # 384 TempRotor, 346 TempMotor, 330 TempPmpBot  # pylint: disable = missing-param-doc
+    def getTempPump(self, addr: int, already_acquired=False) -> float:  # 384 TempRotor, 346 TempMotor, 330 TempPmpBot  # pylint: disable = missing-param-doc
         """Get the temperature of the turbo pump."""
-        return int(self.OmniWriteRead(addr=addr, param_num=330, already_acquired=already_acquired))
+        response = self.OmniWriteRead(addr=addr, param_num=330, already_acquired=already_acquired)
+        if response:
+            return int(response)
+        self.print(f'Got empty response while reading TempPump on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
 
     def getStandby(self, addr: int, already_acquired=False) -> bool:  # pylint: disable = missing-param-doc
         """Get the standby state of the turbo pump."""

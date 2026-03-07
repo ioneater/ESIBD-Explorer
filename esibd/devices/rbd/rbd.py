@@ -32,7 +32,7 @@ class RBD(Device):
     unit = 'pA'
     iconFile = 'RBD.png'
     useBackgrounds = True  # record backgrounds for data correction
-    channels: 'list[CurrentChannel]'
+    channels: 'list[RBDCurrentChannel]'
 
     class StaticDisplay(StaticDisplay):
         """A display for device data from files."""
@@ -89,7 +89,7 @@ class RBD(Device):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.channelType = CurrentChannel
+        self.channelType = RBDCurrentChannel
 
     def initGUI(self) -> None:
         super().initGUI()
@@ -106,12 +106,12 @@ class RBD(Device):
             channel.resetCharge()
 
 
-class CurrentChannel(Channel):
+class RBDCurrentChannel(Channel):
     """UI for picoammeter with integrated functionality."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.controller = CurrentController(controllerParent=self)
+        self.controller = RBDCurrentController(controllerParent=self)
         self.preciseCharge = 0  # store independent of spin box precision to avoid rounding errors
 
     CHARGE = 'Charge'
@@ -124,7 +124,7 @@ class CurrentChannel(Channel):
     UNSTABLE = 'Unstable'
     ERROR = 'Error'
     channelParent: RBD
-    controller: 'CurrentController'
+    controller: 'RBDCurrentController'
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
@@ -239,11 +239,11 @@ class CurrentChannel(Channel):
             self.controller.updateBiasFlag = True
 
 
-class CurrentController(DeviceController):  # noqa: PLR0904
+class RBDCurrentController(DeviceController):  # noqa: PLR0904
 
-    controllerParent: CurrentChannel
+    controllerParent: RBDCurrentChannel
 
-    def __init__(self, controllerParent: CurrentChannel) -> None:
+    def __init__(self, controllerParent: RBDCurrentChannel) -> None:
         self.outOfRange = False
         self.unstable = False
         self.error = ''

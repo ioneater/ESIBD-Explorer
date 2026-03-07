@@ -51,6 +51,9 @@ Developer Notes
 - Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.
 - |omnicontrol| :ref:`sec:omnicontrol`: Removed dependence on pfeiffer-vacuum-protocol package.
 - Added testing loading entire configuration to the DeviceManager tests.
+- Added IntelliSense support for dynamically imported dependencies (e.g. for |ga| :ref:`sec:ga`).
+- Introduced ChannelManager.defaultChannel which is initialized in the main_thread and can be used as a reference e.g. for saving data from a parallel thread.
+- DeviceManager is no longer waiting for scans that did not initialize successfully in automated testing.
 
 Version 0.8.2 2025-06-23
 ========================

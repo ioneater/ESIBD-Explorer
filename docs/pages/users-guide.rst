@@ -456,7 +456,7 @@ Other
 
 |ga| Genetic algorithm (GA)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.scans.ga.ga.GA
+.. automodule:: esibd.scans.ga.ga.GAScan
    :noindex:
 
 .. _`sec:omni`:
