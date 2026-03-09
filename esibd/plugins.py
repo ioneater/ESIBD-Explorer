@@ -2199,8 +2199,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             super().finalizeInit()
             self.copyAction = self.addAction(event=self.copyClipboard, toolTip=f'{self.name} to clipboard.', icon=self.imageClipboardIcon, before=self.aboutAction)
 
-        def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: ARG002, D102
-            return self.parentPlugin.getIcon()
+        def getIcon(self, desaturate: bool = False) -> Icon:  # noqa: D102
+            return self.parentPlugin.getIcon(desaturate=desaturate)
 
         def runTestParallel(self) -> None:  # noqa: D102
             if self.initializedDock:
@@ -2478,6 +2478,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             if selectedChannel.useBackgrounds:
                 oldBackgrounds = selectedChannel.backgrounds
                 oldBackground = selectedChannel.background
+            #TODO also store other recording parameters
             if up:
                 self.addChannel(item=selectedChannel.asDict(), index=index - 1)
             else:
@@ -2490,6 +2491,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 if newChannel.useBackgrounds and oldBackground and oldBackgrounds:
                     newChannel.backgrounds = oldBackgrounds
                     newChannel.background = oldBackground
+                #TODO also restore other recording parameters
             self.loading = False
             self.tree.scheduleDelayedItemsLayout()
             return newChannel
@@ -3124,7 +3126,6 @@ class Device(ChannelManager):  # noqa: PLR0904
         self.estimateStorage()
         if self.inout == INOUT.IN:
             self.addAction(event=lambda: self.loadValues(None), toolTip=f'Load {self.name} values only.', before=self.saveAction, icon=self.makeCoreIcon('table-import.png'))
-        self.restoreOutputData()
 
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
@@ -3188,12 +3189,11 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.initializeCommunication()
 
     def runTestParallel(self) -> None:  # noqa: D102
-        if self.useBackgrounds:
-            self.testControl(self.recordingAction, value=True, delay=5)
-            self.testControl(self.initAction, value=True, delay=5)
-            self.testControl(self.closeCommunicationAction, value=True, delay=2)
-            if self.subtractBackgroundAction:
-                self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
+        self.testControl(self.recordingAction, value=True, delay=5)
+        self.testControl(self.initAction, value=True, delay=5)
+        self.testControl(self.closeCommunicationAction, value=True, delay=2)
+        if self.useBackgrounds and self.subtractBackgroundAction:
+            self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
 
     def bufferLagging(self, wait: 'int | None' = None) -> bool:  # noqa: D102
@@ -3350,7 +3350,7 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def estimateStorage(self) -> None:
         """Estimates storage space required to save maximal history depending on sample rate, number of channels, and backgrounds."""
-        numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels)
+        numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels) #TODO adjust for total number of recording channels
         self.maxDataPoints = int((self.maxStorage * 1024**2) / (4 * numChannelsBackgrounds + 8))  # including +8 for time channel
         totalDays = self.interval / 1000 * self.maxDataPoints / 3600 / 24
         widget = self.pluginManager.Settings.settings[f'{self.name}/{self.MAXDATAPOINTS}'].getWidget()
@@ -3369,26 +3369,35 @@ class Device(ChannelManager):  # noqa: PLR0904
         for channel in self.getChannels():
             channel.applyValue(apply=apply)  # only actually sets value if configured and value has changed
 
+    def loadConfiguration(self, file: Path | None = None, useDefaultFile: bool = False, append: bool = False) -> None:  # pylint: disable = missing-function-docstring  # noqa: D102
+        # make sure history is saved and restored when loading configuration
+        self.exportOutputData(useDefaultFile=True, useAllHistory=True)
+        super().loadConfiguration(file=file, useDefaultFile=useDefaultFile, append=append)
+        self.restoreOutputData()
+
     @synchronized()
-    def exportOutputData(self, useDefaultFile: bool = False) -> None:
+    def exportOutputData(self, useDefaultFile: bool = False, useAllHistory: bool = False) -> None:
         """Export output data.
 
         :param useDefaultFile: Add configuration to default file, defaults to False
         :type useDefaultFile: bool, optional
+        :param useAllHistory: Export entire history and not just visible part, defaults to False
+        :type useAllHistory: bool, optional
         """
         if not self.liveDisplay:
             return
-        if useDefaultFile:
+        if useAllHistory:
             time_axis = self.time.get()
             if time_axis.shape[0] == 0:
                 return  # no data to save
+        if useDefaultFile:
             self.file = Path(self.pluginManager.Settings.configPath) / self.confh5.strip('_')
         else:
             self.pluginManager.Settings.incrementMeasurementNumber()
             self.file = self.pluginManager.Settings.getMeasurementFileName(self.liveDisplay.previewFileTypes[0])
         with h5py.File(name=self.file, mode='w' if useDefaultFile else 'a', track_order=True) as h5File:
             self.hdfUpdateVersion(h5File)
-            self.appendOutputData(h5File, useDefaultFile=useDefaultFile)
+            self.appendOutputData(h5File, useAllHistory=useAllHistory)
         self.print(f'Stored data in {self.file.name}')
         if useDefaultFile:
             self.exportConfiguration(file=self.file)
@@ -3396,13 +3405,13 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.pluginManager.DeviceManager.exportConfiguration(file=self.file)  # save corresponding device settings in measurement file
             self.pluginManager.Explorer.populateTree()
 
-    def appendOutputData(self, h5file: h5py.File, useDefaultFile: bool = False) -> None:
+    def appendOutputData(self, h5file: h5py.File, useAllHistory: bool = False) -> None:
         """Append :class:`~esibd.plugins.Device` data to hdf file.
 
         :param h5file: The file to which append the data.
         :type h5file: h5py.File
-        :param useDefaultFile: Use all data when appending to default file, defaults to False
-        :type useDefaultFile: bool, optional
+        :param useAllHistory: Export entire history and not just visible part, defaults to False
+        :type useAllHistory: bool, optional
         """
         if not self.liveDisplay:
             return
@@ -3411,7 +3420,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         time_axis = self.time.get()
         i_min = None
         i_max = None
-        if not useDefaultFile and time_axis.shape[0] > 0 and len(self.liveDisplay.livePlotWidgets) > 0:
+        if not useAllHistory and time_axis.shape[0] > 0 and len(self.liveDisplay.livePlotWidgets) > 0:
             # Only save currently visible data (specific regions of interest).
             # Otherwise history of last few days might be added to files, making it hard to find the region of interest.
             # Complete data can still be exported if needed by displaying entire history before exporting.
@@ -3441,6 +3450,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                 background_dataset = output_group.create_dataset(channel.name + '_BG', data=channel.backgrounds.get()[i_min:i_max] if not fullRange and i_min and i_max
                                                                  else channel.backgrounds.get(), dtype='f')
                 background_dataset.attrs[UNIT] = self.unit
+            #TODO save for all recording channels
 
     def restoreOutputData(self) -> None:
         """Restore data from internal restore file."""
@@ -3462,6 +3472,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                         if channel:
                             if name.endswith('_BG'):
                                 channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                            #TODO restore for all other recording channels
                             else:
                                 channel.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
                 except RuntimeError as e:
@@ -3471,7 +3482,7 @@ class Device(ChannelManager):  # noqa: PLR0904
     def close(self) -> bool:  # noqa: D102
         self.closeCommunication()
         if self.hasRecorded:
-            self.exportOutputData(useDefaultFile=True)
+            self.exportOutputData(useDefaultFile=True, useAllHistory=True)
         return super().close()
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
@@ -6495,13 +6506,15 @@ class DeviceManager(Plugin):  # noqa: PLR0904
     class SignalCommunicate(Plugin.SignalCommunicate):
         """Bundle pyqtSignals."""
 
-        storeSignal = pyqtSignal()
+        storeOutputDataSignal = pyqtSignal()
         """Signal that triggers storage of device data."""
+        restoreOutputDataSignal = pyqtSignal()
+        """Signal that triggers restoring of device data."""
         wakeSignal = pyqtSignal()
         """Signal that triggers keyboard action to prevent screen lock."""
         closeCommunicationSignal = pyqtSignal()
         """Signal that triggers stop communication."""
-        exportOutputDataSignal = pyqtSignal(Path)
+        exportOutputDataSignal = pyqtSignal(Path, bool)
         """Signal that triggers export of configuration."""
         loadConfigurationSignal = pyqtSignal(Path)
         """Signal that triggers loading of configuration."""
@@ -6512,7 +6525,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.previewFileTypes = ['_combi.dat.h5']
         self.dataThread = None
         self._recording = False
-        self.signalComm.storeSignal.connect(self.store)
+        self.signalComm.storeOutputDataSignal.connect(self.storeOutputData)
+        self.signalComm.restoreOutputDataSignal.connect(self.restoreOutputData)
         self.signalComm.wakeSignal.connect(self.wake)
         self.signalComm.closeCommunicationSignal.connect(self.closeCommunication)
         self.signalComm.exportOutputDataSignal.connect(self.exportOutputDataKwargs)
@@ -6549,7 +6563,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.titleBarLabel = None
         self.toggleTitleBarDelayed()  # Label not needed for DeviceManager
         self.storeTimer = QTimer()
-        self.storeTimer.timeout.connect(self.store)
+        self.storeTimer.timeout.connect(self.storeOutputData)
         self.storeTimer.setInterval(3600000)  # every 1 hour
         self.storeTimer.start()
         self.wakeTimer = QTimer()
@@ -6633,15 +6647,15 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.bufferLagging()
         self.testControl(self.closeCommunicationAction, value=True)
         file = self.pluginManager.Settings.getMeasurementFileName(self.previewFileTypes[0])
-        self.print(f'Test export OutputData to {file.as_posix()}')
-        self.signalComm.exportOutputDataSignal.emit(file)
-        self.print(f'Test loading configuration from {file.as_posix()}')
+        self.print(f'Test export OutputData to {file.as_posix()} and storing entire device histories to default files.')
+        self.signalComm.exportOutputDataSignal.emit(file, False)  # noqa: FBT003
         time.sleep(5)  # wait for export
+        self.print(f'Test loading configuration from {file.as_posix()}')
         self.signalComm.loadConfigurationSignal.emit(file)
         if self.waitForCondition(condition=lambda: not self.loading,
                           timeoutMessage=f'Loading configuration from {file.as_posix()}', timeout=30):
             self.print(f'Finished test loading configuration from {file.as_posix()}')
-
+        time.sleep(5)  # wait for import
         super().runTestParallel()
 
     @property
@@ -6814,21 +6828,25 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 self.waitForCondition(condition=lambda scans=scans: all(scan.finished for scan in scans),
                                        timeoutMessage=f'{unfinishedScans.strip(", ")} to complete.', timeout=30, interval=0.5)
 
-    def exportOutputDataKwargs(self, file: 'Path | None' = None) -> None:
+    def exportOutputDataKwargs(self, file: 'Path | None' = None, useAllHistory: bool = False) -> None:
         """Export output data for all active LiveDisplays.
 
         This version is compatible with pyqtSignal (no keyword argument) and @synchronized() (works only with keyword arguments).
         :param file: The file to which the data should be added, defaults to None
         :type file: Path | None, optional
+        :param useAllHistory: Export entire history and not just visible part, defaults to False
+        :type useAllHistory: bool, optional
         """
-        self.exportOutputData(file=file)
+        self.exportOutputData(file=file, useAllHistory=useAllHistory)
 
     @synchronized()
-    def exportOutputData(self, file: 'Path | None' = None) -> None:
+    def exportOutputData(self, file: 'Path | None' = None, useAllHistory: bool = False) -> None:
         """Export output data for all active LiveDisplays.
 
         :param file: The file to which the data should be added, defaults to None
         :type file: Path | None, optional
+        :param useAllHistory: Export entire history and not just visible part, defaults to False
+        :type useAllHistory: bool, optional
         """
         if not file:
             self.pluginManager.Settings.incrementMeasurementNumber()
@@ -6837,7 +6855,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.hdfUpdateVersion(h5File)
             for liveDisplay in self.getActiveLiveDisplays():
                 if isinstance(liveDisplay.parentPlugin, Device):
-                    liveDisplay.parentPlugin.appendOutputData(h5File)
+                    liveDisplay.parentPlugin.appendOutputData(h5File, useAllHistory=useAllHistory)
         self.exportConfiguration(file=file)  # save corresponding device settings in measurement file
         self.print(f'Saved {file.name}')
         self.pluginManager.Explorer.populateTree()
@@ -6881,14 +6899,19 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             for device in self.getOutputDevices():
                 device.updateValues()
 
-    def store(self) -> None:
+    def storeOutputData(self) -> None:
         """Regularly stores device settings and data to minimize loss in the event of a program crash."""
         # * Make sure that no GUI elements are accessed when running from parallel thread!
         # * deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
         # * scan and plugin settings are already saved as soon as they are changing
         for device in cast('list[Device]', self.getDevices()):
             if device.recording:  # will be exported when program closes even if not recording, this is just for the regular exports while the program is running
-                Thread(target=device.exportOutputData, kwargs={'useDefaultFile': True}, name=f'{device.name} exportOutputDataThread').start()
+                Thread(target=device.exportOutputData, kwargs={'useDefaultFile': True, 'useAllHistory': True}, name=f'{device.name} exportOutputDataThread').start()
+
+    def restoreOutputData(self) -> None:
+        """Restore all outputData for all Devices."""
+        for device in cast('list[Device]', self.getDevices()):
+            device.restoreOutputData()
 
     def wake(self) -> None:
         """Trigger keyboard action to prevent screen lock."""

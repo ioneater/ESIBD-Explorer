@@ -2424,10 +2424,12 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         self.warningState = False
 
         if isinstance(self.channelParent, self.pluginManager.ChannelManager):
-            self.values = DynamicNp(max_size=self.channelParent.maxDataPoints)
             self.inout = self.channelParent.inout
+            self.values = DynamicNp(max_size=self.channelParent.maxDataPoints)
             if self.inout != INOUT.NONE and self.useBackgrounds:
-                self.backgrounds = DynamicNp(max_size=self.channelParent.maxDataPoints)
+                self.backgrounds = DynamicNp(max_size=self.channelParent.maxDataPoints)#
+            #TODO initialize for all other recording parameters
+            #TODO replace with self.clearHistory? instead
 
         # Generate property for direct access of Parameter values.
         # NOTE: This assigns properties directly to class and only works as it uses a method that is specific to the current instance.
@@ -2779,6 +2781,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.values.add(x=self.value, lenT=lenT)
         if self.useBackgrounds:
             self.backgrounds.add(x=self.background, lenT=lenT)
+        #TODO add for all other recording parameters
 
     def getValues(self, length: 'int | None' = None, index_min: 'int | None' = None, index_max: 'int | None' = None, n: int = 1,
                    subtractBackground: bool = False) -> np.typing.NDArray[np.float64 | np.float32]:  # pylint: disable = unused-argument  # use consistent arguments for all versions of getValues
@@ -2820,6 +2823,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             self.clearPlotCurve()
             if self.useBackgrounds:
                 self.backgrounds = DynamicNp(max_size=self.channelParent.maxDataPoints)
+            #TODO clear for all other recording parameters
 
     def clearPlotCurve(self) -> None:
         """Clear the plot curve. It will be recreated (with updated values and settings) next time plot is called."""

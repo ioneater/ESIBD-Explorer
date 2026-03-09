@@ -181,9 +181,9 @@ class OmniChannel(Channel):  # noqa: PLR0904
         self.getParameterByName(self.ID).extraContextActions = [ContextAction(text='Set address via Console', event=self.setRS485AdrConsole)] if self.isPump else []
         self.getParameterByName(self.Standby).extraContextActions = [ContextAction(text='Set Standby Speed via Console', event=self.setStdbySValConsole)] if self.isPump else []
 
-    def getIcon(self) -> Icon:
+    def getIcon(self, desaturate: bool = False) -> Icon:  # pylint: disable = missing-param-doc
         """Return Icon depending on the channel type."""
-        return self.channelParent.makeIcon('turbo.png' if self.isPump else 'sensor.png')
+        return self.channelParent.makeIcon(file='turbo.png' if self.isPump else 'sensor.png', desaturate=desaturate)
 
     @property
     def unit(self) -> str:
