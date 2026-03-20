@@ -40,6 +40,7 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
+        channel[self.VALUE][Parameter.UNIT] = 'V'
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
         channel[self.ADDRESS] = parameterDict(value='cDAQ1Mod1/ao0', toolTip='Address of analog output',

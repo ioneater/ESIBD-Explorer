@@ -88,6 +88,7 @@ class TemperatureChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K)'
+        channel[self.VALUE][Parameter.UNIT] = 'K'
         channel[self.VALUE][Parameter.VALUE] = np.nan  # undefined until communication established
         channel[self.CHANNEL] = parameterDict(value='USBPT104_CHANNEL_1', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                     attr='channel', items='USBPT104_CHANNEL_1, USBPT104_CHANNEL_2, USBPT104_CHANNEL_3, USBPT104_CHANNEL_4')

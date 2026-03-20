@@ -57,6 +57,7 @@ class PressureChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'P (mbar)'
+        channel[self.VALUE][Parameter.UNIT] = 'mbar'
         channel[self.ID] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='0, 1, 2, 3, 4, 5, 6', attr='id')
         return channel

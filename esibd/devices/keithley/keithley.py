@@ -68,10 +68,13 @@ class CurrentChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
-        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.VALUE][Parameter.UNIT] = 'pA'
+        channel[self.BACKGROUND][Parameter.HEADER] = 'BG (pA)'
+        channel[self.BACKGROUND][Parameter.UNIT] = 'pA'
+        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', unit='pAh', indicator=True, attr='charge')
         channel[self.ADDRESS] = parameterDict(value='GPIB0::22::INSTR', parameterType=PARAMETERTYPE.TEXT, advanced=True, attr='address')
-        channel[self.VOLTAGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, attr='voltage',
-                                               event=lambda: self.controller.applyVoltage())  # noqa: PLW0108 lambda is used to defer evaluation until defined
+        channel[self.VOLTAGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, attr='voltage', recorded=True, header='Voltage (V)', unit='V',
+                                              minimum=-50, maximum=50, event=lambda: self.controller.applyVoltage())  # noqa: PLW0108 lambda is used to defer evaluation until defined
         return channel
 
     def setDisplayedParameters(self) -> None:

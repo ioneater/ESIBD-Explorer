@@ -67,6 +67,9 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
+        channel[self.VALUE][Parameter.UNIT] = 'V'
+        channel[self.MONITOR][Parameter.HEADER] = 'Monitor (V)'
+        channel[self.MONITOR][Parameter.UNIT] = 'V'
         channel[self.COM] = parameterDict(value='COM1', toolTip='COM port of MIPS.', items=','.join([f'COM{x}' for x in range(1, 25)]),
                                           parameterType=PARAMETERTYPE.COMBO, advanced=True, attr='com')
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,

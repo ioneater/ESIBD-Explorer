@@ -66,6 +66,7 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QToolBar,
     QToolButton,
+    QTreeWidget,
     QTreeWidgetItem,
     QTreeWidgetItemIterator,
     QVBoxLayout,
@@ -173,6 +174,8 @@ class Plugin(QWidget):  # noqa: PLR0904
     """Axis used for plot labels."""
     resizing: bool = False
     """Indicate if the plugin is resizing. May be used to increase performance by suppressing updates while resizing."""
+    testTimeout: int = 60
+    """"""
 
     class SignalCommunicate(QObject):  # signals that can be emitted by external threads
         """Bundle pyqtSignals."""
@@ -438,7 +441,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         if not self.testing:
             self.app.processEvents()
 
-    def waitForCondition(self, condition: Callable, interval: float = 0.1, timeout: int = 5, timeoutMessage: str = '') -> bool:
+    def waitForCondition(self, condition: Callable, interval: float = 0.5, timeout: int = 5, timeoutMessage: str = '') -> bool:
         """Wait until condition returns False or timeout expires.
 
         This can be safer and easier to understand than using signals and locks.
@@ -1210,12 +1213,12 @@ class Plugin(QWidget):  # noqa: PLR0904
                     attr.disconnect()
                     # Some signals might already be disconnected or have no slots connected
 
-    def getQtPen(self, channel: Channel | MetaChannel) -> QPen:
+    def getQtPen(self, channel: Channel | MetaChannel | Parameter) -> QPen:
         """Create a pen used for QT plots. Use custom definition for dashed lines that allows to see dashes in the legend.
 
-        :param channel: _description_
+        :param channel: Channel or associated parameter.
         :type channel: Channel
-        :return: _description_
+        :return: returns a QtPen with the corresponding color, linewidth and linestyle
         :rtype: QPen
         """
         if channel.getQtLineStyle() == Qt.PenStyle.DashLine:
@@ -1436,6 +1439,8 @@ class StaticDisplay(Plugin):
             self.inputChannels.append(MetaChannel(parentPlugin=self, name=self.TIME, recordingData=cast('h5py.Dataset', group[INPUTCHANNELS])[self.TIME][:]))
             output_group = cast('h5py.Group', group[OUTPUTCHANNELS])
             for name, item in output_group.items():
+                if '.' in name:
+                    continue  # ignore extra recorded parameters
                 if name.endswith('_BG'):
                     self.outputChannels[-1].recordingBackground = item[:]
                 else:
@@ -1487,6 +1492,8 @@ with h5py.File('{self.file.as_posix() if self.file else ''}','r') as h5file:
 
     output_group = group['Output Channels']
     for name, data in output_group.items():
+        if '.' in name:
+            continue  # ignore extra recorded parameters
         if name.endswith('_BG'):
             outputChannels[-1].recordingBackground = data[:]
         else:
@@ -1695,29 +1702,30 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         self.livePlotWidgets = []
         self.updateLegend = True
 
-    def getGroups(self) -> dict[str, list[Channel]]:
+    def getGroups(self) -> dict[str, list[Channel | Parameter]]:
         """Return Channel groups, sorted by device, unit, group, or unsorted.
 
         :return: Channel groups.
         :rtype: dict[str, list[esibd.core.Channel]]
         """
-        self.channelGroups: dict[str, list[Channel]] = {}
+        self.channelGroups: dict[str, list[Channel | Parameter]] = {}
+        activeChannels = self.parentPlugin.getActiveChannelsAndParameters()  # getActiveChannels()
         match self.groupAction.state:
             case self.GroupActionState.DEVICE:
-                groupLabels = list({channel.getDevice().name for channel in self.parentPlugin.getActiveChannels() if channel.display})
+                groupLabels = list({channel.getDevice().name for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
-                [groups[groupLabels.index(channel.getDevice().name)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
+                [groups[groupLabels.index(channel.getDevice().name)].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.UNIT:
-                groupLabels = list({channel.unit for channel in self.parentPlugin.getActiveChannels() if channel.display})
+                groupLabels = list({channel.unit for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
-                [groups[groupLabels.index(channel.unit)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
+                [groups[groupLabels.index(channel.unit)].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.GROUP:
-                groupLabels = list({channel.displayGroup for channel in self.parentPlugin.getActiveChannels() if channel.display})
+                groupLabels = list({channel.displayGroup for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
-                [groups[groupLabels.index(channel.displayGroup)].append(channel) for channel in self.parentPlugin.getActiveChannels() if channel.display]
+                [groups[groupLabels.index(channel.displayGroup)].append(channel) for channel in activeChannels if channel.display]
             case _:  # ALL
                 groupLabels = [self.parentPlugin.name]
-                groups = [[channel for channel in self.parentPlugin.getActiveChannels() if channel.display]]
+                groups = [[channel for channel in activeChannels if channel.display]]
         for label, group in zip(groupLabels, groups, strict=True):
             self.channelGroups[label] = group
         self.channelGroups = dict(sorted(self.channelGroups.items()))  # sort by groupLabel
@@ -2028,7 +2036,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         self.parentPlugin.plotting = False
 
     def plotGroup(self, livePlotWidget: PlotWidget | PlotItem | ViewBox, timeAxes: dict[str, tuple[int, int | None, int, np.ndarray]],
-                   channels: list[Channel], apply: bool) -> None:
+                   channels: list[Channel | Parameter], apply: bool) -> None:
         """Plot a group of Channels.
 
         :param livePlotWidget: The PlotWidget used to display Channel values.
@@ -2043,7 +2051,8 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         for channel in channels[::-1]:  # reverse order so Channels on top of list are also plotted on top of others
             self.plotChannel(livePlotWidget, timeAxes, channel, apply)
 
-    def plotChannel(self, livePlotWidget: PlotWidget | PlotItem | ViewBox, timeAxes: dict[str, tuple[int, int | None, int, np.ndarray]], channel: Channel, apply: bool) -> None:
+    def plotChannel(self, livePlotWidget: PlotWidget | PlotItem | ViewBox, timeAxes: dict[str, tuple[int, int | None, int, np.ndarray]],
+                    channel: 'Channel | Parameter', apply: bool) -> None:
         """Plot a channel.
 
         :param livePlotWidget: The PlotWidget used to display Channel values.
@@ -2078,10 +2087,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                             # only create new plotCurve if it is actually going to be used
                             if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                                 channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=self.getQtPen(channel),
-                                                                                             name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
+                                                                                             name=f'{channel.legendName} ({channel.unit})'))  # initialize empty plots
                             else:  # ViewBox
                                 channel.plotCurve = cast('PlotDataItem', PlotDataItem(pen=self.getQtPen(channel),
-                                                                                      name=f'{channel.name} ({channel.unit})'))  # initialize empty plots
+                                                                                      name=f'{channel.legendName} ({channel.unit})'))  # initialize empty plots
                                 channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
                                 livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
                                 legend = cast('PlotWidget | PlotItem', self.livePlotWidgets[0]).legend
@@ -2382,6 +2391,14 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         """Return all channels that are enabled or not real."""
         return [channel for channel in self.getChannels() if (channel.enabled or not channel.real)]
 
+    def getActiveChannelsAndParameters(self) -> list[Channel | Parameter]:
+        """Return all channels that are enabled or not real."""
+        channels = self.getActiveChannels()
+        parameters: list[Parameter] = []
+        for channel in channels:
+            parameters.extend(parameter for parameter in channel.getRecordedParameters())
+        return channels + parameters
+
     def getDataChannels(self) -> list[Channel]:
         """Return all channels that have data history."""
         return [channel for channel in self.channels if channel.getValues().shape[0] != 0]
@@ -2454,7 +2471,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.pluginManager.reconnectSource(selectedChannel.name)
 
     @synchronized()
-    def moveChannel(self, up: bool) -> Channel | None:
+    def moveChannel(self, up: bool) -> Channel | None:  # noqa: C901
         """Move the channel up or down in the list of channels.
 
         :param up: Move up if True, else down.
@@ -2471,27 +2488,33 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             selectedChannel.onDelete()
             self.channels.pop(index)
             self.tree.takeTopLevelItem(index)
-            oldValues = selectedChannel.values.get()
-            oldValue = selectedChannel.value if hasattr(selectedChannel, Parameter.VALUE.lower()) else None
+            oldValues = None
+            oldValue = None
             oldBackgrounds = None
             oldBackground = None
-            if selectedChannel.useBackgrounds:
-                oldBackgrounds = selectedChannel.backgrounds
-                oldBackground = selectedChannel.background
-            #TODO also store other recording parameters
+            oldParameterValues = None
+            if isinstance(self, Device):
+                oldValues = selectedChannel.values.get()
+                oldValue = selectedChannel.value if hasattr(selectedChannel, Parameter.VALUE.lower()) else None
+                if selectedChannel.useBackgrounds:
+                    oldBackgrounds = selectedChannel.backgrounds
+                    oldBackground = selectedChannel.background
+                oldParameterValues = [parameter.values for parameter in selectedChannel.getRecordedParameters()]
             if up:
                 self.addChannel(item=selectedChannel.asDict(), index=index - 1)
             else:
                 self.addChannel(item=selectedChannel.asDict(), index=index + 1)
             newChannel = self.getChannelByName(selectedChannel.name)
-            if len(oldValues) > 0 and newChannel:
+            if isinstance(self, Device) and oldValues is not None and len(oldValues) > 0 and newChannel:
                 newChannel.values = DynamicNp(initialData=oldValues, max_size=self.maxDataPoints)
                 if oldValue is not None:
                     newChannel.value = oldValue
-                if newChannel.useBackgrounds and oldBackground and oldBackgrounds:
+                if newChannel.useBackgrounds and oldBackground is not None and oldBackgrounds is not None:
                     newChannel.backgrounds = oldBackgrounds
                     newChannel.background = oldBackground
-                #TODO also restore other recording parameters
+                if oldParameterValues is not None:
+                    for parameter, values in zip(newChannel.getRecordedParameters(), oldParameterValues, strict=True):
+                        parameter.values = values
             self.loading = False
             self.tree.scheduleDelayedItemsLayout()
             return newChannel
@@ -2579,6 +2602,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                             data = [channel.getParameterByName(parameter).value for channel in self.channels]
                             dtype = 'S7'
                         else:  # parameterType in [PARAMETERTYPE.EXP, PARAMETERTYPE.COMBO, PARAMETERTYPE.INTCOMBO, PARAMETERTYPE.TEXT, PARAMETERTYPE.LABEL]:
+                            # NOTE data = [cast('str', value).encode(UTF8) for value in data]  # keep using ascii for backwards compatibility
+                            data = [str(value).replace('°', '') for value in data]  # remove characters that are incompatible with ascii
                             dtype = f'S{len(max([str(string) for string in data], key=len))}'  # use length of longest string as fixed length is required
                         group.create_dataset(name=parameter, data=np.asarray(data, dtype=dtype))  # do not save as attributes. very very memory intensive!
         if not self.pluginManager.loading:
@@ -2777,7 +2802,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.changeLog = [f'Change log for loading channels for {self.name} from {file.name}:']
             self.changeLog += self.compareItemsConfig(items)[0]
             self.pluginManager.Text.setText('\n'.join(self.changeLog) + '\n', showPlugin=False, append=append)  # show changelog
-            self.print('Configuration updated. Change log available in Text plugin.')
+            self.print(f'Configuration updated from {file.name}. Change log available in Text plugin.')
         # clear and load new channels
         for channel in self.channels:
             channel.onDelete()
@@ -3350,8 +3375,8 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def estimateStorage(self) -> None:
         """Estimates storage space required to save maximal history depending on sample rate, number of channels, and backgrounds."""
-        numChannelsBackgrounds = len(self.channels) * 2 if self.useBackgrounds else len(self.channels) #TODO adjust for total number of recording channels
-        self.maxDataPoints = int((self.maxStorage * 1024**2) / (4 * numChannelsBackgrounds + 8))  # including +8 for time channel
+        multiplier = (2 if self.useBackgrounds else 1) + len(self.defaultChannel.getRecordedParameters())
+        self.maxDataPoints = int((self.maxStorage * 1024**2) / (4 * len(self.channels) * multiplier + 8))  # including +8 for time channel
         totalDays = self.interval / 1000 * self.maxDataPoints / 3600 / 24
         widget = self.pluginManager.Settings.settings[f'{self.name}/{self.MAXDATAPOINTS}'].getWidget()
         if widget:
@@ -3447,12 +3472,15 @@ class Device(ChannelManager):  # noqa: PLR0904
             value_dataset.attrs[UNIT] = self.unit
             if self.useBackgrounds:
                 # Note: If data format will be changed in future (ensuring backwards compatibility), consider saving single 2D data set with data and background instead.
-                background_dataset = output_group.create_dataset(channel.name + '_BG', data=channel.backgrounds.get()[i_min:i_max] if not fullRange and i_min and i_max
+                background_dataset = output_group.create_dataset(f'{channel.name}_BG', data=channel.backgrounds.get()[i_min:i_max] if not fullRange and i_min and i_max
                                                                  else channel.backgrounds.get(), dtype='f')
                 background_dataset.attrs[UNIT] = self.unit
-            #TODO save for all recording channels
+            for parameter in channel.getRecordedParameters():
+                parameter_dataset = output_group.create_dataset(f'{channel.name}.{parameter.name}', data=parameter.values.get()[i_min:i_max] if not fullRange and i_min and i_max
+                                                                 else parameter.values.get(), dtype='f')
+                parameter_dataset.attrs[UNIT] = parameter.unit
 
-    def restoreOutputData(self) -> None:
+    def restoreOutputData(self) -> None:  # noqa: C901
         """Restore data from internal restore file."""
         file = Path(self.pluginManager.Settings.configPath) / self.confh5.strip('_')
         if file.exists():  # noqa: PLR1702
@@ -3468,13 +3496,19 @@ class Device(ChannelManager):  # noqa: PLR0904
                     self.time = DynamicNp(initialData=cast('h5py.Dataset', input_group[self.TIME])[:], max_size=self.maxDataPoints, dtype=np.float64)
                     output_group = cast('h5py.Group', group[OUTPUTCHANNELS])
                     for name, item in output_group.items():
-                        channel = self.getChannelByName(name.strip('_BG'))
+                        stripped_name = name.strip('_BG')
+                        for parameter in self.defaultChannel.getRecordedParameters():
+                            stripped_name = stripped_name.removesuffix(f'.{parameter.name}')
+                        channel = self.getChannelByName(stripped_name)
                         if channel:
-                            if name.endswith('_BG'):
-                                channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
-                            #TODO restore for all other recording channels
-                            else:
+                            if name == stripped_name:
                                 channel.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                            elif name.endswith('_BG'):
+                                channel.backgrounds = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
+                            else:
+                                for parameter in channel.getRecordedParameters():
+                                    if name.endswith(f'.{parameter.name}'):
+                                        parameter.values = DynamicNp(initialData=item[:], max_size=self.maxDataPoints)
                 except RuntimeError as e:
                     self.print(f'Could not restore data from {file.name}. You can try to fix and then restart. If you record new data it will be overwritten! Error {e}',
                                 flag=PRINT.ERROR)
@@ -4296,7 +4330,7 @@ class Scan(Plugin):  # noqa: PLR0904
                     if not self._dummy_initialization:
                         self.print(f'{outputChannel.name} is not recording.', flag=PRINT.WARNING)
                     sourceInitialized = False
-            if outputChannel.sourceChannel and outputChannel.sourceChannel.inout == INOUT.IN:  # noqa: SIM102
+            if (outputChannel.sourceParameter and not outputChannel.sourceParameter.indicator) or (outputChannel.sourceChannel and outputChannel.sourceChannel.inout == INOUT.IN):  # noqa: SIM102
                 # Input channels only write and only have a read option for monitors.
                 # May still make sense if the output channel is a virtual channel only used for calculations.
                 if not self._dummy_initialization:
@@ -4373,7 +4407,7 @@ class Scan(Plugin):  # noqa: PLR0904
                 # This may cause use of waitLong instead of wait but should not have other side effects.
                 if not self._dummy_initialization:
                     self.print(f'Input device {inputChannel.getDevice().name} does not update fast enough for given values of wait and average.', flag=PRINT.WARNING)
-            if inputChannel.sourceChannel and inputChannel.sourceChannel.inout == INOUT.OUT:  # noqa: SIM102
+            if (inputChannel.sourceParameter and inputChannel.sourceParameter.indicator) or (inputChannel.sourceChannel and inputChannel.sourceChannel.inout == INOUT.OUT):  # noqa: SIM102
                 # Output channels only read and have no set option as well as no min max range.
                 # May still make sense if the output channel is a virtual channel only used for calculations.
                 if not self._dummy_initialization:
@@ -4504,10 +4538,11 @@ class Scan(Plugin):  # noqa: PLR0904
                     self.connectAllSources()
                     if self.useDisplayChannel:
                         self.populateDisplayChannel()  # select default scan channel if available
+                    self.loading = False
                 else:
                     self.toggleDisplay(visible=False)
+                    self.loading = False
                     return
-                self.loading = False
                 self.plot(update=False, done=True)  # self.populateDisplayChannel() does not trigger plot while loading
                 self.display.raiseDock(showPlugin)
         else:
@@ -5254,7 +5289,7 @@ class Tree(Plugin):
     def hdfShow(self, hdfItem: h5py.Group | h5py.File, tree: QTreeWidgetItem, expansionLevel: int) -> None:
         """Populate tree based on contents of a hdf5 file.
 
-        :param hdfItem: _description_
+        :param hdfItem: HDF Group
         :type hdfItem: h5py.Group | h5py.Dataset | h5py.File, ...
         :param tree: The tree used to display the file contents.
         :type tree: QTreeWidgetItem
@@ -6534,7 +6569,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
 
     def initGUI(self) -> None:  # noqa: D102
         super().initGUI()
-        self.importAction = self.addAction(self.loadConfiguration, 'Import all device channels and values.', icon=self.makeCoreIcon('blue-folder-import.png'))
+        self.importAction = self.addAction(event=lambda: self.loadConfiguration(file=None), toolTip='Import all device channels and values.',
+                                           icon=self.makeCoreIcon('blue-folder-import.png'))
         self.importAction.setVisible(False)
         self.exportAction = self.addAction(event=lambda: self.exportOutputData(file=None), toolTip='Save all visible history and all channels to current session.',
                                            icon=self.makeCoreIcon('database-export.png'))
@@ -6570,6 +6606,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.wakeTimer.timeout.connect(self.wake)
         self.wakeTimer.setInterval(300000)  # every 5 minutes
         self.wakeTimer.start()
+        self.testTimeout = 30 + 30 * len(self.pluginManager.getPluginsByClass(ChannelManager))  # Allow extra time to test other plugins
 
     def afterFinalizeInit(self) -> None:  # noqa: D102
         super().afterFinalizeInit()
@@ -7655,8 +7692,11 @@ class UCM(ChannelManager):
     class UCMChannel(RelayChannel, Channel):
         """Minimal UI for abstract channel."""
 
-        sourceChannel: 'Channel | None' = None
         DEVICE = 'Device'
+
+        def __init__(self, channelParent: ChannelManager | Scan, tree: QTreeWidget | None = None) -> None:  # noqa: D107
+            super().__init__(channelParent, tree)
+            self.invalid_chars = ['/']  # keep . as valid character to allow referencing recorded parameters of other channels
 
         def connectSource(self, giveFeedback: bool = False) -> None:  # noqa: C901, PLR0912, PLR0915
             """Connect the sourceChannel.
@@ -7665,35 +7705,48 @@ class UCM(ChannelManager):
             :type giveFeedback: bool, optional
             """
             self.removeEvents()  # free up previously used channel if applicable
+            channel_name = self.name
+            parameter_name = ''
+            if '.' in self.name:
+                channel_name = self.name.split('.')[0]
+                parameter_name = self.name.split('.')[1]  # if this is defined, UCM will not connect to the value but to the specified parameter of the sourceChannel
             sources = [channel for channel in self.pluginManager.DeviceManager.channels(inout=INOUT.ALL)
                        if channel not in self.channelParent.getChannels()
-                       and channel.name.strip().lower() == self.name.strip().lower()]
+                       and channel.name.strip().lower() == channel_name.strip().lower()
+                       and (not parameter_name or (channel.getParameterByName(parameter_name) is not None))]
             devicePushButton = cast('QPushButton', self.getParameterByName(self.DEVICE).getWidget())
+            value = self.getParameterByName(self.VALUE)
+            monitor = self.getParameterByName(self.MONITOR)
+            display = self.getParameterByName(self.DISPLAY)
+            display.setVisible(True)
+
+            if len(sources) > 0:
+                self.sourceParameter = sources[0].getParameterByName(parameter_name) if parameter_name else None
+                if self.sourceParameter and self.sourceParameter.parameterType not in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
+                    self.print(f'Cannot link to parameter {parameter_name} on channel {channel_name} as only parameters of type INT, FLOAT, and EXP are supported for linking.')
+                    sources = []  # Do not link
+
             if len(sources) == 0:
                 self.sourceChannel = None
                 self.getValues = lambda *_, **__: None
                 self.notes = f'Could not find {self.name}'
                 devicePushButton.setIcon(self.channelParent.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png'))
                 devicePushButton.setToolTip('Source: Unknown')
-                self.getParameterByName(self.VALUE).setVisible(False)  # value not needed (no setValues)
-                self.getParameterByName(self.MONITOR).setVisible(False)  # monitor not needed
+                value.setVisible(False)  # value not needed (no setValues)
+                monitor.setVisible(False)  # monitor not needed
             else:
                 self.sourceChannel = sources[0]
+                self.sourceParameter = self.sourceChannel.getParameterByName(parameter_name) if parameter_name else None
                 devicePushButton.setIcon(self.sourceChannel.getIcon())
-                devicePushButton.setToolTip(f'Source: {self.sourceChannel.channelParent.name}')
-                self.notes = f'Source: {self.sourceChannel.channelParent.name}.{self.sourceChannel.name}'
+                devicePushButton.setToolTip(f'Source: {self.sourceChannel.getDevice().name}.{parameter_name}' if parameter_name else
+                                             f'Source: {self.sourceChannel.getDevice().name}')
+                full_source = (f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}.{parameter_name}' if parameter_name else
+                              f'Source: {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}')
+                self.notes = full_source
                 if len(sources) > 1:
-                    self.print(f'More than one channel named {self.name}. Using {self.sourceChannel.getDevice().name}.{self.sourceChannel.name}.'
-                               'Use unique names to avoid this.', flag=PRINT.WARNING)
+                    self.print(f'More than one match for {self.name}. Using {full_source}. Use unique names to avoid this.', flag=PRINT.WARNING)
 
-                self.getValues = self.sourceChannel.getValues
-                value = self.getParameterByName(self.VALUE)
-                value.parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
-                value.indicator = self.sourceChannel.getParameterByName(self.VALUE).indicator
-                if self.MIN in self.sourceChannel.displayedParameters:
-                    value.min = cast('float | None', self.sourceChannel.getParameterByName(self.MIN).value)
-                    value.max = cast('float | None', self.sourceChannel.getParameterByName(self.MAX).value)
-                value.applyWidget()
+                self.getValues = self.sourceParameter.getValues if self.sourceParameter and self.sourceParameter.recorded else self.sourceChannel.getValues
                 device = self.sourceChannel.getDevice()
                 if hasattr(self.sourceChannel, self.UNIT.lower()):
                     self.unit = self.sourceChannel.unit
@@ -7701,24 +7754,58 @@ class UCM(ChannelManager):
                     self.unit = device.unit
                 else:
                     self.unit = ''
-                if self.sourceChannel.useMonitors:
+                if self.sourceParameter:
+                    self.unit = self.sourceParameter.unit
+                    if not self.sourceParameter.recorded:
+                        display.value = False
+                    display.setVisible(self.sourceParameter.recorded)
+                    if self.sourceParameter.indicator:
+                        monitor.parameterType = self.sourceParameter.parameterType
+                        monitor.applyWidget()
+                        value.setVisible(False)  # value not needed (no setValues)
+                        monitor.setVisible(True)
+                    else:
+                        value.parameterType = self.sourceParameter.parameterType
+                        value.indicator = False
+                        value.min, value.max = self.sourceParameter.min, self.sourceParameter.max
+                        value.applyWidget()
+                        value.setVisible(True)
+                        monitor.setVisible(False)
+                    self.sourceParameter.extraEvents.append(self.relayValueEvent)
+                elif self.sourceChannel.useMonitors:
                     # show value and monitor
-                    self.getParameterByName(self.MONITOR).parameterType = self.sourceChannel.getParameterByName(self.MONITOR).parameterType
-                    self.getParameterByName(self.MONITOR).applyWidget()
-                    self.getParameterByName(self.MONITOR).setVisible(self.sourceChannel.real)
-                    self.getParameterByName(self.VALUE).setVisible(True)
+                    monitor.parameterType = self.sourceChannel.getParameterByName(self.MONITOR).parameterType
+                    monitor.applyWidget()
+                    if self.sourceChannel.real:
+                        self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
+                    value.parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
+                    value.indicator = self.sourceChannel.getParameterByName(self.VALUE).indicator
+                    if self.MIN in self.sourceChannel.displayedParameters:
+                        value.min = cast('float | None', self.sourceChannel.getParameterByName(self.MIN).value)
+                        value.max = cast('float | None', self.sourceChannel.getParameterByName(self.MAX).value)
+                    value.applyWidget()
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
+                    value.setVisible(True)
+                    monitor.setVisible(self.sourceChannel.real)
                 elif self.sourceChannel.inout == INOUT.OUT:
                     # only show value as monitor
-                    self.getParameterByName(self.MONITOR).parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
-                    self.getParameterByName(self.MONITOR).applyWidget()
-                    self.getParameterByName(self.VALUE).setVisible(False)  # value not needed (no setValues)
+                    monitor.parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
+                    monitor.applyWidget()
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
+                    value.setVisible(False)  # value not needed (no setValues)
+                    monitor.setVisible(True)
                 else:
-                    self.getParameterByName(self.MONITOR).setVisible(False)  # monitor not needed
+                    value.parameterType = self.sourceChannel.getParameterByName(self.VALUE).parameterType
+                    value.indicator = self.sourceChannel.getParameterByName(self.VALUE).indicator
+                    if self.MIN in self.sourceChannel.displayedParameters:
+                        value.min = cast('float | None', self.sourceChannel.getParameterByName(self.MIN).value)
+                        value.max = cast('float | None', self.sourceChannel.getParameterByName(self.MAX).value)
+                    value.applyWidget()
+                    self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
+                    value.setVisible(True)
+                    monitor.setVisible(False)  # monitor not needed
 
                 self.getSourceChannelValues()
-                self.sourceChannel.getParameterByName(self.VALUE).extraEvents.append(self.relayValueEvent)
-                if self.sourceChannel.useMonitors:
-                    self.sourceChannel.getParameterByName(self.MONITOR).extraEvents.append(self.relayMonitorEvent)
                 for parameterName in [self.LINEWIDTH, self.LINESTYLE, self.COLOR]:
                     if parameterName in self.sourceChannel.displayedParameters:
                         self.sourceChannel.getParameterByName(parameterName).extraEvents.append(self.updateDisplay)
@@ -7734,7 +7821,10 @@ class UCM(ChannelManager):
             """Update sourceChannel.value."""
             if self.sourceChannel:
                 try:
-                    self.sourceChannel.value = self.value  # type: ignore # noqa: PGH003
+                    if self.sourceParameter:
+                        self.sourceParameter.value = self.value
+                    else:
+                        self.sourceChannel.value = self.value  # type: ignore # noqa: PGH003
                 except RuntimeError as e:
                     self.print(f'Error on updating {self.name}: {e}', flag=PRINT.ERROR)
                     self.sourceChannel = None
@@ -7744,14 +7834,20 @@ class UCM(ChannelManager):
             """Update value when sourceChannel.value changed."""
             if self.sourceChannel:
                 try:
-                    value = self.sourceChannel.value
-                    sourceDevice = self.sourceChannel.getDevice()
-                    if value is not None and isinstance(sourceDevice, Device):
-                        value = value - self.sourceChannel.background if sourceDevice.subtractBackgroundActive() else self.sourceChannel.value
-                        if self.sourceChannel.inout == INOUT.OUT:
-                            self.monitor = value
+                    if self.sourceParameter:
+                        if self.sourceParameter.indicator:
+                            self.monitor = cast('float |int', self.sourceParameter.value)
                         else:
-                            self.value = value
+                            self.value = cast('float |int', self.sourceParameter.value)
+                    else:
+                        value = self.sourceChannel.value
+                        sourceDevice = self.sourceChannel.getDevice()
+                        if value is not None and isinstance(sourceDevice, Device):
+                            value = value - self.sourceChannel.background if sourceDevice.subtractBackgroundActive() else self.sourceChannel.value
+                            if self.sourceChannel.inout == INOUT.OUT:
+                                self.monitor = value
+                            else:
+                                self.value = value
                 except RuntimeError:
                     self.removeEvents()
 
@@ -7773,7 +7869,12 @@ class UCM(ChannelManager):
         def getSourceChannelValues(self) -> None:
             """Get value and if applicable monitor from sourceChannel."""
             if self.sourceChannel:
-                if self.sourceChannel.inout == INOUT.OUT:
+                if self.sourceParameter:
+                    if self.sourceParameter.indicator:
+                        self.monitor = cast('float |int', self.sourceParameter.value)
+                    else:
+                        self.value = cast('float |int', self.sourceParameter.value)
+                elif self.sourceChannel.inout == INOUT.OUT:
                     self.monitor = self.sourceChannel.value
                 else:
                     self.value = self.sourceChannel.value
@@ -7787,6 +7888,8 @@ class UCM(ChannelManager):
         def removeEvents(self) -> None:
             """Remove extra events from sourceChannel."""
             if self.sourceChannel:
+                if self.sourceParameter and self.relayValueEvent in self.sourceParameter.extraEvents:
+                    self.sourceParameter.extraEvents.remove(self.relayValueEvent)
                 if self.relayValueEvent in self.sourceChannel.getParameterByName(self.VALUE).extraEvents:
                     self.sourceChannel.getParameterByName(self.VALUE).extraEvents.remove(self.relayValueEvent)
                 if self.sourceChannel.useMonitors and self.relayMonitorEvent in self.sourceChannel.getParameterByName(self.MONITOR).extraEvents:
@@ -7917,7 +8020,7 @@ class UCM(ChannelManager):
         :type name: str
         """
         for channel in self.channels:
-            if channel.name == name:
+            if channel.name.split('.')[0] == name:  # remove optional .parameter in UCMChannel name
                 self.print(f'Source channel {channel.name} may have been lost. Attempt reconnecting.', flag=PRINT.DEBUG)
                 channel.connectSource(giveFeedback=True)
 
@@ -7950,7 +8053,6 @@ class PID(ChannelManager):
         def __init__(self, **kwargs) -> None:  # noqa: D107
             super().__init__(**kwargs)
             self.inputChannel = None
-            self.sourceChannel: 'Channel | None' = None
             self.pid = None
 
         OUTPUT = 'Output'
@@ -8028,7 +8130,7 @@ class PID(ChannelManager):
                 devicePushButton.setIcon(selectedChannel.getIcon())
                 devicePushButton.setToolTip(f'Source: {selectedChannel.getDevice().name}')
                 if len(channels) > 1:
-                    self.print(f'More than one channel named {name}. Using {selectedChannel.getDevice().name}.{selectedChannel.name}.'
+                    self.print(f'More than one match for {name}. Using {selectedChannel.getDevice().name}.{selectedChannel.name}.'
                                ' Use unique names to avoid this.', flag=PRINT.WARNING)
             return selectedChannel, notes
 

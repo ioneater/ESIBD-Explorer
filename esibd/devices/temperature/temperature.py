@@ -106,10 +106,13 @@ class TemperatureChannel(Channel):
     def getDefaultChannel(self) -> dict[str, dict]:
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Temp (K) DISABLED'
+        channel[self.VALUE][Parameter.UNIT] = 'K'
         channel[self.VALUE][Parameter.INDICATOR] = True
         channel[self.VALUE][Parameter.ADVANCED] = True
+        channel[self.MONITOR][Parameter.HEADER] = 'Monitor (K)'
+        channel[self.MONITOR][Parameter.UNIT] = 'K'
         channel[self.POWER] = parameterDict(value=120, parameterType=PARAMETERTYPE.INT, minimum=80, maximum=180, attr='power', instantUpdate=False,
-                                event=self.setPower)
+                                event=self.setPower, unit='W', header='Power (W)')
         return channel
 
     def setDisplayedParameters(self) -> None:

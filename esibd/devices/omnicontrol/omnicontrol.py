@@ -21,6 +21,7 @@ class OMNICONTROL(Device):
     Can be used with and without Omnicontrol hardware.
     Frequently used pump parameters can be controlled through the GUI.
     Access to less frequently uses pump parameters is provided by the controller and convenience methods of the channel (e.g. acknError, setRS485Adr, setStdbySVal).
+    These can also be accessed directly through the context menu of the corresponding parameters.
     Additional parameters can be added following the same pattern if needed.
     """
 
@@ -127,10 +128,10 @@ class OmniChannel(Channel):  # noqa: PLR0904
                                         attr='pumpStatn', restore=False, event=self.setPumpStatn, header='State')
         channel[self.Standby] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True,
                                         attr='standby', restore=False, event=self.setStandby)
-        channel[self.DrvPower] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
-                                        attr='drvPower', restore=False, header='Power (W)')
-        channel[self.TempPump] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
-                                        attr='tempPump', restore=False, header='Temp (°C)')
+        channel[self.DrvPower] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True, indicator=True,
+                                        attr='drvPower', restore=False, header='Power (W)', recorded=True, unit='W')
+        channel[self.TempPump] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True, indicator=True,
+                                        attr='tempPump', restore=False, header='Temp (°C)', recorded=True, unit='°C')
         channel[self.ERRORLED] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True, indicator=True,
                                         header='Err', toolTip='Indicates errors.', attr='errorLED', restore=False)
         channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', restore=False, indicator=True)
@@ -171,6 +172,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
         oldValue = self.value
         value = self.getParameterByName(self.VALUE)
         value.parameterType = PARAMETERTYPE.FLOAT if self.isPump else PARAMETERTYPE.EXP
+        value.unit = self.unit
         value.displayDecimals = 0  # Note: integers cannot be represented as nan, thus using float with 0 decimals
         value.applyWidget()
         self.scalingChanged()
@@ -180,6 +182,12 @@ class OmniChannel(Channel):  # noqa: PLR0904
         self.getParameterByName(self.ERRORLED).extraContextActions = [ContextAction(text='Acknowledge Error', event=self.acknError)] if self.isPump else []
         self.getParameterByName(self.ID).extraContextActions = [ContextAction(text='Set address via Console', event=self.setRS485AdrConsole)] if self.isPump else []
         self.getParameterByName(self.Standby).extraContextActions = [ContextAction(text='Set Standby Speed via Console', event=self.setStdbySValConsole)] if self.isPump else []
+
+        display = self.getParameterByName(self.DISPLAY)
+        display.extraContextActions = []
+        if self.isPump:
+            for parameter in self.getRecordedParameters():
+                display.extraContextActions.append(ContextAction(text=f'Toggle display of {parameter.name}', event=parameter.updateDisplay))
 
     def getIcon(self, desaturate: bool = False) -> Icon:  # pylint: disable = missing-param-doc
         """Return Icon depending on the channel type."""

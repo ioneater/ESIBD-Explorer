@@ -1,6 +1,8 @@
 """Defines constants used throughout the package."""
 
+import colorsys
 import importlib.util
+import math
 import re
 import subprocess  # noqa: S404
 import sys
@@ -137,6 +139,21 @@ class Colors:
 colors = Colors()
 
 
+def hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
+    """Convert a hex color to rgb.
+
+    :param hex_color: hex color string
+    :type hex_color: str
+    :return: converted rbg color
+    :rtype: tuple[float, float, float]
+    """
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16) / 255.0
+    g = int(hex_color[2:4], 16) / 255.0
+    b = int(hex_color[4:6], 16) / 255.0
+    return r, g, b
+
+
 def rgb_to_hex(rgba: tuple[float, float, float, float]) -> str:
     """Convert colors from rgb to hex.
 
@@ -161,6 +178,61 @@ def mix_hex_colors(color1: str, color2: str, ratio: float) -> str:
 
     mixed = [round(c1[i] * (1 - ratio) + c2[i] * ratio) for i in range(3)]
     return f'#{mixed[0]:02X}{mixed[1]:02X}{mixed[2]:02X}'
+
+
+def color_distance(c1: tuple[float, float, float], c2: tuple[float, float, float]) -> float:
+    """Measure color distance.
+
+    :param c1: first color
+    :type c1: rgb tuple[float, float, float]
+    :param c2: second color
+    :type c2: rgb tuple[float, float, float]
+    :return: color distance
+    :rtype: float
+    """
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2, strict=True)))
+
+
+def similar_but_distinct_color(color_hex: str, index: int) -> str:
+    """Return a similar but distinct color.
+
+    This is used for related plots.
+    The color should be close enough so it is clear that the plots are related,
+    but distinct enough that they can be identified in the plot legend.
+
+    :param color_hex: initial hex color.
+    :type color_hex: str
+    :param index: increase index if you need additional colors.
+    :type index: int
+    :return: similar but distinct hex color.
+    :rtype: str
+    """
+    min_dist: float = 0.20
+    max_dist: float = 0.90
+    base_rgb = hex_to_rgb(color_hex)
+    h, s, v = colorsys.rgb_to_hsv(*base_rgb)
+
+    candidates = []
+    # Sweep nearby hues and small sat/value changes
+    for dh in [-0.14, -0.10, -0.06, -0.03, 0.03, 0.06, 0.10, 0.14]:
+        for ds in [-0.08, 0.00, 0.08]:
+            for dv in [-0.08, 0.00, 0.08]:
+                nh = (h + dh) % 1.0
+                ns = min(1.0, max(0.25, s + ds))
+                nv = min(1.0, max(0.25, v + dv))
+                rgb = colorsys.hsv_to_rgb(nh, ns, nv)
+                candidates.append(rgb)
+    candidates.sort(key=lambda color: color_distance(color, base_rgb))
+    selected = []
+    for candidate in candidates:
+        if color_distance(candidate, base_rgb) < min_dist:
+            continue
+        if all(color_distance(candidate, prev) >= min_dist and color_distance(candidate, prev) <= max_dist for prev in selected):
+            selected.append(candidate)
+        if len(selected) >= index:
+            break
+
+    return rgb_to_hex(selected[-1])
 
 
 class INOUT(Enum):
@@ -522,7 +594,7 @@ def smooth(data: np.typing.NDArray[np.float32], smooth: int) -> np.typing.NDArra
     if len(data) < smooth:
         return data
     smooth = int(np.ceil(smooth / 2.) * 2)  # make even
-    window = signal.windows.boxcar(smooth)
+    window = signal.windows.boxcar(smooth)  # type: ignore  # noqa: PGH003
 
     is_valid = np.isfinite(data).astype(float)
     # Smoothed sum and valid count

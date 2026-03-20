@@ -122,6 +122,9 @@ class TemperatureChannel(Channel):
         channel = super().getDefaultChannel()
         channel.pop(Channel.EQUATION)
         channel[self.VALUE][Parameter.HEADER] = 'Set Temp (K)'  # overwrite existing parameter to change header
+        channel[self.VALUE][Parameter.UNIT] = 'K'
+        channel[self.MONITOR][Parameter.HEADER] = 'Monitor (K)'  # overwrite existing parameter to change header
+        channel[self.MONITOR][Parameter.UNIT] = 'K'
         channel[self.VALUE][Parameter.INSTANTUPDATE] = False
         channel[self.ACTIVE] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, attr='channel_active', toolTip='Activate PID control.',
                                               event=self.channel_active_changed)

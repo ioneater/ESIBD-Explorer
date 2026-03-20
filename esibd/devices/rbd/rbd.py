@@ -141,7 +141,11 @@ class RBDCurrentChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
-        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.VALUE][Parameter.UNIT] = 'pA'
+        channel[self.BACKGROUND][Parameter.HEADER] = 'BG (pA)'
+        channel[self.BACKGROUND][Parameter.UNIT] = 'pA'
+        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True,
+                                             attr='charge', unit='pAh')
         channel[self.COM] = parameterDict(value='COM1', parameterType=PARAMETERTYPE.COMBO, advanced=True, toolTip='COM port',
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')
         channel[self.DEVICENAME] = parameterDict(value='smurf', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='devicename')

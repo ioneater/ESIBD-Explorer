@@ -109,11 +109,14 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
+        channel[self.VALUE][Parameter.UNIT] = 'V'
+        channel[self.MONITOR][Parameter.HEADER] = 'Monitor (V)'
+        channel[self.MONITOR][Parameter.UNIT] = 'V'
         channel[self.MIN][Parameter.VALUE] = 0
         channel[self.MAX][Parameter.VALUE] = 1  # start with safe limits
-        channel[self.POWER] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
-                                                indicator=True, attr='power', restore=False, header='Power (W)')
-        channel[self.CURRENT] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
+        channel[self.POWER] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False, recorded=True,
+                                                indicator=True, attr='power', restore=False, header='Power (W)', unit='W')
+        channel[self.CURRENT] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True, unit='A',
                                                 indicator=True, attr='current', restore=False, header='Current (A)')
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='ID', minimum=0, maximum=99, attr='id')

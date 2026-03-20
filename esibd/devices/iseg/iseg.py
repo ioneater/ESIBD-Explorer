@@ -79,6 +79,9 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'  # overwrite to change header
+        channel[self.VALUE][Parameter.UNIT] = 'V'  # overwrite to change header
+        channel[self.MONITOR][Parameter.HEADER] = 'Monitor (V)'
+        channel[self.MONITOR][Parameter.UNIT] = 'V'
         channel[self.MODULE] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='Mod', minimum=0, maximum=99, attr='module')
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,

@@ -15,6 +15,14 @@ Added
 - |omnicontrol| :ref:`sec:omnicontrol` plugin overhaul: Can now also control Pfeiffer turbo pumps.
 - In Test Mode there are now warning labels to make sure users are aware of simulated data.
 - The plugin source code file path is now shown in the plugin about dialog.
+- Introduced option to record additional parameters just like values or backgrounds.
+  Set recorded=True in for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
+  The recorded values for these parameters will be saved and restored.
+  In the |ucm| :ref:`sec:ucm`, these and any other parameters can be linked directly by using ChannelName.ParameterName.
+  Note that linking parameters can used in the same way for Scans.
+  In the device specific live displays they can be shown using the context menu of the display parameter of the corresponding channel.
+  The parameter will inherit most plot settings from the associated channel but the color will be altered slightly.
+  See |omnicontrol| :ref:`sec:omnicontrol`, |rspd3303c| :ref:`sec:rspd3303c`, and |keithley| :ref:`sec:keithley` for example use cases.
 
 Changed
 ~~~~~~~
@@ -33,6 +41,7 @@ Changed
 - Made "max error count" accessible in the Device settings in |advanced| advanced mode. See tooltip for documentation.
 - Plugins are now linked to their documentation in the changelog. Using plugin icons in documentation.
 - Using channel specific icons for linked channels.
+- Channel names can no longer use the . character as . has a special meaning in the context of ChannelName.ParameterName, but it can still be allowed for individual devices if necessary.
 
 Fixed
 ~~~~~
@@ -46,6 +55,7 @@ Fixed
 - Fixed crash due to inconsistent channel values and channel background. Instead showing warning and restoring consistency.
 - Fixed issue on |omnicontrol| :ref:`sec:omnicontrol` with loading values with mixed channel data type. Make sure that the default channel data type is suitable for exporting and restoring data of all other types. E.g. if you mix float (pump speed) and exp (pressure), use exp as the default data type.
 - Fixed loss of history after loading configuration by storing before and loading after loadConfiguration.
+- Fixed an issue where scans were left in the loading state when failing to load data from a file.
 
 Developer Notes
 ~~~~~~~~~~~~~~~
