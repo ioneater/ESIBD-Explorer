@@ -69,8 +69,8 @@ class LINE(Plugin):
         if super().supportsFile(file):
             first_line = ''  # else text file
             try:
-                with file.open(encoding=self.UTF8) as _file:
-                    first_line = _file.readline()
+                with file.open(encoding=self.UTF8) as open_file:
+                    first_line = open_file.readline()
             except UnicodeDecodeError:
                 return False
             if 'profile' in first_line.lower():  # afm profile

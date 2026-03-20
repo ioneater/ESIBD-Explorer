@@ -56,6 +56,7 @@ Fixed
 - Fixed issue on |omnicontrol| :ref:`sec:omnicontrol` with loading values with mixed channel data type. Make sure that the default channel data type is suitable for exporting and restoring data of all other types. E.g. if you mix float (pump speed) and exp (pressure), use exp as the default data type.
 - Fixed loss of history after loading configuration by storing before and loading after loadConfiguration.
 - Fixed an issue where scans were left in the loading state when failing to load data from a file.
+- Preventing empty channel names and names with spaces at the start or end.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

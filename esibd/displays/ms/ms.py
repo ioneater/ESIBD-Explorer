@@ -88,8 +88,8 @@ class MS(Plugin):
         if super().supportsFile(file):
             first_line = ''
             try:
-                with file.open(encoding=self.UTF8) as _file:
-                    first_line = _file.readline()
+                with file.open(encoding=self.UTF8) as open_file:
+                    first_line = open_file.readline()
             except UnicodeDecodeError:
                 return False
             if 'spectrum' in first_line.lower():  # mass spectrum

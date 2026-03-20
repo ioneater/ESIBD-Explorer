@@ -128,17 +128,15 @@ class Plugin(QWidget):  # noqa: PLR0904
        state that they are incompatible with this plugin. This can be used to
        prompt developers to update and test their plugins before
        distributing them for a more recent program version."""
-    dependencyPath = Path()  # will be set when plugin is loaded.
-    sourceCodePath = Path()  # will be set when plugin is loaded.
     titleBar: 'QToolBar | None'
     """Actions can be added to the titleBar using :meth:`~esibd.plugins.Plugin.addAction` or :meth:`~esibd.plugins.Plugin.addStateAction`."""
     titleBarLabel: 'QLabel | None'
     """The label used in the titleBar."""
-    dependencyPath: Path
+    dependencyPath: Path = Path()  # will be set when plugin is loaded.
     """Path to the plugin dependency files. Typically this is the same or relative to the plugin source code path.
        Can be used to locate dependencies like external scripts or media which are
        stored next to the plugin file or in sub folders relative to its location."""
-    sourceCodePath: Path
+    sourceCodePath: Path = Path()  # will be set when plugin is loaded.
     """Path to the plugin source code file."""
     pluginManager: PluginManager
     """A reference to the central :class:`~esibd.core.PluginManager`."""
@@ -2707,7 +2705,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                         if parameter[Parameter.PARAMETER_TYPE] in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT}:
                             values = cast('h5py.Dataset', group[name])
                         elif parameter[Parameter.PARAMETER_TYPE] == PARAMETERTYPE.BOOL:
-                            values = [str(_bool) for _bool in cast('h5py.Dataset', group[name])]
+                            values = [str(bool_str) for bool_str in cast('h5py.Dataset', group[name])]
                         else:
                             values = datasetToStrList(cast('h5py.Dataset', group[name]))
                         for i, value in enumerate(values):
@@ -4889,7 +4887,7 @@ class Browser(Plugin):
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
         self.floatAction.deleteLater()
-        delattr(self, 'floatAction')
+        del self.floatAction
         self.stretch.deleteLater()
         self.openAbout()
 
@@ -5098,8 +5096,7 @@ class Text(Plugin):
         else:
             file = Path(QFileDialog.getSaveFileName(parent=None, caption=SELECTFILE)[0])
         if file != Path():
-            with file.open('w', encoding=self.UTF8) as textFile:
-                textFile.write(self.editor.toPlainText())
+            file.write_text(self.editor.toPlainText(), encoding=self.UTF8)
             self.pluginManager.Explorer.populateTree()
 
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
@@ -5256,8 +5253,8 @@ class Tree(Plugin):
                 function_widget.setIcon(0, QIcon(self.ICON_FUNCTIONMETHOD))
                 function_widget.setToolTip(0, ast.get_docstring(function))
                 function_widget.setExpanded(True)
-            for _class in classes:
-                self.pyShow(_class, self.tree, 0)
+            for ast_class in classes:
+                self.pyShow(ast_class, self.tree, 0)
         if self.tree.topLevelItemCount() == 0:  # show text if no items found
             self.pluginManager.Text.provideDock()
             self.pluginManager.Text.raiseDock(showPlugin)
@@ -5304,7 +5301,7 @@ class Tree(Plugin):
                     groupItem.setExpanded(True)
                 for attribute, value in item.attrs.items():
                     attribute_str = f'{attribute}: {value}'
-                    attribute_widget = QTreeWidgetItem(groupItem, [attribute_str.split('\n')[0]])
+                    attribute_widget = QTreeWidgetItem(groupItem, [attribute_str.split('\n', maxsplit=1)[0]])
                     attribute_widget.setIcon(0, QIcon(self.ICON_ATTRIBUTE))
                     attribute_widget.setToolTip(0, attribute_str)
                 self.hdfShow(item, groupItem, expansionLevel + 1)
@@ -5368,8 +5365,8 @@ class Tree(Plugin):
         class_widget.setToolTip(0, ast.get_docstring(class_obj))
         if expansionLevel < 1:
             class_widget.setExpanded(True)
-        for _class_obj in [node for node in class_obj.body if isinstance(node, ast.ClassDef)]:
-            self.pyShow(_class_obj, class_widget, expansionLevel + 1)
+        for ast_class_obj in [node for node in class_obj.body if isinstance(node, ast.ClassDef)]:
+            self.pyShow(ast_class_obj, class_widget, expansionLevel + 1)
         for method in [node for node in class_obj.body if isinstance(node, ast.FunctionDef)]:
             method_widget = QTreeWidgetItem(class_widget, [method.name])
             method_widget.setIcon(0, QIcon(self.ICON_FUNCTIONMETHOD))
@@ -5693,7 +5690,7 @@ class Console(Plugin):
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
         self.floatAction.deleteLater()
-        delattr(self, 'floatAction')
+        del self.floatAction
         namespace = {'timeit': timeit, 'esibd': esibd, 'sys': sys, 'gc': gc, 'np': np, 'itertools': itertools, 'plt': plt, 'inspect': inspect, 'INOUT': INOUT, 'qSet': qSet,
                     'Parameter': Parameter, 'QtCore': QtCore, 'Path': Path, 'Qt': Qt, 'PluginManager': self.pluginManager, 'importlib': importlib, 'version': version,
                       'datetime': datetime, 'QApplication': QApplication, 'self': self.app.mainWindow, 'help': self.help, 'dynamicImport': dynamicImport}
@@ -6262,7 +6259,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
         self.floatAction.deleteLater()
-        delattr(self, 'floatAction')
+        del self.floatAction
         self.requiredPlugin('DeviceManager')
         self.requiredPlugin('Explorer')
         self.filterLineEdit = QLineEdit()
@@ -6593,7 +6590,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.pluginManager.Settings.updateSessionPath()
         super().finalizeInit()
         self.floatAction.deleteLater()
-        delattr(self, 'floatAction')
+        del self.floatAction
         if hasattr(self, 'titleBarLabel') and self.titleBarLabel:
             self.titleBarLabel.deleteLater()
             self.titleBarLabel = None

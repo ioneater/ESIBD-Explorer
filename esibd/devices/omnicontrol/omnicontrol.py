@@ -20,7 +20,7 @@ class OMNICONTROL(Device):
 
     Can be used with and without Omnicontrol hardware.
     Frequently used pump parameters can be controlled through the GUI.
-    Access to less frequently uses pump parameters is provided by the controller and convenience methods of the channel (e.g. acknError, setRS485Adr, setStdbySVal).
+    Access to less frequently uses pump parameters is provided by the controller and convenience methods of the channel (e.g. acknError, setRS485Adr, setStdbySVal, getOpHrsPump).
     These can also be accessed directly through the context menu of the corresponding parameters.
     Additional parameters can be added following the same pattern if needed.
     """
@@ -179,6 +179,8 @@ class OmniChannel(Channel):  # noqa: PLR0904
         self.updateColor()
         self.value = oldValue
         self.logY = not self.isPump
+        self.getParameterByName(self.PumpStatn).extraContextActions = ([ContextAction(text='Get operating hours via Console.', event=self.getOpHrsPumpConsole)] if self.isPump
+                                                                       else [])
         self.getParameterByName(self.ERRORLED).extraContextActions = [ContextAction(text='Acknowledge Error', event=self.acknError)] if self.isPump else []
         self.getParameterByName(self.ID).extraContextActions = [ContextAction(text='Set address via Console', event=self.setRS485AdrConsole)] if self.isPump else []
         self.getParameterByName(self.Standby).extraContextActions = [ContextAction(text='Set Standby Speed via Console', event=self.setStdbySValConsole)] if self.isPump else []
@@ -244,6 +246,18 @@ class OmniChannel(Channel):  # noqa: PLR0904
         if not self.checkPumpChannel():
             return np.nan
         return self.channelParent.controller.getStdbySVal(addr=self.id)
+
+    def getOpHrsPump(self) -> float:
+        """Get the number of operating hours of the turbo pump."""
+        if not self.checkPumpChannel():
+            return np.nan
+        return self.channelParent.controller.getOpHrsPump(addr=self.id)
+
+    def getOpHrsPumpConsole(self) -> None:
+        """Allow user to set Standby Speed via console."""
+        self.pluginManager.Console.addToNamespace('channel', self)
+        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.mainConsole.input.setText('channel.getOpHrsPump()')
 
     def setStdbySVal(self, value: float) -> None:
         """Set the standby speed value of the turbo pump.
@@ -347,8 +361,8 @@ class OmniController(DeviceController):  # noqa: PLR0904
                                       self.controllerParent.interval / 1000))) + self.rng.uniform(-5, 5))
                     self.pumpStatn[i] = channel.pumpStatn
                     self.standby[i] = channel.standby
-                    self.drvPower[i] = self.values[i] / 30
-                    self.tempPump[i] = 25 + self.values[i] / 60
+                    self.drvPower[i] = self.values[i] / 30 * self.rng.uniform(.99, 1.01)
+                    self.tempPump[i] = 25 + self.values[i] / 60 * self.rng.uniform(.99, 1.01)
                     self.errorCode[i] = '000000'
                 else:
                     self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
@@ -477,6 +491,16 @@ class OmniController(DeviceController):  # noqa: PLR0904
         if response:
             return float(response) / 100
         self.print(f'Got empty response while setting StdbySVal on address {addr}.', flag=PRINT.WARNING)
+        return np.nan
+
+    def getOpHrsPump(self, addr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc
+        """Get the standby speed value of the turbo pump."""
+        if getTestMode():
+            return 0
+        response = self.OmniWriteRead(addr=addr, param_num=311, already_acquired=already_acquired)
+        if response:
+            return int(response)
+        self.print(f'Got empty response while reading OpHrsPump on address {addr}.', flag=PRINT.WARNING)
         return np.nan
 
     def setRS485Adr(self, addr: int, newAddr: int, already_acquired=False) -> float:  # pylint: disable = missing-param-doc

@@ -264,6 +264,7 @@ class PluginManager:  # noqa: PLR0904
         self.logger = Logger(pluginManager=self)
         self.logger.print('Loading.', flag=PRINT.EXPLORER)
         self.pluginFile: 'Path | None' = None
+        self.tree: 'TreeWidget | None' = None
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.LeftDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.North)
         self.mainWindow.setTabPosition(Qt.DockWidgetArea.TopDockWidgetArea, QTabWidget.TabPosition.North)
@@ -611,25 +612,27 @@ class PluginManager:  # noqa: PLR0904
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
         lay.setContentsMargins(0, 0, 0, 0)
-        tree = TreeWidget()
-        tree.setItemDelegate(TransparentTextDelegate(tree))
-        tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
-        tree.setColumnCount(8)
-        tree.setRootIsDecorated(False)
-        tree.setColumnWidth(2, 50)
-        tree.setColumnWidth(3, 50)
-        tree.setColumnWidth(4, 50)
-        tree.setSortingEnabled(True)
-        header = tree.header()
+        self.tree = TreeWidget()
+        self.tree.setItemDelegate(TransparentTextDelegate(self.tree))
+        self.tree.setHeaderLabels(['', 'Name', 'Enabled', 'Version', 'Supported Version', 'Type', 'Preview File Types', 'Description (See tooltips!)'])
+        self.tree.setColumnCount(8)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setColumnWidth(2, 50)
+        self.tree.setColumnWidth(3, 50)
+        self.tree.setColumnWidth(4, 50)
+        self.tree.setSortingEnabled(True)
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self.toggleSelectionContextMenu)
+        header = self.tree.header()
         if header:
             header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        tree.setColumnWidth(6, 150)
-        root = tree.invisibleRootItem()
+        self.tree.setColumnWidth(6, 150)
+        root = self.tree.invisibleRootItem()
         if not root:
             return
-        lay.addWidget(tree)
+        lay.addWidget(self.tree)
         buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         okButton = buttonBox.button(QDialogButtonBox.StandardButton.Ok)
         if okButton:
@@ -644,9 +647,9 @@ class PluginManager:  # noqa: PLR0904
         confParser[INFO] = infoDict('PluginManager')
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
-                self.addPluginTreeWidgetItem(tree=tree, item=item, name=name)
-        tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)  # name
-        tree.sortByColumn(2, Qt.SortOrder.DescendingOrder)  # non optional, enabled, disabled
+                self.addPluginTreeWidgetItem(item=item, name=name)
+        self.tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)  # name
+        self.tree.sortByColumn(2, Qt.SortOrder.DescendingOrder)  # non optional, enabled, disabled
 
         dlg.setLayout(lay)
         if dlg.exec():
@@ -657,66 +660,95 @@ class PluginManager:  # noqa: PLR0904
                     name = child.text(1)
                     enabled = True
                     internal = True
-                    if tree.itemWidget(child, 2):
-                        enabled = cast('CheckBox', (tree.itemWidget(child, 2))).isChecked()
+                    if self.tree.itemWidget(child, 2):
+                        enabled = cast('CheckBox', (self.tree.itemWidget(child, 2))).isChecked()
                         internal = False
                     if not internal:
                         confParser[name][self.ENABLED] = str(enabled)
+            self.tree.deleteLater()
+            self.tree = None
             with self.pluginFile.open('w', encoding=UTF8) as configFile:
                 confParser.write(configFile)
             self.mainWindow.closeApplication(restart=True)
             QApplication.restoreOverrideCursor()
 
-    def addPluginTreeWidgetItem(self, tree: QTreeWidget, item: Mapping, name: str) -> None:
+    def addPluginTreeWidgetItem(self, item: Mapping, name: str) -> None:
         """Add a row for given plugin. If not a core plugin it can be enabled or disabled using the checkbox.
 
-        :param tree: The tree used to display plugin information.
-        :type tree: QTreeWidget
         :param item: Dictionary with plugin information.
         :type item: Mapping
         :param name: Plugin name.
         :type name: str
         """
-        pluginTreeWidget = QTreeWidgetItem(tree.invisibleRootItem())
-        if item[self.ICONFILE]:
-            pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] else item[self.ICONFILE])))
-        else:
-            pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
-        pluginTreeWidget.setText(1, name)
-        if item[self.OPTIONAL] == 'True':
-            checkbox = CheckBox()
-            checkbox.setChecked(item[self.ENABLED] == 'True')
-            tree.setItemWidget(pluginTreeWidget, 2, checkbox)
-            pluginTreeWidget.setText(2, item[self.ENABLED])
-        else:
-            pluginTreeWidget.setText(2, 'z Not Optional')
-        pluginTreeWidget.setForeground(2, QColor(0, 0, 0, 0))  # make sorting text transparent
-        versionLabel = QLabel()
-        versionLabel.setText(item[self.VERSION])
-        tree.setItemWidget(pluginTreeWidget, 3, versionLabel)
-        pluginTreeWidget.setText(3, item[self.VERSION])  # needed for sorting
-        pluginTreeWidget.setForeground(3, QColor(0, 0, 0, 0))  # make sorting text transparent
-        supportedVersionLabel = QLabel()
-        supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
-        supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
-        tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
-        pluginTreeWidget.setText(4, item[self.SUPPORTEDVERSION])
-        pluginTreeWidget.setForeground(4, QColor(0, 0, 0, 0))  # make sorting text transparent
-        typeLabel = QLabel()
-        typeLabel.setText(item[self.PLUGIN_TYPE])
-        tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
-        pluginTreeWidget.setText(5, item[self.PLUGIN_TYPE])
-        pluginTreeWidget.setForeground(5, QColor(0, 0, 0, 0))  # make sorting text transparent
-        previewFileTypesLabel = QLabel()
-        previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
-        previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])
-        tree.setItemWidget(pluginTreeWidget, 6, previewFileTypesLabel)
-        descriptionLabel = QLabel()
-        description = item[self.DESCRIPTION]
-        if description:
-            descriptionLabel.setText(description.splitlines()[0][:100])
-            descriptionLabel.setToolTip(description)
-        tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
+        if self.tree:
+            pluginTreeWidget = QTreeWidgetItem(self.tree.invisibleRootItem())
+            if item[self.ICONFILE]:
+                pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] else item[self.ICONFILE])))
+            else:
+                pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
+            pluginTreeWidget.setText(1, name)
+            if item[self.OPTIONAL] == 'True':
+                checkbox = CheckBox()
+                checkbox.setChecked(item[self.ENABLED] == 'True')
+                self.tree.setItemWidget(pluginTreeWidget, 2, checkbox)
+                pluginTreeWidget.setText(2, item[self.ENABLED])
+            else:
+                pluginTreeWidget.setText(2, 'z Not Optional')
+            pluginTreeWidget.setForeground(2, QColor(0, 0, 0, 0))  # make sorting text transparent
+            versionLabel = QLabel()
+            versionLabel.setText(item[self.VERSION])
+            self.tree.setItemWidget(pluginTreeWidget, 3, versionLabel)
+            pluginTreeWidget.setText(3, item[self.VERSION])  # needed for sorting
+            pluginTreeWidget.setForeground(3, QColor(0, 0, 0, 0))  # make sorting text transparent
+            supportedVersionLabel = QLabel()
+            supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
+            supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
+            self.tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
+            pluginTreeWidget.setText(4, item[self.SUPPORTEDVERSION])
+            pluginTreeWidget.setForeground(4, QColor(0, 0, 0, 0))  # make sorting text transparent
+            typeLabel = QLabel()
+            typeLabel.setText(item[self.PLUGIN_TYPE])
+            self.tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
+            pluginTreeWidget.setText(5, item[self.PLUGIN_TYPE])
+            pluginTreeWidget.setForeground(5, QColor(0, 0, 0, 0))  # make sorting text transparent
+            previewFileTypesLabel = QLabel()
+            previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
+            previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])
+            self.tree.setItemWidget(pluginTreeWidget, 6, previewFileTypesLabel)
+            descriptionLabel = QLabel()
+            description = item[self.DESCRIPTION]
+            if description:
+                descriptionLabel.setText(description.splitlines()[0][:100])
+                descriptionLabel.setToolTip(description)
+            self.tree.setItemWidget(pluginTreeWidget, 7, descriptionLabel)
+
+    def toggleSelectionContextMenu(self, pos: QPoint) -> None:
+        """Context menu to toggle selection of plugins.
+
+        :param pos: The position of the context menu.
+        :type pos: QPoint
+        """
+        if self.tree and self.tree.columnAt(pos.x()) == 2:  # noqa: PLR2004
+            item = self.tree.itemAt(pos)
+            widget = self.tree.itemWidget(item, 2)
+            if widget and isinstance(widget, CheckBox):
+                menu = QMenu(self.tree)
+                menu.addAction('Select All', lambda: self.toggleSelection(enabled=True))
+                menu.addAction('Select None', lambda: self.toggleSelection(enabled=False))
+                menu.exec(self.tree.mapToGlobal(pos))
+
+    def toggleSelection(self, enabled: bool) -> None:
+        """Toggle selection of channels. Mostly used for development purposes when running tests with changing selection of plugins.
+
+        :param enabled: Enable all or none of the channels.
+        :type enabled: bool
+        """
+        if self.tree:
+            root = self.tree.invisibleRootItem()
+            if root:
+                for child in [root.child(i) for i in range(root.childCount())]:
+                    if child and self.tree.itemWidget(child, 2):
+                        cast('CheckBox', (self.tree.itemWidget(child, 2))).setChecked(enabled)
 
     def closePlugins(self) -> None:
         """Close all open connections and leave hardware in save state (e.g. voltage off)."""
@@ -3001,16 +3033,17 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     def clearPlotCurve(self) -> None:
         """Clear the plot curve. It will be recreated (with updated values and settings) next time plot is called."""
         device = self.getDevice()
-        if self.plotCurve and isinstance(device, self.pluginManager.ChannelManager):
-            # all plot curves need to have a curveParent so they can be removed gracefully
-            self.plotCurve.curveParent.removeItem(self.plotCurve)  # plotWidget still tries to access this even if deleted -> need to explicitly remove!
-            if isinstance(self.plotCurve.curveParent, ViewBox):
-                self.plotCurve.curveLegend.removeItem(self.plotCurve)
-            self.plotCurve.clear()
-            self.plotCurve.deleteLater()
-            self.plotCurve = None
-            if device.liveDisplay:
-                device.liveDisplay.updateLegend = True
+        if isinstance(device, self.pluginManager.ChannelManager):
+            if self.plotCurve:
+                # all plot curves need to have a curveParent so they can be removed gracefully
+                self.plotCurve.curveParent.removeItem(self.plotCurve)  # plotWidget still tries to access this even if deleted -> need to explicitly remove!
+                if isinstance(self.plotCurve.curveParent, ViewBox):
+                    self.plotCurve.curveLegend.removeItem(self.plotCurve)
+                self.plotCurve.clear()
+                self.plotCurve.deleteLater()
+                self.plotCurve = None
+                if device.liveDisplay:
+                    device.liveDisplay.updateLegend = True
             for parameter in self.getRecordedParameters():
                 parameter.clearPlotCurve()
 
@@ -3205,6 +3238,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                     # len(item) < 2 -> only provided name -> generating default file
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.channelParent.channelsChanged = True
+        name_parameter.line.allowEmptyText = False  # names cannot be empty
         if self.inout != INOUT.NONE and self.EQUATION in self.displayedParameters:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)
@@ -4630,6 +4664,9 @@ class LineEdit(QLineEdit, ParameterWidget):
 
     # based on https://stackoverflow.com/questions/79309361/prevent-editingfinished-signal-from-qlineedit-after-programmatic-text-update
     userEditingFinished = pyqtSignal()
+    allowEmptyText: bool = True
+    """If False, empty text is not allowed and will be replaced with last valid text"""
+    last_valid_text: str
 
     def __init__(self, parentParameter: Parameter, tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a LineEdit."""
@@ -4659,18 +4696,25 @@ class LineEdit(QLineEdit, ParameterWidget):
         """
         self.updateGeometry()  # adjust width to text
         self.validateInput()
+        if self.text().strip():
+            self.last_valid_text = self.text()
 
     def validateInput(self) -> None:
         """Validate the text and remove invalid characters."""
         current_text = self.text()
         # Remove any character that doesn't match the valid_chars regex
-        valid_text = validateText(printParent=self.parentParameter, valid_chars=self.valid_chars, text=current_text)
+        valid_text = validateText(printParent=self.parentParameter, valid_chars=self.valid_chars, text=current_text).strip()
         if valid_text != current_text:
             self.setText(valid_text)
 
     def onEditingFinished(self) -> None:
         """Process new value and update tree if applicable after editing was finished by Enter or loosing focus."""
-        if self._edited:
+        if not self.text().strip() and not self.allowEmptyText:
+            if self.last_valid_text:
+                self.parentParameter.print(f'Empty value not allowed, reverting to {self.last_valid_text}', flag=PRINT.WARNING)
+                self.setText(self.last_valid_text)
+            self._edited = False
+        elif self._edited:
             self._edited = False
             if self.tree:
                 self.tree.scheduleDelayedItemsLayout()
