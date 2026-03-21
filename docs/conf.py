@@ -42,6 +42,10 @@ numfig = True
 autodoc_mock_imports = ['PyQt6', 'pyqtgraph', 'PyQt5', 'PySide2', 'matplotlib', 'serial', 'mpl_toolkits', 'pywin32', 'picosdk', 'scipy',
                         'picosdk.usbPT104', 'picosdk.functions', 'pfeiffer_vacuum_protocol', 'nidaqmx', 'pyvisa', 'lakeshore']
 
+autodoc_default_options = {
+    'inherited-members': False,
+}
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 

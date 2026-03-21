@@ -11,7 +11,7 @@ as well as monitoring deposited charge.
 Thanks to a plugin system and templates it is now possible
 to add support for custom devices, scan modes, and more using only
 a few lines of code. *ESIBD Explorer* can therefore be used for a broad range of
- experiments beyond ESIBD.
+experiments beyond ESIBD.
 
 *ESIBD Explorer* follows the core philosophy that the user should only see and interact with physically relevant experimental parameters.
 Core information and features should be accessible with as little clicks as possible.

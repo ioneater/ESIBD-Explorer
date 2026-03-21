@@ -23,6 +23,7 @@ Added
   In the device specific live displays they can be shown using the context menu of the display parameter of the corresponding channel.
   The parameter will inherit most plot settings from the associated channel but the color will be altered slightly.
   See |omnicontrol| :ref:`sec:omnicontrol`, |rspd3303c| :ref:`sec:rspd3303c`, and |keithley| :ref:`sec:keithley` for example use cases.
+- Added new device plugin |spa| :ref:`sec:spa` for electron plus picoammeters.
 
 Changed
 ~~~~~~~
@@ -34,7 +35,7 @@ Changed
 - |rbd| :ref:`sec:rbd` now uses np.nan instead of 0 if there was an error parsing the current.
 - Made dashes shorter so they are easier to find in pyqtgraph legend.
 - Allowed use of % as unit.
-- Sending Settings, Channels, and Parameters to the console is not always enabled and not just in Debug Mode.
+- Sending Settings, Channels, and Parameters to the console is now always enabled and not just in Debug Mode.
 - Prevented dragging cursors in scans while scan is running.
 - |rspd3303c| :ref:`sec:rspd3303c`: Improved shutdown timer messages.
 - Made "Error reset time", " Max lag tolerance", and "Lag wait time" accessible in the General section of |settings| :ref:`sec:settings` in |advanced| advanced mode. See tooltips for documentation.
@@ -63,10 +64,10 @@ Developer Notes
 - Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.
 - |omnicontrol| :ref:`sec:omnicontrol`: Removed dependence on pfeiffer-vacuum-protocol package.
 - Added testing loading entire configuration to the DeviceManager tests.
-- Added IntelliSense support for dynamically imported dependencies (e.g. for |ga| :ref:`sec:ga`).
+- Added IntelliSense support for dynamically imported dependencies (e.g. for |ga| :ref:`sec:genetic_algorithm`).
 - Introduced ChannelManager.defaultChannel which is initialized in the main_thread and can be used as a reference e.g. for saving data from a parallel thread.
 - DeviceManager is no longer waiting for scans that did not initialize successfully in automated testing.
-- Added extraContextActions for parameters and used it to add acknowledge error, set standby speed, and change address options to corresponding parameters in |omnicontrol| :ref:`sec:omnicontrol.
+- Added extraContextActions for parameters and used it to add acknowledge error, set standby speed, and change address options to corresponding parameters in |omnicontrol| :ref:`sec:omnicontrol`.
 
 Version 0.8.2 2025-06-23
 ========================

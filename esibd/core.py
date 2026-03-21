@@ -3238,7 +3238,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                     # len(item) < 2 -> only provided name -> generating default file
                     self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
                     self.channelParent.channelsChanged = True
-        name_parameter.line.allowEmptyText = False  # names cannot be empty
+        if name_parameter.parameterType == PARAMETERTYPE.TEXT:
+            name_parameter.line.allowEmptyText = False  # names cannot be empty
         if self.inout != INOUT.NONE and self.EQUATION in self.displayedParameters:
             line = self.getParameterByName(self.EQUATION).line
             line.setMinimumWidth(200)

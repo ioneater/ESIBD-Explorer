@@ -172,6 +172,13 @@ Other
    Additional device specific settings, e.g. COM ports or IP addresses
    for communication.
 
+.. _`sec:calculator`:
+
+|calculator| Calculator
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: esibd.examples.calculator.calculator_plugin.Calculator
+   :noindex:
+
 .. _`sec:customDevice`:
 
 |customDevice| Custom device
@@ -186,20 +193,6 @@ Other
 .. automodule:: esibd.examples.custom_device.custom_device2.CustomDevice2
    :noindex:
 
-.. _`sec:calculator`:
-
-|calculator| Calculator
-~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.examples.calculator.calculator_plugin.Calculator
-   :noindex:
-
-.. _`sec:webcam`:
-
-|webcam| Webcam
-~~~~~~~~~~~~~~~
-.. automodule:: esibd.controls.webcam.webcam.Webcam
-   :noindex:
-
 .. _`sec:ISEG`:
 
 |iseg| ISEG
@@ -207,18 +200,18 @@ Other
 .. automodule:: esibd.devices.iseg.iseg.ISEG
    :noindex:
 
-.. _`sec:RBD`:
+.. _`sec:KEITHLEY`:
 
-|rbd| RBD
-~~~~~~~~~
-.. automodule:: esibd.devices.rbd.rbd.RBD
+|keithley| KEITHLEY
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: esibd.devices.keithley.keithley.KEITHLEY
    :noindex:
 
-.. _`sec:TIC`:
+.. _`sec:LS335`:
 
-|tic| TIC
-~~~~~~~~~
-.. automodule:: esibd.devices.tic.tic.TIC
+|ls335| LS335
+~~~~~~~~~~~~~
+.. automodule:: esibd.devices.lakeshore335.lakeshore.LS335
    :noindex:
 
 .. _`sec:MAXIGAUGE`:
@@ -226,27 +219,6 @@ Other
 |maxigauge| MAXIGAUGE
 ~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: esibd.devices.maxigauge.maxigauge.MAXIGAUGE
-   :noindex:
-
-.. _`sec:OMNICONTROL`:
-
-|omnicontrol| OMNICONTROL
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.devices.omnicontrol.omnicontrol.OMNICONTROL
-   :noindex:
-
-.. _`sec:Temperature`:
-
-|temperature| Temperature
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.devices.temperature.temperature.Temperature
-   :noindex:
-
-.. _`sec:KEITHLEY`:
-
-|keithley| KEITHLEY
-~~~~~~~~~~~~~~~~~~~
-.. automodule:: esibd.devices.keithley.keithley.KEITHLEY
    :noindex:
 
 .. _`sec:MIPS`:
@@ -263,11 +235,25 @@ Other
 .. automodule:: esibd.devices.ni9263.ni9263.NI9263
    :noindex:
 
+.. _`sec:OMNICONTROL`:
+
+|omnicontrol| OMNICONTROL
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: esibd.devices.omnicontrol.omnicontrol.OMNICONTROL
+   :noindex:
+
 .. _`sec:PICO`:
 
 |pico| PICO
 ~~~~~~~~~~~
 .. automodule:: esibd.devices.pico.pico.PICO
+   :noindex:
+
+.. _`sec:RBD`:
+
+|rbd| RBD
+~~~~~~~~~
+.. automodule:: esibd.devices.rbd.rbd.RBD
    :noindex:
 
 .. _`sec:RSPD3303C`:
@@ -277,11 +263,32 @@ Other
 .. automodule:: esibd.devices.rspd3303c.rspd3303c.RSPD3303C
    :noindex:
 
-.. _`sec:LS335`:
+.. _`sec:SPA`:
 
-|ls335| LS335
-~~~~~~~~~~~~~
-.. automodule:: esibd.devices.lakeshore335.lakeshore.LS335
+|spa| SPA
+~~~~~~~~~
+.. automodule:: esibd.devices.spa.spa.SPA1x0
+   :noindex:
+
+.. _`sec:Temperature`:
+
+|temperature| Temperature
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: esibd.devices.temperature.temperature.Temperature
+   :noindex:
+
+.. _`sec:TIC`:
+
+|tic| TIC
+~~~~~~~~~
+.. automodule:: esibd.devices.tic.tic.TIC
+   :noindex:
+
+.. _`sec:webcam`:
+
+|webcam| Webcam
+~~~~~~~~~~~~~~~
+.. automodule:: esibd.controls.webcam.webcam.Webcam
    :noindex:
 
 .. _`sec:channels`:

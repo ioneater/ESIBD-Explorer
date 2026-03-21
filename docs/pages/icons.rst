@@ -90,6 +90,8 @@
    :height: 2ex
 .. |mips| image:: ../../esibd/devices/mips/mips.png
    :height: 2ex
+.. |spa| image:: ../../esibd/devices/spa/spa.png
+   :height: 2ex
 .. |ni9263| image:: ../../esibd/devices/ni9263/NI9263.png
    :height: 2ex
 

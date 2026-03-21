@@ -7691,7 +7691,7 @@ class UCM(ChannelManager):
 
         DEVICE = 'Device'
 
-        def __init__(self, channelParent: ChannelManager | Scan, tree: QTreeWidget | None = None) -> None:  # noqa: D107
+        def __init__(self, channelParent: ChannelManager | Scan, tree: 'QTreeWidget | None' = None) -> None:  # noqa: D107
             super().__init__(channelParent, tree)
             self.invalid_chars = ['/']  # keep . as valid character to allow referencing recorded parameters of other channels
 
