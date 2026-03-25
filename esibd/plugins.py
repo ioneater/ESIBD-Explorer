@@ -2067,6 +2067,8 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 channel.convertDataDisplay and isinstance(device, Device)):
             i_min, i_max, n, timeAxis = timeAxes[device.name]
             if apply or np.remainder(i_min, n) == 0:  # otherwise no update required
+                # ignoring extremely rare edge case where one channel has been patched with np.nan and i_min is not 0 and not changing
+                # as it corresponds to a time without display time.
                 if timeAxis.shape[0] > 1:  # need at least 2 data points to plot connecting line segment
                     # plotting is very expensive, array manipulation is negligible even with 50000 data points per channel
                     # channel should at any point have as many data points as timeAxis (missing bits will be filled with nan as soon as new data comes in)
@@ -2301,7 +2303,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
 
     def runTestParallel(self) -> None:  # noqa: D102
         if self.initializedDock:
-            if hasattr(self, 'channelPlotAction') and self.channelPlotAction:
+            if hasattr(self, 'channelPlotAction') and self.channelPlotAction is not None:
                 self.testControl(self.channelPlotAction, value=True)  # , 1
             self.testControl(self.copyAction, value=True)  # with advanced = False
             self.testControl(self.advancedAction, value=True)
@@ -2969,7 +2971,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def recording(self, recording: bool) -> None:
         self._recording = recording
         # allow output widgets to react to change if acquisition state
-        if hasattr(self, 'recordingAction') and self.recordingAction:
+        if hasattr(self, 'recordingAction') and self.recordingAction is not None:
             self.recordingAction.state = self.recording
             if self.liveDisplayActive() and self.liveDisplay:
                 self.liveDisplay.recordingAction.state = self.recording
@@ -3212,9 +3214,12 @@ class Device(ChannelManager):  # noqa: PLR0904
             self.initializeCommunication()
 
     def runTestParallel(self) -> None:  # noqa: D102
-        self.testControl(self.recordingAction, value=True, delay=5)
-        self.testControl(self.initAction, value=True, delay=5)
-        self.testControl(self.closeCommunicationAction, value=True, delay=2)
+        if hasattr(self, 'recordingAction') and self.recordingAction is not None:
+            self.testControl(self.recordingAction, value=True, delay=5)
+        if hasattr(self, 'initAction') and self.initAction is not None:
+            self.testControl(self.initAction, value=True, delay=5)
+        if hasattr(self, 'closeCommunicationAction') and self.closeCommunicationAction is not None:
+            self.testControl(self.closeCommunicationAction, value=True, delay=2)
         if self.useBackgrounds and self.subtractBackgroundAction:
             self.testControl(self.subtractBackgroundAction, not self.subtractBackgroundAction.state, 1)
         super().runTestParallel()
@@ -3552,6 +3557,12 @@ class Device(ChannelManager):  # noqa: PLR0904
                     if name in equ:
                         channel_equ = next((channel for channel in channels if channel.name == name), None)
                         if channel_equ:
+                            if f'{name}.' in equ:
+                                # replace with channel parameter value
+                                for parameter in channel_equ.parameters:
+                                    if parameter.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
+                                        equ = equ.replace(f'{channel_equ.name}.{parameter.name}', f'{parameter.value}')
+                            # replace remaining references with channel value
                             channelValue = channel_equ.value
                             if channelValue is not None:
                                 equ = equ.replace(channel_equ.name, f'{channelValue - channel_equ.background if channel_equ.useBackgrounds else channelValue}')
@@ -6965,7 +6976,7 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             if len(dupes) > 0:
                 self.print(f"The following {put} channel names have been used more than once: {', '.join(dupes)}", flag=PRINT.WARNING)
         for plugin in self.pluginManager.getPluginsByClass(ChannelManager):
-            if plugin.recordingAction:
+            if hasattr(plugin, 'recordingAction') and plugin.recordingAction is not None:
                 plugin.toggleRecording(on=self.recordingAction.state, manual=False)
 
     def close(self) -> bool:  # noqa: D102

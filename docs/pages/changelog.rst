@@ -24,6 +24,7 @@ Added
   The parameter will inherit most plot settings from the associated channel but the color will be altered slightly.
   See |omnicontrol| :ref:`sec:omnicontrol`, |rspd3303c| :ref:`sec:rspd3303c`, and |keithley| :ref:`sec:keithley` for example use cases.
 - Added new device plugin |spa| :ref:`sec:spa` for electron plus picoammeters.
+- ChannelName.ParameterName can now also be used in equations.
 
 Changed
 ~~~~~~~

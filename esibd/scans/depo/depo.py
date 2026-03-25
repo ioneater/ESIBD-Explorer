@@ -214,7 +214,6 @@ class Depo(Scan):
     warnLevel: int
     warn: bool
     autoscale: bool
-    dialog: bool
 
     def getDefaultSettings(self) -> dict[str, dict]:
         defaultSettings = super().getDefaultSettings()
@@ -236,7 +235,6 @@ class Depo(Scan):
                                                             parameterType=PARAMETERTYPE.BOOL, attr='warn')
         defaultSettings['Autoscale'] = parameterDict(value=True, toolTip='Disable y axis autoscale if your data includes outliers, e.g. from pickup spikes.',
                                                             parameterType=PARAMETERTYPE.BOOL, attr='autoscale')
-        defaultSettings['Dialog'] = parameterDict(value=True, toolTip='Show check list dialog on start.', parameterType=PARAMETERTYPE.BOOL, attr='dialog')
         return defaultSettings
 
     def updateDepoTarget(self) -> None:
