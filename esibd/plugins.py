@@ -3535,7 +3535,7 @@ class Device(ChannelManager):  # noqa: PLR0904
 
         This minimal implementation will not give a warning about circular definitions.
         It will also fail if expressions are nested on more than N levels but N can be increased as needed.
-        N=2 should however be sufficient for day to day work.
+        N=2 should however be sufficient for most scenarios.
         More complex algorithms should only be implemented if they are required to solve a practical problem.
 
         :param N: Number of iterations, defaults to 2
@@ -3546,7 +3546,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         if self.updating or self.pluginManager.closing:
             return
         self.updating = True  # prevent recursive call caused by changing values from here
-        channels = self.pluginManager.DeviceManager.channels(inout=INOUT.IN) if self.inout == INOUT.IN else self.pluginManager.DeviceManager.channels(inout=INOUT.BOTH)
+        channels = self.pluginManager.DeviceManager.channels(inout=INOUT.BOTH)
         channelNames = [channel.name for channel in channels]
         channelNames.sort(reverse=True, key=len)  # avoid replacing a subset of a longer name with a matching shorter name of another channel
         for _ in range(N):  # go through parsing N times, in case the dependencies are not ordered  # noqa: PLR1702

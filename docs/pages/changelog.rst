@@ -44,6 +44,7 @@ Changed
 - Plugins are now linked to their documentation in the changelog. Using plugin icons in documentation.
 - Using channel specific icons for linked channels.
 - Channel names can no longer use the . character as . has a special meaning in the context of ChannelName.ParameterName, but it can still be allowed for individual devices if necessary.
+- Allowed all channels to reference all other channels in equations. Previously Input devices could only reference channels from other input devices.
 
 Fixed
 ~~~~~
