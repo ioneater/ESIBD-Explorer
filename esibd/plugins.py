@@ -1714,9 +1714,9 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 groups = [[] for _ in range(len(groupLabels))]
                 [groups[groupLabels.index(channel.getDevice().name)].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.UNIT:
-                groupLabels = list({channel.unit for channel in activeChannels if channel.display})
+                groupLabels = list({channel.getUnit() for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
-                [groups[groupLabels.index(channel.unit)].append(channel) for channel in activeChannels if channel.display]
+                [groups[groupLabels.index(channel.getUnit())].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.GROUP:
                 groupLabels = list({channel.displayGroup for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
@@ -2087,10 +2087,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                             # only create new plotCurve if it is actually going to be used
                             if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                                 channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=self.getQtPen(channel),
-                                                                                             name=f'{channel.legendName} ({channel.unit})'))  # initialize empty plots
+                                                                                             name=f'{channel.legendName} ({channel.getUnit()})'))  # initialize empty plots
                             else:  # ViewBox
                                 channel.plotCurve = cast('PlotDataItem', PlotDataItem(pen=self.getQtPen(channel),
-                                                                                      name=f'{channel.legendName} ({channel.unit})'))  # initialize empty plots
+                                                                                      name=f'{channel.legendName} ({channel.getUnit()})'))  # initialize empty plots
                                 channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
                                 livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
                                 legend = cast('PlotWidget | PlotItem', self.livePlotWidgets[0]).legend
@@ -2536,6 +2536,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
 
     def convertDataDisplay(self, data: np.ndarray[Any, np.dtype[np.float32]]) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit.
+
+        This should only affect display in :class:`~esibd.plugins.LiveDisplay`s.
 
         :param data: Original data.
         :type data: np.ndarray
@@ -3992,7 +3994,7 @@ class Scan(Plugin):  # noqa: PLR0904
         self.channelTree.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.channelTree.setRootIsDecorated(False)
         self.treeSplitter.addWidget(self.channelTree)
-        self.treeSplitter.setCollapsible(1, False)  # noqa: FBT003
+        self.treeSplitter.setCollapsible(1, True)  # noqa: FBT003
         self.addContentWidget(self.treeSplitter)
         self.settingsMgr = SettingsManager(parentPlugin=self, pluginManager=self.pluginManager, tree=self.settingsTree, name=f'{self.name} Settings',
                                         defaultFile=self.pluginManager.Settings.configPath / self.configINI,
@@ -6580,8 +6582,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
         self.importAction = self.addAction(event=lambda: self.loadConfiguration(file=None), toolTip='Import all device channels and values.',
                                            icon=self.makeCoreIcon('blue-folder-import.png'))
         self.importAction.setVisible(False)
-        self.exportAction = self.addAction(event=lambda: self.exportOutputData(file=None), toolTip='Save all visible history and all channels to current session.',
-                                           icon=self.makeCoreIcon('database-export.png'))
+        self.exportAction = self.addAction(event=lambda: self.exportOutputData(file=None, useAllHistory=False),
+                                           toolTip='Save all visible history and all channels to current session.', icon=self.makeCoreIcon('database-export.png'))
         self.closeCommunicationAction = self.addAction(event=lambda: self.closeCommunication(manual=True), toolTip='Close all communication.', icon=self.makeCoreIcon('stop.png'))
         self.addAction(event=self.initializeCommunication, toolTip='Initialize all communication.', icon=self.makeCoreIcon('rocket-fly.png'))
         # lambda needed to avoid "checked" parameter passed by QAction
@@ -7753,13 +7755,17 @@ class UCM(ChannelManager):
                 self.notes = full_source
                 if len(sources) > 1:
                     self.print(f'More than one match for {self.name}. Using {full_source}. Use unique names to avoid this.', flag=PRINT.WARNING)
-
-                self.getValues = self.sourceParameter.getValues if self.sourceParameter and self.sourceParameter.recorded else self.sourceChannel.getValues
+                if self.sourceParameter and self.sourceParameter.recorded:
+                    self.getValues = self.sourceParameter.getValues
+                else:
+                    self.getValues = lambda **kwargs: (self.sourceChannel.convertDataDisplay(self.sourceChannel.getValues(**kwargs))
+                                                       if self.sourceChannel and self.sourceChannel.convertDataDisplay else None)
                 device = self.sourceChannel.getDevice()
                 if hasattr(self.sourceChannel, self.UNIT.lower()):
-                    self.unit = self.sourceChannel.unit
+                    # NOTE: use actual units as used by device consistently in channels and relay channels. Use display unit / convertDataDisplay in liveDisplays if defined
+                    self.unit = self.sourceChannel.unit  # self.sourceChannel.getUnit()
                 elif isinstance(device, ChannelManager):
-                    self.unit = device.unit
+                    self.unit = device.unit  # device.getUnit() if isinstance(device, Device) else device.unit
                 else:
                     self.unit = ''
                 if self.sourceParameter:
@@ -7824,6 +7830,11 @@ class UCM(ChannelManager):
                     self.print(f'Source channel {self.name} successfully reconnected.', flag=PRINT.DEBUG)
                 else:
                     self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
+
+        def getUnit(self) -> str:  # noqa: D102
+            if self.sourceParameter:
+                return self.sourceParameter.unit
+            return super().getUnit()
 
         def setSourceChannelValue(self) -> None:
             """Update sourceChannel.value."""

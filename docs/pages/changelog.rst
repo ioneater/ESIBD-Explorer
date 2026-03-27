@@ -45,6 +45,9 @@ Changed
 - Using channel specific icons for linked channels.
 - Channel names can no longer use the . character as . has a special meaning in the context of ChannelName.ParameterName, but it can still be allowed for individual devices if necessary.
 - Allowed all channels to reference all other channels in equations. Previously Input devices could only reference channels from other input devices.
+  Make sure all channels have unique names!
+- For devices that use getUnit and convertDataDisplay to change the display unit, these definitions will also be used in the liveDisplay of |ucm| :ref:`sec:ucm`.
+  Note that in the list of channels the original unit will always be used consistently.
 
 Fixed
 ~~~~~

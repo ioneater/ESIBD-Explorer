@@ -945,7 +945,7 @@ class PluginManager:  # noqa: PLR0904
     def connectAllSources(self, update: bool = True) -> None:
         """Connect all available source channels.
 
-        :param update: Indicates that all channels should be (re-)connected. Otherwise will only attempt to connect channels that are not yet connected. Defaults to False
+        :param update: Indicates that all channels should be (re-)connected. Otherwise will only attempt to connect channels that are not yet connected. Defaults to True
         :type update: bool, optional
         """
         # keep docstring synchronized with PID.connectAllSources and UCM.connectAllSources
@@ -957,6 +957,7 @@ class PluginManager:  # noqa: PLR0904
             self.PID.connectAllSources(update=update)
         if hasattr(self, 'UCM'):
             self.UCM.connectAllSources(update=update)
+            self.UCM.clearPlot()
 
     def toggleVideoRecorder(self) -> None:
         """Toggles visibility of videoRecorderActions for all plugins."""
@@ -1719,12 +1720,18 @@ class Parameter:  # noqa: PLR0904
     def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
         """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit.
 
+        This should only affect display in :class:`~esibd.plugins.LiveDisplay`s.
+
         :param data: Original data.
         :type data: np.ndarray
         :return: Scaled data.
         :rtype: np.ndarray
         """
         return data
+
+    def getUnit(self) -> str:
+        """Return the parameter unit."""
+        return self.unit
 
     def updateValueParallel(self, value: ParameterType) -> None:  # used to update from external threads
         """Update the value (thread safe).
@@ -2679,6 +2686,11 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         device = self.getDevice()
         return device.unit if isinstance(device, self.pluginManager.Device) else ''
 
+    def getUnit(self) -> str:
+        """Return the unit of the corresponding device. May represent display unit if defined."""
+        device = self.getDevice()
+        return device.getUnit() if isinstance(device, self.pluginManager.Device) else self.unit
+
     @property
     def legendName(self) -> str:
         """Name used in legends. Matches signature of Parameters."""
@@ -2794,7 +2806,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             channel[self.LINESTYLE] = parameterDict(value='solid', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                             items='solid, dotted, dashed, dashdot', attr='linestyle', event=self.updateDisplay, toolTip='Line style used in plots.')
             channel[self.DISPLAYGROUP] = parameterDict(value='1', default='1', parameterType=PARAMETERTYPE.COMBO, advanced=True, attr='displayGroup', event=self.updateDisplay,
-                                                           items='0, 1, 2, 3, 4, 5', fixedItems=False, toolTip='Used to group channels in the live display.')
+                                                           items='0, 1, 2, 3, 4, 5, 6, 7, 8, 9', fixedItems=False, toolTip='Used to group channels in the live display.')
         if self.inout == INOUT.IN:
             channel[self.MIN] = parameterDict(value=-50, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
                                     event=self.updateMin, attr='min', header='Min       ')

@@ -46,6 +46,7 @@ class Temperature(Device):
 
     def changeUnit(self) -> None:
         """Update plots to account for change of unit."""
+        self.pluginManager.connectAllSources()
         if self.liveDisplayActive():
             self.clearPlot()
             self.liveDisplay.plot()
