@@ -6,6 +6,9 @@
 ESIBD_Explorer.code-workspace
 .vscode/
 
+# JetBrains IDE files
+.idea/
+
 # uild folder
 build/
 
