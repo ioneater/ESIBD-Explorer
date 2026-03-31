@@ -1,0 +1,211 @@
+# pylint: disable=[missing-module-docstring]  # see class docstrings
+import time
+
+import numpy as np
+
+from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
+from esibd.plugins import Device, Plugin
+
+
+def providePlugins() -> 'list[type[Plugin]]':
+    """Return list of provided plugins. Indicates that this module provides plugins."""
+    return [DMMR8]
+
+
+NUM_MODULES = 5  # Number of DPA-1F modules in this setup
+
+
+class DMMR8(Device):
+    """CGC DMMR-8 picoammeter with DPA-1F current measurement modules.
+
+    Reads ion currents from up to 5 DPA-1F modules connected to a single
+    DMMR-8 controller via serial (COM) port. Uses automatic current mode
+    for continuous polling of all modules.
+    """
+
+    name = 'DMMR8'
+    version = '1.0'
+    supportedVersion = '0.8'
+    pluginType = PLUGINTYPE.OUTPUTDEVICE
+    unit = 'pA'
+    useBackgrounds = True
+    channels: 'list[CurrentChannel]'
+
+    # type hints for settings
+    comPort: int
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.channelType = CurrentChannel
+        self.controller = DMMR8Controller(controllerParent=self)
+
+    def initGUI(self) -> None:
+        super().initGUI()
+        self.addAction(event=self.resetCharge, toolTip=f'Reset accumulated charge for {self.name}.', icon='battery-empty.png')
+
+    def getDefaultSettings(self) -> dict[str, dict]:
+        settings = super().getDefaultSettings()
+        settings[f'{self.name}/Interval'][Parameter.VALUE] = 200
+        settings[f'{self.name}/COM Port'] = parameterDict(value=9, minimum=1, maximum=99, toolTip='COM port number for the DMMR-8 controller.',
+                                                           parameterType=PARAMETERTYPE.INT, attr='comPort')
+        return settings
+
+    def resetCharge(self) -> None:
+        """Reset the charge of each channel."""
+        for channel in self.channels:
+            channel.resetCharge()
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+
+
+class CurrentChannel(Channel):
+    """UI for a single DPA-1F current measurement module."""
+
+    CHARGE = 'Charge'
+    ADDRESS = 'Address'
+    channelParent: DMMR8
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.preciseCharge = 0
+
+    def getDefaultChannel(self) -> dict[str, dict]:
+
+        self.charge: float
+        self.address: int
+
+        channel = super().getDefaultChannel()
+        channel[self.VALUE][Parameter.HEADER] = 'I (pA)'
+        channel[self.CHARGE] = parameterDict(value=0, parameterType=PARAMETERTYPE.FLOAT, advanced=False, header='C (pAh)', indicator=True, attr='charge')
+        channel[self.ADDRESS] = parameterDict(value=0, minimum=0, maximum=7, parameterType=PARAMETERTYPE.INT, advanced=True,
+                                              header='Addr', toolTip='Module address on the DMMR-8 controller (0-7).', attr='address')
+        return channel
+
+    def setDisplayedParameters(self) -> None:
+        super().setDisplayedParameters()
+        self.insertDisplayedParameter(self.CHARGE, before=self.DISPLAY)
+        self.displayedParameters.append(self.ADDRESS)
+
+    def tempParameters(self) -> list[str]:
+        return [*super().tempParameters(), self.CHARGE]
+
+    def appendValue(self, lenT, nan=False) -> None:
+        super().appendValue(lenT, nan=nan)
+        if not nan and not np.isnan(self.value) and not np.isinf(self.value):
+            chargeIncrement = (self.value - self.background) * self.channelParent.interval / 1000 / 3600 if self.values.size > 1 else 0
+            self.preciseCharge += chargeIncrement
+            self.charge = self.preciseCharge  # pylint: disable=[attribute-defined-outside-init]
+
+    def clearHistory(self) -> None:
+        super().clearHistory()
+        self.resetCharge()
+
+    def resetCharge(self) -> None:
+        """Reset the charge."""
+        self.charge = 0  # pylint: disable=[attribute-defined-outside-init]
+        self.preciseCharge = 0
+
+    def realChanged(self) -> None:
+        self.getParameterByName(self.ADDRESS).setVisible(self.real)
+        super().realChanged()
+
+
+class DMMR8Controller(DeviceController):
+    """Controller for the DMMR-8 picoammeter. Manages communication with all modules through one COM port."""
+
+    controllerParent: DMMR8
+
+    def __init__(self, controllerParent: DMMR8) -> None:
+        super().__init__(controllerParent=controllerParent)
+        self.pa = None  # PA device instance
+
+    def runInitialization(self) -> None:
+        try:
+            from devices.cgc import PA
+
+            com = self.controllerParent.comPort
+            self.print(f'Connecting to DMMR-8 on COM{com}...')
+            self.pa = PA(device_id='dmmr8_esibd', com=com, baudrate=230400)
+
+            if not self.pa.connect():
+                self.print(f'Failed to connect to DMMR-8 on COM{com}.', flag=PRINT.ERROR)
+                return
+
+            # Enable modules
+            status = self.pa.set_enable(True)
+            if status != self.pa.NO_ERR:
+                self.print(f'Failed to enable modules: status {status}', flag=PRINT.WARNING)
+
+            # Enable automatic current measurement for continuous polling
+            status = self.pa.set_automatic_current(True)
+            if status != self.pa.NO_ERR:
+                self.print(f'Failed to enable automatic current: status {status}', flag=PRINT.WARNING)
+
+            self.print(f'DMMR-8 initialized on COM{com} with {NUM_MODULES} modules.')
+            self.signalComm.initCompleteSignal.emit()
+        except Exception as e:  # noqa: BLE001
+            self.print(f'Error initializing DMMR-8: {e}', flag=PRINT.ERROR)
+        finally:
+            self.initializing = False
+
+    def readNumbers(self) -> None:
+        if self.pa is None or self.values is None:
+            return
+        # Build address-to-index mapping from channels
+        channels = self.controllerParent.getChannels()
+        addr_to_idx = {}
+        for i, ch in enumerate(channels):
+            if ch.enabled and ch.real:
+                addr_to_idx[ch.address] = i
+
+        # Poll get_current() to collect readings from all modules.
+        # Each call returns one module's data. Poll until NO_DATA to drain the buffer.
+        readings_received = 0
+        max_polls = NUM_MODULES * 3  # generous limit to avoid infinite loop
+        for _ in range(max_polls):
+            try:
+                status, address, current_a, meas_range, timestamp = self.pa.get_current()
+            except Exception as e:  # noqa: BLE001
+                self.print(f'Error reading current: {e}', flag=PRINT.ERROR)
+                self.errorCount += 1
+                break
+            if status == self.pa.NO_DATA:
+                break  # no more data available right now
+            if status == self.pa.NO_ERR and address in addr_to_idx:
+                self.values[addr_to_idx[address]] = current_a * 1e12  # convert A to pA
+                readings_received += 1
+                self.errorCount = 0
+            elif status != self.pa.NO_ERR and status != self.pa.NO_DATA:
+                self.errorCount += 1
+
+        if readings_received == 0:
+            # No data yet, short sleep to avoid busy-waiting
+            time.sleep(0.01)
+
+    def fakeNumbers(self) -> None:
+        if self.values is None:
+            return
+        t = time.time()
+        for i, channel in enumerate(self.controllerParent.getChannels()):
+            if channel.enabled:
+                # Simulate slowly varying currents in pA range
+                self.values[i] = (np.sin(t / 10 + i * 1.5) * 5 + self.rng.random() * 0.5 + 10 + i * 3)
+
+    def closeCommunication(self) -> None:
+        super().closeCommunication()
+        if self.pa is not None:
+            try:
+                self.pa.set_automatic_current(False)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self.pa.set_enable(False)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self.pa.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+            self.pa = None
+        self.initialized = False
