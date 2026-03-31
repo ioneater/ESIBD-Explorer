@@ -1,0 +1,39 @@
+name: esibd
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.11
+  - asteval
+  - biopython
+  - configparser
+  - keyboard
+  - numpy
+  - requests
+  - pyperclip
+  - python-socketio
+  - pyserial
+  - pyvisa
+  - pywin32  # Windows only
+  - scipy
+  - send2trash
+  - pip
+  - pip:
+    - configobj
+    - h5py
+    - matplotlib
+    - contourpy==1.2.1
+    - lakeshore
+    - nidaqmx
+    - opencv-python
+    - openpyxl
+    - pfeiffer-vacuum-protocol
+    - picosdk
+    - PyOpenGL
+    - pyqt6==6.6
+    - pyqt6-qt6==6.6
+    - pyqt6-webengine==6.6
+    - pyqt6-webengine-qt6==6.6
+    - python-pptx
+    - pyqtgraph==0.13.7
+    - simple_pid
