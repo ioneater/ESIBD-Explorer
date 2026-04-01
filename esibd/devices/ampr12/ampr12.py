@@ -24,6 +24,7 @@ class AMPR12(Device):
     supportedVersion = '0.8'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
+    iconFile = 'AMPR12.png'
     useMonitors = True
     useOnOffLogic = True
     channels: 'list[VoltageChannel]'

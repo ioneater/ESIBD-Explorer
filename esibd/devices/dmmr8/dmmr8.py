@@ -28,6 +28,7 @@ class DMMR8(Device):
     supportedVersion = '0.8'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
+    iconFile = 'DMMR8.png'
     useBackgrounds = True
     channels: 'list[CurrentChannel]'
 
