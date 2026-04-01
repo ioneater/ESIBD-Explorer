@@ -1,5 +1,12 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Niclas/Desktop/esibd_bs -name *AMPR* -o -name *ampr*)",
+      "Bash(grep -E \"\\\\.\\(md|txt|ipynb\\)$\")",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/Niclas/Desktop/ESIBD-Explorer -type f \\\\\\(-name *.ini -o -name *.h5 \\\\\\))",
+      "Bash(grep:*)"
+    ],
     "additionalDirectories": [
       "C:\\Users\\Niclas\\Desktop\\esibd_bs"
     ]
