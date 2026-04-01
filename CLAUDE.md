@@ -93,6 +93,15 @@ Plugin lifecycle: `__init__` -> `finalizeInit()` -> `provideDock()` -> runtime -
 - **Scan data**: HDF5 (`.h5`) files with hierarchical metadata
 - **Plugin state**: INI files
 
+## Custom Device Plugins (esibd_bs)
+
+Device classes live in a separate pip-installable repo (`esibd_bs`, installed via `pip install -e .`).
+ESIBD Explorer plugins under `esibd/devices/` are thin wrappers that import from this package (e.g. `from devices.cgc import PA`).
+The DMMR-8 picoammeter plugin is at `esibd/devices/dmmr8/dmmr8.py` — see `.claude/pA.md` for implementation details.
+
+Key gotcha: **Settings > General > Test Mode** must be unchecked for real hardware communication.
+When Test Mode is on, `fakeInitialization()` and `fakeNumbers()` run instead of real hardware code (`core.py:5483,5605`).
+
 ## Code Style
 
 Configured in `ruff.toml`:
