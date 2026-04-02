@@ -48,7 +48,7 @@ class DMMR8(Device):
     def getDefaultSettings(self) -> dict[str, dict]:
         settings = super().getDefaultSettings()
         settings[f'{self.name}/Interval'][Parameter.VALUE] = 200
-        settings[f'{self.name}/COM Port'] = parameterDict(value=getComPort('DMMR8', default=9), minimum=1, maximum=99,
+        settings[f'{self.name}/COM Port'] = parameterDict(value=getComPort('pA', default=8), minimum=1, maximum=99,
                                                            toolTip='COM port number for the DMMR-8 controller.',
                                                            parameterType=PARAMETERTYPE.INT, attr='comPort')
         return settings

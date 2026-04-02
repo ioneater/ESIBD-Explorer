@@ -73,7 +73,7 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'
-        channel[self.COM] = parameterDict(value=getComPort('AMPR1000', default=7), minimum=1, maximum=99, parameterType=PARAMETERTYPE.INT, advanced=True,
+        channel[self.COM] = parameterDict(value=getComPort('AMPR1000', default=9), minimum=1, maximum=99, parameterType=PARAMETERTYPE.INT, advanced=True,
                                           header='COM', toolTip='COM port number of the AMPR-12.', attr='com')
         channel[self.MODULE] = parameterDict(value=0, minimum=0, maximum=11, parameterType=PARAMETERTYPE.INT, advanced=True,
                                              header='Mod', toolTip='Module address (0-11).', attr='module')
