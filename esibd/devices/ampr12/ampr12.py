@@ -4,6 +4,7 @@ from typing import cast
 import numpy as np
 
 from esibd.core import PARAMETERTYPE, PLUGINTYPE, PRINT, Channel, DeviceController, Parameter, getTestMode, parameterDict
+from esibd.devices.com_helper import getComPort
 from esibd.plugins import Device, Plugin
 
 
@@ -24,6 +25,7 @@ class AMPR12(Device):
     supportedVersion = '0.8'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
+    iconFile = 'AMPR12.png'
     useMonitors = True
     useOnOffLogic = True
     channels: 'list[VoltageChannel]'
@@ -71,7 +73,7 @@ class VoltageChannel(Channel):
 
         channel = super().getDefaultChannel()
         channel[self.VALUE][Parameter.HEADER] = 'Voltage (V)'
-        channel[self.COM] = parameterDict(value=7, minimum=1, maximum=99, parameterType=PARAMETERTYPE.INT, advanced=True,
+        channel[self.COM] = parameterDict(value=getComPort('AMPR1000', default=9), minimum=1, maximum=99, parameterType=PARAMETERTYPE.INT, advanced=True,
                                           header='COM', toolTip='COM port number of the AMPR-12.', attr='com')
         channel[self.MODULE] = parameterDict(value=0, minimum=0, maximum=11, parameterType=PARAMETERTYPE.INT, advanced=True,
                                              header='Mod', toolTip='Module address (0-11).', attr='module')

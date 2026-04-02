@@ -32,7 +32,6 @@ twine check dist/*
 
 # Environment setup (conda)
 cd setup && ./create_env.bat   # Windows
-cd setup && ./create_env.sh    # Linux/Mac
 conda activate esibd
 ```
 
@@ -98,6 +97,10 @@ Plugin lifecycle: `__init__` -> `finalizeInit()` -> `provideDock()` -> runtime -
 Device classes live in a separate pip-installable repo (`esibd_bs`, installed via `pip install -e .`).
 ESIBD Explorer plugins under `esibd/devices/` are thin wrappers that import from this package (e.g. `from devices.cgc import PA`).
 The DMMR-8 picoammeter plugin is at `esibd/devices/dmmr8/dmmr8.py` — see `.claude/pA.md` for implementation details.
+The AMPR-12 DC voltage plugin is at `esibd/devices/ampr12/ampr12.py` — see `.claude/ampr.md` for implementation details.
+It manages two AMPR units (AMPR1000/AMPR500) via the MIPS multi-COM pattern. Supports monitor readback, On/Off PSU toggle, and equation-based linked voltages.
+
+COM port assignments are centralized in `esibd/devices/com_ports.json`. Device plugins read from this file via `getComPort()` from `esibd/devices/com_helper.py` instead of hardcoding COM port defaults. Update the JSON when COM ports change — no need to edit individual plugins.
 
 Key gotcha: **Settings > General > Test Mode** must be unchecked for real hardware communication.
 When Test Mode is on, `fakeInitialization()` and `fakeNumbers()` run instead of real hardware code (`core.py:5483,5605`).
