@@ -25,6 +25,7 @@ Added
   See |omnicontrol| :ref:`sec:omnicontrol`, |rspd3303c| :ref:`sec:rspd3303c`, and |keithley| :ref:`sec:keithley` for example use cases.
 - Added new device plugin |spa| :ref:`sec:spa` for electron plus picoammeters.
 - ChannelName.ParameterName can now also be used in equations.
+- Added Min Max limits for the Setpoint in |pid| :ref:`sec:pid`.
 
 Changed
 ~~~~~~~
@@ -46,7 +47,7 @@ Changed
 - Channel names can no longer use the . character as . has a special meaning in the context of ChannelName.ParameterName, but it can still be allowed for individual devices if necessary.
 - Allowed all channels to reference all other channels in equations. Previously Input devices could only reference channels from other input devices.
   Make sure all channels have unique names!
-- For devices that use getUnit and convertDataDisplay to change the display unit, these definitions will also be used in the liveDisplay of |ucm| :ref:`sec:ucm`.
+- For devices that use getDisplayUnit and convertDataDisplay to change the display unit, these definitions will also be used in the liveDisplay of |ucm| :ref:`sec:ucm`.
   Note that in the list of channels the original unit will always be used consistently.
 
 Fixed
@@ -73,6 +74,7 @@ Developer Notes
 - Introduced ChannelManager.defaultChannel which is initialized in the main_thread and can be used as a reference e.g. for saving data from a parallel thread.
 - DeviceManager is no longer waiting for scans that did not initialize successfully in automated testing.
 - Added extraContextActions for parameters and used it to add acknowledge error, set standby speed, and change address options to corresponding parameters in |omnicontrol| :ref:`sec:omnicontrol`.
+- Renamed getUnit to getDisplayUnit to emphasize where it should be used.
 
 Version 0.8.2 2025-06-23
 ========================

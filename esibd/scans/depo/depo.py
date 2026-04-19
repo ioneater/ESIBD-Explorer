@@ -443,7 +443,7 @@ fig.show()
         while recording():
             time.sleep(self.interval / 1000)
             self.bufferLagging()
-            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.', timeout=10)
             self.inputChannels[0].recordingData.add(time.time())
             for outputChannel in self.outputChannels:
                 if outputChannel.isChargeChannel:

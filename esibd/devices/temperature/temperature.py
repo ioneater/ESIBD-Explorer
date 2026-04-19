@@ -69,7 +69,7 @@ class Temperature(Device):
     def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
         return data - 273.15 if self.unitAction.state else data
 
-    def getUnit(self) -> str:
+    def getDisplayUnit(self) -> str:
         return '°C' if self.unitAction.state else self.unit
 
     def updateTheme(self) -> None:

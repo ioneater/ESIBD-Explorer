@@ -11,7 +11,8 @@ REM Formatting
 
 use Open Multiple Files extension with **/*.py to open all python files and make sure linter is analyzing all of them
 
-use the following regex to fix common formating errors
+typically regex is not needed if Ruff is configured correctly
+use the following regex (Math case and Use Regular Expression enabled) to fix common formating errors
 REM ,[a-zA-Z0-9_]| \n|\n\n\n|[^'],'| [b-hk-w] |as f:|lambda :|true|false|parameter[\. ,]|channel[\. ,]|setting[\. ,]
 REM files to exclude: *.html,*.js,*.css,*.log,*.gitignore,*.bib,*.tex,*.prof,*.rst,*.txt,*.svg,*.sh,LICENSE,Makefile
 temporary enable all pylint checking
@@ -21,6 +22,9 @@ REM Change Log
 ::::::::::::::
 update changelog in changelog.rst (ideally update before each commit)
 update change log title with version and release date
+REM MAJOR version when you make incompatible API changes
+REM MINOR version when you add functionality in a backward compatible manner
+REM PATCH version when you make backward compatible bug fixes
 Often, writing the change log inspires some last minute changes!
 Content: start bullet points with capitals and dot at the end
 - hyphens will be replaced by bullet points on github

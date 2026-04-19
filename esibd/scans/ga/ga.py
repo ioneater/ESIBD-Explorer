@@ -228,7 +228,7 @@ fig.show()
                             outputChannel.signalComm.waitUntilStableSignal.emit(self.wait)
                 time.sleep((self.wait + self.average) / 1000)
                 self.bufferLagging()
-                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
+                self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.', timeout=10)
                 self.ga.fitness(np.mean(outputChannelValues))
                 if self.log:
                     self.print(self.ga.step_string().replace('GA: ', ''))

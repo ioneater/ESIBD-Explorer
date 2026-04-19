@@ -1729,7 +1729,7 @@ class Parameter:  # noqa: PLR0904
         """
         return data
 
-    def getUnit(self) -> str:
+    def getDisplayUnit(self) -> str:
         """Return the parameter unit."""
         return self.unit
 
@@ -2686,10 +2686,10 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         device = self.getDevice()
         return device.unit if isinstance(device, self.pluginManager.Device) else ''
 
-    def getUnit(self) -> str:
+    def getDisplayUnit(self) -> str:
         """Return the unit of the corresponding device. May represent display unit if defined."""
         device = self.getDevice()
-        return device.getUnit() if isinstance(device, self.pluginManager.Device) else self.unit
+        return device.getDisplayUnit() if isinstance(device, self.pluginManager.Device) else self.unit
 
     @property
     def legendName(self) -> str:
@@ -5173,12 +5173,12 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
             sb.setValue(sb.maximum())
 
     def loadHistory(self):  # extend to catch error if file does not exist  # noqa: ANN201, D102
-        h = None
+        history = None
         try:
-            h = super().loadHistory()
+            history = super().loadHistory()
         except EOFError as e:
             print(f'Could not load history: {e}')  # noqa: T201
-        return h
+        return history
 
     def _commandEntered(self, repl, cmd) -> None:  # noqa: ANN001
         """Make sure submitted code will be visible even if filters were active before."""

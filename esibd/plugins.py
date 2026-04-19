@@ -1087,6 +1087,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             if self.testing:
                 if isinstance(image, QImage):
                     image = QPixmap.fromImage(image)
+                self.pluginManager.Settings.incrementMeasurementNumber()
                 image.save(self.pluginManager.Settings.getMeasurementFileName(f'_{self.name.replace(" ", "_")}_clipboard.png').as_posix())
             elif isinstance(image, QImage):
                 clipboard.setImage(image)
@@ -1714,9 +1715,9 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                 groups = [[] for _ in range(len(groupLabels))]
                 [groups[groupLabels.index(channel.getDevice().name)].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.UNIT:
-                groupLabels = list({channel.getUnit() for channel in activeChannels if channel.display})
+                groupLabels = list({channel.getDisplayUnit() for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
-                [groups[groupLabels.index(channel.getUnit())].append(channel) for channel in activeChannels if channel.display]
+                [groups[groupLabels.index(channel.getDisplayUnit())].append(channel) for channel in activeChannels if channel.display]
             case self.GroupActionState.GROUP:
                 groupLabels = list({channel.displayGroup for channel in activeChannels if channel.display})
                 groups = [[] for _ in range(len(groupLabels))]
@@ -2087,10 +2088,10 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                             # only create new plotCurve if it is actually going to be used
                             if isinstance(livePlotWidget, (PlotItem, PlotWidget)):
                                 channel.plotCurve = cast('PlotDataItem', livePlotWidget.plot(pen=self.getQtPen(channel),
-                                                                                             name=f'{channel.legendName} ({channel.getUnit()})'))  # initialize empty plots
+                                                                                             name=f'{channel.legendName} ({channel.getDisplayUnit()})'))  # initialize empty plots
                             else:  # ViewBox
                                 channel.plotCurve = cast('PlotDataItem', PlotDataItem(pen=self.getQtPen(channel),
-                                                                                      name=f'{channel.legendName} ({channel.getUnit()})'))  # initialize empty plots
+                                                                                      name=f'{channel.legendName} ({channel.getDisplayUnit()})'))  # initialize empty plots
                                 channel.plotCurve.setLogMode(xState=False, yState=channel.logY)  # has to be set for axis and ViewBox https://github.com/pyqtgraph/pyqtgraph/issues/2603
                                 livePlotWidget.addItem(channel.plotCurve)  # works for plotWidgets as well as viewBoxes
                                 legend = cast('PlotWidget | PlotItem', self.livePlotWidgets[0]).legend
@@ -2451,6 +2452,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             if newChannel:
                 self.channelSelection(selectedChannel=newChannel)  # trigger deselecting original channel
             self.tree.scheduleDelayedItemsLayout()
+            if isinstance(self, Device) and self.controller is not None:
+                self.controller.initializeValues(reset=True)
             return newChannel
         return None
 
@@ -2469,6 +2472,8 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.tree.takeTopLevelItem(index)
             self.channels[min(index, len(self.channels) - 1)].select = True
             self.pluginManager.reconnectSource(selectedChannel.name)
+            if isinstance(self, Device) and self.controller is not None:
+                self.controller.initializeValues(reset=True)
 
     @synchronized()
     def moveChannel(self, up: bool) -> Channel | None:  # noqa: C901
@@ -2670,7 +2675,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 return
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
                                                     directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
-        if file != Path():
+        if file != Path():  # noqa: PLR1702
             self.loading = True
             self.tree.setUpdatesEnabled(False)
             self.tree.setRootIsDecorated(False)  # no need to show expander
@@ -2699,22 +2704,25 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                     self.exportConfiguration(file, useDefaultFile=True)
             else:  # file.suffix == FILE_H5:
                 with h5py.File(name=file, mode='r', track_order=True) as h5file:
-                    group = cast('h5py.Group', h5file[self.name])
-                    names = cast('h5py.Dataset', group[Parameter.NAME])
-                    items = [{} for _ in range(len(names))]
-                    for i, name in enumerate(datasetToStrList(cast('h5py.Dataset', names))):
-                        items[i][Parameter.NAME] = name
-                    for name, parameter in self.defaultChannel.getSortedDefaultChannel().items():
-                        values = None
-                        if parameter[Parameter.PARAMETER_TYPE] in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT}:
-                            values = cast('h5py.Dataset', group[name])
-                        elif parameter[Parameter.PARAMETER_TYPE] == PARAMETERTYPE.BOOL:
-                            values = [str(bool_str) for bool_str in cast('h5py.Dataset', group[name])]
-                        else:
-                            values = datasetToStrList(cast('h5py.Dataset', group[name]))
-                        for i, value in enumerate(values):
-                            items[i][name] = value
-                    self.updateChannelConfig(items, file, append=append)
+                    if self.name in h5file:
+                        group = cast('h5py.Group', h5file[self.name])
+                        names = cast('h5py.Dataset', group[Parameter.NAME])
+                        items = [{} for _ in range(len(names))]
+                        for i, name in enumerate(datasetToStrList(cast('h5py.Dataset', names))):
+                            items[i][Parameter.NAME] = name
+                        for name, parameter in self.defaultChannel.getSortedDefaultChannel().items():
+                            values = None
+                            if parameter[Parameter.PARAMETER_TYPE] in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT}:
+                                values = cast('h5py.Dataset', group[name])
+                            elif parameter[Parameter.PARAMETER_TYPE] == PARAMETERTYPE.BOOL:
+                                values = [str(bool_str) for bool_str in cast('h5py.Dataset', group[name])]
+                            else:
+                                values = datasetToStrList(cast('h5py.Dataset', group[name]))
+                            for i, value in enumerate(values):
+                                items[i][name] = value
+                        self.updateChannelConfig(items, file, append=append)
+                    else:
+                        self.print(f'Could not find group with name {self.name} in {file}. Check if this is the correct file.', flag=PRINT.ERROR)
 
             self.tree.setHeaderLabels([parameterDict.get(Parameter.HEADER, '') or name.title()
                                         for name, parameterDict in self.defaultChannel.getSortedDefaultChannel().items()])
@@ -3401,6 +3409,9 @@ class Device(ChannelManager):  # noqa: PLR0904
 
     def loadConfiguration(self, file: Path | None = None, useDefaultFile: bool = False, append: bool = False) -> None:  # pylint: disable = missing-function-docstring  # noqa: D102
         # make sure history is saved and restored when loading configuration
+        if self.initialized:
+            self.print('Stop communication to load channels.', flag=PRINT.WARNING)
+            return
         self.exportOutputData(useDefaultFile=True, useAllHistory=True)
         super().loadConfiguration(file=file, useDefaultFile=useDefaultFile, append=append)
         self.restoreOutputData()
@@ -3715,7 +3726,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         if newChannel is not None:
             self.pluginManager.reconnectSource(newChannel.name)
 
-    def getUnit(self) -> str:
+    def getDisplayUnit(self) -> str:
         """Overwrite if you want to change units dynamically."""
         return self.unit
 
@@ -3798,10 +3809,10 @@ class Scan(Plugin):  # noqa: PLR0904
     """Parallel thread that updates the scan channel(s) and reads out the display channel(s)."""
     inputChannels: list[ScanChannel | MetaChannel]
     """List of input :class:`meta channels<esibd.core.MetaChannel>`."""
-    outputChannels: list[ScanChannel | MetaChannel]
+    outputChannels: list[ScanChannel]
     """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
     channels: list[ScanChannel | MetaChannel]
-    """List of output :class:`meta channels<esibd.core.ScanChannel>`."""
+    """List of all :class:`meta channels<esibd.core.ScanChannel>`."""
     useDisplayParameter = False
     """Use display parameter to control which scan channels are displayed."""
     invalidWhileWaiting: bool = False
@@ -4033,9 +4044,15 @@ class Scan(Plugin):  # noqa: PLR0904
     def connectAllSources(self) -> None:
         """Connect all available source channels."""
         # NOTE: inputChannels are already connected on creation
-        for channel in self.channels:
-            if channel.name != self.TIME:
-                channel.connectSource()
+        if len(self.channels) > 0:
+            self.loading = True
+            for channel in self.channels:
+                if channel.name != self.TIME:
+                    channel.connectSource()
+            self.loading = False
+            if len(self.outputChannels) > 0:
+                # update only once for all channels
+                self.outputChannels[0].updateDisplay()
 
     def reconnectSource(self, name: str) -> None:
         """Reconnect a specific source channel.
@@ -4749,7 +4766,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                         outputChannel.signalComm.waitUntilStableSignal.emit(self.waitLong if waitLong else self.wait)
             time.sleep(((self.waitLong if waitLong else self.wait) + self.average) / 1000)  # if step is larger than threshold use longer wait time
             self.bufferLagging()
-            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.')
+            self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.', timeout=10)
             for outputChannel in self.outputChannels:
                 outputChannelDevice = outputChannel.getDevice()
                 if isinstance(outputChannelDevice, Device):
@@ -7763,9 +7780,9 @@ class UCM(ChannelManager):
                 device = self.sourceChannel.getDevice()
                 if hasattr(self.sourceChannel, self.UNIT.lower()):
                     # NOTE: use actual units as used by device consistently in channels and relay channels. Use display unit / convertDataDisplay in liveDisplays if defined
-                    self.unit = self.sourceChannel.unit  # self.sourceChannel.getUnit()
+                    self.unit = self.sourceChannel.unit  # self.sourceChannel.getDisplayUnit()
                 elif isinstance(device, ChannelManager):
-                    self.unit = device.unit  # device.getUnit() if isinstance(device, Device) else device.unit
+                    self.unit = device.unit  # device.getDisplayUnit() if isinstance(device, Device) else device.unit
                 else:
                     self.unit = ''
                 if self.sourceParameter:
@@ -7831,10 +7848,10 @@ class UCM(ChannelManager):
                 else:
                     self.print(f'Source channel {self.name} could not be reconnected.', flag=PRINT.ERROR)
 
-        def getUnit(self) -> str:  # noqa: D102
+        def getDisplayUnit(self) -> str:  # noqa: D102
             if self.sourceParameter:
                 return self.sourceParameter.unit
-            return super().getUnit()
+            return super().getDisplayUnit()
 
         def setSourceChannelValue(self) -> None:
             """Update sourceChannel.value."""
@@ -8233,6 +8250,10 @@ class PID(ChannelManager):
             channel.pop(Channel.ACTIVE)
             channel.pop(Channel.REAL)
             channel.pop(Channel.COLOR)
+            channel[self.MIN] = parameterDict(value=-50, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
+                                    event=self.updateMin, attr='min', header='Min       ')
+            channel[self.MAX] = parameterDict(value=+50, parameterType=PARAMETERTYPE.FLOAT, advanced=True,
+                                    event=self.updateMax, attr='max', header='Max       ')
             channel[self.VALUE][Parameter.HEADER] = 'Setpoint   '  # channels can have different types of parameters and units
             channel[self.UNIT] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, attr='unit', header='Unit   ', indicator=True)
             channel[self.OUTPUT] = parameterDict(value='Output', parameterType=PARAMETERTYPE.TEXT, attr='output', event=self.connectSource,
@@ -8272,6 +8293,8 @@ class PID(ChannelManager):
             self.insertDisplayedParameter(self.DERIVATIVE, before=self.SCALING)
             self.insertDisplayedParameter(self.SAMPLETIME, before=self.SCALING)
             self.insertDisplayedParameter(self.NOTES, before=self.SCALING)
+            self.insertDisplayedParameter(self.MIN, before=self.MONITOR)
+            self.insertDisplayedParameter(self.MAX, before=self.MONITOR)
 
         def tempParameters(self) -> list[str]:  # noqa: D102  # pylint: disable = missing-function-docstring
             return [*super().tempParameters(), self.NOTES, self.OUTPUTDEVICE, self.INPUTDEVICE]
@@ -8293,6 +8316,8 @@ class PID(ChannelManager):
                 device.widget = QPushButton()
                 device.widget.setStyleSheet('QPushButton{border:none;}')
                 device.applyWidget()
+            self.updateMin()
+            self.updateMax()
 
     channelType = PIDChannel
 
