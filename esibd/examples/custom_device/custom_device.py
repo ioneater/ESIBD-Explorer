@@ -30,7 +30,7 @@ class CustomDevice(Device):
 
     name = 'CustomDevice'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.INPUTDEVICE
     iconFile = 'cookie.png'
     # TODO adjust flags to choose default behavior. All default functions can be extended or overwritten if more customization is required.

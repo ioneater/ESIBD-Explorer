@@ -1720,7 +1720,7 @@ class Parameter:  # noqa: PLR0904
     def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
         """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit.
 
-        This should only affect display in :class:`~esibd.plugins.LiveDisplay`s.
+        This should only affect display in :class:`LiveDisplays<esibd.plugins.LiveDisplay>`.
 
         :param data: Original data.
         :type data: np.ndarray

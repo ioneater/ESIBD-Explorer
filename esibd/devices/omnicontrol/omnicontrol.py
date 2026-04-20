@@ -27,7 +27,7 @@ class OMNICONTROL(Device):
 
     name = 'OMNICONTROL'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_omni.png'

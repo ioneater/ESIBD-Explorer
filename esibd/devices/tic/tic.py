@@ -23,7 +23,7 @@ class TIC(Device):
     name = 'TIC'
     iconFile = 'edwards_tic.png'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     logY = True

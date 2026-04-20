@@ -21,7 +21,7 @@ class PICO(Device):
 
     name = 'PICO'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'K'
     iconFile = 'pico_104.png'

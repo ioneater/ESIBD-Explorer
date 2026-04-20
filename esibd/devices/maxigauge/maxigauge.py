@@ -18,7 +18,7 @@ class MAXIGAUGE(Device):
 
     name = 'MAXIGAUGE'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'mbar'
     iconFile = 'pfeiffer_maxi.png'

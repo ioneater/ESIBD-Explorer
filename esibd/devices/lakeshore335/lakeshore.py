@@ -36,7 +36,7 @@ class LS335(Device):
 
     name = 'LS335'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     iconFile = 'LS335.png'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'K'

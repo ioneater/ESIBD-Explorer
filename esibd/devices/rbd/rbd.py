@@ -27,7 +27,7 @@ class RBD(Device):
 
     name = 'RBD'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'RBD.png'

@@ -1613,11 +1613,12 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                                                            icon=self.makeCoreIcon('stop.png'))
             self.initAction = self.addAction(event=self.parentPlugin.initializeCommunication, toolTip=f'Initialize {self.parentPlugin.name} communication.',
                             icon=self.makeCoreIcon('rocket-fly.png'))
-        self.recordingAction = self.addStateAction(event=lambda: self.parentPlugin.toggleRecording(manual=True),
+        if hasattr(self.parentPlugin, 'recordingAction'):
+            self.recordingAction = self.addStateAction(event=lambda: self.parentPlugin.toggleRecording(manual=True),
                                                    toolTipFalse=f'Start {self.parentPlugin.name} data acquisition.', iconFalse=self.makeCoreIcon('play.png'),
                                                    toolTipTrue=f'Pause {self.parentPlugin.name} data acquisition.', iconTrue=self.makeCoreIcon('pause.png'))
-        if self.parentPlugin.recordingAction:
-            self.recordingAction.state = self.parentPlugin.recordingAction.state
+            if self.parentPlugin.recordingAction is not None:
+                self.recordingAction.state = self.parentPlugin.recordingAction.state
         if self.parentPlugin.pluginType in {PLUGINTYPE.INPUTDEVICE, PLUGINTYPE.OUTPUTDEVICE}:
             parentPlugin = cast('Device', self.parentPlugin)
             self.clearHistoryAction = self.addAction(event=parentPlugin.clearHistory, toolTip=f'Clear {parentPlugin.name} history.',
@@ -2542,7 +2543,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
     def convertDataDisplay(self, data: np.ndarray[Any, np.dtype[np.float32]]) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Overwrite to apply scaling and offsets to data before it is displayed. Use, e.g., to convert to another unit.
 
-        This should only affect display in :class:`~esibd.plugins.LiveDisplay`s.
+        This should only affect display in :class:`LiveDisplays<esibd.plugins.LiveDisplay>`.
 
         :param data: Original data.
         :type data: np.ndarray

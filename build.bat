@@ -42,6 +42,7 @@ REM Developer Notes separate changed only relevant for developers from other sec
 REM Testing
 :::::::::::
 Make sure all test pass in development environment
+If testing with all plugins enabled, consider switching to basic log messages, as very frequent debug and verboose messages can slow down testing and cause additional warnings and errors. These are not a shortcomming of the sofware but just a symptom of running with a very large amount of channels that would not occur in a real world application. Each software will reach that limit at some point.
 Test with all/no plugins enabled
 Test with hardware
 Test after running python -m esibd.reset to simulate installation on a PC where it never ran before

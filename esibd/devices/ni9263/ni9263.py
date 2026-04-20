@@ -15,7 +15,7 @@ class NI9263(Device):
 
     name = 'NI9263'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     iconFile = 'NI9263.png'

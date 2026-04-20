@@ -26,7 +26,7 @@ class CustomPlugin(Plugin):
 
     name = 'CustomControl'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.CONTROL
     iconFile = 'cookie.png'
 

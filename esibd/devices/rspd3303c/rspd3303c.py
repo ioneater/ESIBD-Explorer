@@ -23,7 +23,7 @@ class RSPD3303C(Device):
 
     name = 'RSPD3303C'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.INPUTDEVICE
     unit = 'V'
     useMonitors = True

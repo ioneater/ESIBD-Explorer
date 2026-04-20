@@ -18,7 +18,7 @@ class KEITHLEY(Device):
 
     name = 'KEITHLEY'
     version = '1.0'
-    supportedVersion = '0.8'
+    supportedVersion = '1.0'
     pluginType = PLUGINTYPE.OUTPUTDEVICE
     unit = 'pA'
     iconFile = 'keithley.png'
