@@ -440,7 +440,7 @@ class Plugin(QWidget):  # noqa: PLR0904
             self.app.processEvents()
 
     def waitForCondition(self, condition: Callable, interval: float = 0.5, timeout: int = 5, timeoutMessage: str = '') -> bool:
-        """Wait until condition returns False or timeout expires.
+        """Wait until condition returns True or timeout expires.
 
         This can be safer and easier to understand than using signals and locks.
         The flag not just blocks other functions but informs them and allows them to react instantly.
@@ -453,6 +453,8 @@ class Plugin(QWidget):  # noqa: PLR0904
         :type timeout: float
         :param timeoutMessage: message displayed if timeout is reached
         :type timeoutMessage: str
+        :return: True if condition was met before timeout
+        :rtype: bool
         """
         if current_thread() is main_thread():
             self.print(f'waitForCondition called from main thread! Timeout message: {timeoutMessage}', flag=PRINT.VERBOSE)
@@ -6695,8 +6697,8 @@ class DeviceManager(Plugin):  # noqa: PLR0904
             self.print(f'Starting scan {scan.name}.')
             scan.raiseDock(showPlugin=True)
             self.testControl(scan.recordingAction, value=True)
-            time.sleep(1)
-            if not scan.finished:
+            if self.waitForCondition(condition=lambda scan=scan: not scan.finished,
+                                     timeoutMessage=f'start of {scan.name} scan.', timeout=10):
                 if self.waitForCondition(condition=lambda scan=scan: scan.displayActive() and hasattr(scan.display, 'videoRecorderAction') and scan.recording,
                                      timeoutMessage=f'display of {scan.name} scan.', timeout=10):
                     time.sleep(5)  # scan for 5 seconds

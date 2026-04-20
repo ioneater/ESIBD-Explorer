@@ -67,7 +67,7 @@ REM Bump version
 :::::::::::::::::::::::::::
 
 use find and replace to manually update all version references
-ATTENTION: do not find and replace all, as this will also overwrite the versions in the change log!
+ATTENTION: do not find and replace all, as this will also overwrite the last versions in the change log!
 REM update version in pyproject.toml
 REM update Product Version in EsibdExplorer.ifp in the General tab
 REM update PROGRAM_VERSION in config.py
@@ -144,6 +144,7 @@ REM activate all plugins for testing!
 REM test software using PluginManager.test() in testmode
 REM test software using PluginManager.test() with hardware!
 REM Make sure VSCode or any other instance accessing the environment are not running while testing
+If you need to fix something and reupload you are forced to increment the version number. To not need to update everything it is enough to temporarily append a fourth number to your version: X.Y.Z -> X.Y.Z.1 in pyproject.toml. You can drop this in your next release.
 
 REM only upload on real pypi after testing!
 REM safer to use normal terminal instead of vscode to avoid issues when pasting token
