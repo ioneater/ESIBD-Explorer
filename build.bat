@@ -195,7 +195,7 @@ REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express
 added the following as custom shell comment to remove programfolde first to get clean installation every time: rmdir /s /q "<InstallPath>"
 REM Previously manual uninstall was needed to get clean installation.
 
-rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.0.exe in pyinstaller_build
+rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.1.exe in pyinstaller_build
 
 Test installation from exe before continuing
 
@@ -204,13 +204,14 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Prepare realeasing version v1.0.0"
+git commit -a -m "Prepare realeasing version v1.0.1"
 git push origin main
 test successful build of docs -> only then continue with tags
 
-git commit -a -m "Realeasing version v1.0.0"
-git tag -a v1.0.0 -m "Realeasing version v1.0.0"
+git commit -a -m "Realeasing version v1.0.1"
+git tag -a v1.0.1 -m "Realeasing version v1.0.1"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
+REM Note that only increments in the first three digits (major.minor.patch) are considered stable releases
 
 check read the docs build on https://app.readthedocs.org/projects/esibd-explorer/
 
