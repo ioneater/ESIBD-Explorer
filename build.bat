@@ -191,9 +191,11 @@ REM pyinstaller_dist\ESIBD Explorer\_internal
 REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
-REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change). If applicable do manual uninstall before installing from exe to get clean installation.
+REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change).
+added the following as custom shell comment to remove programfolde first to get clean installation every time: rmdir /s /q "<InstallPath>"
+REM Previously manual uninstall was needed to get clean installation.
 
-REM rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v0.8.3.exe in pyinstaller_build
+rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.0.exe in pyinstaller_build
 
 Test installation from exe before continuing
 
@@ -202,6 +204,10 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
+git commit -a -m "Prepare realeasing version v1.0.0"
+git push origin main
+test successful build of docs -> only then continue with tags
+
 git commit -a -m "Realeasing version v1.0.0"
 git tag -a v1.0.0 -m "Realeasing version v1.0.0"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
