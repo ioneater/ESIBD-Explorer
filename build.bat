@@ -172,11 +172,12 @@ conda activate esibd-offline
 pip install pyinstaller
 REM Run the following line to create initial spec file and pyinstaller_dist and pyinstaller_build
 REM ATTENTION: Check absolute paths in Files, Shortcuts, and Build! relative paths using <InstallPath> did not work
-pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
+pyinstaller start.py -n "ESIBD Explorer" --noconsole --clean --icon=esibd/media/ESIBD_Explorer.ico --add-data="esibd;esibd" --copy-metadata nidaqmx --copy-metadata nitypes --noconfirm --additional-hooks-dir=./pyinstaller_hooks --distpath ./pyinstaller_dist --workpath ./pyinstaller_build
 REM --noconsole  # console can be useful for debugging. start .exe from command window to keep errors visible after crash
 REM --additional-hooks-dir=./pyinstaller_hooks -> add any modules that plugins may require at run time but are not imported at packaging time: e.g. modules only imported in plugins. modules added here should likely also be added to autodoc_mock_imports in docs/conf.py
 REM --onefile meant for release to make sure all dependencies are included in the exe but extracting everything from one exe on every start is unacceptably slow. For debugging use --onedir (default) Use this option only when you are sure that it does not limit performance or complicates debugging
 REM --copy-metadata nidaqmx is needed to avoid "No package metadata was found for nidaqmx"
+REM --copy-metadata nitypes is needed to avoid "No package metadata was found for nitypes"
 REM do not modify spec file, will be overwritten
 
 ::::::::::::::::
@@ -194,15 +195,15 @@ REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express
 
 REM rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v0.8.3.exe in pyinstaller_build
 
-REM Test installation from exe before continuing
+Test installation from exe before continuing
 
 ::::::::::::::::
 REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Realeasing version v0.8.3"
-git tag -a v0.8.3 -m "Realeasing version v0.8.3"
+git commit -a -m "Realeasing version v1.0.0"
+git tag -a v1.0.0 -m "Realeasing version v1.0.0"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 
 check read the docs build on https://app.readthedocs.org/projects/esibd-explorer/
