@@ -67,13 +67,16 @@ class ISEG(Device):
 
 class VoltageChannel(Channel):
 
+    CURRENT = 'Current'
     MODULE = 'Module'
     ID = 'ID'
     channelParent: ISEG
+    currentWarnLimit = 10
 
     def getDefaultChannel(self) -> dict[str, dict]:
 
         # definitions for type hinting
+        self.current: float
         self.module: int
         self.id: int
 
@@ -82,6 +85,8 @@ class VoltageChannel(Channel):
         channel[self.VALUE][Parameter.UNIT] = 'V'  # overwrite to change header
         channel[self.MONITOR][Parameter.HEADER] = 'Monitor (V)'
         channel[self.MONITOR][Parameter.UNIT] = 'V'
+        channel[self.CURRENT] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=False,
+                                    header='I (uA)', attr='current', indicator=True, recorded=True, unit='uA')
         channel[self.MODULE] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
                                     header='Mod', minimum=0, maximum=99, attr='module')
         channel[self.ID] = parameterDict(value=0, parameterType=PARAMETERTYPE.INT, advanced=True,
@@ -90,16 +95,21 @@ class VoltageChannel(Channel):
 
     def setDisplayedParameters(self) -> None:
         super().setDisplayedParameters()
+        self.insertDisplayedParameter(self.CURRENT, before=self.MIN)
         self.displayedParameters.append(self.MODULE)
         self.displayedParameters.append(self.ID)
 
     def monitorChanged(self) -> None:
         # overwriting super().monitorChanged() to set 0 as expected value when device is off
         self.updateWarningState(self.enabled and self.channelParent.controller.acquiring
-                                and ((self.channelParent.isOn() and abs(self.monitor - self.value) > 1)
-                                or (not self.channelParent.isOn() and abs(self.monitor - 0) > 1)))
+                                and ((self.channelParent.isOn() and abs(self.monitor - self.value) > 1)  # setpoint not reached
+                                or (not self.channelParent.isOn() and abs(self.monitor - 0) > 1)  # not 0 though it should
+                                or self.current > self.currentWarnLimit  # current of 0.1 uA typically sufficient to stabilize voltage on static ion optic,
+                                # larger current indicates short or other issues
+                                ))
 
     def realChanged(self) -> None:
+        self.getParameterByName(self.CURRENT).setVisible(self.real)
         self.getParameterByName(self.MODULE).setVisible(self.real)
         self.getParameterByName(self.ID).setVisible(self.real)
         super().realChanged()
@@ -114,12 +124,14 @@ class VoltageController(DeviceController):
         self.socket = None
         self.modules = None
         self.maxID = None
+        self.currents: np.ndarray = None  # type: ignore # ignore on purpose  | None  # noqa: PGH003
 
     def initializeValues(self, reset: bool = False) -> None:  # noqa: ARG002
         self.modules = self.controllerParent.getModules() or [0]
         self.maxID = max(channel.id if channel.real else 0 for channel in self.controllerParent.getChannels())  # used to query correct amount of monitors
         if self.modules is not None and self.maxID is not None:
             self.values = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
+            self.currents = np.full([len(self.modules), self.maxID + 1], fill_value=np.nan, dtype=np.float32)
 
     def runInitialization(self) -> None:
         try:
@@ -134,22 +146,28 @@ class VoltageController(DeviceController):
     def readNumbers(self) -> None:
         if self.modules and self.maxID:
             for module in self.modules:
-                res = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=True)
-                if res:
+                voltages = self.ISEGWriteRead(message=f':MEAS:VOLT? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=True)
+                currents = self.ISEGWriteRead(message=f':MEAS:CURR? (#{module}@0-{self.maxID + 1})\r\n', already_acquired=True)
+                if voltages and currents:
                     try:
-                        monitors = [float(x[:-1]) for x in res[:-4].split(',')]  # res[:-4] to remove trailing '\r\n'
+                        monitors = [float(x[:-1]) for x in voltages[:-2].split(',')]  # x[:-1] to remove V. res[:-2] to remove trailing '\r\n'
                         # fill up to self.maxID to handle all modules the same independent of the number of channels.
                         self.values[module] = np.hstack([monitors, np.zeros(self.maxID + 1 - len(monitors))])
+                        current_readbacks = [float(x[:-1]) * 1E6 for x in currents[:-2].split(',')]  # x[:-1] to remove A. res[:-2] to remove trailing '\r\n'
+                        self.currents[module] = np.hstack([current_readbacks, np.zeros(self.maxID + 1 - len(current_readbacks))])
                     except (ValueError, TypeError) as e:
-                        self.print(f'Parsing error: {e} for {res}.')
+                        self.print(f'Parsing error: {e} for voltages {voltages} and currents {currents}.')
                         self.errorCount += 1
 
     def fakeNumbers(self) -> None:
         for channel in self.controllerParent.getChannels():
             if channel.enabled and channel.real:
-                # fake values with noise and 10% channels with offset to simulate defect channel or short
+                # fake values with noise and 2% channels with offset to simulate defect channel or short
                 self.values[channel.module][channel.id] = ((channel.value if self.controllerParent.isOn() and channel.enabled else 0)
                                    + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])) + self.rng.random() - 0.5)
+                # fake current corresponding to 50 Ohm resistance and 2% chance of offset.
+                self.currents[channel.module][channel.id] = ((self.values[channel.module][channel.id] / 50 if self.controllerParent.isOn() and channel.enabled else 0)
+                                   + 5 * (self.rng.choice([0, 1], p=[0.98, 0.02])))
 
     def applyValue(self, channel: VoltageChannel) -> None:
         self.ISEGWriteRead(message=f':VOLT {channel.value if channel.enabled else 0},(#{channel.module}@{channel.id})\r\n')
@@ -161,6 +179,7 @@ class VoltageController(DeviceController):
         for channel in self.controllerParent.getChannels():
             if channel.enabled and channel.real:
                 channel.monitor = np.nan if channel.waitToStabilize else self.values[channel.module][channel.id]
+                channel.current = self.currents[channel.module][channel.id]
 
     def toggleOn(self) -> None:
         super().toggleOn()

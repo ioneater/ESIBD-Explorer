@@ -155,9 +155,10 @@ class OmniChannel(Channel):  # noqa: PLR0904
     def realChanged(self) -> None:
         super().realChanged()
         self.hideParameters()
+        self.toggleExtraContextActions()
 
     def hideParameters(self) -> None:
-        """Hide parameters based in channel type and presence of hardware."""
+        """Hide parameters based on channel type and presence of hardware."""
         self.getParameterByName(self.PumpStatn).setVisible(self.isPump)
         self.getParameterByName(self.Standby).setVisible(self.real and self.isPump)
         self.getParameterByName(self.DrvPower).setVisible(self.real and self.isPump)
@@ -179,17 +180,15 @@ class OmniChannel(Channel):  # noqa: PLR0904
         self.updateColor()
         self.value = oldValue
         self.logY = not self.isPump
+        self.toggleExtraContextActions()
+
+    def toggleExtraContextActions(self) -> None:
         self.getParameterByName(self.PumpStatn).extraContextActions = ([ContextAction(text='Get operating hours via Console.', event=self.getOpHrsPumpConsole)] if self.isPump
                                                                        else [])
         self.getParameterByName(self.ERRORLED).extraContextActions = [ContextAction(text='Acknowledge Error', event=self.acknError)] if self.isPump else []
         self.getParameterByName(self.ID).extraContextActions = [ContextAction(text='Set address via Console', event=self.setRS485AdrConsole)] if self.isPump else []
         self.getParameterByName(self.Standby).extraContextActions = [ContextAction(text='Set Standby Speed via Console', event=self.setStdbySValConsole)] if self.isPump else []
-
-        display = self.getParameterByName(self.DISPLAY)
-        display.extraContextActions = []
-        if self.isPump:
-            for parameter in self.getRecordedParameters():
-                display.extraContextActions.append(ContextAction(text=f'Toggle display of {parameter.name}', event=parameter.updateDisplay))
+        super().toggleExtraContextActions()
 
     def getIcon(self, desaturate: bool = False) -> Icon:  # pylint: disable = missing-param-doc
         """Return Icon depending on the channel type."""

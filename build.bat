@@ -68,11 +68,11 @@ REM Bump version
 
 use find and replace to manually update all version references
 ATTENTION: do not find and replace all, as this will also overwrite the last versions in the change log!
-REM update version in pyproject.toml
-REM update Product Version in EsibdExplorer.ifp in the General tab
-REM update PROGRAM_VERSION in config.py
-REM if applicable update year in license file
-REM update copyright year and release version also in docs/conf.py
+update version in pyproject.toml
+update Product Version in EsibdExplorer.ifp in the General tab
+update PROGRAM_VERSION in docs\config.py
+if applicable update year in license file
+update copyright year and release version also in docs/conf.py
 
 REM Note that the program has to access the version during development and after deployment to test for plugin compatibility
 REM Neither reading the version from pyproject.toml or from installed package using importlib.metadata.version covers both use cases,
@@ -192,8 +192,8 @@ REM pyinstaller_dist\ESIBD Explorer\ESIBD Explorer.exe
 
 REM NOTE without certificate users will see "publisher unknown" message during installation. $300 per year for certificate -> only if number of clients increases
 REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express/ -> for small user groups installing from downloaded exe acceptable and less error prone (e.g. if online links should change).
-added the following as custom shell comment to remove programfolde first to get clean installation every time: rmdir /s /q "<InstallPath>"
-REM Previously manual uninstall was needed to get clean installation.
+REM added the following as custom shell comment to remove programfolde first to get clean installation every time: rmdir /s /q "<InstallPath>" -> deletes after and not before installation, apparently no solution?
+uninstall needed to get clean installation!
 
 rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.1.exe in pyinstaller_build
 
@@ -217,11 +217,12 @@ check read the docs build on https://app.readthedocs.org/projects/esibd-explorer
 
 create release on github with changelog based on commits and following sections (have to be signed in!)
 select tag
-Title: Version v0.8.3
+Title: Version v1.0.1
 Copy change log from changelog.rst (remove inline icons if applicable)
-attach ESIBD-Explorer-setup_v0.8.3.exe from pyinstaller_build to release
+attach ESIBD-Explorer-setup_v1.0.1.exe from pyinstaller_build to release
 attach esibd.tar.gz to release (do not rename or the final folder will have a different name as well)
 Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
 
+If you had to bump versions during release, make sure all instances (pypi, exe, offline install, ...) use the same version in the end
 
 Consider saving snapshot of workspace independent of git

@@ -3,6 +3,14 @@
 Changelog
 ---------
 
+Latest
+======
+
+Added
+~~~~~
+- Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are read if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
+
+
 Version 1.0.1 2026-04-20
 ========================
 
@@ -16,7 +24,7 @@ Added
 - In Test Mode there are now warning labels to make sure users are aware of simulated data.
 - The plugin source code file path is now shown in the plugin about dialog.
 - Introduced option to record additional parameters just like values or backgrounds.
-  Set recorded=True in for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
+  Set recorded=True in parameter definition in getDefaultSettings for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
   The recorded values for these parameters will be saved and restored.
   In the |ucm| :ref:`sec:ucm`, these and any other parameters can be linked directly by using ChannelName.ParameterName.
   Note that linking parameters can used in the same way for Scans.

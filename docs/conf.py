@@ -18,7 +18,7 @@ sys.path.insert(0, package_path)
 sphinx = True  # used for conditional doc strings (direct HTML vs. rst)
 
 project = 'ESIBD Explorer'
-project_copyright = '2025, Tim Esser'
+project_copyright = '2026, Tim Esser'
 author = 'Tim Esser'
 release = '1.0.1'
 

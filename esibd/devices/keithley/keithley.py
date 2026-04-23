@@ -112,6 +112,7 @@ class CurrentChannel(Channel):
 
     def realChanged(self) -> None:
         self.getParameterByName(self.ADDRESS).setVisible(self.real)
+        self.getParameterByName(self.VOLTAGE).setVisible(self.real)
         super().realChanged()
 
 

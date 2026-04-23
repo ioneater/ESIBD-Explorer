@@ -1444,6 +1444,8 @@ class Parameter:  # noqa: PLR0904
     """Indicates if logarithmic controls and scales should be used."""
     clearingPlotCurve = False
     """Flag to prevent multiple clearing attempts at the same time."""
+    visible: bool = True
+    """Indicate if the parameter is visible. Also see parameter.isVisible and parameter.setVisible."""
 
     class SignalCommunicate(QObject):
         """Bundle pyqtSignals."""
@@ -2025,6 +2027,13 @@ class Parameter:  # noqa: PLR0904
             else:
                 widget.setReadOnly(not enabled)
 
+    def isVisible(self) -> bool:
+        """Indicate if parameter is visible.
+
+        Parameters may be hidden if their value is meaningless e.g. if the channel is not real.
+        """
+        return self.visible
+
     def setVisible(self, visible: bool) -> None:
         """Set parameter visibility.
 
@@ -2034,6 +2043,7 @@ class Parameter:  # noqa: PLR0904
         widget = self.getWidget()
         if widget:
             widget.setVisible(visible)
+        self.visible = visible  # more reliable flag as widgets might not be updated right away
 
     def addItem(self, value: str) -> None:
         """Add an item to a combobox and selects it.
@@ -2581,6 +2591,8 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
     invalid_chars: list[str]
     """Invalid characters will be removed from list of valid characters of the channel name."""
     controller: 'DeviceController'
+    """Usually the controller is assigned to the Device, but in some cases each channel can get a dedicated and independent controller,
+       e.g. if each channel represents a separate and independent device."""
 
     def __init__(self, channelParent: 'ChannelManager | Scan', tree: 'QTreeWidget | None' = None) -> None:
         """Initialize a Channel.
@@ -3163,6 +3175,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                         monitorWidget.setVisible(self.real)
                 if not self.channelParent.loading:
                     self.pluginManager.DeviceManager.globalUpdate(inout=self.inout)
+        self.toggleExtraContextActions()
 
     def enabledChanged(self) -> None:
         """Extend as needed. Already linked to enabled checkbox."""
@@ -3268,10 +3281,6 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
             select.widget.setMinimumWidth(5)
             select.widget.setCheckable(True)
             select.value = initialValue
-        if self.DISPLAY in self.displayedParameters:
-            display = self.getParameterByName(self.DISPLAY)
-            for parameter in self.getRecordedParameters():
-                display.extraContextActions.append(ContextAction(text=f'Toggle display of {parameter.name}', event=parameter.updateDisplay))
         if self.COLLAPSE in self.displayedParameters:
             collapse = self.getParameterByName(self.COLLAPSE)
             initialValue = collapse.value or False
@@ -3288,6 +3297,7 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 self.updateMin()
                 self.updateMax()
         self.scalingChanged()
+        self.toggleExtraContextActions()
 
     def updateMin(self) -> None:
         """Apply new minimum to value widget."""
@@ -3310,6 +3320,16 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
                 spin.setMaximum(self.max)
         if not self.channelParent.loading:
             self.pluginManager.reconnectSource(self.name)  # update limits in relay channels
+
+    def toggleExtraContextActions(self) -> None:
+        """Set appropriate extra context actions."""
+        if self.DISPLAY in self.displayedParameters:
+            display = self.getParameterByName(self.DISPLAY)
+            display.extraContextActions = []  # clear any previously defined actions
+            if self.real:
+                for parameter in self.getRecordedParameters():
+                    if parameter.isVisible():
+                        display.extraContextActions.append(ContextAction(text=f'Toggle display of {parameter.name}', event=parameter.updateDisplay))
 
     def onDelete(self) -> None:
         """Extend to handle events on deleting. E.g. handle references that should remain available."""

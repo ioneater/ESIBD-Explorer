@@ -72,7 +72,7 @@ class SPA1x0(Device):
             channel.resetCharge()
 
     def toggleUseInternalBias(self) -> None:
-        """Toggle display of controls for using internla bias voltage."""
+        """Toggle display of controls for using internal bias voltage."""
         self.onAction.setVisible(self.useInternalBias)
         for channel in self.channels:
             channel.realChanged()
@@ -357,7 +357,7 @@ class SPACurrentController(DeviceController):
                     spa.set_range(channel.id, rangeWidget.currentIndex())
 
     def setAverage(self, channel: SPACurrentChannel, already_acquired: bool = False) -> None:
-        """Set averaging. If this is a SPA120 avearging will be changed for both channels.
+        """Set averaging. If this is a SPA120, averaging will be changed for both channels.
 
         :param channel: The Channel.
         :type channel: SPACurrentChannel
