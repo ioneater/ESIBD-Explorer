@@ -10,6 +10,15 @@ Added
 ~~~~~
 - Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are read if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
 
+Changed
+~~~~~~~
+
+Fixed
+~~~~~
+- Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.
+
+Developer Notes
+~~~~~~~~~~~~~~~
 
 Version 1.0.1 2026-04-20
 ========================
@@ -19,7 +28,9 @@ Added
 - There is now a search field in |settings| :ref:`sec:settings`.
 - Added a new minimal |webcam| :ref:`sec:webcam` plugin.
 - Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and user can change sorting.
-- Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
+- Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep.
+  In some situations screen lock can not be disabled.
+  In some situations screen lock and sleep could limit file access and cause program instability.
 - |omnicontrol| :ref:`sec:omnicontrol` plugin overhaul: Can now also control Pfeiffer turbo pumps.
 - In Test Mode there are now warning labels to make sure users are aware of simulated data.
 - The plugin source code file path is now shown in the plugin about dialog.

@@ -8118,6 +8118,7 @@ class PID(ChannelManager):
                 if isinstance(device, ChannelManager):
                     self.unit = device.unit
                 self.getValues = self.sourceChannel.getValues
+                self.convertDataDisplay = self.sourceChannel.convertDataDisplay
             else:
                 self.getValues = lambda *_, **__: None
             if self.inputChannel and (not hasattr(self.inputChannel, 'min') or not hasattr(self.inputChannel, 'max')):
