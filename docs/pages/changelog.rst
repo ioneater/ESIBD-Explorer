@@ -12,6 +12,7 @@ Added
 
 Changed
 ~~~~~~~
+- Sending parameters, channels, or settings to |console| :ref:`sec:console` will open the Console if it is not already open.
 
 Fixed
 ~~~~~
@@ -56,7 +57,7 @@ Changed
 - |rbd| :ref:`sec:rbd` now uses np.nan instead of 0 if there was an error parsing the current.
 - Made dashes shorter so they are easier to find in pyqtgraph legend.
 - Allowed use of % as unit.
-- Sending Settings, Channels, and Parameters to the console is now always enabled and not just in Debug Mode.
+- Sending Settings, Channels, and Parameters to the |console| :ref:`sec:console` is now always enabled and not just in Debug Mode.
 - Prevented dragging cursors in scans while scan is running.
 - |rspd3303c| :ref:`sec:rspd3303c`: Improved shutdown timer messages.
 - Made "Error reset time", " Max lag tolerance", and "Lag wait time" accessible in the General section of |settings| :ref:`sec:settings` in |advanced| advanced mode. See tooltips for documentation.

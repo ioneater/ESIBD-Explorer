@@ -5841,6 +5841,10 @@ class Console(Plugin):
         :param command: Any valid python command
         :type command: str
         """
+        if self.pluginManager.Settings.showConsoleAction and not self.pluginManager.Settings.showConsoleAction.state:
+            # show console if not already visible
+            self.pluginManager.Settings.showConsoleAction.state = True
+            self.toggleVisible()
         self.mainConsole.input.setText(command)
         self.mainConsole.input.execCmd()
         self.mainConsole.input.setFocus()
