@@ -607,7 +607,7 @@ class PluginManager:  # noqa: PLR0904
         if not self.pluginFile:
             return
         dlg = QDialog(self.mainWindow, Qt.WindowType.WindowStaysOnTopHint)
-        dlg.resize(800, 400)
+        dlg.resize(1200, 600)
         dlg.setWindowTitle('Select Plugins')
         dlg.setWindowIcon(Icon(internalMediaPath / 'block--pencil.png'))
         lay = QGridLayout()
@@ -682,11 +682,14 @@ class PluginManager:  # noqa: PLR0904
         """
         if self.tree:
             pluginTreeWidget = QTreeWidgetItem(self.tree.invisibleRootItem())
+            # 0 = icon
             if item[self.ICONFILE]:
                 pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / (item[self.ICONFILEDARK] if getDarkMode() and item[self.ICONFILEDARK] else item[self.ICONFILE])))
             else:
                 pluginTreeWidget.setIcon(0, Icon(Path(item[self.DEPENDENCYPATH]) / ('help_large_dark.png' if getDarkMode() else 'help_large.png')))
+            # 1 = name
             pluginTreeWidget.setText(1, name)
+            # 2 = enabled
             if item[self.OPTIONAL] == 'True':
                 checkbox = CheckBox()
                 checkbox.setChecked(item[self.ENABLED] == 'True')
@@ -695,26 +698,32 @@ class PluginManager:  # noqa: PLR0904
             else:
                 pluginTreeWidget.setText(2, 'z Not Optional')
             pluginTreeWidget.setForeground(2, QColor(0, 0, 0, 0))  # make sorting text transparent
+            # 3 = version
             versionLabel = QLabel()
             versionLabel.setText(item[self.VERSION])
+            versionLabel.setToolTip(item[self.SOURCECODEPATH])
             self.tree.setItemWidget(pluginTreeWidget, 3, versionLabel)
             pluginTreeWidget.setText(3, item[self.VERSION])  # needed for sorting
             pluginTreeWidget.setForeground(3, QColor(0, 0, 0, 0))  # make sorting text transparent
+            # 4 = supported version
             supportedVersionLabel = QLabel()
             supportedVersionLabel.setText(item[self.SUPPORTEDVERSION])
             supportedVersionLabel.setStyleSheet(f"color: {'red' if not pluginSupported(item[self.SUPPORTEDVERSION]) else 'green'}")
             self.tree.setItemWidget(pluginTreeWidget, 4, supportedVersionLabel)
             pluginTreeWidget.setText(4, item[self.SUPPORTEDVERSION])
             pluginTreeWidget.setForeground(4, QColor(0, 0, 0, 0))  # make sorting text transparent
+            # 5 = plugin type
             typeLabel = QLabel()
             typeLabel.setText(item[self.PLUGIN_TYPE])
             self.tree.setItemWidget(pluginTreeWidget, 5, typeLabel)
             pluginTreeWidget.setText(5, item[self.PLUGIN_TYPE])
             pluginTreeWidget.setForeground(5, QColor(0, 0, 0, 0))  # make sorting text transparent
+            # 6 = preview file types
             previewFileTypesLabel = QLabel()
             previewFileTypesLabel.setText(item[self.PREVIEWFILETYPES])
             previewFileTypesLabel.setToolTip(item[self.PREVIEWFILETYPES])
             self.tree.setItemWidget(pluginTreeWidget, 6, previewFileTypesLabel)
+            # 7 = description
             descriptionLabel = QLabel()
             description = item[self.DESCRIPTION]
             if description:

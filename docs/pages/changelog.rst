@@ -13,6 +13,7 @@ Added
 Changed
 ~~~~~~~
 - Sending parameters, channels, or settings to |console| :ref:`sec:console` will open the Console if it is not already open.
+- Hovering over the plugin version in the |pluginDialog| plugin dialog will show the source code path.
 
 Fixed
 ~~~~~
