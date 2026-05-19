@@ -194,9 +194,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
         """Return Icon depending on the channel type."""
         return self.channelParent.makeIcon(file='turbo.png' if self.isPump else 'sensor.png', desaturate=desaturate)
 
-    @property
-    def unit(self) -> str:
-        """The unit depending on device type."""
+    def getDisplayUnit(self) -> str:
         return 'Hz' if self.isPump else 'mbar'
 
     @property

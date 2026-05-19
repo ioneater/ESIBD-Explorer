@@ -18,6 +18,7 @@ Changed
 Fixed
 ~~~~~
 - Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.
+- fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
 
 Developer Notes
 ~~~~~~~~~~~~~~~
@@ -29,7 +30,7 @@ Added
 ~~~~~
 - There is now a search field in |settings| :ref:`sec:settings`.
 - Added a new minimal |webcam| :ref:`sec:webcam` plugin.
-- Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and user can change sorting.
+- Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and the user can change sorting.
 - Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep.
   In some situations screen lock can not be disabled.
   In some situations screen lock and sleep could limit file access and cause program instability.
