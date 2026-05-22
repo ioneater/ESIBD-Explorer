@@ -3383,7 +3383,8 @@ class Device(ChannelManager):  # noqa: PLR0904
                     elif not np.isnan(values[-1]):
                         channel.background = values[-1]
                     else:
-                        channel.background = np.nan
+                        self.print(f'Could not determine background for {channel.name}. Setting background to 0.', flag=PRINT.WARNING)
+                        channel.background = 0
 
     def subtractBackgroundActive(self) -> bool:
         """Indicate if backgrounds should be subtracted."""

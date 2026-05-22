@@ -18,7 +18,8 @@ Changed
 Fixed
 ~~~~~
 - Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.
-- fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
+- Fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
+- Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

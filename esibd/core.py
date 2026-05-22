@@ -41,7 +41,7 @@ from matplotlib.widgets import Cursor
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from PyQt6 import QtWidgets, sip
-from PyQt6.QtCore import QEvent, QObject, QPoint, QPointF, QRect, QSharedMemory, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
+from PyQt6.QtCore import QEvent, QLocale, QObject, QPoint, QPointF, QRect, QSharedMemory, QSize, Qt, QTimer, pyqtBoundSignal, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QBrush,
@@ -3699,6 +3699,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         self._is_nan = False
         super().__init__()
         self.indicator = indicator
+        self.setLocale(QLocale(QLocale.Language.C))  # Force C locale → always uses '.' as decimal
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setRange(-np.inf, np.inf)  # limit explicitly if needed, this seems more useful than the [0, 100] default range
         self.setDisplayDecimals(displayDecimals)

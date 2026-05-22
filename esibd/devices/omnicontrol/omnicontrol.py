@@ -132,7 +132,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
                                         attr='drvPower', restore=False, header='Power (W)', recorded=True, unit='W')
         channel[self.TempPump] = parameterDict(value=np.nan, parameterType=PARAMETERTYPE.FLOAT, advanced=True, indicator=True,
                                         attr='tempPump', restore=False, header='Temp (°C)', recorded=True, unit='°C')
-        channel[self.ERRORLED] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=True, indicator=True,
+        channel[self.ERRORLED] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='Err', toolTip='Indicates errors.', attr='errorLED', restore=False)
         channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', restore=False, indicator=True)
         return channel
@@ -174,7 +174,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
         value = self.getParameterByName(self.VALUE)
         value.parameterType = PARAMETERTYPE.FLOAT if self.isPump else PARAMETERTYPE.EXP
         value.unit = self.unit
-        value.displayDecimals = 0  # Note: integers cannot be represented as nan, thus using float with 0 decimals
+        value.displayDecimals = 0 if self.isPump else 2  # Note: integers cannot be represented as nan, thus using float with 0 decimals. Use 2 decimals for pressure reading
         value.applyWidget()
         self.scalingChanged()
         self.updateColor()
