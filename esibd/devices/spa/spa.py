@@ -272,6 +272,8 @@ class SPACurrentController(DeviceController):
         super().__init__(controllerParent=controllerParent)
         self.port = None
         Module = dynamicImport('SPA', self.controllerParent.dependencyPath / 'SPA_python_example.py')
+        # note: I added  Port {self.port} to relevant messages to indicate which device they are coming from.
+        # SPA does not implement logging in a flexible way so overwriting the source code is the only option for now.
         if Module:
             self.SPA = cast('type[SPA]', Module.SPA)
         self.initCOMs()

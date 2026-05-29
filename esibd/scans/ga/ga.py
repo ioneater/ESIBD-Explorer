@@ -172,13 +172,14 @@ class GAScan(Scan):
         # timing test with 160 generations: update True: 25 ms, update False: 37 ms
         if self.loading:
             return
-        bestData = self.getData(0, INOUT.IN)
+        time_axis = self.getData(0, INOUT.IN)
+        bestData = self.getData(0, INOUT.OUT)
         avgData = self.getData(1, INOUT.OUT)
         if len(self.outputChannels) > 0:
-            if bestData is not None and avgData is not None:
-                time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in bestData]  # convert timestamp to datetime
-                self.display.bestLine.set_data(time_axis, bestData)  # type: ignore  # noqa: PGH003
-                self.display.avgLine.set_data(time_axis, avgData)  # type: ignore  # noqa: PGH003
+            if bestData is not None and avgData is not None and time_axis is not None:
+                time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime
+                self.display.bestLine.set_data(time_stamp_axis, bestData)  # type: ignore  # noqa: PGH003
+                self.display.avgLine.set_data(time_stamp_axis, avgData)  # type: ignore  # noqa: PGH003
         else:  # no data
             self.display.bestLine.set_data([], [])
             self.display.avgLine.set_data([], [])
@@ -201,9 +202,9 @@ ax0.set_ylabel('Fitness Value')
 for label in ax0.get_xticklabels(which='major'):
     label.set_ha('right')
     label.set_rotation(30)
-time_axis = [datetime.fromtimestamp(float(time_axis)) for time_axis in inputChannels[0].recordingData]
-ax0.plot(time_axis, outputChannels[0].recordingData, label='best fitness')[0]
-ax0.plot(time_axis, outputChannels[1].recordingData, label='avg fitness')[0]
+time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in inputChannels[0].recordingData]
+ax0.plot(time_stamp_axis, outputChannels[0].recordingData, label='best fitness')[0]
+ax0.plot(time_stamp_axis, outputChannels[1].recordingData, label='avg fitness')[0]
 ax0.legend(loc='lower right', prop={{'size': 10}}, frameon=False)
 fig.show()
         """
@@ -229,7 +230,12 @@ fig.show()
                 time.sleep((self.wait + self.average) / 1000)
                 self.bufferLagging()
                 self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.', timeout=10)
-                self.ga.fitness(np.mean(outputChannelValues))
+                outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
+                if outputChannelValues is not None:
+                    self.ga.fitness(np.mean(outputChannelValues))
+                else:
+                    self.print('outputChannelValues not defined', flag=PRINT.ERROR)
+                    return
                 if self.log:
                     self.print(self.ga.step_string().replace('GA: ', ''))
                 _, session_saved = self.ga.check_restart()

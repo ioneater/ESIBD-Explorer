@@ -156,7 +156,7 @@ class VoltageController(DeviceController):
                         current_readbacks = [float(x[:-1]) * 1E6 for x in currents[:-2].split(',')]  # x[:-1] to remove A. res[:-2] to remove trailing '\r\n'
                         self.currents[module] = np.hstack([current_readbacks, np.zeros(self.maxID + 1 - len(current_readbacks))])
                     except (ValueError, TypeError) as e:
-                        self.print(f'Parsing error: {e} for voltages {voltages} and currents {currents}.')
+                        self.print(f'Parsing error: {e} for voltages {voltages} and currents {currents}.', flag=PRINT.WARNING)
                         self.errorCount += 1
 
     def fakeNumbers(self) -> None:

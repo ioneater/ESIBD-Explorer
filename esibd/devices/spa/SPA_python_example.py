@@ -507,7 +507,7 @@ class SPA:
 
     def connect(self) -> None:
         """Open serial port, load calibration, enable instrument transmit."""
-        print(f"[spa] Opening {self.port} at {BAUD_RATE} baud...")
+        print(f"[spa] Port {self.port} Opening {self.port} at {BAUD_RATE} baud...")
         self.ser = serial.Serial(
             port=self.port,
             baudrate=BAUD_RATE,
@@ -525,7 +525,7 @@ class SPA:
             if self.cal:
                 device_id = self.cal.get("DeviceID", "unknown")
                 serial_id = self.cal.get("SerialID", "unknown")
-                print(f"[cal] Loaded calibration from {self.cal_file} "
+                print(f"[cal] Port {self.port} Loaded calibration from {self.cal_file} "
                       f"(device={device_id}, serial={serial_id})")
 
         if self.cal is None:
@@ -546,7 +546,7 @@ class SPA:
         # Flush any stale data
         self.ser.reset_input_buffer()
 
-        print("[spa] Connected and streaming.")
+        print(f"[spa] Port {self.port} Connected and streaming.")
 
     def disconnect(self) -> None:
         """Disable instrument transmit and close the serial port.
@@ -561,7 +561,7 @@ class SPA:
             self._send_config()
             time.sleep(0.05)
             self.ser.close()
-            print("[spa] Disconnected.")
+            print(f"[spa] Port {self.port} Disconnected.")
 
     # -- Configuration ------------------------------------------
 
@@ -576,7 +576,7 @@ class SPA:
             raise ValueError(f"range_index must be 0..7, got {range_index}")
         self._range[channel] = range_index
         label = RANGE_TABLE[range_index][2]
-        print(f"[spa] Ch{channel} range set to {label} (index {range_index})")
+        print(f"[spa] Port {self.port} Ch{channel} range set to {label} (index {range_index})")
         self._build_registers()
         self._send_config()
 
@@ -585,7 +585,7 @@ class SPA:
         if hz not in SAMPLE_RATES:
             raise ValueError(f"Sample rate must be 2, 10, or 100 Hz, got {hz}")
         self._sample_rate_hz = hz
-        print(f"[spa] Sample rate set to {hz} Hz")
+        print(f"[spa] Port {self.port} Sample rate set to {hz} Hz")
         self._build_registers()
         self._send_config()
 
@@ -598,7 +598,7 @@ class SPA:
         self._avg_size = n
         self._avg_buf_ch1 = deque(maxlen=n)
         self._avg_buf_ch2 = deque(maxlen=n)
-        print(f"[spa] Rolling average set to {n}x")
+        print(f"[spa] Port {self.port} Rolling average set to {n}x")
 
     def set_bias(self, channel: int, voltage: float,
                  polarity: str = "Positive", enable: bool = False) -> None:
@@ -616,7 +616,7 @@ class SPA:
         self._bias_enabled[channel] = enable
         state = "ON" if enable else "OFF"
         sign = "+" if polarity == "Positive" else "-"
-        print(f"[spa] Ch{channel} bias: {sign}{voltage:.1f} V, source {state}")
+        print(f"[spa] Port {self.port} Ch{channel} bias: {sign}{voltage:.1f} V, source {state}")
         self._build_registers()
         self._send_config()
 
@@ -1209,7 +1209,7 @@ Examples:
         if not port:
             print("ERROR: No SPA instrument found. Specify --port manually.")
             sys.exit(1)
-        print(f"[spa] Auto-detected port: {port}")
+        print(f"[spa] Port {self.port} Auto-detected port: {port}")
 
     # Create SPA instance and connect
     spa = SPA(port, cal_file=cal_file)
@@ -1219,7 +1219,7 @@ Examples:
         # Auto-detect device type from calibration if not specified
         if device is None and spa.cal:
             device = spa.cal.get("DeviceID", "SPA120")
-            print(f"[spa] Auto-detected device: {device}")
+            print(f"[spa] Port {self.port} Auto-detected device: {device}")
         elif device is None:
             device = "SPA120"       # safe default (superset)
         dual_channel = (device == "SPA120")

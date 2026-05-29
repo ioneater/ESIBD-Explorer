@@ -14,12 +14,15 @@ Changed
 ~~~~~~~
 - Sending parameters, channels, or settings to |console| :ref:`sec:console` will open the Console if it is not already open.
 - Hovering over the plugin version in the |pluginDialog| plugin dialog will show the source code path.
+- Increased upper limit for displayed history
+- Added COM port info to |spa| :ref:`sec:spa` messages.
 
 Fixed
 ~~~~~
 - Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.
 - Fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
 - Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.
+- Fixed |ga| :ref:`sec:genetic_algorithm` fitness feedback and plot.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

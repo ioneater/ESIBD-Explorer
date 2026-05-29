@@ -3697,6 +3697,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
         """
         self.NAN = 'NaN'
         self._is_nan = False
+        self.displayDecimals = 2
         super().__init__()
         self.indicator = indicator
         self.setLocale(QLocale(QLocale.Language.C))  # Force C locale → always uses '.' as decimal

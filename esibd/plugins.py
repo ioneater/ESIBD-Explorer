@@ -1643,7 +1643,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
                                                             MultiState(self.GroupActionState.GROUP, 'Show all channels together.', self.makeCoreIcon('group_all.png'))],
                                                         event=lambda: (self.initFig(), self.plot(apply=True)), attr='groupMode')
         self.displayTimeComboBox = RestoreFloatComboBox(parentPlugin=self, default='2', items='-1, 0.2, 1, 2, 3, 5, 10, 60, 600, 1440', attr=self.DISPLAYTIME,
-                                                        event=self.displayTimeChanged, minimum=.2, maximum=3600,
+                                                        event=self.displayTimeChanged, minimum=.2, maximum=100000,
                                                         toolTip=f'Length of displayed {self.parentPlugin.name} history in min.\nWhen -1, all history is shown.')
         self.autoScaleAction = self.addStateAction(event=self.autoScaleChanged,
                                                     toolTipFalse='Scale x manually.', iconFalse=self.makeCoreIcon('scaleX_manual.png'),
