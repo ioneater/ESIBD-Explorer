@@ -3591,6 +3591,8 @@ class Device(ChannelManager):  # noqa: PLR0904
                 else:
                     result = aeval(equ)  # or 0 evaluate does catch exception internally so we cannot except them here
                     if isinstance(result, (float, int)):
+                        if hasattr(channel, 'min') and not (channel.min <= result <= channel.max):
+                            self.print(f'Result {result} of equation {channel.equation} is outside allowed range for {channel.name}', flag=PRINT.DEBUG)
                         channel.value = result
                     else:
                         self.print(f'Could not evaluate equation of {channel.name}: {channel.equation} as {equ}')
@@ -5990,11 +5992,11 @@ class SettingsManager(Plugin):
                 if newPath != Path():  # directory has been selected successfully
                     setting.value = newPath
             elif settingsContextMenuAction is addItemAction:
-                text, ok = QInputDialog.getText(self, Channel.ADDITEM, Channel.ADDITEM)
+                text, ok = QInputDialog.getText(self.pluginManager.mainWindow, Channel.ADDITEM, Channel.ADDITEM)
                 if ok and text:
                     setting.addItem(text)
             elif settingsContextMenuAction is editItemAction:
-                text, ok = QInputDialog.getText(self, Channel.EDITITEM, Channel.EDITITEM, text=str(setting.value))
+                text, ok = QInputDialog.getText(self.pluginManager.mainWindow, Channel.EDITITEM, Channel.EDITITEM, text=str(setting.value))
                 if ok and text:
                     setting.editCurrentItem(text)
             elif settingsContextMenuAction is removeItemAction:

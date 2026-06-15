@@ -226,7 +226,7 @@ class TemperatureController(DeviceController):
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if self.ls335:
-                value = self.ls335.get_kelvin_reading(channel.id)
+                value = cast('float', self.ls335.get_kelvin_reading(channel.id))
                 try:
                     self.values[i] = float(value)
                 except ValueError as e:

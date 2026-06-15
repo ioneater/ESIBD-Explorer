@@ -226,3 +226,5 @@ Source code (zip) and Source code (tar.gz) will be automatically attached, even 
 If you had to bump versions during release, make sure all instances (pypi, exe, offline install, ...) use the same version in the end
 
 Consider saving snapshot of workspace independent of git
+
+Delete dist, build, docs/_build, pyinstaller_dist, and pyinstaller_build folders after successful publishing to keep project folder size minimal

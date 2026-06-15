@@ -16,6 +16,7 @@ Changed
 - Hovering over the plugin version in the |pluginDialog| plugin dialog will show the source code path.
 - Increased upper limit for displayed history
 - Added COM port info to |spa| :ref:`sec:spa` messages.
+- Added debug message in case a channel equation evaluates to a result that is outside of the allowed range for that channel.
 
 Fixed
 ~~~~~

@@ -6,6 +6,7 @@ For now, English is the only supported language and use of hard coded error mess
 """
 
 import configparser
+import contextlib
 import os
 import re
 import sys
@@ -3602,7 +3603,7 @@ class LabviewSpinBox(QSpinBox, ParameterWidget):
             self.preciseValue = 0
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # pylint: disable = missing-param-doc
-        """Allow to manually rest a value from NaN."""
+        """Allow to manually reset a value from NaN."""
         if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9 or event.key() == Qt.Key.Key_Minus:
             self._is_nan = False
         super().keyPressEvent(event)
@@ -3709,7 +3710,7 @@ class LabviewDoubleSpinBox(QDoubleSpinBox, ParameterWidget):
             self.preciseValue = 0
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # pylint: disable = missing-param-doc
-        """Allow to manually rest a value from NaN."""
+        """Allow to manually reset a value from NaN."""
         if Qt.Key.Key_0 <= event.key() <= Qt.Key.Key_9 or event.key() == Qt.Key.Key_Minus:
             self._is_nan = False
         super().keyPressEvent(event)
@@ -6082,6 +6083,9 @@ class DeviceController(QObject):  # noqa: PLR0904
         """
         self.closing = True
         self.print('closeCommunication controller', flag=PRINT.DEBUG)
+        with contextlib.suppress(RuntimeError):  # in python 3.14 use self.lock.locked() to test first instead of using contextlib.suppress
+            # release lock in case it did not get released due to uncaught errors in external thread.
+            self.lock.release()
         if self.acquiring:
             self.stopAcquisition()  # only call if not already called by device
         # self.initialized = False # ! Make sure to call this at the end of extended function  # noqa: ERA001
