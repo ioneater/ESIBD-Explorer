@@ -214,11 +214,11 @@ class OmniChannel(Channel):  # noqa: PLR0904
             self.print(f'{self.name} is not a {self.OMNITYPESTATE.PRESSURE.value}.')
         return not self.isPump
 
-    def getPressure(self) -> None:
+    def getPressure(self) -> 'float | None':
         """Get pressure from gauge in mbar."""
         if not self.checkSensorChannel():
-            return
-        self.channelParent.controller.getPressure(addr=self.id)
+            return None
+        return self.channelParent.controller.getPressure(addr=self.id)
 
     def setPumpStatn(self) -> None:
         """Set the pump station state of the turbo pump, i.e. ON or OFF."""
@@ -232,11 +232,11 @@ class OmniChannel(Channel):  # noqa: PLR0904
             return
         self.channelParent.controller.setStandby(addr=self.id, on=self.standby)
 
-    def getStandby(self) -> None:
+    def getStandby(self) -> 'bool | None':
         """Get the standby state of the turbo pump."""
         if not self.checkPumpChannel():
-            return
-        self.channelParent.controller.getStandby(addr=self.id)
+            return None
+        return self.channelParent.controller.getStandby(addr=self.id)
 
     def getStdbySVal(self) -> float:
         """Get the standby speed value of the turbo pump."""
@@ -251,7 +251,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
         return self.channelParent.controller.getOpHrsPump(addr=self.id)
 
     def getOpHrsPumpConsole(self) -> None:
-        """Allow user to set Standby Speed via console."""
+        """Show pump operating hours in console."""
         self.pluginManager.Console.addToNamespace('channel', self)
         self.pluginManager.Console.execute(command='channel')
         self.pluginManager.Console.mainConsole.input.setText('channel.getOpHrsPump()')
@@ -333,7 +333,11 @@ class OmniController(DeviceController):  # noqa: PLR0904
                     else:
                         pressure = self.getPressure(addr=channel.id, already_acquired=True)
                         self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
-                        self.values[i] = np.nan if pressure == 0 else pressure
+                        if pressure == 0:
+                            self.values[i] = np.nan
+                            # self.errorCode[i] = self.getErrorCode(addr=channel.id, already_acquired=True)
+                        else:
+                            self.values[i] = pressure
                 except ValueError as e:
                     self.print(f"""Error while reading {'pump speed or other parameter' if channel.isPump else 'sensor pressure'}"""
                                f""" from channel {channel.name} at address {channel.id}.\nMake sure you are using the correct channel address and device type."""

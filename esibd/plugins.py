@@ -2619,6 +2619,11 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         if not self.pluginManager.loading:
             self.pluginManager.Explorer.populateTree()
 
+    def exportConfigurationIfChanged(self) -> None:
+        """Export configuration to default file if it has changed."""
+        if self.channelConfigChanged(useDefaultFile=True) or self.channelsChanged:
+            self.exportConfiguration(useDefaultFile=True)
+
     @synchronized()
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: C901, D102
         if advanced is not None:
@@ -2879,7 +2884,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             confParser = configparser.ConfigParser()
             confParser.read(file)
             if len(confParser.items()) > 2:  # minimum: DEFAULT, Info, and one Channel  # noqa: PLR2004
-                items = [i for name, i in confParser.items() if name not in {Parameter.DEFAULT.upper(), VERSION, INFO}]
+                items = [item for name, item in confParser.items() if name not in {Parameter.DEFAULT.upper(), VERSION, INFO}]
                 changed = self.compareItemsConfig(items, ignoreIndicators=True)[1]  # type: ignore # pylint: disable = unused-variable  # noqa: PGH003
         return changed
 
@@ -3015,8 +3020,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
         self.plotting = False
 
     def close(self) -> bool:  # noqa: D102
-        if self.channelConfigChanged(useDefaultFile=True) or self.channelsChanged:
-            self.exportConfiguration(useDefaultFile=True)
+        self.exportConfigurationIfChanged()
         return super().close()
 
     def closeGUI(self) -> None:  # noqa: D102
@@ -6974,13 +6978,16 @@ class DeviceManager(Plugin):  # noqa: PLR0904
                 device.updateValues()
 
     def storeOutputData(self) -> None:
-        """Regularly stores device settings and data to minimize loss in the event of a program crash."""
+        """Regularly stores device settings (in .INI files) and data (in.h5 files) to minimize loss in the event of a program crash."""
         # * Make sure that no GUI elements are accessed when running from parallel thread!
         # * deamon=True is not used to prevent the unlikely case where the thread is terminated half way through because the program is closing.
         # * scan and plugin settings are already saved as soon as they are changing
         for device in cast('list[Device]', self.getDevices()):
             if device.recording:  # will be exported when program closes even if not recording, this is just for the regular exports while the program is running
                 Thread(target=device.exportOutputData, kwargs={'useDefaultFile': True, 'useAllHistory': True}, name=f'{device.name} exportOutputDataThread').start()
+        for channelManager in cast('list[ChannelManager]', self.getDevices(inout=INOUT.ALL)):
+            Thread(target=channelManager.exportConfigurationIfChanged, name=f'{channelManager.name} exportConfigurationIfChangedThread').start()
+            channelManager.exportConfigurationIfChanged()
 
     def restoreOutputData(self) -> None:
         """Restore all outputData for all Devices."""
