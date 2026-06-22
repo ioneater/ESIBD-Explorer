@@ -3541,7 +3541,7 @@ class ScanChannel(RelayChannel, Channel):
         if self.sourceChannel:
             # Note self.value should only be used as a display. it should show the background corrected value if applicable
             # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
-            try:
+            try:  # noqa: PLW0717
                 if self.sourceParameter:
                     self.value = cast('float | None', self.sourceParameter.value)
                 elif self.sourceChannel.useMonitors and self.sourceChannel.real:

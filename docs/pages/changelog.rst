@@ -17,7 +17,10 @@ Changed
 - Increased upper limit for displayed history
 - Added COM port info to |spa| :ref:`sec:spa` messages.
 - Added debug message in case a channel equation evaluates to a result that is outside of the allowed range for that channel.
-- In addition to data, now also the configuration is saved regularly. Note that it is not saved immediately to prevent frequent file operations and noise in case file versioning is used.
+- In addition to data, now also the configuration is saved regularly.
+  Note that it is not saved immediately to prevent frequent file operations and noise in case file versioning is used.
+  Configurations can always be restored from the latest saved file (e.g. any Scan).
+- Implemented error messages for pressure sensors in |omnicontrol| :ref:`sec:omnicontrol`.
 
 Fixed
 ~~~~~

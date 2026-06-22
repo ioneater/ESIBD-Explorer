@@ -321,23 +321,19 @@ class OmniController(DeviceController):  # noqa: PLR0904
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                try:
+                try:  # noqa: PLW0717
                     if channel.isPump:
                         speed = self.getActualSpd(addr=channel.id, already_acquired=True)
                         self.pumpStatn[i] = self.getPumpStatn(addr=channel.id, already_acquired=True)
                         self.standby[i] = self.getStandby(addr=channel.id, already_acquired=True)
                         self.drvPower[i] = self.getDrvPower(addr=channel.id, already_acquired=True)
                         self.tempPump[i] = self.getTempPump(addr=channel.id, already_acquired=True)
-                        self.errorCode[i] = self.getErrorCode(addr=channel.id, already_acquired=True)
                         self.values[i] = speed
                     else:
                         pressure = self.getPressure(addr=channel.id, already_acquired=True)
                         self.print(f'readNumbers channel.id: {channel.id}, response {pressure}', flag=PRINT.TRACE)
-                        if pressure == 0:
-                            self.values[i] = np.nan
-                            # self.errorCode[i] = self.getErrorCode(addr=channel.id, already_acquired=True)
-                        else:
-                            self.values[i] = pressure
+                        self.values[i] = pressure
+                    self.errorCode[i] = self.getErrorCode(addr=channel.id, already_acquired=True)
                 except ValueError as e:
                     self.print(f"""Error while reading {'pump speed or other parameter' if channel.isPump else 'sensor pressure'}"""
                                f""" from channel {channel.name} at address {channel.id}.\nMake sure you are using the correct channel address and device type."""
@@ -364,24 +360,38 @@ class OmniController(DeviceController):  # noqa: PLR0904
                     self.standby[i] = channel.standby
                     self.drvPower[i] = self.values[i] / 30 * self.rng.uniform(.99, 1.01)
                     self.tempPump[i] = 25 + self.values[i] / 60 * self.rng.uniform(.99, 1.01)
-                    self.errorCode[i] = '000000'
                 else:
                     self.values[i] = self.rndPressure() if np.isnan(self.values[i]) else self.values[i] * self.rng.uniform(.99, 1.01)  # allow for small fluctuation
+                self.errorCode[i] = '000000'
 
     def updateValues(self) -> None:
-        super().updateValues()
         for i, channel in enumerate(self.controllerParent.getChannels()):
-            if channel.enabled and channel.real and channel.isPump:
-                channel.pumpStatn = self.pumpStatn[i]
-                channel.standby = self.standby[i]
-                channel.drvPower = self.drvPower[i]
-                channel.tempPump = self.tempPump[i]
-                if self.errorCode[i] == '000000':
-                    channel.notes = 'No Error'
-                    channel.errorLED = False
-                else:
-                    channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
-                    channel.errorLED = True
+            if channel.enabled and channel.real:
+                if channel.isPump:
+                    channel.value = self.values[i]
+                    channel.pumpStatn = self.pumpStatn[i]
+                    channel.standby = self.standby[i]
+                    channel.drvPower = self.drvPower[i]
+                    channel.tempPump = self.tempPump[i]
+                    if self.errorCode[i] == '000000':
+                        channel.notes = 'No Error'
+                        channel.errorLED = False
+                    else:
+                        channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
+                        channel.errorLED = True
+                else:  # for pressure sensors # noqa: PLR5501
+                    if self.errorCode[i] != '000000':
+                        channel.value = np.nan
+                        channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
+                        channel.errorLED = True
+                    elif self.values[i] == 0:
+                        channel.value = np.nan
+                        channel.notes = 'Underrange'
+                        channel.errorLED = True
+                    else:
+                        channel.value = self.values[i]
+                        channel.notes = 'No Error'
+                        channel.errorLED = False
 
     def closeCommunication(self) -> None:
         super().closeCommunication()
