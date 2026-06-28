@@ -150,7 +150,7 @@ class RBDCurrentChannel(Channel):
                                         items=','.join([f'COM{x}' for x in range(1, 25)]), header='COM', attr='com')
         channel[self.DEVICENAME] = parameterDict(value='smurf', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='devicename')
         channel[self.RANGE] = parameterDict(value='auto', parameterType=PARAMETERTYPE.COMBO, advanced=True,
-                                        items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',  # noqa: RUF001
+                                        items='auto, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
                                         event=self.updateRange, toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE] = parameterDict(value='off', parameterType=PARAMETERTYPE.COMBO, advanced=True,
                                         items='off, 2, 4, 8, 16, 32', attr='average',
@@ -243,7 +243,7 @@ class RBDCurrentChannel(Channel):
             self.controller.updateBiasFlag = True
 
 
-class RBDCurrentController(DeviceController):  # noqa: PLR0904
+class RBDCurrentController(DeviceController):
 
     controllerParent: RBDCurrentChannel
 

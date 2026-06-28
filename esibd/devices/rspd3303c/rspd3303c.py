@@ -76,7 +76,7 @@ class RSPD3303C(Device):
         """Update the shutdowntimer, notifies about remaining time and turns of the device once expired."""
         self.pluginManager.Settings.settings[f'{self.name}/{self.SHUTDOWNTIMER}'].setValueWithoutEvents(max(0, self.shutDownTime - 1))
         if self.shutDownTime > 1:
-            if (self.shutDownTime < 10 or  # notify every minute  # noqa: PLR0916, PLR2004
+            if (self.shutDownTime < 10 or  # notify every minute  # noqa: PLR2004
             (self.shutDownTime < 60 and self.shutDownTime % 10 == 0) or  # notify every 10 minutes  # noqa: PLR2004
             (self.shutDownTime < 600 and self.shutDownTime % 60 == 0) or  # notify every hour  # noqa: PLR2004
             (self.shutDownTime % 600 == 0)):  # notify every 10 hours

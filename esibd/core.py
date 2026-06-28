@@ -229,7 +229,7 @@ class Application(QApplication):
     splashScreen: 'SplashScreen'
 
 
-class PluginManager:  # noqa: PLR0904
+class PluginManager:
     """The :class:`~esibd.core.PluginManager` is responsible for loading all internal and external Plugins.
 
     It catches errors or incompatibilities while loading,
@@ -388,7 +388,7 @@ class PluginManager:  # noqa: PLR0904
         :param path: The path in which to look for plugins.
         :type path: pathlib.Path
         """
-        if path:  # noqa: PLR1702
+        if path:
             for directory in [directory for directory in path.iterdir() if directory.is_dir()]:
                 for file in [file for file in directory.iterdir() if file.name.endswith('.py')]:
                     try:
@@ -548,7 +548,7 @@ class PluginManager:  # noqa: PLR0904
     def testing(self) -> bool:
         """Indicates if the PluginManager or any individual plugin is currently testing."""
         for plugin in self.plugins:
-            if plugin.testing_state or (isinstance(plugin, self.ChannelManager) and  # noqa: PLR0916
+            if plugin.testing_state or (isinstance(plugin, self.ChannelManager) and
                  ((plugin.staticDisplay and plugin.staticDisplay.testing_state) or (plugin.liveDisplay and plugin.liveDisplay.testing_state))):
                 return True
         return self.testing_state
@@ -1341,7 +1341,7 @@ class DynamicNp:
         return self.data[:self.size][::n]  # returns everything
 
 
-class Parameter:  # noqa: PLR0904
+class Parameter:
     """Parameters are used by Settings and Channels.
 
     They take care of providing consistent user controls, linking events, input validation,
@@ -1462,7 +1462,7 @@ class Parameter:  # noqa: PLR0904
 
         updateValueSignal = pyqtSignal(object)
 
-    def __init__(self, name: str, parameterParent: 'SettingsManager | Channel', default: 'ParameterType | None' = None,  # noqa: PLR0913, PLR0917
+    def __init__(self, name: str, parameterParent: 'SettingsManager | Channel', default: 'ParameterType | None' = None,  # noqa: PLR0913
                 parameterType: 'PARAMETERTYPE | None' = None,
                 column: int = 1, items: str = '', fixedItems: bool = False, widget: 'QWidget | None' = None, internal: bool = False, recorded: bool = False,
                 tree: 'QTreeWidget | None' = None, itemWidget: 'QTreeWidgetItem | None' = None, toolTip: str = '', event: 'Callable | None' = None,
@@ -2174,7 +2174,7 @@ class Parameter:  # noqa: PLR0904
             self.parameterParent.initSettingsContextMenuBase(self, widget.mapToGlobal(pos))
 
 
-def parameterDict(name: str = '', value: 'ParameterType | None' = None, default: 'ParameterType | None' = None, minimum: 'float | None' = None, maximum: 'float | None' = None,  # noqa: PLR0913, PLR0917
+def parameterDict(name: str = '', value: 'ParameterType | None' = None, default: 'ParameterType | None' = None, minimum: 'float | None' = None, maximum: 'float | None' = None,  # noqa: PLR0913
                 unit: str = '', toolTip: str = '', items: 'str | None' = None,
                 fixedItems: bool = False, tree: 'QTreeWidget | None' = None, parameterType: 'PARAMETERTYPE | None' = None, advanced: bool = False, header: str = '',
                 widget: 'QWidget | None' = None, event: 'Callable | None' = None, internal: bool = False, recorded: bool = False,
@@ -2481,7 +2481,7 @@ class MetaChannel(RelayChannel):
         The actual channel, if it exists.
     """
 
-    def __init__(self, parentPlugin: 'ChannelManager | Scan | StaticDisplay', name: str = '', unit: str = '',  # noqa: PLR0913, PLR0917
+    def __init__(self, parentPlugin: 'ChannelManager | Scan | StaticDisplay', name: str = '', unit: str = '',  # noqa: PLR0913
                  recordingData: 'np.ndarray | DynamicNp | None' = None, initialValue: 'float | None' = None,
                  recordingBackground: 'np.ndarray | None' = None, inout: 'INOUT | None' = None) -> None:
         """Initialize MetaChannel.
@@ -2547,7 +2547,7 @@ class MetaChannel(RelayChannel):
         """Provide onDelete for channel API consistency."""
 
 
-class Channel(QTreeWidgetItem):  # noqa: PLR0904
+class Channel(QTreeWidgetItem):
     """Represent a virtual or real Parameter and manage all data and metadata related to that Parameter.
 
     Each :ref:`device<sec:devices>` can only have one type of channel, but channels have dynamic interfaces
@@ -3367,12 +3367,9 @@ class Channel(QTreeWidgetItem):  # noqa: PLR0904
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addChannelToConsoleAction:
-                self.pluginManager.Console.addToNamespace('channel', parameter.parameterParent)
-                self.pluginManager.Console.execute(command='channel')
+                self.pluginManager.Console.sendToConsole(item=parameter.parameterParent, name='channel')
             elif settingsContextMenuAction is addParameterToConsoleAction:
-                self.pluginManager.Console.addToNamespace('parameter', parameter)
-                self.pluginManager.Console.execute(command='parameter')
-            else:
+                self.pluginManager.Console.sendToConsole(item=parameter, name='parameter')
                 for contextAction in parameter.extraContextActions:
                     if settingsContextMenuAction is contextAction.action:
                         contextAction.event()
@@ -3541,7 +3538,7 @@ class ScanChannel(RelayChannel, Channel):
         if self.sourceChannel:
             # Note self.value should only be used as a display. it should show the background corrected value if applicable
             # the uncorrected value should be accessed using self.sourceChannel.value or self.getValues
-            try:  # noqa: PLW0717
+            try:
                 if self.sourceParameter:
                     self.value = cast('float | None', self.sourceParameter.value)
                 elif self.sourceChannel.useMonitors and self.sourceChannel.real:
@@ -3922,8 +3919,8 @@ class ControlCursor(Cursor):
         self.lineh.set_color(color)
         self.linev.set_color(color)
 
-    def onmove(self, event) -> None:  # noqa: ANN001, D102
-        pass
+    def onmove(self, event) -> None:  # noqa: ANN001 # pylint: disable = missing-param-doc
+        """Ignore move and only respond to drag."""
 
     def ondrag(self, event) -> None:  # pylint: disable = missing-param-doc, missing-type-doc  # noqa: ANN001
         """Continuously updates cursor position."""
@@ -4265,7 +4262,7 @@ class MultiStateAction(Action):
 
     _state: int
 
-    def __init__(self, parentPlugin: 'Plugin', states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913, PLR0917
+    def __init__(self, parentPlugin: 'Plugin', states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913
                  attr: str = '', restore: bool = True, defaultState: int = 0) -> None:
         """Initialize a MultiStateAction.
 
@@ -4469,7 +4466,7 @@ class DockWidget(QDockWidget):
         """Update titleBar as dock is changing from floating to docked states."""
         parent = self.parent()
         parent = cast('EsibdExplorer', parent) if isinstance(parent, EsibdExplorer) else cast('QWidget', parent)
-        if self.parentPlugin.initializedDock:  # may have changed between toggleTitleBarDelayed and toggleTitleBar  # noqa: PLR1702
+        if self.parentPlugin.initializedDock:  # may have changed between toggleTitleBarDelayed and toggleTitleBar
             if self.isFloating():  # dock is floating on its own
                 if self.parentPlugin.titleBarLabel:
                     self.parentPlugin.titleBarLabel.setText(self.title)
@@ -4800,7 +4797,7 @@ class DebouncedCanvas(FigureCanvas):
         else:
             self.parentPlugin.defaultLabelPlot()
 
-    def resizeEvent(self, event) -> None:  # noqa: ANN001, D102
+    def resizeEvent(self, event) -> None:  # noqa: ANN001, D102  # pylint: disable=missing-function-docstring
         # Resize still happens normally
         if self._in_resize_event:  # Prevent PyQt6 recursion
             return
@@ -4824,7 +4821,7 @@ class DebouncedCanvas(FigureCanvas):
         finally:
             self._in_resize_event = False
 
-    def paintEvent(self, event) -> None:  # noqa: ANN001, D102
+    def paintEvent(self, event) -> None:  # noqa: ANN001, D102  # pylint: disable=missing-function-docstring
         if not self._has_drawn:
             painter = QPainter(self)
             painter.fillRect(self.rect(), QColor(colors.bg))  # use global background color while waiting for resize to complete
@@ -4930,15 +4927,15 @@ class IconStatusBar(QStatusBar):
             QToolButton#statusBarIconWidget { border: none; }
         """)
 
-        self._iconWidget = QToolButton()
-        self._iconWidget.setObjectName('statusBarIconWidget')
-        self.addWidget(self._iconWidget)
+        self.iconWidget = QToolButton()
+        self.iconWidget.setObjectName('statusBarIconWidget')
+        self.addWidget(self.iconWidget)
         # add direct references to the icon functions
-        self.icon = self._iconWidget.icon
-        self.setIcon = self._iconWidget.setIcon
+        self.icon = self.iconWidget.icon
+        self.setIcon = self.iconWidget.setIcon
         # force the button to always show the icon, even if the
         # current style default is different
-        self._iconWidget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.iconWidget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
         self.icon_warning = Icon(internalMediaPath / 'unicode_warning.png')
         self.icon_error = Icon(internalMediaPath / 'unicode_error.png')
@@ -4949,9 +4946,9 @@ class IconStatusBar(QStatusBar):
         self.icon_explorer = Icon(PROGRAM_ICON)
         self.setIcon(self.icon_explorer)
 
-        self._statusLabel = QLabel()
-        self._statusLabel.setMinimumWidth(1)  # allow ignoring the size hint
-        self.addWidget(self._statusLabel)
+        self.statusLabel = QLabel()
+        self.statusLabel.setMinimumWidth(1)  # allow ignoring the size hint
+        self.addWidget(self.statusLabel)
 
     def showMessage(self, message, msecs=...) -> None:  # noqa: ANN001, ARG002
         """Redirecting message to custom statusbar.
@@ -4961,7 +4958,7 @@ class IconStatusBar(QStatusBar):
         :param msecs: Defines message display time. Not used for custom statusbar.
         :type msecs: int, optional
         """
-        self._statusLabel.setText(message)
+        self.statusLabel.setText(message)
 
     def setFlag(self, flag: PRINT = PRINT.MESSAGE) -> None:
         """Set the status icon depending on the message flag.
@@ -5204,7 +5201,7 @@ class ThemedConsole(pyqtgraph.console.ConsoleWidget):
         if sb:
             sb.setValue(sb.maximum())
 
-    def loadHistory(self):  # extend to catch error if file does not exist  # noqa: ANN201, D102
+    def loadHistory(self):  # extend to catch error if file does not exist  # noqa: ANN201, D102  # pylint: disable=missing-function-docstring
         history = None
         try:
             history = super().loadHistory()
@@ -5651,7 +5648,7 @@ class SciAxisItem(pg.AxisItem):  # pylint: disable = abstract-method
         super().__init__(*args, **kwargs)
         self.enableAutoSIPrefix(enable=False)  # always show complete numbers in ticks. especially for currents and pressures dividing by a random factor is very confusing
 
-    def logTickStrings(self, values, scale, spacing):  # noqa: ANN001, ANN201, ARG002, D102
+    def logTickStrings(self, values, scale, spacing):  # noqa: ANN001, ANN201, ARG002, D102  # pylint: disable=missing-function-docstring
         estrings = [f'{x:.0e}' for x in 10 ** np.array(values) * scale]
         convdict = {'0': '⁰',
                     '1': '¹',
@@ -5763,7 +5760,7 @@ class TimeoutLock:
         self._lock.__exit__(exc_type, exc_val, exc_tb)
 
 
-class DeviceController(QObject):  # noqa: PLR0904
+class DeviceController(QObject):
     """Each :class:`~esibd.plugins.Device` or :class:`~esibd.core.Channel` comes with a :class:`~esibd.core.DeviceController`.
 
     The :class:`~esibd.core.DeviceController` is not itself a :class:`~esibd.plugins.Plugin`. It only abstracts the direct

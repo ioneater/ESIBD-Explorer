@@ -12,6 +12,7 @@ Added
 
 Changed
 ~~~~~~~
+- Enabled showing the complete log in the |console| :ref:`sec:console` by clicking on the status bar icon.
 - Sending parameters, channels, or settings to |console| :ref:`sec:console` will open the Console if it is not already open.
 - Hovering over the plugin version in the |pluginDialog| plugin dialog will show the source code path.
 - Increased upper limit for displayed history

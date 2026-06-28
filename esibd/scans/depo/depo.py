@@ -304,7 +304,7 @@ class Depo(Scan):
         # timing test with 360 data points (one hour at 0.1 Hz) update True: 75 ms, update False: 135 ms
         if self.loading:
             return
-        if len(self.outputChannels) > 0 and len(self.inputChannels) > 0:  # noqa: PLR1702
+        if len(self.outputChannels) > 0 and len(self.inputChannels) > 0:
             time_axis = self.getData(0, INOUT.IN)  # mdates.date2num(self.getData(0, INOUT.IN))
             if time_axis is not None:
                 time_stamp_axis = [datetime.fromtimestamp(float(t)) for t in time_axis]  # convert timestamp to datetime

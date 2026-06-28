@@ -4,7 +4,7 @@ import colorsys
 import importlib.util
 import math
 import re
-import subprocess  # noqa: S404
+import subprocess
 import sys
 import traceback
 from collections.abc import Callable

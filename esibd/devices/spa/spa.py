@@ -179,7 +179,7 @@ class SPACurrentChannel(Channel):
                                         items='2, 10, 100', attr='rate',
                                         event=lambda: self.channelParent.updateRate(channel=self), toolTip='Sample rate.')
         channel[self.RANGE] = parameterDict(value='2 mA', parameterType=PARAMETERTYPE.COMBO, advanced=True,
-                                        items='200 pA, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',  # noqa: RUF001
+                                        items='200 pA, 2 nA, 20 nA, 200 nA, 2 µA, 20 µA, 200 µA, 2 mA', attr='range',
                                         event=lambda: self.channelParent.updateRange(channel=self), toolTip='Sample range. Defines resolution.')
         channel[self.AVERAGE] = parameterDict(value=1, parameterType=PARAMETERTYPE.INTCOMBO, advanced=True,
                                         items='1, 2, 4, 8, 16, 32, 64', attr='average',

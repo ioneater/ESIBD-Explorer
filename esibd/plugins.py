@@ -89,7 +89,7 @@ aeval = Interpreter()
 pyautogui.FAILSAFE = False
 
 
-class Plugin(QWidget):  # noqa: PLR0904
+class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
 
     All plugins are ultimately derived from the :class:`~esibd.plugins.Plugin` class.
@@ -684,7 +684,7 @@ class Plugin(QWidget):  # noqa: PLR0904
         return StateAction(parentPlugin=self, toolTipFalse=toolTipFalse, iconFalse=iconFalse, toolTipTrue=toolTipTrue,
                                      iconTrue=iconTrue, event=event, before=before, attr=attr, restore=restore, defaultState=defaultState)
 
-    def addMultiStateAction(self, states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913, PLR0917
+    def addMultiStateAction(self, states: list[MultiState], event: 'Callable | None' = None, before: 'QAction | None' = None,  # noqa: PLR0913
                              attr: str = '', restore: bool = True, defaultState: int = 0) -> MultiStateAction:
         """Add an action with can be toggled between two states, each having a dedicated tooltip and icon.
 
@@ -1537,7 +1537,7 @@ fig.show()
             self.togglePlotType()
 
 
-class LiveDisplay(Plugin):  # noqa: PLR0904
+class LiveDisplay(Plugin):
     """Live displays show the history of measured data over time.
 
     Use the start/pause icon to control data recording. The toolbar
@@ -2067,7 +2067,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
         :type apply: bool
         """
         device = channel.getDevice()
-        if ((channel.enabled or not channel.real) and channel.display and channel.time and channel.time.size != 0 and  # noqa: PLR0916, PLR1702
+        if ((channel.enabled or not channel.real) and channel.display and channel.time and channel.time.size != 0 and
                 channel.convertDataDisplay and isinstance(device, Device)):
             i_min, i_max, n, timeAxis = timeAxes[device.name]
             if apply or np.remainder(i_min, n) == 0:  # otherwise no update required
@@ -2126,7 +2126,7 @@ class LiveDisplay(Plugin):  # noqa: PLR0904
             self.plot(apply=True)
 
 
-class ChannelManager(Plugin):  # noqa: PLR0904
+class ChannelManager(Plugin):
     """Generic plugin with a tree of channels. This can be extended to implement device plugins, plugins with relay channels, and more."""
 
     name = 'Channel Manager'  # overwrite after inheriting
@@ -2683,7 +2683,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
                 return
             file = Path(QFileDialog.getOpenFileName(parent=None, caption=SELECTFILE, filter=self.FILTER_INI_H5,
                                                     directory=self.pluginManager.Settings.getFullSessionPath().as_posix())[0])
-        if file != Path():  # noqa: PLR1702
+        if file != Path():
             self.loading = True
             self.tree.setUpdatesEnabled(False)
             self.tree.setRootIsDecorated(False)  # no need to show expander
@@ -3087,7 +3087,7 @@ class ChannelManager(Plugin):  # noqa: PLR0904
             self.liveDisplay.updateTheme()
 
 
-class Device(ChannelManager):  # noqa: PLR0904
+class Device(ChannelManager):
     """Handle communication with one or more physical devices, provide controls to configure the device and display live or previously recorded data.
 
     There are *input devices* (sending input from
@@ -3507,7 +3507,7 @@ class Device(ChannelManager):  # noqa: PLR0904
     def restoreOutputData(self) -> None:  # noqa: C901
         """Restore data from internal restore file."""
         file = Path(self.pluginManager.Settings.configPath) / self.confh5.strip('_')
-        if file.exists():  # noqa: PLR1702
+        if file.exists():
             self.print(f'Restoring data from {file.name}')
             with h5py.File(name=file, mode='r', track_order=True) as h5file:
                 try:
@@ -3570,7 +3570,7 @@ class Device(ChannelManager):  # noqa: PLR0904
         channels = self.pluginManager.DeviceManager.channels(inout=INOUT.BOTH)
         channelNames = [channel.name for channel in channels]
         channelNames.sort(reverse=True, key=len)  # avoid replacing a subset of a longer name with a matching shorter name of another channel
-        for _ in range(N):  # go through parsing N times, in case the dependencies are not ordered  # noqa: PLR1702
+        for _ in range(N):  # go through parsing N times, in case the dependencies are not ordered
             for channel in [channel for channel in self.channels if not channel.active and channel.equation]:  # ignore if no equation defined
                 equ = channel.equation
                 error = False
@@ -3748,7 +3748,7 @@ class Device(ChannelManager):  # noqa: PLR0904
                 onToolButton.setStyleSheet(f"""QToolButton:checked{{background-color:{mix_hex_colors(colors.green, colors.bg, ratio=.7)};}}""")
 
 
-class Scan(Plugin):  # noqa: PLR0904
+class Scan(Plugin):
     """Record any number of outputChannels as a function of any number of inputs.
 
     The main interface consists of a list of
@@ -4402,7 +4402,7 @@ class Scan(Plugin):  # noqa: PLR0904
         self.inputChannels.append(timeChannel)
         return timeChannel
 
-    def addInputChannel(self, name: str, start: 'float | None' = None, stop: 'float | None' = None,  # noqa: C901, PLR0912, PLR0913, PLR0917
+    def addInputChannel(self, name: str, start: 'float | None' = None, stop: 'float | None' = None,  # noqa: C901, PLR0912, PLR0913
                         step: 'float | None' = None, unit: str = '', recordingData: 'np.ndarray | None' = None) -> ScanChannel | None:
         """Convert channel to generic input data.
 
@@ -4763,7 +4763,7 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
         """
         steps = list(itertools.product(*[inputRecordingData for inputChannel in self.inputChannels if (inputRecordingData := inputChannel.getRecordingData()) is not None]))
         self.print(f'Starting scan M{self.pluginManager.Settings.measurementNumber:03}. Estimated time: {self.scantime}')
-        for i, step in enumerate(steps):  # scan over all steps  # noqa: PLR1702
+        for i, step in enumerate(steps):  # scan over all steps
             waitLong = False
             for j, inputChannel in enumerate(self.inputChannels):
                 if not waitLong and abs(inputChannel.value - step[j]) > self.largestep:
@@ -5559,8 +5559,7 @@ class Tree(Plugin):
                         if clipboard:
                             clipboard.setText(item.text(column_index))
             elif contextMenu is consoleAction:
-                self.pluginManager.Console.addToNamespace('item', item)
-                self.pluginManager.Console.execute(command='item')
+                self.pluginManager.Console.sendToConsole(item=item, name='item')
 
     def initContextMenu(self, pos: QPoint) -> None:
         """Initialize context menu for an item.
@@ -5750,6 +5749,11 @@ class Console(Plugin):
                                             before=self.aboutAction, event=self.inspect)
         self.closeAction = self.addAction(event=self.hide, toolTip='Hide.', icon=self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
+        statusBar = cast('IconStatusBar', self.pluginManager.mainWindow.statusBar())
+        statusBar.iconWidget.clicked.connect(lambda: self.toggleVisible(visible=True))
+        statusBar.iconWidget.setToolTip('Click to show complete log in Console.')
+        statusBar.statusLabel.setToolTip('Click on icon to show complete log in Console.')
+
     def addToNamespace(self, key: str, value: Any) -> None:  # noqa: ANN401
         """Add an attribute to the namespace of the Console.
 
@@ -5825,9 +5829,15 @@ class Console(Plugin):
         else:
             self.mainConsole.outputLayout.setCurrentIndex(0)
 
-    def toggleVisible(self) -> None:
-        """Toggles visibility of Console."""
+    def toggleVisible(self, visible: 'bool | None'=None) -> None:
+        """Toggles visibility of Console.
+
+        :param visible: Determines console visibility, if defined
+        :type visible: bool, optional
+        """
         if self.dock:
+            if visible is not None and self.pluginManager.Settings.showConsoleAction:
+                self.pluginManager.Settings.showConsoleAction.state = visible
             self.dock.setVisible(self.pluginManager.Settings.showConsoleAction.state if self.pluginManager.Settings.showConsoleAction else True)
 
     def inspect(self) -> None:
@@ -5856,6 +5866,19 @@ class Console(Plugin):
         self.mainConsole.input.execCmd()
         self.mainConsole.input.setFocus()
 
+    def sendToConsole(self, item: Any, name: str) -> None:  # noqa: ANN401
+        """Add to Console namespace and execute the item.
+
+        Use to send settings, parameters, or channels to the Console.
+        :param item: The item to be send to the console
+        :type item: Any
+        :param name: The name that will be used to reference it from the Console
+        :type name: str
+        """
+        self.addToNamespace(name, item)
+        self.execute(command=name)
+        self.mainConsole.input.setText(name)
+
     @synchronized(timeout=1)
     def executeSilent(self, command: str) -> None:
         """Insert a command in the Console output and executes it.
@@ -5869,12 +5892,6 @@ class Console(Plugin):
     def clear(self) -> None:
         """Clear the Console input."""
         self.mainConsole.input.setText('')
-
-    def hide(self) -> None:
-        """Hide the Console."""
-        if self.pluginManager.Settings.showConsoleAction:
-            self.pluginManager.Settings.showConsoleAction.state = False
-            self.pluginManager.Settings.showConsoleAction.triggered.emit(False)  # noqa: FBT003
 
     def updateTheme(self) -> None:  # noqa: D102
         super().updateTheme()
@@ -5979,8 +5996,7 @@ class SettingsManager(Plugin):
         settingsContextMenuAction = settingsContextMenu.exec(pos)
         if settingsContextMenuAction:  # no option selected (NOTE: if it is None this could trigger a non initialized action which is also None if not tested here)
             if settingsContextMenuAction is addSettingToConsoleAction:
-                self.pluginManager.Console.addToNamespace('setting', setting)
-                self.pluginManager.Console.execute(command='setting')
+                self.pluginManager.Console.sendToConsole(item=setting, name='setting')
             elif settingsContextMenuAction is copyClipboardAction:
                 pyperclip.copy(str(setting.value))
             elif settingsContextMenuAction is setToDefaultAction:
@@ -6237,7 +6253,7 @@ class SettingsManager(Plugin):
             group.attrs[Parameter.ITEMS] = ','.join(self.settings[name].items)
 
 
-class Settings(SettingsManager):  # noqa: PLR0904
+class Settings(SettingsManager):
     """Edit, save, and load all general program and hardware settings.
 
     Settings can be edited either directly or using
@@ -6541,7 +6557,7 @@ class Settings(SettingsManager):  # noqa: PLR0904
     # "close" not needed, settings are saved instantly when changed
 
 
-class DeviceManager(Plugin):  # noqa: PLR0904
+class DeviceManager(Plugin):
     """Bundle functionality of devices and thus allows to initialize, start, and stop data acquisition from all devices with a single click.
 
     In the Advanced mode it allows to
@@ -7081,7 +7097,7 @@ class Notes(Plugin):
         self.numbers.updateTheme()
 
 
-class Explorer(Plugin):  # noqa: PLR0904
+class Explorer(Plugin):
     """Navigate all results and complementary data.
 
     All files can be accessed independently using the operating system
@@ -7280,7 +7296,7 @@ class Explorer(Plugin):  # noqa: PLR0904
 
     LOADALLVALUES = 'Load all device values.'
 
-    def initExplorerContextMenu(self, pos: QPoint) -> None:  # noqa: C901, PLR0912, PLR0914, PLR0915
+    def initExplorerContextMenu(self, pos: QPoint) -> None:  # noqa: C901, PLR0912, PLR0915
         """Context menu for items in Explorer.
 
         :param pos: The position where the context menu should be created.
@@ -7359,7 +7375,7 @@ class Explorer(Plugin):  # noqa: PLR0904
                         break  # only use first match
 
         explorerContextMenuAction = explorerContextMenu.exec(self.tree.mapToGlobal(pos))
-        if explorerContextMenuAction:  # noqa: PLR1702
+        if explorerContextMenuAction:
             if explorerContextMenuAction is openDirAction and itemFullPath:
                 openInDefaultApplication(itemFullPath)
             elif explorerContextMenuAction is copyFolderNameAction and itemFullPath:

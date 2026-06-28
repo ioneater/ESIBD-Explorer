@@ -133,7 +133,7 @@ class Energy(Scan):
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # use first that matches display setting, use first available if not found
         # timing test with 20 data points: update True: 30 ms, update False: 48 ms
-        if len(self.outputChannels) > 0:  # noqa: PLR1702
+        if len(self.outputChannels) > 0:
             inputRecordingData0 = self.inputChannels[0].getRecordingData()
             outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()
             if inputRecordingData0 is not None and outputRecordingData is not None:

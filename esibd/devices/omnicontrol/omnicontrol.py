@@ -54,7 +54,7 @@ class OMNICONTROL(Device):
         return defaultSettings
 
 
-class OmniChannel(Channel):  # noqa: PLR0904
+class OmniChannel(Channel):
     """UI for pressure with integrated functionality."""
 
     channelParent: OMNICONTROL
@@ -134,7 +134,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
                                         attr='tempPump', restore=False, header='Temp (°C)', recorded=True, unit='°C')
         channel[self.ERRORLED] = parameterDict(value=False, parameterType=PARAMETERTYPE.BOOL, advanced=False, indicator=True,
                                         header='Err', toolTip='Indicates errors.', attr='errorLED', restore=False)
-        channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=True, attr='notes', restore=False, indicator=True)
+        channel[self.NOTES] = parameterDict(value='', parameterType=PARAMETERTYPE.LABEL, advanced=False, attr='notes', restore=False, indicator=True)
         return channel
 
     def setDisplayedParameters(self) -> None:
@@ -252,8 +252,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
 
     def getOpHrsPumpConsole(self) -> None:
         """Show pump operating hours in console."""
-        self.pluginManager.Console.addToNamespace('channel', self)
-        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.sendToConsole(item=self, name='channel')
         self.pluginManager.Console.mainConsole.input.setText('channel.getOpHrsPump()')
 
     def setStdbySVal(self, value: float) -> None:
@@ -268,8 +267,7 @@ class OmniChannel(Channel):  # noqa: PLR0904
 
     def setStdbySValConsole(self) -> None:
         """Allow user to set Standby Speed via console."""
-        self.pluginManager.Console.addToNamespace('channel', self)
-        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.sendToConsole(item=self, name='channel')
         self.pluginManager.Console.mainConsole.input.setText('channel.setStdbySVal(value=-->newValue<--)  # Enter value between 20 and 80 %.')
 
     def acknError(self) -> None:
@@ -292,12 +290,11 @@ class OmniChannel(Channel):  # noqa: PLR0904
 
     def setRS485AdrConsole(self) -> None:
         """Allow user to set RS485 Address via console."""
-        self.pluginManager.Console.addToNamespace('channel', self)
-        self.pluginManager.Console.execute(command='channel')
+        self.pluginManager.Console.sendToConsole(item=self, name='channel')
         self.pluginManager.Console.mainConsole.input.setText('channel.setRS485Adr(newAddr=-->newAddr<--)  # Enter new address.')
 
 
-class OmniController(DeviceController):  # noqa: PLR0904
+class OmniController(DeviceController):
 
     controllerParent: OMNICONTROL
 
@@ -321,7 +318,7 @@ class OmniController(DeviceController):  # noqa: PLR0904
     def readNumbers(self) -> None:
         for i, channel in enumerate(self.controllerParent.getChannels()):
             if channel.enabled and channel.active and channel.real:
-                try:  # noqa: PLW0717
+                try:
                     if channel.isPump:
                         speed = self.getActualSpd(addr=channel.id, already_acquired=True)
                         self.pumpStatn[i] = self.getPumpStatn(addr=channel.id, already_acquired=True)
