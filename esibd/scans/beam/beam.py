@@ -265,7 +265,7 @@ class Beam(Scan):
     @plotting
     def plot(self, update=False, done=True, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
         # timing test with 50 data points: update True: 33 ms, update False: 120 ms
-        if self.loading or len(self.outputChannels) == 0 or not self.display or not self.display.fig:
+        if self.loading or len(self.outputChannels) == 0 or not self.display or not self.display.fig or not self.display.axes:
             return
         x, y = self.getMeshgrid()  # data coordinates
         outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()

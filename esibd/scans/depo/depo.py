@@ -140,12 +140,13 @@ class Depo(Scan):
                         outputChannel.line = self.axes[0].plot([[datetime.now()]], [0], color=outputChannel.color)[0]  # type: ignore  # noqa: PGH003
                     if outputChannel.unit == 'pAh':
                         outputChannel.line = self.axes[1].plot([[datetime.now()]], [0], color=outputChannel.color)[0]  # type: ignore  # noqa: PGH003
-                    elif outputChannel.unit in self.scan.getExtraUnits():
-                        outputChannel.line = self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].plot(
+                    elif outputChannel.getDisplayUnit() in self.scan.getExtraUnits():
+                        outputChannel.line = self.axes[2 + self.scan.getExtraUnits().index(outputChannel.getDisplayUnit())].plot(
                             [[datetime.now()]], [0], color=outputChannel.color, label=outputChannel.name)[0]  # type: ignore  # noqa: PGH003
                         if outputChannel.logY:
-                            self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].set_yscale('log')
-                        self.axes[2 + self.scan.getExtraUnits().index(outputChannel.unit)].get_yaxis().set_major_formatter(self.CustomScientificFormatter(log=outputChannel.logY))
+                            self.axes[2 + self.scan.getExtraUnits().index(outputChannel.getDisplayUnit())].set_yscale('log')
+                        self.axes[2 + self.scan.getExtraUnits().index(outputChannel.getDisplayUnit())].get_yaxis().set_major_formatter(
+                            self.CustomScientificFormatter(log=outputChannel.logY))
                 for i, _ in enumerate(self.scan.getExtraUnits()):
                     legend = self.axes[2 + i].legend(loc='best', prop={'size': 6}, frameon=False)
                     legend.set_in_layout(False)
@@ -207,7 +208,7 @@ class Depo(Scan):
 
     def getExtraUnits(self) -> list[str]:
         """Get all units that are not representing a current or a charge."""
-        return list({channel.unit for channel in self.outputChannels if channel.unit not in {'pA', 'pAh'} and channel.display})
+        return list({channel.getDisplayUnit() for channel in self.outputChannels if channel.unit not in {'pA', 'pAh'} and channel.display})
 
     interval: int
     target: float

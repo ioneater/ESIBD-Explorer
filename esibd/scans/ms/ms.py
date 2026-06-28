@@ -76,6 +76,8 @@ class MassSpec(Scan):
 
     @plotting
     def plot(self, update=False, done=False, **kwargs) -> None:  # pylint:disable=unused-argument  # noqa: ARG002
+        if not self.display.axes:
+            return
         if len(self.outputChannels) > 0:
             inputRecordingData0 = self.inputChannels[0].getRecordingData()
             outputRecordingData = self.outputChannels[self.getOutputIndex()].getRecordingData()

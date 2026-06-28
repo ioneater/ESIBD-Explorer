@@ -73,9 +73,9 @@ class Spectra(Beam):
                 return
             self.lines = None  # type: ignore  # noqa: PGH003
             if self.plotModeAction.state == self.PlotActionState.CONTOUR:
-                super().initFig()
+                super().initFig()  # init according to Beam
                 return
-            super(Beam.Display, self).initFig()
+            super(Beam.Display, self).initFig()  # init according to default Scan
             if self.fig:
                 self.axes.append(cast('CursorAxes', self.fig.add_subplot(111)))
                 if self.axesAspectAction and not self.axesAspectAction.state:

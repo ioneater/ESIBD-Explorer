@@ -156,13 +156,13 @@ class Omni(Scan):
                 self.display.lines = []  # dummy plots
                 for outputChannel in self.outputChannels:
                     if outputChannel.sourceChannel:
-                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.unit})', color=outputChannel.color)[0])
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.getDisplayUnit()})', color=outputChannel.color)[0])
                     else:
-                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.unit})')[0])
+                        self.display.lines.append(self.display.axes[0].plot([], [], label=f'{outputChannel.name} ({outputChannel.getDisplayUnit()})')[0])
                 legend = self.display.axes[0].legend(loc='best', prop={'size': 7}, frameon=False)
                 legend.set_in_layout(False)
             if not update:
-                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].unit})')
+                self.display.axes[0].set_xlabel(f'{self.inputChannels[0].name} ({self.inputChannels[0].getDisplayUnit()})')
                 if self.recording:  # show all data if loaded from file
                     self.display.axes[0].set_xlim(self.start, self.stop)
             if self.interactive:

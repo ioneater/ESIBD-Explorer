@@ -22,6 +22,7 @@ Changed
   Note that it is not saved immediately to prevent frequent file operations and noise in case file versioning is used.
   Configurations can always be restored from the latest saved file (e.g. any Scan).
 - Implemented error messages for pressure sensors in |omnicontrol| :ref:`sec:omnicontrol`.
+- Fixed re-initialization error when updating scan channels while scan is running. Using displayUnits in scans.
 
 Fixed
 ~~~~~

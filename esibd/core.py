@@ -2330,11 +2330,15 @@ class RelayChannel:
     recordingData: 'np.ndarray | DynamicNp | None' = None
     recordingBackground: 'np.ndarray | DynamicNp | None' = None
     channelParent: 'Device'
+    convertDataDisplay: 'Callable | None' = None
     unit: 'str'
 
     def getRecordingData(self) -> 'np.ndarray | None':
         """SourceChannel.getRecordingData() if available. Default provided."""
-        return self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
+        recordingData = self.recordingData.get() if isinstance(self.recordingData, DynamicNp) else self.recordingData
+        if self.convertDataDisplay:
+            return self.convertDataDisplay(recordingData)
+        return recordingData
 
     def getDevice(self) -> 'ChannelManager | Device | Scan':
         """SourceChannel.getDevice() if available. Default provided."""
@@ -2458,6 +2462,12 @@ class RelayChannel:
     def waitToStabilize(self, waitToStabilize: bool) -> None:
         if self.sourceChannel:
             self.sourceChannel.waitToStabilize = waitToStabilize
+
+    def getDisplayUnit(self) -> str:
+        """Return the parameter unit."""
+        if self.sourceChannel:
+            return self.sourceChannel.getDisplayUnit()
+        return self.unit
 
 
 class MetaChannel(RelayChannel):
@@ -3566,7 +3576,13 @@ class ScanChannel(RelayChannel, Channel):
         # in general scan channels should be passive, but we need to react to changes in which Channels should be displayed
         if self.scan.display and self.scan.displayActive() and not self.loading and not self.scan.initializing:
             self.scan.display.initFig()
-            self.scan.plot(update=self.scan.recording, done=not self.scan.recording)
+            self.scan.plot(update=False, done=not self.scan.recording)  # always recreate plot after initFig
+
+    def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
+        """Apply scaling and offsets to data if defined by the sourceChannel."""
+        if self.sourceChannel and self.sourceChannel.convertDataDisplay:
+            return self.sourceChannel.convertDataDisplay(data)
+        return data
 
     @property
     def loading(self) -> bool:  # noqa: D102
