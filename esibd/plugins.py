@@ -1906,7 +1906,7 @@ class LiveDisplay(Plugin):
             self.print('Plot not initialized', flag=PRINT.WARNING)
             return
         if getDarkMode() and not getClipboardTheme():
-            viewRange = self.livePlotWidgets[0].viewRange()
+            viewRanges = [livePlotWidget.viewRange() for livePlotWidget in self.livePlotWidgets]
             viewBox = self.livePlotWidgets[0].getViewBox()
             restoreAutoRange = not viewBox.mouseEnabled()[0] if viewBox else False  # as mouse enabled is linked all livePlotWidgets will have the same state
             sizes = self.plotSplitter.sizes()
@@ -1917,7 +1917,8 @@ class LiveDisplay(Plugin):
                 self.plotSplitter.setSizes(sizes)
                 self.processEvents()  # update GUI before restoring range
                 self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)  # prevents autoscaling
-                self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                for i, viewRange in enumerate(viewRanges):
+                    self.livePlotWidgets[i].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
                 self.plot(apply=True)
                 self.processEvents()  # update GUI before grabbing
                 self.imageToClipboard(self.plotSplitter.grab())
@@ -1931,7 +1932,13 @@ class LiveDisplay(Plugin):
                 if not restoreAutoRange:
                     self.livePlotWidgets[0].setMouseEnabled(x=True, y=True)
                     self.processEvents()  # update GUI before restoring range
-                    self.livePlotWidgets[0].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                    for i, viewRange in enumerate(viewRanges):
+                        self.livePlotWidgets[i].setRange(xRange=viewRange[0], yRange=viewRange[1], padding=0)
+                else:
+                    self.livePlotWidgets[0].setMouseEnabled(x=False, y=True)
+                    for i, viewRange in enumerate(viewRanges):
+                        self.livePlotWidgets[i].setRange(yRange=viewRange[1], padding=0)
+                    self.autoScaleAction.state = False
                 self.plot(apply=True)
         else:
             self.imageToClipboard(self.plotSplitter.grab())

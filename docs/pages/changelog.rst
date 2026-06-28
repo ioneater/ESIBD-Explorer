@@ -30,6 +30,7 @@ Fixed
 - Fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
 - Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.
 - Fixed |ga| :ref:`sec:genetic_algorithm` fitness feedback and plot.
+- Restoring y scale after copying to clipboard for all widgets in liveDisplays.
 
 Developer Notes
 ~~~~~~~~~~~~~~~
