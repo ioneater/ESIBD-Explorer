@@ -3105,6 +3105,11 @@ class Channel(QTreeWidgetItem):
         """
         return self.getDevice().getIcon(desaturate=desaturate)
 
+    def subtractBackgroundActive(self) -> 'bool':
+        """Indicate if backgrounds should be subtracted."""
+        device = self.getDevice()
+        return device.subtractBackgroundActive() if isinstance(device, self.pluginManager.Device) else False
+
     def getQtLineStyle(self) -> Qt.PenStyle:
         """Get Qt.PenStyle matching matplotlib linestyle."""
         match self.linestyle:
@@ -3172,7 +3177,7 @@ class Channel(QTreeWidgetItem):
             case 'larger':
                 self.rowHeight = normalHeight * 2
             case _:  # 'huge'
-                self.rowHeight = normalHeight * 4
+                self.rowHeight = normalHeight * 3
         for parameter in self.parameters:
             parameter.setHeight(self.rowHeight)
         if not self.loading and self.tree:
@@ -3579,7 +3584,13 @@ class ScanChannel(RelayChannel, Channel):
             self.scan.plot(update=False, done=not self.scan.recording)  # always recreate plot after initFig
 
     def convertDataDisplay(self, data: np.ndarray) -> np.ndarray:
-        """Apply scaling and offsets to data if defined by the sourceChannel."""
+        """Apply scaling and offsets to data if defined by the sourceChannel.
+
+        :param data: Original data.
+        :type data: np.ndarray
+        :return: Scaled data.
+        :rtype: np.ndarray
+        """
         if self.sourceChannel and self.sourceChannel.convertDataDisplay:
             return self.sourceChannel.convertDataDisplay(data)
         return data

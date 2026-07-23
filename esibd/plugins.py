@@ -3593,7 +3593,7 @@ class Device(ChannelManager):
                             # replace remaining references with channel value
                             channelValue = channel_equ.value
                             if channelValue is not None:
-                                equ = equ.replace(channel_equ.name, f'{channelValue - channel_equ.background if channel_equ.useBackgrounds else channelValue}')
+                                equ = equ.replace(channel_equ.name, f'{channelValue - channel_equ.background if channel_equ.subtractBackgroundActive() else channelValue}')
                         else:
                             self.print(f'Could not find channel {name} in equation of channel {channel.name}.', flag=PRINT.WARNING)
                             error = True

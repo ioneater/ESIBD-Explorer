@@ -32,7 +32,7 @@ def main() -> bool:
     """Configure graphics, check for other running instances, and execute the app."""
     app = Application(sys.argv)
     app.setStyle('Fusion')
-    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1'
+    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1 --no-sandbox --disable-gpu'
     appStr = f'{PROGRAM_NAME}'  # same string across versions!
     if sys.platform == 'win32':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appStr)

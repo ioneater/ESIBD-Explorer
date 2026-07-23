@@ -31,6 +31,8 @@ Fixed
 - Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.
 - Fixed |ga| :ref:`sec:genetic_algorithm` fitness feedback and plot.
 - Restoring y scale after copying to clipboard for all widgets in liveDisplays.
+- Added Chromium flags --no-sandbox --disable-gpu to address some crashes related to gpu rendering of QWebEngine.
+- Changed model used for gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

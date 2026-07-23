@@ -302,7 +302,7 @@ fig.show()
         # Define a gaussian to start with
         amp1 = 100
         sigma1 = 2
-        gauss, *_ = optimize.curve_fit(self.gaussian, x, y, p0=[amp1, c, sigma1])
+        gauss, *_ = optimize.curve_fit(self.gaussian, x, y, p0=[amp1, c, sigma1], method='trf')
         fwhm = round(2.355 * gauss[2], 1)  # Calculate FWHM
         x_fine = np.arange(np.min(x), np.max(x), 0.05)
         return x_fine, -self.gaussian(x_fine, gauss[0], gauss[1], gauss[2]), gauss[1], fwhm
