@@ -2083,7 +2083,7 @@ class Parameter:
             self.combo.setItemText(self.combo.currentIndex(), str(value))
             self.changedEvent()  # is not triggered by setItemText
 
-    def validateComboInput(self, value: str) -> bool:  # noqa: PLR0911
+    def validateComboInput(self, value: str) -> bool:  # noqa: C901, PLR0911
         """Validate input for comboboxes.
 
         :param value: The new value to be validated.
@@ -2101,8 +2101,10 @@ class Parameter:
                 return False
             else:
                 if self.min is not None and self.max is not None:
+                    if self.min < int(value) < self.max:
+                        return True
                     self.print(f'{value} is not in allowed range from {self.min} to {self.max}!', flag=PRINT.ERROR)
-                    return self.min < int(value) < self.max
+                    return False
                 return True
         elif self.parameterType == PARAMETERTYPE.FLOATCOMBO:
             try:
@@ -2112,8 +2114,10 @@ class Parameter:
                 return False
             else:
                 if self.min is not None and self.max is not None:
+                    if self.min < float(value) < self.max:
+                        return True
                     self.print(f'{value} is not in allowed range from {self.min} to {self.max}!', flag=PRINT.ERROR)
-                    return self.min < float(value) < self.max
+                    return False
                 return True
         return False
 
