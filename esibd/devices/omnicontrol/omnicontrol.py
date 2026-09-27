@@ -370,14 +370,14 @@ class OmniController(DeviceController):
                     channel.standby = self.standby[i]
                     channel.drvPower = self.drvPower[i]
                     channel.tempPump = self.tempPump[i]
-                    if self.errorCode[i] == '000000':
+                    if self.errorCode[i] in ['000000','']:
                         channel.notes = 'No Error'
                         channel.errorLED = False
                     else:
                         channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
                         channel.errorLED = True
                 else:  # for pressure sensors # noqa: PLR5501
-                    if self.errorCode[i] != '000000':
+                    if self.errorCode[i] not in ['000000','']:
                         channel.value = np.nan
                         channel.notes = f'{self.errorCode[i]} See controller manual for error codes.'
                         channel.errorLED = True

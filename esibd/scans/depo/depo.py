@@ -454,8 +454,8 @@ fig.show()
                     if outputValues is not None:
                         outputChannel.recordingData.add(float(np.mean(outputValues)))
             if self.warn and winsound:  # Sound only supported for windows
-                outputData = self.getData(self.getOutputIndex(), INOUT.OUT)
-                outputDataPlus1 = self.getData(self.getOutputIndex() + 1, INOUT.OUT)
+                outputData = self.getData(self.getOutputIndex(), INOUT.OUT) # current
+                outputDataPlus1 = self.getData(self.getOutputIndex() + 1, INOUT.OUT) # charge
                 if outputData is not None and outputDataPlus1 is not None:
                     if ((np.sign(self.target) == 1 and outputDataPlus1[-1] > float(self.target)) or
                                   (np.sign(self.target) == -1 and outputDataPlus1[-1] < float(self.target))):

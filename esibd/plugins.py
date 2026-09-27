@@ -29,7 +29,6 @@ import h5py
 import keyboard as kb
 import matplotlib.pyplot as plt
 import numpy as np
-import pyautogui
 import pyperclip
 import pyqtgraph as pg
 import requests
@@ -86,7 +85,6 @@ if sys.platform == 'win32':
     import win32com.client
 aeval = Interpreter()
 
-pyautogui.FAILSAFE = False
 
 
 class Plugin(QWidget):
@@ -1023,7 +1021,7 @@ class Plugin(QWidget):
             self.fig.set_dpi(getDPI())
         else:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} figure')
-            self.makeFigureCanvasWithToolbar(self.fig)
+            self.makeFigureCanvasWithToolbar(self.fig) # pyright: ignore[reportArgumentType]
             self.addContentWidget(self.canvas)
         self.axes = []
 
@@ -1278,10 +1276,11 @@ class StaticDisplay(Plugin):
             self.fig.set_dpi(getDPI())
         else:
             self.fig = plt.figure(constrained_layout=True, dpi=getDPI(), label=f'{self.name} staticDisplay figure')
-            self.makeFigureCanvasWithToolbar(self.fig)
+            self.makeFigureCanvasWithToolbar(self.fig) # pyright: ignore[reportArgumentType]
             self.outputLayout.addWidget(self.canvas)
         self.axes = []
-        self.axes.append(self.fig.add_subplot(111))
+        if self.fig:
+            self.axes.append(self.fig.add_subplot(111))
 
     def finalizeInit(self) -> None:  # noqa: D102
         super().finalizeInit()
@@ -3442,6 +3441,9 @@ class Device(ChannelManager):
         """
         if not self.liveDisplay:
             return
+        # if self.pluginManager.loading:
+        #     self.print('Cannot export output data while ')::
+        #     return
         if useAllHistory:
             time_axis = self.time.get()
             if time_axis.shape[0] == 0:
@@ -6767,7 +6769,7 @@ class DeviceManager(Plugin):
     @recording.setter
     def recording(self, recording: bool) -> None:
         self._recording = recording
-        # allow output widgets to react to change if acquisition state
+        # allow output widgets to react to change of acquisition state
         self.recordingAction.state = recording
 
     def initialized(self) -> bool:
@@ -7021,6 +7023,11 @@ class DeviceManager(Plugin):
         """Trigger keyboard action to prevent screen lock."""
         if getWakeMode():
             self.print('Keeping screen unlocked.', flag=PRINT.VERBOSE)
+            # Note: On some linux distributions, pyautogui may require X authorization or will prevent the application from starting.
+            # pyautogui is imported here to make sure users without X authorization who do not use the wake feature are not affected.
+            # If you cannot or do not want to grant X authorization, please disable the wake mode in the settings.
+            import pyautogui  # noqa: PLC0415
+            pyautogui.FAILSAFE = False
             pyautogui.press('volumedown')
             pyautogui.press('volumeup')
 

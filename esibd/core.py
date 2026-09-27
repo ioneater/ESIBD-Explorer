@@ -1598,9 +1598,9 @@ class Parameter:
         if self.parameterType == PARAMETERTYPE.BOOL:
             value = value if isinstance(value, (bool, np.bool_)) else value in {'True', 'true'}  # accepts strings (from ini file or qSet) and bools
             if self.check:
-                self.check.setChecked(value)
+                self.check.setChecked(cast('bool', value))
             elif self.button:
-                self.button.setChecked(value)
+                self.button.setChecked(cast('bool', value))
         elif self.parameterType in {PARAMETERTYPE.INT, PARAMETERTYPE.FLOAT, PARAMETERTYPE.EXP}:
             if isinstance(self.spin, LabviewSpinBox):
                 self.spin.setValue(np.nan if isinstance(value, float) and np.isnan(value) else int(float(cast('float | int | str', value))))  # type: ignore  # noqa: PGH003
@@ -5433,7 +5433,7 @@ class MZCalculator:
         self.parentPlugin.defaultLabelPlot()
 
 
-class ViewBox(pg.ViewBox):
+class ViewBox(pg.ViewBox): # pyright: ignore[reportGeneralTypeIssues]
     """ViewBox providing mouseEnabledChangedUser event."""
 
     userMouseEnabledChanged = pyqtSignal(bool, bool)
@@ -5487,7 +5487,7 @@ class PlotDataItem(pyqtgraph.PlotDataItem):
     curveLegend: pg.LegendItem
 
 
-class PlotItem(pg.PlotItem):
+class PlotItem(pg.PlotItem): # pyright: ignore[reportGeneralTypeIssues]
     """PlotItem providing xyLabel."""
 
     axis_leftright: pg.AxisItem
@@ -5766,7 +5766,8 @@ class TimeoutLock:
                 self.lockParent.errorCount += 1
             finally:
                 if result and not already_acquired:
-                    self._lock.release()
+                    with contextlib.suppress(RuntimeError):
+                        self._lock.release()
                 if ((self.lockParent.errorCount == self.lockParent.maxErrorCount or self.lockParent.errorCount > 2 * self.lockParent.maxErrorCount) and
                     isinstance(self.lockParent, DeviceController)):
                     # only call closeCommunication when equal to maxErrorCount, Otherwise errors during closeCommunication could cause recursion.

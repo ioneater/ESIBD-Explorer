@@ -32,7 +32,8 @@ Fixed
 - Fixed |ga| :ref:`sec:genetic_algorithm` fitness feedback and plot.
 - Restoring y scale after copying to clipboard for all widgets in liveDisplays.
 - Added Chromium flags --no-sandbox --disable-gpu to address some crashes related to gpu rendering of QWebEngine.
-- Changed model used for gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
+- Changed model used for Gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
+- pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.
 
 Developer Notes
 ~~~~~~~~~~~~~~~
