@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontMetrics
 from PyQt6.QtWidgets import QTextEdit
 
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, Channel, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, Channel, DynamicNp, MetaChannel, Parameter, ScanChannel, nanmean, parameterDict, plotting
 from esibd.plugins import Device, Scan
 
 if TYPE_CHECKING:
@@ -452,7 +452,7 @@ fig.show()
                 else:
                     outputValues = outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(), length=self.measurementsPerStep)
                     if outputValues is not None:
-                        outputChannel.recordingData.add(float(np.mean(outputValues)))
+                        outputChannel.recordingData.add(float(nanmean(outputValues)))
             if self.warn and winsound:  # Sound only supported for windows
                 outputData = self.getData(self.getOutputIndex(), INOUT.OUT) # current
                 outputDataPlus1 = self.getData(self.getOutputIndex() + 1, INOUT.OUT) # charge

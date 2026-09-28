@@ -35,6 +35,7 @@ Fixed
 - Changed model used for Gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
 - pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.
 - Fixed combobox validation. Out of range error message is only showed when actually out of range.
+- Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

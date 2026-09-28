@@ -1,15 +1,16 @@
 import time
 from typing import TYPE_CHECKING, cast
 
-import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QSlider  # , QTextEdit  #, QSizePolicy  # QLabel, QMessageBox
 from scipy.stats import binned_statistic
 
-from esibd.core import PARAMETERTYPE, DynamicNp, MetaChannel, Parameter, ScanChannel, parameterDict, plotting
+from esibd.core import PARAMETERTYPE, DynamicNp, MetaChannel, Parameter, ScanChannel, nanmean, parameterDict, plotting
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from esibd.plugins import Plugin
 
 
@@ -221,13 +222,13 @@ fig.show()
                 inputChannelValues0 = self.inputChannels[0].getValues(subtractBackground=self.inputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
                 if inputChannelValues0 is not None:
                     if self.inputChannels[0].recording:  # get average
-                        cast('DynamicNp', self.inputChannels[0].recordingData).add(float(np.mean(inputChannelValues0)))
+                        cast('DynamicNp', self.inputChannels[0].recordingData).add(float(nanmean(inputChannelValues0)))
                     else:  # use last value
                         cast('DynamicNp', self.inputChannels[0].recordingData).add(self.inputChannels[0].value)
                     for j, outputChannel in enumerate(self.outputChannels):
                         outputChannelValues = outputChannel.getValues(subtractBackground=outputChannel.subtractBackgroundActive(), length=self.measurementsPerStep)
                         if outputChannelValues is not None:
-                            cast('DynamicNp', self.outputChannels[j].recordingData).add(float(np.mean(outputChannelValues)))
+                            cast('DynamicNp', self.outputChannels[j].recordingData).add(float(nanmean(outputChannelValues)))
                 if not recording():  # last step
                     self.signalComm.scanUpdateSignal.emit(True)  # update graph and save data  # noqa: FBT003
                     self.signalComm.updateRecordingSignal.emit(False)  # noqa: FBT003
@@ -251,7 +252,7 @@ fig.show()
                         outputRecordingData = outputChannel.getValues(subtractBackground=outputChannel.getDevice().subtractBackgroundActive(),
                                                                                           length=self.measurementsPerStep)
                         if outputRecordingData is not None:
-                            cast('np.ndarray', outputChannel.recordingData)[i] = np.mean(outputRecordingData)
+                            cast('np.ndarray', outputChannel.recordingData)[i] = nanmean(outputRecordingData)
                     if i == len(steps) - 1 or not recording():  # last step
                         if self.inputChannels[0].updateValueSignal:
                             self.inputChannels[0].updateValueSignal.emit(self.inputChannels[0].initialValue)

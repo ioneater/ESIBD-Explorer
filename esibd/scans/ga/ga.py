@@ -2,9 +2,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import numpy as np
-
-from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, dynamicImport, parameterDict, plotting, pyqtSignal
+from esibd.core import INOUT, PARAMETERTYPE, PRINT, DynamicNp, MetaChannel, Parameter, ScanChannel, dynamicImport, nanmean, parameterDict, plotting, pyqtSignal
 from esibd.plugins import Scan
 
 if TYPE_CHECKING:
@@ -214,7 +212,7 @@ fig.show()
         self.inputChannels[0].recordingData.add(time.time())
         outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
         if outputChannelValues is not None:
-            fitnessStart = float(np.mean(outputChannelValues))
+            fitnessStart = float(nanmean(outputChannelValues))
             self.outputChannels[0].recordingData.add(fitnessStart)
             self.outputChannels[1].recordingData.add(fitnessStart)
             while recording():
@@ -232,7 +230,7 @@ fig.show()
                 self.waitForCondition(condition=lambda: self.stepProcessed, timeoutMessage='processing scan step.', timeout=10)
                 outputChannelValues = self.outputChannels[0].getValues(subtractBackground=self.outputChannels[0].subtractBackgroundActive(), length=self.measurementsPerStep)
                 if outputChannelValues is not None:
-                    self.ga.fitness(np.mean(outputChannelValues))
+                    self.ga.fitness(nanmean(outputChannelValues))
                 else:
                     self.print('outputChannelValues not defined', flag=PRINT.ERROR)
                     return

@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import traceback
+import warnings
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
@@ -700,3 +701,17 @@ def datasetToStrList(dataset: h5py.Dataset) -> list[str]:
     :rtype: list[str]
     """
     return [str(k) for k in dataset.asstr()]
+
+def nanmean(a: 'np.ndarray | float | int', axis: int = 0) -> float:
+    """Like np.nanmean but suppressing empty slice RuntimeWarning.
+
+    Empty slices are expected to occur e.g. during scans where data is invalidated until readings stabilize or for dome devices where regular invalid readings.
+
+    :param a: Input array
+    :type a: np.ndarray
+    :return: mean or nan
+    :rtype: float
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', message='Mean of empty slice')
+        return np.nanmean(a=a, axis=axis)

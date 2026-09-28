@@ -954,7 +954,7 @@ class Plugin(QWidget):
         return self.makeCoreIcon('help_large_dark.png' if getDarkMode() else 'help_large.png', desaturate=desaturate)
 
     def makeCoreIcon(self, file: str, desaturate: bool = False) -> Icon:
-        """Return an icon based on a filename. Looks for files in the :meth:`~esibd.plugins.Plugin.dependencyPath`.
+        """Return an icon based on a filename. Looks for files in the :meth:`~esibd.media`.
 
         :param file: Icon file name.
         :type file: str
@@ -3389,7 +3389,7 @@ class Device(ChannelManager):
                     length = min(int(5000 / self.interval), len(channel.getValues(subtractBackground=False)))
                     values = channel.getValues(subtractBackground=False)[-length:]
                     if not any(np.isnan(value) for value in values):
-                        channel.background = cast('float', np.mean(values))
+                        channel.background = cast('float', nanmean(values))
                     elif not np.isnan(values[-1]):
                         channel.background = values[-1]
                     else:
@@ -4794,13 +4794,13 @@ output_index = next((i for i, output in enumerate(outputChannels) if output.name
                     else:  # e.g. a virtual output channel that is not recording
                         outputChannelValues = outputChannel.value
                     if outputChannelValues is not None and outputChannel.recordingData is not None and isinstance(outputChannel, ScanChannel):
-                        if not np.isnan(np.mean(outputChannelValues)):
+                        if not np.isnan(nanmean(outputChannelValues)):
                             if len(self.inputChannels) == 1:  # 1D scan
-                                outputChannel.recordingData[i] = np.mean(outputChannelValues)
+                                outputChannel.recordingData[i] = nanmean(outputChannelValues)
                             else:  # 2D scan, higher dimensions not jet supported
                                 inputRecordingData1 = self.inputChannels[1].getRecordingData()
                                 if inputRecordingData1 is not None:
-                                    outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = np.mean(outputChannelValues)
+                                    outputChannel.recordingData[i % len(inputRecordingData1), i // len(inputRecordingData1)] = nanmean(outputChannelValues)
                         else:
                             self.print('Ignoring nan value', flag=PRINT.DEBUG)
             if i == len(steps) - 1 or not recording():  # last step
@@ -5890,7 +5890,7 @@ class Console(Plugin):
 
     @synchronized(timeout=1)
     def executeSilent(self, command: str) -> None:
-        """Insert a command in the Console output and executes it.
+        """Insert a command in the Console output and executes it without affecting console input.
 
         :param command: Any valid python command
         :type command: str
