@@ -8369,6 +8369,11 @@ class PID(ChannelManager):
 
     channelType = PIDChannel
 
+    def setOn(self, on: bool | None = None) -> None:  # noqa: D102
+        super().setOn(on)
+        for channel in self.channels:
+            channel.stepPID()
+
     def afterFinalizeInit(self) -> None:  # noqa: D102
         super().afterFinalizeInit()
         self.connectAllSources(update=True)

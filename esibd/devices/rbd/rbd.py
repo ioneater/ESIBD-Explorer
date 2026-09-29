@@ -462,6 +462,21 @@ class RBDCurrentController(DeviceController):
                 self.print(f'Error: No handler for unit {unit} implemented!', flag=PRINT.ERROR)
                 return self.controllerParent.value  # keep last valid value
 
+    def runAcquisition(self) -> None:
+        """Run acquisition loop. Executed in acquisitionThread.
+
+        NOTE: No sleep needed, timing controlled by waiting during readNumbers.
+        Otherwise this should be identical to the parent function.
+        """
+        while self.acquiring:
+            with self.lock.acquire_timeout(1, timeoutMessage='Could not acquire lock to acquire data') as lock_acquired:
+                if lock_acquired:
+                    self.fakeNumbers() if getTestMode() else self.readNumbers()
+                    self.signalComm.updateValuesSignal.emit()
+            # release lock before waiting!
+            if getTestMode():
+                time.sleep(self.getDevice().interval / 1000)  # noqa: ERA001
+
     def closeCommunication(self) -> None:
         super().closeCommunication()
         if self.port:

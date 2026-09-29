@@ -36,6 +36,8 @@ Fixed
 - pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.
 - Fixed combobox validation. Out of range error message is only showed when actually out of range.
 - Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.
+- Fixed PID only triggered if controlled channel value changes first time. Now PID is triggered immediately after turning it on.
+- Fixed an issue with |rbd| :ref:`sec:rbd` where small part of readings were invalid.
 
 Developer Notes
 ~~~~~~~~~~~~~~~
