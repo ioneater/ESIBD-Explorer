@@ -8,7 +8,8 @@ Latest
 
 Added
 ~~~~~
-- Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are read if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
+- Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are red if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
+- Added Sequencer example plugin to demonstrate executing custom dynamic workflows as ana automated sequence of commands.
 
 Changed
 ~~~~~~~
@@ -34,7 +35,7 @@ Fixed
 - Added Chromium flags --no-sandbox --disable-gpu to address some crashes related to gpu rendering of QWebEngine.
 - Changed model used for Gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
 - pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.
-- Fixed combobox validation. Out of range error message is only showed when actually out of range.
+- Fixed combobox validation. Out of range error message is now only shown when input is actually out of range.
 - Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.
 - Fixed PID only triggered if controlled channel value changes first time. Now PID is triggered immediately after turning it on.
 - Fixed an issue with |rbd| :ref:`sec:rbd` where small part of readings were invalid.
