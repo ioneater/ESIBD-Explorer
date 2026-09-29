@@ -5756,7 +5756,7 @@ class Console(Plugin):
         self.inspectAction = self.addAction(toolTip='Inspect object currently in input.',
                                             icon=self.makeCoreIcon(f"zoom_to_rect_large{'_dark' if getDarkMode else ''}.png"),
                                             before=self.aboutAction, event=self.inspect)
-        self.closeAction = self.addAction(event=self.hide, toolTip='Hide.', icon=self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
+        self.closeAction = self.addAction(event=lambda: self.toggleVisible(visible=False), toolTip='Hide.', icon=self.makeCoreIcon('close_dark.png' if getDarkMode() else 'close_light.png'))
 
         statusBar = cast('IconStatusBar', self.pluginManager.mainWindow.statusBar())
         statusBar.iconWidget.clicked.connect(lambda: self.toggleVisible(visible=True))

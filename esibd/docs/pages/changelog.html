@@ -6,22 +6,22 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Changelog &mdash; ESIBD Explorer 1.0.0 documentation</title>
+  <title>Changelog &mdash; ESIBD Explorer 1.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-      <link rel="stylesheet" type="text/css" href="../_static/css\rtd_sphinx_search.min.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/css\rtd_sphinx_search.min.css?v=e72958e9" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/documentation_options.js?v=292eb321"></script>
       <script src="../_static/doctools.js?v=fd6eb6e6"></script>
       <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="../_static/copybutton.js?v=f281be69"></script>
-      <script src="../_static/js\rtd_search_config.js"></script>
-      <script src="../_static/js\rtd_sphinx_search.min.js"></script>
+      <script src="../_static/js\rtd_search_config.js?v=b0596c34"></script>
+      <script src="../_static/js\rtd_sphinx_search.min.js?v=5e065386"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -77,6 +77,7 @@
 <li class="toctree-l2"><a class="reference internal" href="users-guide.html#devices">Devices</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#device-settings">Device settings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#calculator-calculator"> Calculator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="users-guide.html#sequencer-sequencer"> Sequencer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#customdevice-custom-device"> Custom device</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#customdevice2-custom-device-2"> Custom device 2</a></li>
 <li class="toctree-l3"><a class="reference internal" href="users-guide.html#iseg-iseg"> ISEG</a></li>
@@ -250,6 +251,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.deleteChannel"><code class="docutils literal notranslate"><span class="pre">ChannelManager.deleteChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.duplicateChannel"><code class="docutils literal notranslate"><span class="pre">ChannelManager.duplicateChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.exportConfiguration"><code class="docutils literal notranslate"><span class="pre">ChannelManager.exportConfiguration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.exportConfigurationIfChanged"><code class="docutils literal notranslate"><span class="pre">ChannelManager.exportConfigurationIfChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.finalizeInit"><code class="docutils literal notranslate"><span class="pre">ChannelManager.finalizeInit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.getActiveChannels"><code class="docutils literal notranslate"><span class="pre">ChannelManager.getActiveChannels()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.ChannelManager.getActiveChannelsAndParameters"><code class="docutils literal notranslate"><span class="pre">ChannelManager.getActiveChannelsAndParameters()</span></code></a></li>
@@ -460,6 +462,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.name"><code class="docutils literal notranslate"><span class="pre">PID.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.pluginType"><code class="docutils literal notranslate"><span class="pre">PID.pluginType</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.reconnectSource"><code class="docutils literal notranslate"><span class="pre">PID.reconnectSource()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.setOn"><code class="docutils literal notranslate"><span class="pre">PID.setOn()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.updateTheme"><code class="docutils literal notranslate"><span class="pre">PID.updateTheme()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.useDisplays"><code class="docutils literal notranslate"><span class="pre">PID.useDisplays</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.plugins.PID.useMonitors"><code class="docutils literal notranslate"><span class="pre">PID.useMonitors</span></code></a></li>
@@ -493,6 +496,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.clearHistoryInternal"><code class="docutils literal notranslate"><span class="pre">Channel.clearHistoryInternal()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.clearPlotCurve"><code class="docutils literal notranslate"><span class="pre">Channel.clearPlotCurve()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.collapseChanged"><code class="docutils literal notranslate"><span class="pre">Channel.collapseChanged()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.controller"><code class="docutils literal notranslate"><span class="pre">Channel.controller</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.displayedParameters"><code class="docutils literal notranslate"><span class="pre">Channel.displayedParameters</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.enabledChanged"><code class="docutils literal notranslate"><span class="pre">Channel.enabledChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.equationChanged"><code class="docutils literal notranslate"><span class="pre">Channel.equationChanged()</span></code></a></li>
@@ -526,9 +530,11 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.scalingChanged"><code class="docutils literal notranslate"><span class="pre">Channel.scalingChanged()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.setDisplayedParameters"><code class="docutils literal notranslate"><span class="pre">Channel.setDisplayedParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.sizeHint"><code class="docutils literal notranslate"><span class="pre">Channel.sizeHint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.subtractBackgroundActive"><code class="docutils literal notranslate"><span class="pre">Channel.subtractBackgroundActive()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.tempParameters"><code class="docutils literal notranslate"><span class="pre">Channel.tempParameters()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.time"><code class="docutils literal notranslate"><span class="pre">Channel.time</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.toggleBackgroundVisible"><code class="docutils literal notranslate"><span class="pre">Channel.toggleBackgroundVisible()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.toggleExtraContextActions"><code class="docutils literal notranslate"><span class="pre">Channel.toggleExtraContextActions()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.tree"><code class="docutils literal notranslate"><span class="pre">Channel.tree</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.unit"><code class="docutils literal notranslate"><span class="pre">Channel.unit</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Channel.updateColor"><code class="docutils literal notranslate"><span class="pre">Channel.updateColor()</span></code></a></li>
@@ -560,6 +566,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.ControlCursor"><code class="docutils literal notranslate"><span class="pre">ControlCursor</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ControlCursor.getPosition"><code class="docutils literal notranslate"><span class="pre">ControlCursor.getPosition()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ControlCursor.ondrag"><code class="docutils literal notranslate"><span class="pre">ControlCursor.ondrag()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ControlCursor.onmove"><code class="docutils literal notranslate"><span class="pre">ControlCursor.onmove()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ControlCursor.setPosition"><code class="docutils literal notranslate"><span class="pre">ControlCursor.setPosition()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ControlCursor.updatePosition"><code class="docutils literal notranslate"><span class="pre">ControlCursor.updatePosition()</span></code></a></li>
 </ul>
@@ -777,6 +784,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.initContextMenu"><code class="docutils literal notranslate"><span class="pre">Parameter.initContextMenu()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.instantUpdate"><code class="docutils literal notranslate"><span class="pre">Parameter.instantUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.internal"><code class="docutils literal notranslate"><span class="pre">Parameter.internal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.isVisible"><code class="docutils literal notranslate"><span class="pre">Parameter.isVisible()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.itemWidget"><code class="docutils literal notranslate"><span class="pre">Parameter.itemWidget</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.items"><code class="docutils literal notranslate"><span class="pre">Parameter.items</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.legendName"><code class="docutils literal notranslate"><span class="pre">Parameter.legendName</span></code></a></li>
@@ -810,6 +818,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.validateComboInput"><code class="docutils literal notranslate"><span class="pre">Parameter.validateComboInput()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.value"><code class="docutils literal notranslate"><span class="pre">Parameter.value</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.values"><code class="docutils literal notranslate"><span class="pre">Parameter.values</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.visible"><code class="docutils literal notranslate"><span class="pre">Parameter.visible</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.Parameter.widget"><code class="docutils literal notranslate"><span class="pre">Parameter.widget</span></code></a></li>
 </ul>
 </li>
@@ -870,6 +879,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.color"><code class="docutils literal notranslate"><span class="pre">RelayChannel.color</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.enabled"><code class="docutils literal notranslate"><span class="pre">RelayChannel.enabled</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.getDevice"><code class="docutils literal notranslate"><span class="pre">RelayChannel.getDevice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.getDisplayUnit"><code class="docutils literal notranslate"><span class="pre">RelayChannel.getDisplayUnit()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.getQtLineStyle"><code class="docutils literal notranslate"><span class="pre">RelayChannel.getQtLineStyle()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.getRecordingData"><code class="docutils literal notranslate"><span class="pre">RelayChannel.getRecordingData()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.RelayChannel.getValues"><code class="docutils literal notranslate"><span class="pre">RelayChannel.getValues()</span></code></a></li>
@@ -901,6 +911,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.core.ScanChannel"><code class="docutils literal notranslate"><span class="pre">ScanChannel</span></code></a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ScanChannel.connectSource"><code class="docutils literal notranslate"><span class="pre">ScanChannel.connectSource()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ScanChannel.convertDataDisplay"><code class="docutils literal notranslate"><span class="pre">ScanChannel.convertDataDisplay()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ScanChannel.getDefaultChannel"><code class="docutils literal notranslate"><span class="pre">ScanChannel.getDefaultChannel()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ScanChannel.getDevice"><code class="docutils literal notranslate"><span class="pre">ScanChannel.getDevice()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../library.html#esibd.core.ScanChannel.initGUI"><code class="docutils literal notranslate"><span class="pre">ScanChannel.initGUI()</span></code></a></li>
@@ -1070,6 +1081,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeSettingWrapper"><code class="docutils literal notranslate"><span class="pre">makeSettingWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.makeWrapper"><code class="docutils literal notranslate"><span class="pre">makeWrapper()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.mix_hex_colors"><code class="docutils literal notranslate"><span class="pre">mix_hex_colors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.nanmean"><code class="docutils literal notranslate"><span class="pre">nanmean()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.openInDefaultApplication"><code class="docutils literal notranslate"><span class="pre">openInDefaultApplication()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.plotting"><code class="docutils literal notranslate"><span class="pre">plotting()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../library.html#esibd.const.pluginSupported"><code class="docutils literal notranslate"><span class="pre">pluginSupported()</span></code></a></li>
@@ -1086,88 +1098,95 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changelog</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#version-1-0-0-2026-04-20">Version 1.0.0 2026-04-20</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#latest">Latest</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#added">Added</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#changed">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#fixed">Fixed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#developer-notes">Developer Notes</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#version-0-8-2-2025-06-23">Version 0.8.2 2025-06-23</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#version-1-0-1-2026-04-20">Version 1.0.1 2026-04-20</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id1">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id2">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id3">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id4">Developer Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-8-2-2025-06-23">Version 0.8.2 2025-06-23</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id5">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id6">Fixed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#removed">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-8-1-2025-06-22">Version 0.8.1 2025-06-22</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id3">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id4">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id5">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id6">Removed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id7">Developer Notes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id7">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id8">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id9">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id10">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id11">Developer Notes</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#performance">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-7-3-2025-03-24">Version 0.7.3 2025-03-24</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id8">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id9">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id10">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id11">Performance</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#version-0-7-2-2025-03-02">Version 0.7.2 2025-03-02</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id12">Added</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id13">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id14">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id15">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id15">Performance</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#version-0-7-1-2025-02-08">Version 0.7.1 2025-02-08</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-7-2-2025-03-02">Version 0.7.2 2025-03-02</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id16">Added</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id17">Changed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id18">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id19">Removed</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-7-1-2025-02-08">Version 0.7.1 2025-02-08</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id20">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id21">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id22">Fixed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-7-0-2025-01-19">Version 0.7.0 2025-01-19</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id19">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id20">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#deprecated">Deprecated</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id21">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id22">Performance</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#version-0-6-18-2024-06-10">Version 0.6.18 2024-06-10</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id23">Added</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id24">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#deprecated">Deprecated</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id25">Fixed</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id26">Performance</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#version-0-6-17-2024-03-18">Version 0.6.17 2024-03-18</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-6-18-2024-06-10">Version 0.6.18 2024-06-10</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#id27">Added</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#id28">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id29">Removed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id29">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id30">Performance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-6-17-2024-03-18">Version 0.6.17 2024-03-18</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id31">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id32">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id33">Removed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-6-16-2023-12-17">Version 0.6.16 2023-12-17</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id30">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id31">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id32">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id33">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id34">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id35">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id36">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id37">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-6-14-2023-11-07">Version 0.6.14 2023-11-07</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-6">Version 0.6</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id34">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id35">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id38">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id39">Changed</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-5">Version 0.5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-4">Version 0.4</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id36">Added</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id37">Changed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id38">Fixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#id39">Performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id40">Added</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id41">Changed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id42">Fixed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id43">Performance</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-1-2022-03-08">Version 0.1 2022-03-08</a></li>
@@ -1213,20 +1232,69 @@
 <style> .darkorange {color:#ed7d31} </style>
 <style> .purple {color:#b381d9} </style><section id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Link to this heading"></a></h1>
-<section id="version-1-0-0-2026-04-20">
-<h2>Version 1.0.0 2026-04-20<a class="headerlink" href="#version-1-0-0-2026-04-20" title="Link to this heading"></a></h2>
+<section id="latest">
+<h2>Latest<a class="headerlink" href="#latest" title="Link to this heading"></a></h2>
 <section id="added">
 <h3>Added<a class="headerlink" href="#added" title="Link to this heading"></a></h3>
 <ul class="simple">
+<li><p>Reading out and recording currents for <a class="reference internal" href="../_images/ISEG.png"><img alt="iseg" src="../_images/ISEG.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-iseg"><span class="std std-ref"> ISEG</span></a>. Monitors are red if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.</p></li>
+<li><p>Added <a class="reference internal" href="../_images/sequencer.png"><img alt="sequencer" src="../_images/sequencer.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-sequencer"><span class="std std-ref"> Sequencer</span></a> example plugin to demonstrate executing custom dynamic workflows as ana automated sequence of commands.</p></li>
+</ul>
+</section>
+<section id="changed">
+<h3>Changed<a class="headerlink" href="#changed" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Enabled showing the complete log in the <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a> by clicking on the status bar icon.</p></li>
+<li><p>Sending parameters, channels, or settings to <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a> will open the Console if it is not already open.</p></li>
+<li><p>Hovering over the plugin version in the <a class="reference internal" href="../_images/block--pencil.png"><img alt="pluginDialog" src="../_images/block--pencil.png" style="height: 2ex;" /></a> plugin dialog will show the source code path.</p></li>
+<li><p>Increased upper limit for displayed history</p></li>
+<li><p>Added COM port info to <a class="reference internal" href="../_images/spa.png"><img alt="spa" src="../_images/spa.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-spa"><span class="std std-ref"> SPA</span></a> messages.</p></li>
+<li><p>Added debug message in case a channel equation evaluates to a result that is outside of the allowed range for that channel.</p></li>
+<li><p>In addition to data, now also the configuration is saved regularly.
+Note that it is not saved immediately to prevent frequent file operations and noise in case file versioning is used.
+Configurations can always be restored from the latest saved file (e.g. any Scan).</p></li>
+<li><p>Implemented error messages for pressure sensors in <a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="omnicontrol" src="../_images/pfeiffer_omni.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-omnicontrol"><span class="std std-ref"> OMNICONTROL</span></a>.</p></li>
+<li><p>Fixed re-initialization error when updating scan channels while scan is running. Using displayUnits in scans.</p></li>
+</ul>
+</section>
+<section id="fixed">
+<h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.</p></li>
+<li><p>Fixed unit display for <a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="omnicontrol" src="../_images/pfeiffer_omni.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-omnicontrol"><span class="std std-ref"> OMNICONTROL</span></a>.</p></li>
+<li><p>Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.</p></li>
+<li><p>Fixed <a class="reference internal" href="../_images/GA_light.png"><img alt="ga" src="../_images/GA_light.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-genetic-algorithm"><span class="std std-ref"> Genetic algorithm (GA)</span></a> fitness feedback and plot.</p></li>
+<li><p>Restoring y scale after copying to clipboard for all widgets in liveDisplays.</p></li>
+<li><p>Added Chromium flags –no-sandbox –disable-gpu to address some crashes related to gpu rendering of QWebEngine.</p></li>
+<li><p>Changed model used for Gaussian fit in <a class="reference internal" href="../_images/energy.png"><img alt="energy" src="../_images/energy.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-energy"><span class="std std-ref"> Energy scan</span></a> to get more accurate result.</p></li>
+<li><p>pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.</p></li>
+<li><p>Fixed combobox validation. Out of range error message is now only shown when input is actually out of range.</p></li>
+<li><p>Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.</p></li>
+<li><p>Fixed PID only triggered if controlled channel value changes first time. Now PID is triggered immediately after turning it on.</p></li>
+<li><p>Fixed an issue with <a class="reference internal" href="../_images/RBD.png"><img alt="rbd" src="../_images/RBD.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-rbd"><span class="std std-ref"> RBD</span></a> where small part of readings were invalid.</p></li>
+<li><p>Fixed hiding <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a> with X button.</p></li>
+</ul>
+</section>
+<section id="developer-notes">
+<h3>Developer Notes<a class="headerlink" href="#developer-notes" title="Link to this heading"></a></h3>
+</section>
+</section>
+<section id="version-1-0-1-2026-04-20">
+<h2>Version 1.0.1 2026-04-20<a class="headerlink" href="#version-1-0-1-2026-04-20" title="Link to this heading"></a></h2>
+<section id="id1">
+<h3>Added<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<ul class="simple">
 <li><p>There is now a search field in <a class="reference internal" href="../_images/gear.png"><img alt="settings" src="../_images/gear.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-settings"><span class="std std-ref"> Settings</span></a>.</p></li>
 <li><p>Added a new minimal <a class="reference internal" href="../_images/webcam.png"><img alt="webcam" src="../_images/webcam.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-webcam"><span class="std std-ref"> Webcam</span></a> plugin.</p></li>
-<li><p>Plugins in the <a class="reference internal" href="../_images/block--pencil.png"><img alt="pluginDialog" src="../_images/block--pencil.png" style="height: 2ex;" /></a> plugin dialog are now sorted by name and enabled state and user can change sorting.</p></li>
-<li><p>Added wake mode in <a class="reference internal" href="../_images/toolbox.png"><img alt="advanced" src="../_images/toolbox.png" style="height: 2ex;" /></a> advanced mode of <a class="reference internal" href="../_images/gear.png"><img alt="settings" src="../_images/gear.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-settings"><span class="std std-ref"> Settings</span></a> to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.</p></li>
+<li><p>Plugins in the <a class="reference internal" href="../_images/block--pencil.png"><img alt="pluginDialog" src="../_images/block--pencil.png" style="height: 2ex;" /></a> plugin dialog are now sorted by name and enabled state and the user can change sorting.</p></li>
+<li><p>Added wake mode in <a class="reference internal" href="../_images/toolbox.png"><img alt="advanced" src="../_images/toolbox.png" style="height: 2ex;" /></a> advanced mode of <a class="reference internal" href="../_images/gear.png"><img alt="settings" src="../_images/gear.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-settings"><span class="std std-ref"> Settings</span></a> to prevent screen lock and sleep.
+In some situations screen lock can not be disabled.
+In some situations screen lock and sleep could limit file access and cause program instability.</p></li>
 <li><p><a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="omnicontrol" src="../_images/pfeiffer_omni.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-omnicontrol"><span class="std std-ref"> OMNICONTROL</span></a> plugin overhaul: Can now also control Pfeiffer turbo pumps.</p></li>
 <li><p>In Test Mode there are now warning labels to make sure users are aware of simulated data.</p></li>
 <li><p>The plugin source code file path is now shown in the plugin about dialog.</p></li>
 <li><p>Introduced option to record additional parameters just like values or backgrounds.
-Set recorded=True in for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
+Set recorded=True in parameter definition in getDefaultSettings for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
 The recorded values for these parameters will be saved and restored.
 In the <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>, these and any other parameters can be linked directly by using ChannelName.ParameterName.
 Note that linking parameters can used in the same way for Scans.
@@ -1238,8 +1306,8 @@ See <a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="
 <li><p>Added Min Max limits for the Setpoint in <a class="reference internal" href="../_images/PID.png"><img alt="pid" src="../_images/PID.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-pid"><span class="std std-ref"> PID</span></a>.</p></li>
 </ul>
 </section>
-<section id="changed">
-<h3>Changed<a class="headerlink" href="#changed" title="Link to this heading"></a></h3>
+<section id="id2">
+<h3>Changed<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Defined scaling of channels more gradually.</p></li>
 <li><p>Preview of hdf5 files in the <a class="reference internal" href="../_images/tree.png"><img alt="tree" src="../_images/tree.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-tree"><span class="std std-ref"> Tree</span></a> plugin now also previews the content of datasets as a tooltip.</p></li>
@@ -1249,7 +1317,7 @@ See <a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="
 <li><p><a class="reference internal" href="../_images/RBD.png"><img alt="rbd" src="../_images/RBD.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-rbd"><span class="std std-ref"> RBD</span></a> now uses np.nan instead of 0 if there was an error parsing the current.</p></li>
 <li><p>Made dashes shorter so they are easier to find in pyqtgraph legend.</p></li>
 <li><p>Allowed use of % as unit.</p></li>
-<li><p>Sending Settings, Channels, and Parameters to the console is now always enabled and not just in Debug Mode.</p></li>
+<li><p>Sending Settings, Channels, and Parameters to the <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a> is now always enabled and not just in Debug Mode.</p></li>
 <li><p>Prevented dragging cursors in scans while scan is running.</p></li>
 <li><p><a class="reference internal" href="../_images/RSPD3303C.png"><img alt="rspd3303c" src="../_images/RSPD3303C.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-rspd3303c"><span class="std std-ref"> RSPD3303C</span></a>: Improved shutdown timer messages.</p></li>
 <li><p>Made “Error reset time”, “ Max lag tolerance”, and “Lag wait time” accessible in the General section of <a class="reference internal" href="../_images/gear.png"><img alt="settings" src="../_images/gear.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-settings"><span class="std std-ref"> Settings</span></a> in <a class="reference internal" href="../_images/toolbox.png"><img alt="advanced" src="../_images/toolbox.png" style="height: 2ex;" /></a> advanced mode. See tooltips for documentation.</p></li>
@@ -1263,8 +1331,8 @@ Make sure all channels have unique names!</p></li>
 Note that in the list of channels the original unit will always be used consistently.</p></li>
 </ul>
 </section>
-<section id="fixed">
-<h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading"></a></h3>
+<section id="id3">
+<h3>Fixed<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Made sure that liveDisplays are updated after dragging even if devices are not recording.</p></li>
 <li><p>Ensured devices like <a class="reference internal" href="../_images/keithley.png"><img alt="keithley" src="../_images/keithley.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-keithley"><span class="std std-ref"> KEITHLEY</span></a> where each channel has a controller turn on properly if started from on button without initializing communication first.</p></li>
@@ -1280,8 +1348,8 @@ Note that in the list of channels the original unit will always be used consiste
 <li><p>Preventing empty channel names and names with spaces at the start or end.</p></li>
 </ul>
 </section>
-<section id="developer-notes">
-<h3>Developer Notes<a class="headerlink" href="#developer-notes" title="Link to this heading"></a></h3>
+<section id="id4">
+<h3>Developer Notes<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added closing flag for DeviceController to prevent recursion if lock can not be acquired while closing communication.</p></li>
 <li><p><a class="reference internal" href="../_images/pfeiffer_omni.png"><img alt="omnicontrol" src="../_images/pfeiffer_omni.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-omnicontrol"><span class="std std-ref"> OMNICONTROL</span></a>: Removed dependence on pfeiffer-vacuum-protocol package.</p></li>
@@ -1296,16 +1364,16 @@ Note that in the list of channels the original unit will always be used consiste
 </section>
 <section id="version-0-8-2-2025-06-23">
 <h2>Version 0.8.2 2025-06-23<a class="headerlink" href="#version-0-8-2-2025-06-23" title="Link to this heading"></a></h2>
-<section id="id1">
-<h3>Added<a class="headerlink" href="#id1" title="Link to this heading"></a></h3>
+<section id="id5">
+<h3>Added<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added highlighting to easier see which devices are turned on.</p></li>
 <li><p><a class="reference internal" href="../_images/LS335.png"><img alt="ls335" src="../_images/LS335.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ls335"><span class="std std-ref"> LS335</span></a> is only showing PID controls for active channels. If the channel is only used for reading a temperature PID controls can be ignored.</p></li>
 <li><p>CustomPlugin now demonstrates how to interact with and even extend other plugins including internal plugins.</p></li>
 </ul>
 </section>
-<section id="id2">
-<h3>Fixed<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<section id="id6">
+<h3>Fixed<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="../_images/PID.png"><img alt="pid" src="../_images/PID.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-pid"><span class="std std-ref"> PID</span></a> reacts instantly when setpoint changed.</p></li>
 <li><p>Fixed some settings that were not set correctly on new PCs.</p></li>
@@ -1323,8 +1391,8 @@ Note that in the list of channels the original unit will always be used consiste
 </section>
 <section id="version-0-8-1-2025-06-22">
 <h2>Version 0.8.1 2025-06-22<a class="headerlink" href="#version-0-8-1-2025-06-22" title="Link to this heading"></a></h2>
-<section id="id3">
-<h3>Added<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<section id="id7">
+<h3>Added<a class="headerlink" href="#id7" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>The <a class="reference internal" href="../_images/tree.png"><img alt="tree" src="../_images/tree.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-tree"><span class="std std-ref"> Tree</span></a> plugin can now filter content based on a search field.</p></li>
 <li><p>In Debug mode, items from the <a class="reference internal" href="../_images/tree.png"><img alt="tree" src="../_images/tree.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-tree"><span class="std std-ref"> Tree</span></a> can be added to the <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a>.</p></li>
@@ -1343,8 +1411,8 @@ Note that in the list of channels the original unit will always be used consiste
 <li><p>In Debug mode, plugins will be added to <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a> when accessing the about dialog.</p></li>
 </ul>
 </section>
-<section id="id4">
-<h3>Changed<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<section id="id8">
+<h3>Changed<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added confirmation prompt before deleting all device history.</p></li>
 <li><p>Added some pauses during testing if GUI gets too busy.</p></li>
@@ -1357,8 +1425,8 @@ Note that in the list of channels the original unit will always be used consiste
 <li><p>Changed smoothing algorithm to preserve sections with less datapoint than smoothing window.</p></li>
 </ul>
 </section>
-<section id="id5">
-<h3>Fixed<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<section id="id9">
+<h3>Fixed<a class="headerlink" href="#id9" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Fixed error when canceling loading a file from DeviceManager.</p></li>
 <li><p>Changing channel limits will now also update referencing channels (e.g. in <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a> or <a class="reference internal" href="../_images/PID.png"><img alt="pid" src="../_images/PID.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-pid"><span class="std std-ref"> PID</span></a>).</p></li>
@@ -1377,14 +1445,14 @@ Note that in the list of channels the original unit will always be used consiste
 <li><p>Splash screen is only on top of ESIBD Explorer but not on top of all other applications.</p></li>
 </ul>
 </section>
-<section id="id6">
-<h3>Removed<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
+<section id="id10">
+<h3>Removed<a class="headerlink" href="#id10" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Removed option to turn of logging.</p></li>
 </ul>
 </section>
-<section id="id7">
-<h3>Developer Notes<a class="headerlink" href="#id7" title="Link to this heading"></a></h3>
+<section id="id11">
+<h3>Developer Notes<a class="headerlink" href="#id11" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Simplified plugins by introducing default implementations of DeviceController.values, DeviceController.applyValue, DeviceController.updateValues,
 DeviceController.initComplete, DeviceController.toggleOn, Channel.applyValue, Device.closeCommunication, and Device.setOn.
@@ -1435,8 +1503,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 </section>
 <section id="version-0-7-3-2025-03-24">
 <h2>Version 0.7.3 2025-03-24<a class="headerlink" href="#version-0-7-3-2025-03-24" title="Link to this heading"></a></h2>
-<section id="id8">
-<h3>Added<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
+<section id="id12">
+<h3>Added<a class="headerlink" href="#id12" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added icon legend in about dialogs <a class="reference internal" href="../_images/help_large.png"><img alt="help" src="../_images/help_large.png" style="height: 2ex;" /></a>.</p></li>
 <li><p>Added <a class="reference internal" href="../_images/calculator.png"><img alt="calculator" src="../_images/calculator.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-calculator"><span class="std std-ref"> Calculator</span></a> plugin as an example of embedding external GUI applications as plugins.</p></li>
@@ -1445,8 +1513,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Added option to filter warning and error messages in the <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a>.</p></li>
 </ul>
 </section>
-<section id="id9">
-<h3>Changed<a class="headerlink" href="#id9" title="Link to this heading"></a></h3>
+<section id="id13">
+<h3>Changed<a class="headerlink" href="#id13" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Improved the definition of the channel properties active and real in the documentation.</p></li>
 <li><p>Treating file types not case sensitive.</p></li>
@@ -1458,8 +1526,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Scans will warn and not start if scan limits exceed limits of scan channels.</p></li>
 </ul>
 </section>
-<section id="id10">
-<h3>Fixed<a class="headerlink" href="#id10" title="Link to this heading"></a></h3>
+<section id="id14">
+<h3>Fixed<a class="headerlink" href="#id14" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Fixed assignment of values to virtual channels in test mode for several internal plugins.</p></li>
 <li><p>Improved colors of displays when copied to clipboard or saved as pdf.</p></li>
@@ -1467,8 +1535,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Restoring backgrounds after moving channels.</p></li>
 </ul>
 </section>
-<section id="id11">
-<h3>Performance<a class="headerlink" href="#id11" title="Link to this heading"></a></h3>
+<section id="id15">
+<h3>Performance<a class="headerlink" href="#id15" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Tolerating more device interval deviation and skipping plotting and data recording if needed to make application more responsive and stable when using close to maximum resources.</p></li>
 </ul>
@@ -1476,8 +1544,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 </section>
 <section id="version-0-7-2-2025-03-02">
 <h2>Version 0.7.2 2025-03-02<a class="headerlink" href="#version-0-7-2-2025-03-02" title="Link to this heading"></a></h2>
-<section id="id12">
-<h3>Added<a class="headerlink" href="#id12" title="Link to this heading"></a></h3>
+<section id="id16">
+<h3>Added<a class="headerlink" href="#id16" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added update information on starting screen.</p></li>
 <li><p>Added option to show an overview of all icons (enter Tree.iconOverview() in <a class="reference internal" href="../_images/terminal.png"><img alt="console" src="../_images/terminal.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-console"><span class="std std-ref"> Console</span></a>).</p></li>
@@ -1491,16 +1559,16 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Added simple video example to the documentation.</p></li>
 </ul>
 </section>
-<section id="id13">
-<h3>Changed<a class="headerlink" href="#id13" title="Link to this heading"></a></h3>
+<section id="id17">
+<h3>Changed<a class="headerlink" href="#id17" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Using plugin names more consistently in tooltips.</p></li>
 <li><p>Using explicit tooltips for linked channels in <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>, <a class="reference internal" href="../_images/PID.png"><img alt="pid" src="../_images/PID.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-pid"><span class="std std-ref"> PID</span></a>, and scans.</p></li>
 <li><p>Reintroduced start recording and subtractBackground actions for live displays (linked to corresponding action in parent Plugin).</p></li>
 </ul>
 </section>
-<section id="id14">
-<h3>Fixed<a class="headerlink" href="#id14" title="Link to this heading"></a></h3>
+<section id="id18">
+<h3>Fixed<a class="headerlink" href="#id18" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Fixed scaling when copy image to clipboard in live displays.</p></li>
 <li><p>Updating linked channels when renaming source channels.</p></li>
@@ -1508,8 +1576,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Fixed help dialog for displays.</p></li>
 </ul>
 </section>
-<section id="id15">
-<h3>Removed<a class="headerlink" href="#id15" title="Link to this heading"></a></h3>
+<section id="id19">
+<h3>Removed<a class="headerlink" href="#id19" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Removed display time control for device manager (use <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a> to see multiple channels with consistent time).</p></li>
 </ul>
@@ -1517,8 +1585,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 </section>
 <section id="version-0-7-1-2025-02-08">
 <h2>Version 0.7.1 2025-02-08<a class="headerlink" href="#version-0-7-1-2025-02-08" title="Link to this heading"></a></h2>
-<section id="id16">
-<h3>Added<a class="headerlink" href="#id16" title="Link to this heading"></a></h3>
+<section id="id20">
+<h3>Added<a class="headerlink" href="#id20" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added new icons for <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>, Line <a class="reference internal" href="../_images/line.png"><img alt="line" src="../_images/line.png" style="height: 2ex;" /></a>, and <a class="reference internal" href="../_images/DeviceManager.png"><img alt="deviceManager" src="../_images/DeviceManager.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-devicemanager"><span class="std std-ref"> Device manager</span></a>.</p></li>
 <li><p>Added change log to readthedocs.</p></li>
@@ -1530,8 +1598,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p>Added program info to plugins.ini</p></li>
 </ul>
 </section>
-<section id="id17">
-<h3>Changed<a class="headerlink" href="#id17" title="Link to this heading"></a></h3>
+<section id="id21">
+<h3>Changed<a class="headerlink" href="#id21" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Removed checkbox for non optional plugins in <a class="reference internal" href="../_images/block--pencil.png"><img alt="pluginDialog" src="../_images/block--pencil.png" style="height: 2ex;" /></a> plugin dialog.</p></li>
 <li><p>Prevent DeviceManager from moving or floating.</p></li>
@@ -1547,8 +1615,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <li><p><a class="reference internal" href="../_images/depo.png"><img alt="depo" src="../_images/depo.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-depo"><span class="std std-ref"> Depo scan</span></a> is using color of selected current channel.</p></li>
 </ul>
 </section>
-<section id="id18">
-<h3>Fixed<a class="headerlink" href="#id18" title="Link to this heading"></a></h3>
+<section id="id22">
+<h3>Fixed<a class="headerlink" href="#id22" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Reconnecting source channels after loading device configuration.</p></li>
 <li><p>Fixed error caused by missing console history file.</p></li>
@@ -1568,8 +1636,8 @@ e.g.: from esibd.scans import Omni, from esibd.devices import ISEG, from esibd.d
 <p>This version brings multiple improvements to the user interface and messages.
 The main new features include the Universal Channel Manager (<a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>), <a class="reference internal" href="../_images/PID.png"><img alt="pid" src="../_images/PID.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-pid"><span class="std std-ref"> PID</span></a> Plugin, and a channel interface for scans.
 The data and config file formats remain unchanged. The plugin file format is significantly simplified but requires adjustments (see below) to use old plugins with the current version!</p>
-<section id="id19">
-<h3>Added<a class="headerlink" href="#id19" title="Link to this heading"></a></h3>
+<section id="id23">
+<h3>Added<a class="headerlink" href="#id23" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Universal Channel Manager (<a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>) plugin: This plugin allows to reference arbitrary channels from other devices to create a central list of the most important information.
 All referenced channels can be controlled from here. The corresponding display allows to see recorded data from multiple devices in one central location.
@@ -1588,8 +1656,8 @@ For most users this should result in improved performance and less complexity as
 <li><p>Plugin Manager now shows the supported version of plugins and highlights if they are compatible with the current program or not.</p></li>
 </ul>
 </section>
-<section id="id20">
-<h3>Changed<a class="headerlink" href="#id20" title="Link to this heading"></a></h3>
+<section id="id24">
+<h3>Changed<a class="headerlink" href="#id24" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Plugin format: Much of the functionally has been moved to the base class allowing developers to use standard functionality by using a flag (useMonitors, useDisplays, useBackgrounds, useOnOffLogic)
 instead of implementing it in the specific plugin file. Some functions have been renamed to be more descriptive and consistent.
@@ -1610,15 +1678,15 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <li><p>Splitting Pressure plugin into dedicated TIC and MAXIGAUGE plugins. If necessary channels can be combined using <a class="reference internal" href="../_images/UCM.png"><img alt="ucm" src="../_images/UCM.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-ucm"><span class="std std-ref"> UCM</span></a>. Pressure plugin is now deprecated and will be removed in the future.</p></li>
 </ul>
 </section>
-<section id="id21">
-<h3>Fixed<a class="headerlink" href="#id21" title="Link to this heading"></a></h3>
+<section id="id25">
+<h3>Fixed<a class="headerlink" href="#id25" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Replaced deprecated <code class="code docutils literal notranslate"><span class="pre">numpy.bool8</span></code> with <code class="code docutils literal notranslate"><span class="pre">numpy.bool_</span></code></p></li>
 <li><p>Various minor bug fixes</p></li>
 </ul>
 </section>
-<section id="id22">
-<h3>Performance<a class="headerlink" href="#id22" title="Link to this heading"></a></h3>
+<section id="id26">
+<h3>Performance<a class="headerlink" href="#id26" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Various performance improvements</p></li>
 <li><p>Improved speed and stability of tests. Time is logged during testing if in debug mode.</p></li>
@@ -1627,8 +1695,8 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 </section>
 <section id="version-0-6-18-2024-06-10">
 <h2>Version 0.6.18 2024-06-10<a class="headerlink" href="#version-0-6-18-2024-06-10" title="Link to this heading"></a></h2>
-<section id="id23">
-<h3>Added<a class="headerlink" href="#id23" title="Link to this heading"></a></h3>
+<section id="id27">
+<h3>Added<a class="headerlink" href="#id27" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Tree.inspect now shows values if applicable</p></li>
 <li><p>Console restores history of used commands after restart</p></li>
@@ -1641,8 +1709,8 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <li><p>Added PluginManager.testing flag to avoid interaction of parallel testing thread with UI dialog boxes leading to rare crash during testing</p></li>
 </ul>
 </section>
-<section id="id24">
-<h3>Changed<a class="headerlink" href="#id24" title="Link to this heading"></a></h3>
+<section id="id28">
+<h3>Changed<a class="headerlink" href="#id28" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Communication has to be stopped before channels can be moved (increase stability)</p></li>
 <li><p>Default ini files are scanned for changes when closing and only overwritten if necessary</p></li>
@@ -1651,14 +1719,14 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <li><p>Virtual channels do not need to be active to be included in scans</p></li>
 </ul>
 </section>
-<section id="id25">
-<h3>Fixed<a class="headerlink" href="#id25" title="Link to this heading"></a></h3>
+<section id="id29">
+<h3>Fixed<a class="headerlink" href="#id29" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Update to pyqtgraph==0.13.7 after replacing deprecated api</p></li>
 </ul>
 </section>
-<section id="id26">
-<h3>Performance<a class="headerlink" href="#id26" title="Link to this heading"></a></h3>
+<section id="id30">
+<h3>Performance<a class="headerlink" href="#id30" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Plotting performance improved by reusing figures (figure recreation still needed if theme is changing)</p></li>
 </ul>
@@ -1666,15 +1734,15 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 </section>
 <section id="version-0-6-17-2024-03-18">
 <h2>Version 0.6.17 2024-03-18<a class="headerlink" href="#version-0-6-17-2024-03-18" title="Link to this heading"></a></h2>
-<section id="id27">
-<h3>Added<a class="headerlink" href="#id27" title="Link to this heading"></a></h3>
+<section id="id31">
+<h3>Added<a class="headerlink" href="#id31" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added popup to show errors while importing plugins (before the Console plugin is ready to display those errors.)</p></li>
 <li><p>Added Smooth parameter to all channels to reduce noise using running average.</p></li>
 </ul>
 </section>
-<section id="id28">
-<h3>Changed<a class="headerlink" href="#id28" title="Link to this heading"></a></h3>
+<section id="id32">
+<h3>Changed<a class="headerlink" href="#id32" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Live displays are visible by default</p></li>
 <li><p>Test mode active by default</p></li>
@@ -1683,8 +1751,8 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <li><p>Pressure plugin: init TIC and TPG decoupled so you can use it with only one of them or both.</p></li>
 </ul>
 </section>
-<section id="id29">
-<h3>Removed<a class="headerlink" href="#id29" title="Link to this heading"></a></h3>
+<section id="id33">
+<h3>Removed<a class="headerlink" href="#id33" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Removed explicit save of settings on program termination (settings are saved in real time)</p></li>
 </ul>
@@ -1693,8 +1761,8 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <section id="version-0-6-16-2023-12-17">
 <h2>Version 0.6.16 2023-12-17<a class="headerlink" href="#version-0-6-16-2023-12-17" title="Link to this heading"></a></h2>
 <p>First stable release on pipy</p>
-<section id="id30">
-<h3>Added<a class="headerlink" href="#id30" title="Link to this heading"></a></h3>
+<section id="id34">
+<h3>Added<a class="headerlink" href="#id34" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>the deposition plugin now shows a checklist for validation before it starts recording</p></li>
 <li><p>added option to use dark or light theme when copying graphs to clipboard</p></li>
@@ -1705,23 +1773,23 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <li><p>added option to reset local settings using python -m esibd.reset</p></li>
 </ul>
 </section>
-<section id="id31">
-<h3>Changed<a class="headerlink" href="#id31" title="Link to this heading"></a></h3>
+<section id="id35">
+<h3>Changed<a class="headerlink" href="#id35" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>channels can now only be enabled and disabled in advanced mode</p></li>
 <li><p>live displays are now visible by default after initial installation</p></li>
 </ul>
 </section>
-<section id="id32">
-<h3>Fixed<a class="headerlink" href="#id32" title="Link to this heading"></a></h3>
+<section id="id36">
+<h3>Fixed<a class="headerlink" href="#id36" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>acquisition is no longer stopped when loading scan or device settings</p></li>
 <li><p>added input validation of session path</p></li>
 <li><p>fixed issue with autoscaling in static displays</p></li>
 </ul>
 </section>
-<section id="id33">
-<h3>Performance<a class="headerlink" href="#id33" title="Link to this heading"></a></h3>
+<section id="id37">
+<h3>Performance<a class="headerlink" href="#id37" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>increased speed of TIC pressure communication by using correct EOL character</p></li>
 </ul>
@@ -1735,14 +1803,14 @@ Documentation in <a class="reference internal" href="../_images/cookie1.png"><im
 <h2>Version 0.6<a class="headerlink" href="#version-0-6" title="Link to this heading"></a></h2>
 <p>This is the first public version. All changes relative to this version will be documented in future releases.
 Note, the file formats have not been altered or altered in a backwards compatible way that automatically adds default values for parameters that do not exist in old files.</p>
-<section id="id34">
-<h3>Added<a class="headerlink" href="#id34" title="Link to this heading"></a></h3>
+<section id="id38">
+<h3>Added<a class="headerlink" href="#id38" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>standalone installer available for windows</p></li>
 </ul>
 </section>
-<section id="id35">
-<h3>Changed<a class="headerlink" href="#id35" title="Link to this heading"></a></h3>
+<section id="id39">
+<h3>Changed<a class="headerlink" href="#id39" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>internal plugins are kept in the program folder and may be affected by updates.
 Users can specify a plugin path and add custom plugins, but are responsible to maintain them.</p></li>
@@ -1764,8 +1832,8 @@ Updated versions will be generated on the first start after the update. You can 
 In the future, file format changes during updates will be automated.
 In this release, the definition of lens and name in the current tab were changed to name and deviceName to increase consistency.
 Please adjust your settings accordingly after the first start.</p>
-<section id="id36">
-<h3>Added<a class="headerlink" href="#id36" title="Link to this heading"></a></h3>
+<section id="id40">
+<h3>Added<a class="headerlink" href="#id40" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Added “Depo” tab to display and document deposition.</p></li>
 <li><p>Added “Move to Recycle Bin” feature to explorer items.</p></li>
@@ -1781,8 +1849,8 @@ In addition, the voltage button moved here to indicate the voltage status at all
 <li><p>All device settings are saved together with the measurement data in a single .h5 file. Values can be loaded by right clicking the file or importing from the corresponding device tab.</p></li>
 </ul>
 </section>
-<section id="id37">
-<h3>Changed<a class="headerlink" href="#id37" title="Link to this heading"></a></h3>
+<section id="id41">
+<h3>Changed<a class="headerlink" href="#id41" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Result of mass analysis is shown in plot.</p></li>
 <li><p>The initial signal is used instead of 0 to initialize <a class="reference internal" href="../_images/beam.png"><img alt="beam" src="../_images/beam.png" style="height: 2ex;" /></a> <a class="reference internal" href="users-guide.html#sec-beam"><span class="std std-ref"> Beam scan</span></a>, making to displayed color range more useful.</p></li>
@@ -1793,8 +1861,8 @@ In addition, the voltage button moved here to indicate the voltage status at all
 <li><p>The performance and error messages of the equation evaluation routine have been improved. Standard math functions can be used and there are no special requirements for spaces or brackets.</p></li>
 </ul>
 </section>
-<section id="id38">
-<h3>Fixed<a class="headerlink" href="#id38" title="Link to this heading"></a></h3>
+<section id="id42">
+<h3>Fixed<a class="headerlink" href="#id42" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Combo boxes can no longer change accidentally by mouse wheel scrolling.</p></li>
 <li><p>Fixed live update of min max limits for voltage channels.</p></li>
@@ -1807,8 +1875,8 @@ In addition, the voltage button moved here to indicate the voltage status at all
 <li><p>Mass spec data display interpolates data before down sampling for more accurate display.</p></li>
 </ul>
 </section>
-<section id="id39">
-<h3>Performance<a class="headerlink" href="#id39" title="Link to this heading"></a></h3>
+<section id="id43">
+<h3>Performance<a class="headerlink" href="#id43" title="Link to this heading"></a></h3>
 <ul class="simple">
 <li><p>Explorer will only index files as the tree is expanded.</p></li>
 <li><p>If possible, scan plots only update data to improve performance.</p></li>
@@ -1832,7 +1900,7 @@ In addition, the voltage button moved here to indicate the voltage status at all
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Tim Esser.</p>
+    <p>&#169; Copyright 2026, Tim Esser.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

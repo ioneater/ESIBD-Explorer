@@ -9,7 +9,7 @@ Latest
 Added
 ~~~~~
 - Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are red if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
-- Added Sequencer example plugin to demonstrate executing custom dynamic workflows as ana automated sequence of commands.
+- Added |sequencer| :ref:`sec:sequencer` example plugin to demonstrate executing custom dynamic workflows as ana automated sequence of commands.
 
 Changed
 ~~~~~~~
@@ -39,6 +39,7 @@ Fixed
 - Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.
 - Fixed PID only triggered if controlled channel value changes first time. Now PID is triggered immediately after turning it on.
 - Fixed an issue with |rbd| :ref:`sec:rbd` where small part of readings were invalid.
+- Fixed hiding |console| :ref:`sec:console` with X button.
 
 Developer Notes
 ~~~~~~~~~~~~~~~

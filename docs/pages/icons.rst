@@ -106,3 +106,5 @@
    :height: 2ex
 .. |calculator| image:: ../../esibd/examples/calculator/calculator.png
    :height: 2ex
+.. |sequencer| image:: ../../esibd/examples/sequencer/sequencer.png
+   :height: 2ex

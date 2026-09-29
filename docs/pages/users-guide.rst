@@ -179,6 +179,13 @@ Other
 .. automodule:: esibd.examples.calculator.calculator_plugin.Calculator
    :noindex:
 
+.. _`sec:sequencer`:
+
+|sequencer| Sequencer
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: esibd.examples.sequencer.sequencer.Sequencer
+   :noindex:
+
 .. _`sec:customDevice`:
 
 |customDevice| Custom device

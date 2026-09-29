@@ -9,7 +9,7 @@ def providePlugins() -> 'list[type[Plugin]]':
 
 
 class Calculator(Plugin):
-    """Demonstrate how to integrate an external PyQt6 program as a plugin and interact with other plugins."""
+    """Demonstrate how to integrate an external, standalone PyQt6 program as a plugin and interact with other plugins."""
 
     name = 'Calculator'
     version = '1.0'

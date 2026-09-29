@@ -3,20 +3,63 @@
 Changelog
 ---------
 
-Version 1.0.0 2026-04-20
+Latest
+======
+
+Added
+~~~~~
+- Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are red if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.
+- Added |sequencer| :ref:`sec:sequencer` example plugin to demonstrate executing custom dynamic workflows as ana automated sequence of commands.
+
+Changed
+~~~~~~~
+- Enabled showing the complete log in the |console| :ref:`sec:console` by clicking on the status bar icon.
+- Sending parameters, channels, or settings to |console| :ref:`sec:console` will open the Console if it is not already open.
+- Hovering over the plugin version in the |pluginDialog| plugin dialog will show the source code path.
+- Increased upper limit for displayed history
+- Added COM port info to |spa| :ref:`sec:spa` messages.
+- Added debug message in case a channel equation evaluates to a result that is outside of the allowed range for that channel.
+- In addition to data, now also the configuration is saved regularly.
+  Note that it is not saved immediately to prevent frequent file operations and noise in case file versioning is used.
+  Configurations can always be restored from the latest saved file (e.g. any Scan).
+- Implemented error messages for pressure sensors in |omnicontrol| :ref:`sec:omnicontrol`.
+- Fixed re-initialization error when updating scan channels while scan is running. Using displayUnits in scans.
+
+Fixed
+~~~~~
+- Using convertDataDisplay of source channel in PID to show consistent units when linked in UCM.
+- Fixed unit display for |omnicontrol| :ref:`sec:omnicontrol`.
+- Fixed decimal separator for numeric inputs to . so the behavior is consistent independent on local system locale definitions.
+- Fixed |ga| :ref:`sec:genetic_algorithm` fitness feedback and plot.
+- Restoring y scale after copying to clipboard for all widgets in liveDisplays.
+- Added Chromium flags --no-sandbox --disable-gpu to address some crashes related to gpu rendering of QWebEngine.
+- Changed model used for Gaussian fit in |energy| :ref:`sec:energy` to get more accurate result.
+- pyautogui prevents app start on some linux distributions without X authorization. Import has been moved so only users who are using the wake mode feature will need to provide X authorization.
+- Fixed combobox validation. Out of range error message is now only shown when input is actually out of range.
+- Using np.nanmean instead of np.nan to avoid loosing datapoints in scans where only some of the averaged readings were not defined.
+- Fixed PID only triggered if controlled channel value changes first time. Now PID is triggered immediately after turning it on.
+- Fixed an issue with |rbd| :ref:`sec:rbd` where small part of readings were invalid.
+- Fixed hiding |console| :ref:`sec:console` with X button.
+
+Developer Notes
+~~~~~~~~~~~~~~~
+
+Version 1.0.1 2026-04-20
 ========================
 
 Added
 ~~~~~
 - There is now a search field in |settings| :ref:`sec:settings`.
 - Added a new minimal |webcam| :ref:`sec:webcam` plugin.
-- Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and user can change sorting.
-- Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep. In some situations screen lock can not be disabled. In some situations screen lock and sleep could limit file access and cause program instability.
+- Plugins in the |pluginDialog| plugin dialog are now sorted by name and enabled state and the user can change sorting.
+- Added wake mode in |advanced| advanced mode of |settings| :ref:`sec:settings` to prevent screen lock and sleep.
+  In some situations screen lock can not be disabled.
+  In some situations screen lock and sleep could limit file access and cause program instability.
 - |omnicontrol| :ref:`sec:omnicontrol` plugin overhaul: Can now also control Pfeiffer turbo pumps.
 - In Test Mode there are now warning labels to make sure users are aware of simulated data.
 - The plugin source code file path is now shown in the plugin about dialog.
 - Introduced option to record additional parameters just like values or backgrounds.
-  Set recorded=True in for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
+  Set recorded=True in parameter definition in getDefaultSettings for parameters that should be recorded. If applicable, also set the parameter unit and logY mode here.
   The recorded values for these parameters will be saved and restored.
   In the |ucm| :ref:`sec:ucm`, these and any other parameters can be linked directly by using ChannelName.ParameterName.
   Note that linking parameters can used in the same way for Scans.
@@ -37,7 +80,7 @@ Changed
 - |rbd| :ref:`sec:rbd` now uses np.nan instead of 0 if there was an error parsing the current.
 - Made dashes shorter so they are easier to find in pyqtgraph legend.
 - Allowed use of % as unit.
-- Sending Settings, Channels, and Parameters to the console is now always enabled and not just in Debug Mode.
+- Sending Settings, Channels, and Parameters to the |console| :ref:`sec:console` is now always enabled and not just in Debug Mode.
 - Prevented dragging cursors in scans while scan is running.
 - |rspd3303c| :ref:`sec:rspd3303c`: Improved shutdown timer messages.
 - Made "Error reset time", " Max lag tolerance", and "Lag wait time" accessible in the General section of |settings| :ref:`sec:settings` in |advanced| advanced mode. See tooltips for documentation.
