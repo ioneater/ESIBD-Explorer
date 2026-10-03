@@ -6,6 +6,9 @@ Changelog
 Latest
 ======
 
+Version 1.0.2 2026-10-03
+========================
+
 Added
 ~~~~~
 - Reading out and recording currents for |iseg| :ref:`sec:iseg`. Monitors are red if current is above 10 uA which should not be needed for standard static ion optics and may indicate a short.

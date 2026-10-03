@@ -1,8 +1,9 @@
 REM Start script for windows
 REM based on https://www.pythonguis.com/tutorials/packaging-pyqt5-pyside2-applications-windows-pyinstaller/
 
-do not run this as a script
-run individual blocks manually and only proceed if successful
+echo do not run this as a script
+echo run individual blocks manually and only proceed if successful
+PAUSE
 exit
 
 ::::::::::::::
@@ -109,10 +110,10 @@ REM git config --global user.name "ioneater"  # setup user name
 REM git-init  # (re)initialize current folder as git repository
 REM git remote add origin https://github.com/ioneater/ESIBD-Explorer
 
-REM git add .
-REM git status
-REM git commit -a -m "message"
-REM git push origin main
+git add .
+git status
+git commit -a -m "message"
+git push origin main
 
 ::::::::
 REM PyPI
@@ -195,7 +196,7 @@ REM NOTE https://installforge.net/support1/docs/setting-up-visual-update-express
 REM added the following as custom shell comment to remove programfolde first to get clean installation every time: rmdir /s /q "<InstallPath>" -> deletes after and not before installation, apparently no solution?
 uninstall needed to get clean installation!
 
-rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.1.exe in pyinstaller_build
+rename ESIBD-Explorer-setup.exe to ESIBD-Explorer-setup_v1.0.2.exe in pyinstaller_build
 
 Test installation from exe before continuing
 
@@ -204,12 +205,12 @@ REM git release
 ::::::::::::::::
 
 REM create tag used for releasing exe later
-git commit -a -m "Prepare realeasing version v1.0.1"
+git commit -a -m "Prepare realeasing version v1.0.2"
 git push origin main
 test successful build of docs -> only then continue with tags
 
-git commit -a -m "Realeasing version v1.0.1"
-git tag -a v1.0.1 -m "Realeasing version v1.0.1"
+git commit -a -m "Realeasing version v1.0.2"
+git tag -a v1.0.2 -m "Realeasing version v1.0.2"
 git push origin main --tags REM to include tags (otherwise tags are ignored)
 REM Note that only increments in the first three digits (major.minor.patch) are considered stable releases
 
@@ -217,9 +218,9 @@ check read the docs build on https://app.readthedocs.org/projects/esibd-explorer
 
 create release on github with changelog based on commits and following sections (have to be signed in!)
 select tag
-Title: Version v1.0.1
+Title: Version v1.0.2
 Copy change log from changelog.rst (remove inline icons if applicable)
-attach ESIBD-Explorer-setup_v1.0.1.exe from pyinstaller_build to release
+attach ESIBD-Explorer-setup_v1.0.2.exe from pyinstaller_build to release
 attach esibd.tar.gz to release (do not rename or the final folder will have a different name as well)
 Source code (zip) and Source code (tar.gz) will be automatically attached, even though they are not visible before clicking on Publish release
 

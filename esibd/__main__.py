@@ -32,7 +32,10 @@ def main() -> bool:
     """Configure graphics, check for other running instances, and execute the app."""
     app = Application(sys.argv)
     app.setStyle('Fusion')
-    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1 --no-sandbox --disable-gpu'
+    # os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--enable-logging --log-level=1 --no-sandbox --disable-gpu'
+    # --enable-logging --log-level=1 was orignially used to suppress internal log messages.
+    # However if started without console (e.g. from .exe or pythonw.exe) this causes a separate QtWebEngineProcess.exe window to appear.
+    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--no-sandbox --disable-gpu'
     appStr = f'{PROGRAM_NAME}'  # same string across versions!
     if sys.platform == 'win32':
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appStr)

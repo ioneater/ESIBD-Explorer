@@ -20,7 +20,7 @@ sphinx = True  # used for conditional doc strings (direct HTML vs. rst)
 project = 'ESIBD Explorer'
 project_copyright = '2026, Tim Esser'
 author = 'Tim Esser'
-release = '1.0.1'
+release = '1.0.2'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
