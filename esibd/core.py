@@ -5599,8 +5599,9 @@ class PlotItem(pg.PlotItem): # pyright: ignore[reportGeneralTypeIssues]
                 try:
                     if self.ctrl.logYCheck.isChecked():
                         self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {10**pos.y():.2e}")
-                    else:
-                        self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {pos.y():.2f}")
+                    else:  # .2f alone would show small values, such as currents in pA, as 0.00
+                        y = f'{pos.y():.2e}' if 0 < abs(pos.y()) < .01 else f'{pos.y():.2f}'  # noqa: PLR2004
+                        self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {y}")
                     self.xyLabel.setPos(viewBox.geometry().width() - self.xyLabel.boundingRect().width() - 4, 2)
                 except (OSError, ValueError, OverflowError):
                     pass  # ignore errors that occur before time axis is initialized
