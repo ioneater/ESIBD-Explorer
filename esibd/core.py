@@ -334,7 +334,7 @@ class PluginManager:
 
         self.confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
-            self.confParser.read(self.pluginFile)
+            self.confParser.read(self.pluginFile, encoding=UTF8)
         self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.provide_plugins  # pylint: disable = import-outside-toplevel  # avoid circular import  # noqa: PLC0415
@@ -644,7 +644,7 @@ class PluginManager:
         lay.addWidget(buttonBox)
         confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
-            confParser.read(self.pluginFile)
+            confParser.read(self.pluginFile, encoding=UTF8)
         confParser[INFO] = infoDict('PluginManager')
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
