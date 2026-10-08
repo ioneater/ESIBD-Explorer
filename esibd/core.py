@@ -3290,7 +3290,7 @@ class Channel(QTreeWidgetItem):
                 self.getParameterByName(name).value = default[self.VALUE]
                 if isinstance(self.channelParent, self.pluginManager.ChannelManager) and name not in self.tempParameters() and default[Parameter.RESTORE] and not len(item) < 2:  # noqa: PLR2004
                     # len(item) < 2 -> only provided name -> generating default file
-                    self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
+                    self.print(f'Added missing parameter {name} to channel {item.get(self.NAME, "<unnamed>")} using default value {default[self.VALUE]}.')
                     self.channelParent.channelsChanged = True
         if name_parameter.parameterType == PARAMETERTYPE.TEXT:
             name_parameter.line.allowEmptyText = False  # names cannot be empty
