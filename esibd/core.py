@@ -7,6 +7,7 @@ For now, English is the only supported language and use of hard coded error mess
 
 import configparser
 import contextlib
+import json
 import os
 import re
 import sys
@@ -372,6 +373,7 @@ class PluginManager:
         self.finalizing = True
         self.finalizeInit()
         self.afterFinalizeInit()
+        self.restoreDockTabOrder()
         self.toggleVideoRecorder()
         self.mainWindow.setUpdatesEnabled(True)
         self.finalizing = False
@@ -765,6 +767,7 @@ class PluginManager:
         self.logger.print('Closing Plugins.', flag=PRINT.EXPLORER)
         qSet.sync()
         self.loading = True  # skip UI updates
+        self.saveDockTabOrder()
         self.mainWindow.saveUiState()
         self.closing = True
         self.mainWindow.setUpdatesEnabled(False)  # do not update window but also do not become unresponsive
@@ -871,6 +874,40 @@ class PluginManager:
             for plugin in self.plugins:
                 if plugin.initializedDock:
                     plugin.toggleTitleBar()
+
+    def dockTabBars(self) -> 'list[QTabBar]':
+        """Return the tab bars of tabbed docks."""
+        return [tabBar for tabBar in self.mainWindow.findChildren(QTabBar, options=Qt.FindChildOption.FindDirectChildrenOnly)
+                if not tabBar.isHidden() and tabBar.count() > 1]
+
+    def saveDockTabOrder(self) -> None:
+        """Remember the order of tabbed docks, so that a manual order survives a restart."""
+        groups = [[tabBar.tabText(i) for i in range(tabBar.count())] for tabBar in self.dockTabBars()]
+        if groups:
+            qSet.setValue(DOCKTABORDER, json.dumps(groups))
+
+    def restoreDockTabOrder(self) -> None:
+        """Restore the order of tabbed docks saved by :meth:`~esibd.core.PluginManager.saveDockTabOrder`.
+
+        Docks added since then go last. Tabs are moved one position at a time, like a mouse drag:
+        moving a tab over several positions at once can leave the docks in a different order.
+        """
+        try:
+            groups = json.loads(qSet.value(DOCKTABORDER, '[]'))
+        except (TypeError, ValueError):
+            return
+        if not isinstance(groups, list) or not all(isinstance(group, list) for group in groups):
+            return
+        for tabBar in self.dockTabBars():
+            titles = [tabBar.tabText(i) for i in range(tabBar.count())]
+            saved = max(groups, key=lambda group: len(set(group) & set(titles)), default=[])
+            order = [title for title in saved if title in titles]
+            order += [title for title in titles if title not in order]
+            for target, title in enumerate(order):
+                index = [tabBar.tabText(i) for i in range(tabBar.count())].index(title)
+                while index > target:
+                    tabBar.moveTab(index, index - 1)
+                    index -= 1
 
     def updateTheme(self) -> None:
         """Update application theme while showing a splash screen if necessary."""
