@@ -2696,7 +2696,7 @@ class ChannelManager(Plugin):
             if file.suffix == FILE_INI:
                 if file.exists():  # create default if not exist
                     confParser = configparser.ConfigParser()
-                    confParser.read(file)
+                    confParser.read(file, encoding=UTF8)
                     if len(confParser.items()) < 3:  # minimum: DEFAULT, Info, and one Channel  # noqa: PLR2004
                         self.print(f'File {file} does not contain valid channels. Repair the file manually or delete it, '
                                                     ' to trigger generation of a valid default channel on next start.', flag=PRINT.WARNING)
@@ -2779,7 +2779,7 @@ class ChannelManager(Plugin):
             self.changeLog = [f'Change log for loading values for {self.name} from {file.name}:']
             if file.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
-                confParser.read(file)
+                confParser.read(file, encoding=UTF8)
                 for name, item in confParser.items():
                     if name not in {Parameter.DEFAULT.upper(), VERSION, INFO}:
                         self.updateChannelValue(cast('str', item.get(Parameter.NAME)), float(item.get(Parameter.VALUE, '0')))
@@ -2888,7 +2888,7 @@ class ChannelManager(Plugin):
             file = self.customConfigFile(self.confINI)
         if file and file.exists():
             confParser = configparser.ConfigParser()
-            confParser.read(file)
+            confParser.read(file, encoding=UTF8)
             if len(confParser.items()) > 2:  # minimum: DEFAULT, Info, and one Channel  # noqa: PLR2004
                 items = [item for name, item in confParser.items() if name not in {Parameter.DEFAULT.upper(), VERSION, INFO}]
                 changed = self.compareItemsConfig(items, ignoreIndicators=True)[1]  # type: ignore # pylint: disable = unused-variable  # noqa: PGH003
@@ -6062,7 +6062,7 @@ class SettingsManager(Plugin):
             if file.exists():
                 confParser = configparser.ConfigParser()
                 try:
-                    confParser.read(file)
+                    confParser.read(file, encoding=UTF8)
                     useFile = True
                 except KeyError:
                     pass
@@ -6219,7 +6219,7 @@ class SettingsManager(Plugin):
             # load and update content. Keep settings of currently used plugins untouched as they may be needed when these plugins are enabled in the future
             config = configparser.ConfigParser()
             if file.exists():
-                config.read(file)
+                config.read(file, encoding=UTF8)
             config[INFO] = infoDict(self.name)
             for name, defaultSetting in self.defaultSettings.items():
                 if name not in {Parameter.DEFAULT.upper(), VERSION} and not self.settings[name].internal:
@@ -7370,7 +7370,7 @@ class Explorer(Plugin):
             elif self.activeFileFullPath.suffix == FILE_INI:
                 confParser = configparser.ConfigParser()
                 try:
-                    confParser.read(self.activeFileFullPath)
+                    confParser.read(self.activeFileFullPath, encoding=UTF8)
                     fileType = confParser[INFO][Parameter.NAME]
                 except KeyError:
                     self.print(f'Could not identify file type of {self.activeFileFullPath.name}', flag=PRINT.ERROR)

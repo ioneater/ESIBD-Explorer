@@ -334,7 +334,7 @@ class PluginManager:
 
         self.confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
-            self.confParser.read(self.pluginFile)
+            self.confParser.read(self.pluginFile, encoding=UTF8)
         self.confParser[INFO] = infoDict('PluginManager')
 
         import esibd.provide_plugins  # pylint: disable = import-outside-toplevel  # avoid circular import  # noqa: PLC0415
@@ -644,7 +644,7 @@ class PluginManager:
         lay.addWidget(buttonBox)
         confParser = configparser.ConfigParser()
         if self.pluginFile.exists():
-            confParser.read(self.pluginFile)
+            confParser.read(self.pluginFile, encoding=UTF8)
         confParser[INFO] = infoDict('PluginManager')
         for name, item in confParser.items():
             if name != Parameter.DEFAULT.upper() and name != INFO:
@@ -3290,7 +3290,7 @@ class Channel(QTreeWidgetItem):
                 self.getParameterByName(name).value = default[self.VALUE]
                 if isinstance(self.channelParent, self.pluginManager.ChannelManager) and name not in self.tempParameters() and default[Parameter.RESTORE] and not len(item) < 2:  # noqa: PLR2004
                     # len(item) < 2 -> only provided name -> generating default file
-                    self.print(f'Added missing parameter {name} to channel {item[self.NAME]} using default value {default[self.VALUE]}.')
+                    self.print(f'Added missing parameter {name} to channel {item.get(self.NAME, "<unnamed>")} using default value {default[self.VALUE]}.')
                     self.channelParent.channelsChanged = True
         if name_parameter.parameterType == PARAMETERTYPE.TEXT:
             name_parameter.line.allowEmptyText = False  # names cannot be empty
@@ -5599,8 +5599,9 @@ class PlotItem(pg.PlotItem): # pyright: ignore[reportGeneralTypeIssues]
                 try:
                     if self.ctrl.logYCheck.isChecked():
                         self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {10**pos.y():.2e}")
-                    else:
-                        self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {pos.y():.2f}")
+                    else:  # .2f alone would show small values, such as currents in pA, as 0.00
+                        y = f'{pos.y():.2e}' if 0 < abs(pos.y()) < .01 else f'{pos.y():.2f}'  # noqa: PLR2004
+                        self.xyLabel.setText(f"t = {datetime.fromtimestamp(pos.x()).strftime('%Y-%m-%d %H:%M:%S')}, y = {y}")
                     self.xyLabel.setPos(viewBox.geometry().width() - self.xyLabel.boundingRect().width() - 4, 2)
                 except (OSError, ValueError, OverflowError):
                     pass  # ignore errors that occur before time axis is initialized
