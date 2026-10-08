@@ -7011,7 +7011,7 @@ class DeviceManager(Plugin):
             if device.recording:  # will be exported when program closes even if not recording, this is just for the regular exports while the program is running
                 Thread(target=device.exportOutputData, kwargs={'useDefaultFile': True, 'useAllHistory': True}, name=f'{device.name} exportOutputDataThread').start()
         for channelManager in cast('list[ChannelManager]', self.getDevices(inout=INOUT.ALL)):
-            Thread(target=channelManager.exportConfigurationIfChanged, name=f'{channelManager.name} exportConfigurationIfChangedThread').start()
+            # main thread only: the comparison reads channel widgets and the export refreshes the Explorer tree
             channelManager.exportConfigurationIfChanged()
 
     def restoreOutputData(self) -> None:
