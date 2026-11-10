@@ -7284,7 +7284,7 @@ class Explorer(Plugin):
     def loadData(self, file: Path, showPlugin: bool = True) -> None:  # noqa: D102
         self.provideDock()
         target = Path()
-        if sys.platform == 'Linux':
+        if sys.platform.startswith('linux'):
             target = Path(os.path.realpath(str(file)))
         elif sys.platform == 'win32':
             shell = win32com.client.Dispatch('WScript.Shell')
