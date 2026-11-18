@@ -2622,7 +2622,8 @@ class ChannelManager(Plugin):
                             data = [str(value).replace('°', '') for value in data]  # remove characters that are incompatible with ascii
                             dtype = f'S{len(max([str(string) for string in data], key=len))}'  # use length of longest string as fixed length is required
                         group.create_dataset(name=parameter, data=np.asarray(data, dtype=dtype))  # do not save as attributes. very very memory intensive!
-        if not self.pluginManager.loading:
+        if not self.pluginManager.loading and current_thread() is main_thread():
+            # Not from the threads of the regular data export (storeOutputData): the tree is a Qt widget.
             self.pluginManager.Explorer.populateTree()
 
     def exportConfigurationIfChanged(self) -> None:
