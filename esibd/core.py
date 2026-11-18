@@ -1027,6 +1027,9 @@ class Logger(QObject):
         if not self.active:
             self.logFilePath = getValidConfigPath() / f'{PROGRAM_NAME.lower()}.log'
             self.terminalOut = sys.stdout
+            with contextlib.suppress(AttributeError, OSError, ValueError):  # None without a console, not a text stream, or closed
+                # A redirected stdout on Windows is cp1252: show the ⚠️ and ❌ of the messages as ? instead of dropping them.
+                self.terminalOut.reconfigure(errors='replace')
             self.terminalErr = sys.stderr
             sys.stderr = sys.stdout = self  # redirect all calls to stdout and stderr to the write function of our logger
             self.log = self.logFilePath.open('a', encoding='utf-8-sig')  # pylint: disable=consider-using-with  # keep file open instead of reopening for every new line
@@ -1119,7 +1122,10 @@ Generated files: {len(list(self.testLogFilePath.parent.glob('*')))}
         """
         with self.lock.acquire_timeout(1) as lock_acquired:
             if self.terminalOut:  # after packaging with pyinstaller the program will not be connected to a terminal
-                self.terminalOut.write(message)  # write to original stdout
+                # A terminal that cannot encode the message or is gone must not stop the log: each failure would be
+                # reported here, and fail in turn, up to a RecursionError.
+                with contextlib.suppress(OSError, ValueError):
+                    self.terminalOut.write(message)  # write to original stdout
             if lock_acquired:
                 self.log.write(message)  # write to log file
                 self.log.flush()
