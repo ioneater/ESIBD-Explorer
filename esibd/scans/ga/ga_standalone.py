@@ -142,7 +142,7 @@ class GA():
         else:
             restore_file=False
         if restore_file and self._restore:  # adopt parents from file and create children  #  always evaluate parents after restoring session since fitness function might have changed
-            self.current_generation= 1 + int(re.search('(\d+)', restore_file.readline()).group(1))  # additional information from first row
+            self.current_generation= 1 + int(re.search(r'(\d+)', restore_file.readline()).group(1))  # additional information from first row
             restore_file.readline()  #skip header
             for i in np.arange(self.num_elite):
                 # skip fitness as evaluated in last run -- reject since fitness function and many other things might have cchanged and a fresh evaluation is needed
