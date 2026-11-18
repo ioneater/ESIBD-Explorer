@@ -87,6 +87,16 @@ aeval = Interpreter()
 
 
 
+def _nearest_time_index(time_axis: 'np.typing.NDArray[np.float64]', t: float) -> int:
+    """Index of the time nearest to t in an increasing time axis: a binary search, not a scan of the history."""
+    i = int(np.searchsorted(time_axis, t))
+    if i <= 0 or time_axis.shape[0] == 0:
+        return 0
+    if i >= time_axis.shape[0]:
+        return time_axis.shape[0] - 1
+    return i if time_axis[i] - t < t - time_axis[i - 1] else i - 1
+
+
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
 
@@ -1970,12 +1980,12 @@ class LiveDisplay(Plugin):
                 viewBox = livePlotWidget0.getViewBox()
                 if (len(self.livePlotWidgets) > 0 and viewBox and viewBox.mouseEnabled()[0] and livePlotWidget0.getAxis('bottom').range[0] != 0):  # range determined by user
                     t_min, t_max = livePlotWidget0.getAxis('bottom').range  # is [0, 1] if nothing has been plotted before, use display time in this case
-                    i_min = int(np.argmin(np.abs(time_axis - t_min)))
-                    i_max = int(np.argmin(np.abs(time_axis - t_max)))
+                    i_min = _nearest_time_index(time_axis, t_min)
+                    i_max = _nearest_time_index(time_axis, t_max)
                     n = max(int((i_max - i_min) / self.pluginManager.DeviceManager.max_display_size), 1) if self.pluginManager.DeviceManager.limit_display_size else 1
                     timeAxis = cast('np.typing.NDArray[np.float64]', device.time.get(index_min=i_min, index_max=i_max, n=n))
                 elif device.time.size > 0:  # displayTime determines range
-                    i_min = int(np.argmin(np.abs(time_axis - (time.time() - self.getDisplayTime() * 60))) if self.getDisplayTime() != -1 else 0)
+                    i_min = int(_nearest_time_index(time_axis, time.time() - self.getDisplayTime() * 60) if self.getDisplayTime() != -1 else 0)
                     i_max = None
                     t_length = time_axis.shape[0] - i_min  # number of indices within displaytime before thinning
                     # determine by how much to limit number of displayed data points
