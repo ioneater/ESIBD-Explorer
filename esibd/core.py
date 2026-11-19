@@ -900,7 +900,8 @@ class PluginManager:
             return
         for tabBar in self.dockTabBars():
             titles = [tabBar.tabText(i) for i in range(tabBar.count())]
-            saved = max(groups, key=lambda group: len(set(group) & set(titles)), default=[])
+            # A live display has the title of its device: on equal overlap, prefer the group with the fewest other titles.
+            saved = max(groups, key=lambda group: (len(set(group) & set(titles)), -len(set(group) ^ set(titles))), default=[])
             order = [title for title in saved if title in titles]
             order += [title for title in titles if title not in order]
             for target, title in enumerate(order):
