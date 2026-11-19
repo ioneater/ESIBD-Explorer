@@ -846,10 +846,10 @@ class Plugin(QWidget):
         for action in self.titleBar.actions():
             if action.iconText():
                 if isinstance(action, (Action, StateAction, MultiStateAction)) and hasattr(action.getIcon(), 'fileName'):
-                    actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;'"
+                    actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve().as_uri()}' style='vertical-align: middle;'"
                     f" width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n")
                 elif hasattr(action, 'fileName'):
-                    actionsHTML += (f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;'"  # type: ignore  # noqa: PGH003
+                    actionsHTML += (f"<span><img src='{Path(action.fileName).resolve().as_uri()}' style='vertical-align: middle;'"  # type: ignore  # noqa: PGH003
                     f" width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n")
                 else:
                     self.print(f'QAction with iconText {action.iconText()} has no attribute fileName', flag=PRINT.WARNING)  # assign fileName if missing
@@ -5016,7 +5016,7 @@ class Browser(Plugin):
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, InvalidVersion):
             pass
         self.setHtml(title=f'About {PROGRAM_NAME}.', html=f"""
-        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
+        <h1><img src='{PROGRAM_ICON.resolve().as_uri()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title: str, html: str) -> None:
         """Display HTML content.
@@ -5072,7 +5072,7 @@ class Browser(Plugin):
         :return: HTML title line.
         :rtype: str
         """
-        return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve()}' width='22'> {plugin.name} {plugin.version}</h1>"
+        return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve().as_uri()}' width='22'> {plugin.name} {plugin.version}</h1>"
 
     def updateTheme(self) -> None:  # noqa: D102
         super().updateTheme()
