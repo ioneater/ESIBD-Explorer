@@ -170,7 +170,7 @@ class EsibdExplorer(QMainWindow):
         except TypeError as e:
             print(f'Could not restore window state: {e}')  # noqa: T201
             self.resize(800, 400)
-            self.saveUiState()
+            qSet.setValue(GEOMETRY, self.saveGeometry())  # not saveUiState: plugins are not loaded yet
 
     def saveUiState(self) -> None:
         """Save size and location of main window."""
