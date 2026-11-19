@@ -4904,6 +4904,9 @@ class Browser(Plugin):
         settings = self.webEngineView.settings()
         if settings:
             settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)  # noqa: FBT003
+            # QtWebEngine 6.140 (Qt 6.12) denies local pages their local files once remote URLs are allowed, unless
+            # asked: the images of the About and help pages were broken (6.6 allowed both).
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)  # noqa: FBT003
             settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)  # required to open local PDFs  # noqa: FBT003
 
         self.webEngineView.loadFinished.connect(self.adjustLocation)
