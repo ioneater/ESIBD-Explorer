@@ -87,6 +87,16 @@ aeval = Interpreter()
 
 
 
+def _nearest_time_index(time_axis: 'np.typing.NDArray[np.float64]', t: float) -> int:
+    """Index of the time nearest to t in an increasing time axis: a binary search, not a scan of the history."""
+    i = int(np.searchsorted(time_axis, t))
+    if i <= 0 or time_axis.shape[0] == 0:
+        return 0
+    if i >= time_axis.shape[0]:
+        return time_axis.shape[0] - 1
+    return i if time_axis[i] - t < t - time_axis[i - 1] else i - 1
+
+
 class Plugin(QWidget):
     """:class:`Plugins<esibd.plugins.Plugin>` abstract basic GUI code for devices, scans, and other high level UI elements.
 
@@ -836,10 +846,10 @@ class Plugin(QWidget):
         for action in self.titleBar.actions():
             if action.iconText():
                 if isinstance(action, (Action, StateAction, MultiStateAction)) and hasattr(action.getIcon(), 'fileName'):
-                    actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve()}' style='vertical-align: middle;'"
+                    actionsHTML += (f"<span><img src='{Path(action.getIcon().fileName).resolve().as_uri()}' style='vertical-align: middle;'"
                     f" width='16'/><span style='vertical-align: middle;'> {action.getToolTip()}</span></span><br>\n")
                 elif hasattr(action, 'fileName'):
-                    actionsHTML += (f"<span><img src='{Path(action.fileName).resolve()}' style='vertical-align: middle;'"  # type: ignore  # noqa: PGH003
+                    actionsHTML += (f"<span><img src='{Path(action.fileName).resolve().as_uri()}' style='vertical-align: middle;'"  # type: ignore  # noqa: PGH003
                     f" width='16'/><span style='vertical-align: middle;'> {action.toolTip()}</span></span><br>\n")
                 else:
                     self.print(f'QAction with iconText {action.iconText()} has no attribute fileName', flag=PRINT.WARNING)  # assign fileName if missing
@@ -1970,12 +1980,12 @@ class LiveDisplay(Plugin):
                 viewBox = livePlotWidget0.getViewBox()
                 if (len(self.livePlotWidgets) > 0 and viewBox and viewBox.mouseEnabled()[0] and livePlotWidget0.getAxis('bottom').range[0] != 0):  # range determined by user
                     t_min, t_max = livePlotWidget0.getAxis('bottom').range  # is [0, 1] if nothing has been plotted before, use display time in this case
-                    i_min = int(np.argmin(np.abs(time_axis - t_min)))
-                    i_max = int(np.argmin(np.abs(time_axis - t_max)))
+                    i_min = _nearest_time_index(time_axis, t_min)
+                    i_max = _nearest_time_index(time_axis, t_max)
                     n = max(int((i_max - i_min) / self.pluginManager.DeviceManager.max_display_size), 1) if self.pluginManager.DeviceManager.limit_display_size else 1
                     timeAxis = cast('np.typing.NDArray[np.float64]', device.time.get(index_min=i_min, index_max=i_max, n=n))
                 elif device.time.size > 0:  # displayTime determines range
-                    i_min = int(np.argmin(np.abs(time_axis - (time.time() - self.getDisplayTime() * 60))) if self.getDisplayTime() != -1 else 0)
+                    i_min = int(_nearest_time_index(time_axis, time.time() - self.getDisplayTime() * 60) if self.getDisplayTime() != -1 else 0)
                     i_max = None
                     t_length = time_axis.shape[0] - i_min  # number of indices within displaytime before thinning
                     # determine by how much to limit number of displayed data points
@@ -2622,13 +2632,15 @@ class ChannelManager(Plugin):
                             data = [str(value).replace('°', '') for value in data]  # remove characters that are incompatible with ascii
                             dtype = f'S{len(max([str(string) for string in data], key=len))}'  # use length of longest string as fixed length is required
                         group.create_dataset(name=parameter, data=np.asarray(data, dtype=dtype))  # do not save as attributes. very very memory intensive!
-        if not self.pluginManager.loading:
+        if not self.pluginManager.loading and current_thread() is main_thread():
+            # Not from the threads of the regular data export (storeOutputData): the tree is a Qt widget.
             self.pluginManager.Explorer.populateTree()
 
     def exportConfigurationIfChanged(self) -> None:
         """Export configuration to default file if it has changed."""
         if self.channelConfigChanged(useDefaultFile=True) or self.channelsChanged:
             self.exportConfiguration(useDefaultFile=True)
+            self.channelsChanged = False  # the added parameters are in the file now
 
     @synchronized()
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: C901, D102
@@ -4893,6 +4905,9 @@ class Browser(Plugin):
         settings = self.webEngineView.settings()
         if settings:
             settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)  # noqa: FBT003
+            # QtWebEngine 6.140 (Qt 6.12) denies local pages their local files once remote URLs are allowed, unless
+            # asked: the images of the About and help pages were broken (6.6 allowed both).
+            settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)  # noqa: FBT003
             settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)  # required to open local PDFs  # noqa: FBT003
 
         self.webEngineView.loadFinished.connect(self.adjustLocation)
@@ -5005,7 +5020,7 @@ class Browser(Plugin):
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout, InvalidVersion):
             pass
         self.setHtml(title=f'About {PROGRAM_NAME}.', html=f"""
-        <h1><img src='{PROGRAM_ICON.resolve()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
+        <h1><img src='{PROGRAM_ICON.resolve().as_uri()}' width='22'> {PROGRAM_NAME} {PROGRAM_VERSION} {updateHTML}</h1>{ABOUTHTML}""")
 
     def setHtml(self, title: str, html: str) -> None:
         """Display HTML content.
@@ -5061,7 +5076,7 @@ class Browser(Plugin):
         :return: HTML title line.
         :rtype: str
         """
-        return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve()}' width='22'> {plugin.name} {plugin.version}</h1>"
+        return f"<h1><img src='{Path(plugin.getIcon().fileName).resolve().as_uri()}' width='22'> {plugin.name} {plugin.version}</h1>"
 
     def updateTheme(self) -> None:  # noqa: D102
         super().updateTheme()
