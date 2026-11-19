@@ -5772,16 +5772,9 @@ class TimeoutLock:
                 if result and not already_acquired:
                     with contextlib.suppress(RuntimeError):
                         self._lock.release()
-                try:
-                    exceeded = (self.lockParent.errorCount == self.lockParent.maxErrorCount
-                                or self.lockParent.errorCount > 2 * self.lockParent.maxErrorCount)
-                except RuntimeError:
-                    # maxErrorCount is a Setting backed by a Qt spin widget; reading it
-                    # after that widget was deleted during GUI teardown raises
-                    # RuntimeError and would otherwise crash closeGUI. During teardown the
-                    # close-on-errors check is irrelevant, so treat it as not exceeded.
-                    exceeded = False
-                if exceeded and isinstance(self.lockParent, DeviceController):
+                # Check the type first: the maxErrorCount of a Device is a Setting, whose spin box may already be deleted on closing.
+                if isinstance(self.lockParent, DeviceController) and (self.lockParent.errorCount == self.lockParent.maxErrorCount
+                                                                       or self.lockParent.errorCount > 2 * self.lockParent.maxErrorCount):
                     # only call closeCommunication when equal to maxErrorCount, Otherwise errors during closeCommunication could cause recursion.
                     self.print(f'Closing communication of {self.lockParent.name} after more than {self.lockParent.errorCount} consecutive errors.', flag=PRINT.ERROR)  # {e}
                     if not self.lockParent.closing:  # avoid recursion if lock cannot be acquired while closing
