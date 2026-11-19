@@ -2640,6 +2640,7 @@ class ChannelManager(Plugin):
         """Export configuration to default file if it has changed."""
         if self.channelConfigChanged(useDefaultFile=True) or self.channelsChanged:
             self.exportConfiguration(useDefaultFile=True)
+            self.channelsChanged = False  # the added parameters are in the file now
 
     @synchronized()
     def toggleAdvanced(self, advanced: 'bool | None' = False) -> None:  # noqa: C901, D102
